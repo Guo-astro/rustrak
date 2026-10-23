@@ -35,6 +35,7 @@ impl EventService {
         order: SortOrder,
         cursor: Option<&EventCursor>,
         limit: i64,
+        environment: Option<&str>,
     ) -> AppResult<(Vec<EventSummary>, bool)> {
         // Fetch limit+1 to determine if there are more results
         let fetch_limit = limit + 1;
@@ -45,13 +46,14 @@ impl EventService {
                 sqlx::query_as::<_, EventSummary>(sqlx::AssertSqlSafe(&*format!(
                     r#"
                     SELECT {EVENT_LIST_COLUMNS} FROM events
-                    WHERE issue_id = $1
+                    WHERE issue_id = $1 AND ($3 IS NULL OR environment = $3)
                     ORDER BY timestamp DESC, id DESC
                     LIMIT $2
                     "#
                 )))
                 .bind(issue_id)
                 .bind(fetch_limit)
+                .bind(environment)
                 .fetch_all(pool)
                 .await?
             }
@@ -61,7 +63,7 @@ impl EventService {
                 sqlx::query_as::<_, EventSummary>(sqlx::AssertSqlSafe(&*format!(
                     r#"
                     SELECT {EVENT_LIST_COLUMNS} FROM events
-                    WHERE issue_id = $1 AND (timestamp, id) < ($3, $4)
+                    WHERE issue_id = $1 AND ($5 IS NULL OR environment = $5) AND (timestamp, id) < ($3, $4)
                     ORDER BY timestamp DESC, id DESC
                     LIMIT $2
                     "#
@@ -70,6 +72,7 @@ impl EventService {
                 .bind(fetch_limit)
                 .bind(c.last_timestamp)
                 .bind(c.last_id)
+                .bind(environment)
                 .fetch_all(pool)
                 .await?
             }
@@ -79,13 +82,14 @@ impl EventService {
                 sqlx::query_as::<_, EventSummary>(sqlx::AssertSqlSafe(&*format!(
                     r#"
                     SELECT {EVENT_LIST_COLUMNS} FROM events
-                    WHERE issue_id = $1
+                    WHERE issue_id = $1 AND ($3 IS NULL OR environment = $3)
                     ORDER BY timestamp ASC, id ASC
                     LIMIT $2
                     "#
                 )))
                 .bind(issue_id)
                 .bind(fetch_limit)
+                .bind(environment)
                 .fetch_all(pool)
                 .await?
             }
@@ -95,7 +99,7 @@ impl EventService {
                 sqlx::query_as::<_, EventSummary>(sqlx::AssertSqlSafe(&*format!(
                     r#"
                     SELECT {EVENT_LIST_COLUMNS} FROM events
-                    WHERE issue_id = $1 AND (timestamp, id) > ($3, $4)
+                    WHERE issue_id = $1 AND ($5 IS NULL OR environment = $5) AND (timestamp, id) > ($3, $4)
                     ORDER BY timestamp ASC, id ASC
                     LIMIT $2
                     "#
@@ -104,6 +108,7 @@ impl EventService {
                 .bind(fetch_limit)
                 .bind(c.last_timestamp)
                 .bind(c.last_id)
+                .bind(environment)
                 .fetch_all(pool)
                 .await?
             }

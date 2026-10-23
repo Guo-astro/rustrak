@@ -525,6 +525,7 @@ impl IssueService {
         page: i64,
         per_page: i64,
         search: Option<&str>,
+        environment: Option<&str>,
     ) -> AppResult<(Vec<Issue>, i64)> {
         if page < 1 {
             return Err(AppError::Validation(format!(
@@ -559,12 +560,14 @@ impl IssueService {
             offset,
             per_page,
             search,
+            environment,
         )
         .await
     }
 
-    /// One window of a project's issues: `filter`, `category` and `search` as
-    /// in [`Self::list_offset`], ordered by a trusted `order_clause`.
+    /// One window of a project's issues: `filter`, `category`, `search` and
+    /// `environment` as in [`Self::list_offset`], ordered by a trusted
+    /// `order_clause`.
     ///
     /// Returns (issues, total_count) where total_count is the total matching issues.
     #[allow(clippy::too_many_arguments)]
@@ -577,8 +580,28 @@ impl IssueService {
         offset: i64,
         per_page: i64,
         search: Option<&str>,
+        environment: Option<&str>,
     ) -> AppResult<(Vec<Issue>, i64)> {
         let status_clause = filter_clause(filter, category);
+        // Bound after `$1` (project_id), in order.
+        let mut binds: Vec<String> = Vec::new();
+
+        // In an environment, only the issues seen there, with that
+        // environment's first/last seen and count (Sentry's
+        // `GroupEnvironment` and `__seen_stats_impl`). The rows read as
+        // `issues`, so every clause below applies unchanged.
+        let source = match environment {
+            Some(env) => {
+                binds.push(env.to_string());
+                format!(
+                    "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
+                     JOIN issue_environments e ON e.issue_id = i.id \
+                     WHERE e.project_id = $1 AND e.environment = ${}) AS issues",
+                    binds.len() + 1
+                )
+            }
+            None => "issues".to_string(),
+        };
 
         // Normalize the search term into a case-insensitive LIKE pattern (works
         // on both Postgres and SQLite, unlike Postgres-only ILIKE). Literal
@@ -593,62 +616,58 @@ impl IssueService {
                 .replace('_', "\\_");
             format!("%{}%", escaped)
         });
+        let search_clause = match pattern {
+            Some(pattern) => {
+                binds.push(pattern);
+                let n = binds.len() + 1;
+                format!(
+                    r#"AND (
+                LOWER(calculated_type) LIKE ${n} ESCAPE '\'
+                OR LOWER(calculated_value) LIKE ${n} ESCAPE '\'
+                OR LOWER("transaction") LIKE ${n} ESCAPE '\'
+                OR LOWER(culprit) LIKE ${n} ESCAPE '\'
+                OR LOWER(last_frame_filename) LIKE ${n} ESCAPE '\'
+                OR LOWER(last_frame_module) LIKE ${n} ESCAPE '\'
+            )"#
+                )
+            }
+            None => String::new(),
+        };
+        let from = format!("FROM {source} WHERE {status_clause} {search_clause}");
 
-        if let Some(pattern) = pattern {
-            // $2 = search pattern, applied to both count and select.
-            let search_clause = r#"AND (
-                LOWER(calculated_type) LIKE $2 ESCAPE '\'
-                OR LOWER(calculated_value) LIKE $2 ESCAPE '\'
-                OR LOWER("transaction") LIKE $2 ESCAPE '\'
-                OR LOWER(culprit) LIKE $2 ESCAPE '\'
-                OR LOWER(last_frame_filename) LIKE $2 ESCAPE '\'
-                OR LOWER(last_frame_module) LIKE $2 ESCAPE '\'
-            )"#;
-            let count_query = format!(
-                "SELECT COUNT(*) FROM issues WHERE {} {}",
-                status_clause, search_clause
-            );
-            let total_count: (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(&*count_query))
-                .bind(project_id)
-                .bind(&pattern)
-                .fetch_one(pool)
-                .await?;
-
-            let select_query = format!(
-                "SELECT * FROM issues WHERE {} {} ORDER BY {} LIMIT $3 OFFSET $4",
-                status_clause, search_clause, order_clause
-            );
-            let issues = sqlx::query_as::<_, Issue>(sqlx::AssertSqlSafe(&*select_query))
-                .bind(project_id)
-                .bind(&pattern)
-                .bind(per_page)
-                .bind(offset)
-                .fetch_all(pool)
-                .await?;
-
-            return Ok((issues, total_count.0));
+        let count_query = format!("SELECT COUNT(*) {from}");
+        let mut count =
+            sqlx::query_as::<_, (i64,)>(sqlx::AssertSqlSafe(&*count_query)).bind(project_id);
+        for b in &binds {
+            count = count.bind(b);
         }
+        let total_count = count.fetch_one(pool).await?;
 
-        // Get total count
-        let count_query = format!("SELECT COUNT(*) FROM issues WHERE {}", status_clause);
-        let total_count: (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(&*count_query))
-            .bind(project_id)
-            .fetch_one(pool)
-            .await?;
-
-        // Get paginated results
         let select_query = format!(
-            "SELECT * FROM issues WHERE {} ORDER BY {} LIMIT $2 OFFSET $3",
-            status_clause, order_clause
+            "SELECT * {from} ORDER BY {order_clause} LIMIT ${} OFFSET ${}",
+            binds.len() + 2,
+            binds.len() + 3
         );
-        let issues = sqlx::query_as::<_, Issue>(sqlx::AssertSqlSafe(&*select_query))
-            .bind(project_id)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?;
+        let mut select =
+            sqlx::query_as::<_, Issue>(sqlx::AssertSqlSafe(&*select_query)).bind(project_id);
+        for b in &binds {
+            select = select.bind(b);
+        }
+        let issues = select.bind(per_page).bind(offset).fetch_all(pool).await?;
 
         Ok((issues, total_count.0))
+    }
+
+    /// The environments a project's issues have been seen in, by name.
+    pub async fn environments(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT DISTINCT environment FROM issue_environments \
+             WHERE project_id = $1 ORDER BY environment",
+        )
+        .bind(project_id)
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|(env,)| env).collect())
     }
 
     /// Gets an issue by ID
@@ -1290,6 +1309,7 @@ impl IssueService {
         issue_ids: &[Uuid],
         segments: i64,
         interval: i64,
+        environment: Option<&str>,
     ) -> AppResult<HashMap<Uuid, Vec<[i64; 2]>>> {
         let last = Utc::now().timestamp() / interval * interval;
         let first = last - (segments - 1) * interval;
@@ -1310,11 +1330,13 @@ impl IssueService {
         let rows: Vec<(Uuid, i64, i64)> = sqlx::query_as(
             "SELECT issue_id, FLOOR(EXTRACT(EPOCH FROM timestamp))::BIGINT / $3 * $3 AS bucket, \
              COUNT(*) FROM events WHERE issue_id = ANY($1) AND timestamp >= $2 \
+             AND ($4::TEXT IS NULL OR environment = $4) \
              GROUP BY issue_id, bucket",
         )
         .bind(issue_ids)
         .bind(first_dt)
         .bind(interval)
+        .bind(environment)
         .fetch_all(pool)
         .await?;
 
@@ -1333,7 +1355,12 @@ impl IssueService {
             }
             qb.push(") AND datetime(timestamp) >= datetime(");
             qb.push_bind(first_dt.naive_utc());
-            qb.push(") GROUP BY issue_id, bucket");
+            qb.push(")");
+            if let Some(env) = environment {
+                qb.push(" AND environment = ");
+                qb.push_bind(env);
+            }
+            qb.push(" GROUP BY issue_id, bucket");
             qb.build_query_as().fetch_all(pool).await?
         };
 
@@ -1396,6 +1423,7 @@ impl IssueService {
     pub async fn list_stats(
         pool: &DbPool,
         issue_ids: &[Uuid],
+        environment: Option<&str>,
     ) -> AppResult<HashMap<Uuid, IssueListStats>> {
         if issue_ids.is_empty() {
             return Ok(HashMap::new());
@@ -1416,10 +1444,12 @@ impl IssueService {
         #[cfg(feature = "postgres")]
         let rows: Vec<(Uuid, Option<serde_json::Value>, DateTime<Utc>)> = sqlx::query_as(
             "SELECT issue_id, data -> 'user', ingested_at FROM events \
-             WHERE issue_id = ANY($1) AND ingested_at >= $2",
+             WHERE issue_id = ANY($1) AND ingested_at >= $2 \
+             AND ($3::TEXT IS NULL OR environment = $3)",
         )
         .bind(issue_ids)
         .bind(start_dt)
+        .bind(environment)
         .fetch_all(pool)
         .await?;
 
@@ -1436,6 +1466,10 @@ impl IssueService {
             qb.push(") AND datetime(ingested_at) >= datetime(");
             qb.push_bind(start_dt.naive_utc());
             qb.push(")");
+            if let Some(env) = environment {
+                qb.push(" AND environment = ");
+                qb.push_bind(env);
+            }
             qb.build_query_as().fetch_all(pool).await?
         };
 
@@ -1600,6 +1634,15 @@ impl IssueService {
         Ok(())
     }
 }
+
+/// An issue's columns with first/last seen and count taken from its row in
+/// `issue_environments` (`e`) instead of its own (`i`).
+const ENV_SCOPED_COLUMNS: &str = "i.id, i.project_id, i.digest_order, i.numeric_id, \
+    e.first_seen, e.last_seen, e.event_count AS digested_event_count, i.stored_event_count, \
+    i.calculated_type, i.calculated_value, i.\"transaction\", i.last_frame_filename, \
+    i.last_frame_module, i.last_frame_function, i.level, i.platform, i.status, i.substatus, \
+    i.priority, i.priority_locked_at, i.culprit, i.logger, i.status_details, i.assigned_to, \
+    i.assignee_type, i.issue_type, i.issue_category, i.first_release, i.last_release";
 
 /// WHERE clause for an issue filter; `$1` is the project id.
 fn filter_clause(filter: IssueFilter, category: IssueCategory) -> String {

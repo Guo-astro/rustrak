@@ -339,22 +339,54 @@ pub struct IssueListQuery {
     pub cursor: Option<String>,
     /// `24h` (default), `14d`, or empty for no stats.
     pub stats_period: Option<String>,
+    /// Only issues seen in this environment, counted there.
+    pub environment: Option<String>,
 }
 
-/// Splits a search query into a status filter and free text. Only `is:`
-/// filters on a status are understood; every other token is free text,
-/// matched against the issue's title, culprit and location.
-fn parse_search(query: Option<&str>) -> AppResult<(IssueFilter, IssueCategory, Option<String>)> {
+/// What [`parse_search`] reads from a search query.
+struct Search {
+    filter: IssueFilter,
+    category: IssueCategory,
+    environment: Option<String>,
+    text: Option<String>,
+}
+
+/// Splits a search query into a status filter, an environment and free
+/// text. Only `is:` filters on a status and `environment:x` are understood;
+/// every other token is free text, matched against the issue's title,
+/// culprit and location.
+fn parse_search(query: Option<&str>) -> AppResult<Search> {
     // No `query` means `is:unresolved`; an empty one means every issue
     // (`index.py`, `DEFAULT_QUERY`).
     let Some(query) = query else {
-        return Ok((IssueFilter::Open, IssueCategory::Error, None));
+        return Ok(Search {
+            filter: IssueFilter::Open,
+            category: IssueCategory::Error,
+            environment: None,
+            text: None,
+        });
     };
+    let mut environment = None;
     let mut filter = IssueFilter::All;
     // Feedback is out of the default search unless asked for by category.
     let mut category = IssueCategory::Error;
     let mut text = Vec::new();
     for token in query.split_whitespace() {
+        if let Some(value) = token.strip_prefix("environment:") {
+            // One name; Sentry's negation and lists are not supported.
+            if value.is_empty() || value.starts_with('[') {
+                return Err(AppError::Validation(format!(
+                    "Error parsing search query: unsupported {token}"
+                )));
+            }
+            environment = Some(value.to_string());
+            continue;
+        }
+        if token.starts_with("!environment:") {
+            return Err(AppError::Validation(format!(
+                "Error parsing search query: unsupported {token}"
+            )));
+        }
         if let Some(value) = token.strip_prefix("issue.category:") {
             category = match value {
                 "error" => IssueCategory::Error,
@@ -379,11 +411,12 @@ fn parse_search(query: Option<&str>) -> AppResult<(IssueFilter, IssueCategory, O
             None => text.push(token),
         }
     }
-    Ok((
+    Ok(Search {
         filter,
         category,
-        Some(text.join(" ")).filter(|t| !t.is_empty()),
-    ))
+        environment,
+        text: Some(text.join(" ")).filter(|t| !t.is_empty()),
+    })
 }
 
 /// `ORDER BY` for Sentry's issue sorts (`search/snuba/executors.py`).
@@ -532,7 +565,7 @@ pub async fn list_issues(
     )
     .await?;
 
-    let (filter, category, text) = parse_search(query.query.as_deref())?;
+    let search = parse_search(query.query.as_deref())?;
     let order = order_clause(query.sort.as_deref())?;
     let limit = match query.limit.as_deref() {
         Some(raw) => raw
@@ -544,24 +577,38 @@ pub async fn list_issues(
     let page = Page::from_cursor(query.cursor.as_deref(), limit)?;
     let period = stats_period(query.stats_period.as_deref())?;
 
+    // `?environment=` and `environment:` both hold for the issue's events,
+    // and an event is in one environment.
+    let environment = match (query.environment.as_deref(), search.environment.as_deref()) {
+        (Some(param), Some(term)) if param != term => {
+            return Ok(HttpResponse::Ok()
+                .insert_header(("Link", link_header(&req, &config, &page, false)))
+                .json(Vec::<SentryIssue>::new()));
+        }
+        (param, term) => param.or(term),
+    };
+
     let (issues, total) = IssueService::list_window(
         pool.get_ref(),
         project.id,
         order,
-        filter,
-        category,
+        search.filter,
+        search.category,
         page.start,
         page.size,
-        text.as_deref(),
+        search.text.as_deref(),
+        environment,
     )
     .await?;
 
     let ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();
-    // Users seen in the last 24h, as Rustrak's own issue list counts them.
-    let list_stats = IssueService::list_stats(pool.get_ref(), &ids).await?;
+    // Users seen in the last 24h, as Rustrak's own issue list counts them;
+    // in an environment, its users and series (`group_stream.py:206-229`).
+    let list_stats = IssueService::list_stats(pool.get_ref(), &ids, environment).await?;
     let mut series = match period {
         Some((_, segments, interval)) => {
-            IssueService::event_series(pool.get_ref(), &ids, segments, interval).await?
+            IssueService::event_series(pool.get_ref(), &ids, segments, interval, environment)
+                .await?
         }
         None => HashMap::new(),
     };
@@ -616,13 +663,13 @@ async fn issue_details(
     project: &Project,
 ) -> AppResult<SentryIssueDetails> {
     let ids = [issue.id];
-    let users = IssueService::list_stats(pool, &ids)
+    let users = IssueService::list_stats(pool, &ids, None)
         .await?
         .remove(&issue.id)
         .map_or(0, |s| s.user_count);
     let mut item = SentryIssue::new(issue, project, users);
-    let hourly = IssueService::event_series(pool, &ids, 24, 3600).await?;
-    let daily = IssueService::event_series(pool, &ids, 30, 86_400).await?;
+    let hourly = IssueService::event_series(pool, &ids, 24, 3600, None).await?;
+    let daily = IssueService::event_series(pool, &ids, 30, 86_400, None).await?;
     item.stats = Some(HashMap::from([
         (
             "24h".to_string(),
@@ -930,7 +977,8 @@ pub async fn latest_event(
 ) -> AppResult<HttpResponse> {
     let (issue, project) = issue_for(pool.get_ref(), &actor, &path, Action::ViewProject).await?;
     let (latest, _) =
-        EventService::list_paginated(pool.get_ref(), issue.id, SortOrder::Desc, None, 1).await?;
+        EventService::list_paginated(pool.get_ref(), issue.id, SortOrder::Desc, None, 1, None)
+            .await?;
     let summary = latest
         .first()
         .ok_or_else(|| AppError::NotFound("No events found for group".to_string()))?;
@@ -1001,7 +1049,7 @@ pub async fn update_issue(
     .await?;
 
     let issue = IssueService::get_by_id(pool.get_ref(), issue.id).await?;
-    let users = IssueService::list_stats(pool.get_ref(), &[issue.id])
+    let users = IssueService::list_stats(pool.get_ref(), &[issue.id], None)
         .await?
         .remove(&issue.id)
         .map_or(0, |s| s.user_count);

@@ -156,6 +156,11 @@ pub struct ListIssuesQuery {
     /// Free-text search across type, value, transaction, and culprit.
     #[serde(default)]
     pub q: Option<String>,
+
+    /// Only issues seen in this environment, with that environment's first
+    /// and last seen, event count, users and trend.
+    #[serde(default)]
+    pub environment: Option<String>,
 }
 
 fn default_page() -> i64 {
@@ -400,6 +405,10 @@ pub struct ListEventsQuery {
 
     /// Pagination cursor
     pub cursor: Option<String>,
+
+    /// Only events in this environment.
+    #[serde(default)]
+    pub environment: Option<String>,
 }
 
 /// Query parameters for listing projects (offset-based)

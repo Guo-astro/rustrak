@@ -753,6 +753,18 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only issues seen in this environment, counted there.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -4287,6 +4299,67 @@
         ]
       }
     },
+    "/api/projects/{project_id}/environments": {
+      "get": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "GET /api/projects/{project_id}/environments\nLists the environments a project's issues have been seen in, by name.",
+        "operationId": "environments.list",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Environments the project's issues have been seen in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/events/sentry/{event_id}": {
       "get": {
         "tags": [
@@ -4961,6 +5034,18 @@
             "name": "q",
             "in": "query",
             "description": "Free-text search across type, value, transaction, and culprit.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only issues seen in this environment, with that environment's first\nand last seen, event count, users and trend.",
             "required": false,
             "schema": {
               "type": [
@@ -5838,6 +5923,18 @@
             "name": "cursor",
             "in": "query",
             "description": "Pagination cursor",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only events in this environment.",
             "required": false,
             "schema": {
               "type": [

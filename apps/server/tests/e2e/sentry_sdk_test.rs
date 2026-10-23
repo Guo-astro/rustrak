@@ -1015,6 +1015,7 @@ async fn test_sdk_issue_is_searchable_by_frame_filename_and_module() {
             1,
             20,
             Some(term),
+            None,
         )
         .await
         .expect("search");

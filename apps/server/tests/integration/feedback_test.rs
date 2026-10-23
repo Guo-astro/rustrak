@@ -444,6 +444,7 @@ async fn the_issue_list_shows_one_category_at_a_time() {
             1,
             50,
             None,
+            None,
         )
     };
     let (errors, total) = list(IssueCategory::Error).await.unwrap();

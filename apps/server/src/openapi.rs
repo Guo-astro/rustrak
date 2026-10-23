@@ -33,6 +33,7 @@ impl Modify for SecurityAddon {
         crate::routes::projects::delete_project,
         crate::routes::projects::get_rate_limits,
         crate::routes::issues::list_issues,
+        crate::routes::issues::list_environments,
         crate::routes::issues::get_issue,
         crate::routes::issues::update_issue,
         crate::routes::issues::delete_issue,
