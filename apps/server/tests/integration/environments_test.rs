@@ -185,6 +185,41 @@ async fn issue_numbers_are_the_environments() {
 }
 
 #[actix_web::test]
+async fn a_late_older_event_keeps_the_environments_dates() {
+    let (db, project_id, token) = setup().await;
+    let older = Utc::now() - Duration::hours(2);
+    let newer = Utc::now() - Duration::hours(1);
+    ingest(&db.pool, project_id, "Shared", Some("acme"), "u", newer).await;
+    ingest(&db.pool, project_id, "Shared", Some("acme"), "u", older).await;
+
+    let body = get(
+        &db.pool,
+        &token,
+        &format!("/api/projects/{project_id}/issues?environment=acme"),
+    )
+    .await;
+    let issue = &body["items"][0];
+    assert_eq!(ts(&issue["first_seen"]), older.timestamp());
+    assert_eq!(ts(&issue["last_seen"]), newer.timestamp());
+}
+
+#[actix_web::test]
+async fn environments_of_a_missing_project_are_not_found() {
+    let (db, _, token) = setup().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db.pool.clone()))
+            .configure(routes::issues::configure),
+    )
+    .await;
+    let req = test::TestRequest::get()
+        .uri("/api/projects/999999/environments")
+        .insert_header(("Authorization", format!("Bearer {token}")))
+        .to_request();
+    assert_eq!(test::call_service(&app, req).await.status(), 404);
+}
+
+#[actix_web::test]
 async fn environment_combines_with_search_status_and_sort() {
     let (db, project_id, token) = setup().await;
     let now = Utc::now();

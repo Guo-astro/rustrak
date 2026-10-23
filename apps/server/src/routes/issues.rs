@@ -155,6 +155,7 @@ pub async fn list_environments(
         Action::ViewProject,
     )
     .await?;
+    ProjectService::get_by_id(pool.get_ref(), project_id).await?;
     let environments = IssueService::environments(pool.get_ref(), project_id).await?;
     Ok(HttpResponse::Ok().json(environments))
 }

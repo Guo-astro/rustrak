@@ -355,6 +355,29 @@ struct Search {
 /// text. Only `is:` filters on a status and `environment:x` are understood;
 /// every other token is free text, matched against the issue's title,
 /// culprit and location.
+/// Splits a search on whitespace, keeping a double-quoted value whole, as
+/// Sentry's search grammar reads `environment:"Acme Corp"`.
+fn search_tokens(query: &str) -> Vec<&str> {
+    let mut tokens = Vec::new();
+    let mut start = None;
+    let mut quoted = false;
+    for (i, c) in query.char_indices() {
+        if c == '"' {
+            quoted = !quoted;
+        } else if c.is_whitespace() && !quoted {
+            if let Some(s) = start.take() {
+                tokens.push(&query[s..i]);
+            }
+            continue;
+        }
+        start.get_or_insert(i);
+    }
+    if let Some(s) = start {
+        tokens.push(&query[s..]);
+    }
+    tokens
+}
+
 fn parse_search(query: Option<&str>) -> AppResult<Search> {
     // No `query` means `is:unresolved`; an empty one means every issue
     // (`index.py`, `DEFAULT_QUERY`).
@@ -371,8 +394,12 @@ fn parse_search(query: Option<&str>) -> AppResult<Search> {
     // Feedback is out of the default search unless asked for by category.
     let mut category = IssueCategory::Error;
     let mut text = Vec::new();
-    for token in query.split_whitespace() {
+    for token in search_tokens(query) {
         if let Some(value) = token.strip_prefix("environment:") {
+            let value = value
+                .strip_prefix('"')
+                .and_then(|v| v.strip_suffix('"'))
+                .unwrap_or(value);
             // One name; Sentry's negation and lists are not supported.
             if value.is_empty() || value.starts_with('[') {
                 return Err(AppError::Validation(format!(

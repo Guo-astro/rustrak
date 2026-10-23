@@ -1184,6 +1184,14 @@ async fn issues_filter_by_environment() {
     assert_eq!(status, 200);
     assert_eq!(body, json!([]));
 
+    // A quoted name is one name, spaces and all.
+    ingest_with(&db.pool, p.id, "Spaced", "boom", now, env("Acme Corp", "e")).await;
+    for query in ["environment:%22lanza%22", "environment:%22Acme%20Corp%22"] {
+        let (status, body) = get_json(&app, &format!("{base}?query={query}"), &token).await;
+        assert_eq!(status, 200, "{query}");
+        assert_eq!(body.as_array().unwrap().len(), 1, "{query}");
+    }
+
     // The rest of Sentry's grammar for it is not supported.
     for query in ["!environment:acme", "environment:[acme,lanza]"] {
         let (status, _) = get_json(&app, &format!("{base}?query={query}"), &token).await;
