@@ -23,6 +23,12 @@ pub const PROGUARD_CACHE_FILE_TYPE: &str = "proguard_cache";
 /// `source_file_metadata.file_type` of a JVM source bundle.
 pub const SOURCE_BUNDLE_FILE_TYPE: &str = "source_bundle";
 
+/// The most a source bundle's manifest or one of its source files may expand
+/// to before it is read: a small upload must not become a huge allocation.
+// ponytail: fixed cap, not from Sentry (Symbolicator reads bundles in its own
+// process); make it a config value if real bundles hit it.
+pub const MAX_BUNDLE_ENTRY_SIZE: u64 = 16 << 20;
+
 const JAVA_PLATFORMS: &[&str] = &["java"];
 /// Symbolicator's `DEFAULT_CONTEXT_LINES`.
 const CONTEXT_LINES: usize = 5;
@@ -820,13 +826,7 @@ impl<'a> SourceBundle<'a> {
         let mut archive = zip::ZipArchive::new(Cursor::new(data))
             .map_err(|e| log::warn!("unreadable source bundle: {}", e))
             .ok()?;
-        let mut manifest = String::new();
-        archive
-            .by_name("manifest.json")
-            .ok()?
-            .read_to_string(&mut manifest)
-            .ok()?;
-        let manifest: Value = serde_json::from_str(&manifest).ok()?;
+        let manifest = bundle_manifest(&mut archive)?;
         let urls = manifest["files"]
             .as_object()
             .unwrap_or(&Map::new())
@@ -842,19 +842,37 @@ impl<'a> SourceBundle<'a> {
 
     fn source_by_url(&mut self, url: &str) -> Option<&str> {
         if !self.read.contains_key(url) {
-            let contents = self.urls.get(url).and_then(|path| {
-                let mut out = String::new();
-                self.archive
-                    .by_name(path)
-                    .ok()?
-                    .read_to_string(&mut out)
-                    .ok()?;
-                Some(out)
-            });
+            let contents = self
+                .urls
+                .get(url)
+                .and_then(|path| read_bundle_entry(&mut self.archive, path));
             self.read.insert(url.to_string(), contents);
         }
         self.read.get(url)?.as_deref()
     }
+}
+
+/// A source bundle's `manifest.json`, `None` when missing or unreadable.
+pub(crate) fn bundle_manifest<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+) -> Option<Value> {
+    serde_json::from_str(&read_bundle_entry(archive, "manifest.json")?).ok()
+}
+
+/// One file of a source bundle, `None` when missing, unreadable, or
+/// expanding past [`MAX_BUNDLE_ENTRY_SIZE`].
+fn read_bundle_entry<R: std::io::Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    name: &str,
+) -> Option<String> {
+    let mut out = String::new();
+    archive
+        .by_name(name)
+        .ok()?
+        .take(MAX_BUNDLE_ENTRY_SIZE + 1)
+        .read_to_string(&mut out)
+        .ok()?;
+    (out.len() as u64 <= MAX_BUNDLE_ENTRY_SIZE).then_some(out)
 }
 
 /// Symbolicator's `apply_source_context`.
@@ -965,6 +983,26 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(build_source_file_name(&frame), "~/com/example/Greeter.jvm");
+    }
+
+    #[test]
+    fn bundle_entries_past_the_limit_are_not_read() {
+        use std::io::Write as _;
+        let limit = MAX_BUNDLE_ENTRY_SIZE as usize;
+        let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        for (name, size) in [("fits", limit), ("too-big", limit + 1)] {
+            zip.start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(&vec![b'a'; size]).unwrap();
+        }
+        let data = zip.finish().unwrap().into_inner();
+        let mut archive = zip::ZipArchive::new(Cursor::new(data.as_slice())).unwrap();
+
+        assert_eq!(
+            read_bundle_entry(&mut archive, "fits").map(|s| s.len()),
+            Some(limit)
+        );
+        assert_eq!(read_bundle_entry(&mut archive, "too-big"), None);
     }
 
     #[test]

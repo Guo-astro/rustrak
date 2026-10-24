@@ -422,32 +422,32 @@ async fn digest_groups_builds_by_their_deobfuscated_crash() {
     assert_eq!(issues, [("CrashError".to_string(),)]);
 }
 
-/// `sentry-cli upload-proguard` (2.58) skips chunk upload: it posts a zip
-/// holding `proguard/<uuid>.txt` to the legacy `files/dsyms/` endpoint and
-/// reads back the DIFs created (Sentry's `DebugFilesEndpoint.post`).
-#[actix_web::test]
-async fn legacy_upload_queues_a_proguard_mapping() {
-    let db = TestDb::new().await;
-    let token = create_test_token(&db.pool).await;
-    let project_id = project(&db, "difs-legacy").await;
+fn zip_of(entries: &[(String, &[u8])]) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    zip.start_file(
-        format!("proguard/{MAPPING_UUID}.txt"),
-        zip::write::SimpleFileOptions::default(),
-    )
-    .unwrap();
-    zip.write_all(MAPPING).unwrap();
-    let zip = zip.finish().unwrap().into_inner();
+    for (name, data) in entries {
+        zip.start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(data).unwrap();
+    }
+    zip.finish().unwrap().into_inner()
+}
+
+async fn legacy_upload(
+    db: &TestDb,
+    token: &str,
+    slug: &str,
+    config: &rustrak::config::Config,
+    zip: &[u8],
+) -> actix_web::dev::ServiceResponse {
     let boundary = "difboundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"mapping.zip\"\r\nContent-Type: application/octet-stream\r\n\r\n"
     )
     .into_bytes();
-    body.extend(&zip);
+    body.extend(zip);
     body.extend(format!("\r\n--{boundary}--\r\n").as_bytes());
 
-    let config = create_test_config();
-    let (provider, config_data) = sourcemap_app_data(&db.pool, &config);
+    let (provider, config_data) = sourcemap_app_data(&db.pool, config);
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db.pool.clone()))
@@ -457,7 +457,7 @@ async fn legacy_upload_queues_a_proguard_mapping() {
     )
     .await;
     let req = test::TestRequest::post()
-        .uri("/api/0/projects/my-org/difs-legacy/files/dsyms/")
+        .uri(&format!("/api/0/projects/my-org/{slug}/files/dsyms/"))
         .insert_header(("Authorization", format!("Bearer {token}")))
         .insert_header((
             "Content-Type",
@@ -465,7 +465,20 @@ async fn legacy_upload_queues_a_proguard_mapping() {
         ))
         .set_payload(body)
         .to_request();
-    let resp = test::call_service(&app, req).await;
+    test::call_service(&app, req).await
+}
+
+/// `sentry-cli upload-proguard` (2.58) skips chunk upload: it posts a zip
+/// holding `proguard/<uuid>.txt` to the legacy `files/dsyms/` endpoint and
+/// reads back the DIFs created (Sentry's `DebugFilesEndpoint.post`).
+#[actix_web::test]
+async fn legacy_upload_queues_a_proguard_mapping() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project_id = project(&db, "difs-legacy").await;
+    let zip = zip_of(&[(format!("proguard/{MAPPING_UUID}.txt"), MAPPING)]);
+
+    let resp = legacy_upload(&db, &token, "difs-legacy", &create_test_config(), &zip).await;
     assert_eq!(resp.status(), 201);
     let difs: Value = test::read_body_json(resp).await;
     assert_eq!(difs[0]["debugId"], MAPPING_UUID);
@@ -483,4 +496,118 @@ async fn legacy_upload_queues_a_proguard_mapping() {
             (MAPPING_UUID.to_string(), "proguard_cache".to_string()),
         ]
     );
+}
+
+/// Same mapping bytes under a second UUID: Sentry clones the stored DIF for
+/// the new debug ID (`_clone_proguard_debug_file_for_reupload`).
+#[actix_web::test]
+async fn a_known_mapping_under_a_new_uuid_is_stored_for_it_too() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project_id = project(&db, "difs-reupload").await;
+    let other = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    let request = |uuid: &str, chunk: &str| json!({chunk: {"name": format!("/proguard/{uuid}.txt"), "chunks": [chunk]}});
+    let chunk = store_chunk(&db, MAPPING).await;
+    assemble(&db, &token, "difs-reupload", request(MAPPING_UUID, &chunk)).await;
+    run_worker(&db).await;
+
+    let (_, done) = assemble(&db, &token, "difs-reupload", request(other, &chunk)).await;
+
+    assert_eq!(done[&chunk]["state"], "ok", "{done}");
+    assert_eq!(
+        file_types(&db, project_id).await,
+        [
+            (MAPPING_UUID.to_string(), "proguard".to_string()),
+            (MAPPING_UUID.to_string(), "proguard_cache".to_string()),
+            (other.to_string(), "proguard".to_string()),
+            (other.to_string(), "proguard_cache".to_string()),
+        ]
+    );
+}
+
+/// Sentry keeps an assemble state for 10 minutes (`set_assemble_status`,
+/// `ex=600`). After that a failed file is unknown, so sentry-cli uploads
+/// its chunks again and the job is re-queued.
+#[actix_web::test]
+async fn an_old_failure_asks_for_the_chunks_again() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    project(&db, "difs-old-failure").await;
+    let chunk = store_chunk(&db, b"not a mapping at all").await;
+    let body = json!({chunk.clone(): {
+        "name": format!("/proguard/{MAPPING_UUID}.txt"),
+        "chunks": [chunk.clone()]
+    }});
+    assemble(&db, &token, "difs-old-failure", body.clone()).await;
+    sqlx::query("UPDATE assembly_jobs SET max_retries = 1")
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    run_worker(&db).await;
+    sqlx::query("UPDATE assembly_jobs SET updated_at = $1")
+        .bind(chrono::Utc::now() - chrono::Duration::minutes(11))
+        .execute(&db.pool)
+        .await
+        .unwrap();
+
+    let (_, polled) = assemble(&db, &token, "difs-old-failure", body).await;
+
+    assert_eq!(polled[&chunk]["state"], "not_found", "{polled}");
+    assert_eq!(polled[&chunk]["missingChunks"], json!([chunk]));
+}
+
+/// Each mapping fits the limit, together they do not: the limit is for
+/// everything the zip expands to.
+#[actix_web::test]
+async fn legacy_upload_limits_the_whole_expanded_zip() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    project(&db, "difs-legacy-bomb").await;
+    let mut config = create_test_config();
+    config.max_chunk_size_bytes = 1024; // 64 KiB for the upload
+    let mapping = vec![b' '; 40 * 1024];
+    let zip = zip_of(&[
+        (format!("proguard/{MAPPING_UUID}.txt"), &mapping),
+        (format!("proguard/{BUNDLE_ID}.txt"), &mapping),
+    ]);
+
+    let resp = legacy_upload(&db, &token, "difs-legacy-bomb", &config, &zip).await;
+
+    assert_eq!(resp.status(), 400);
+}
+
+/// A manifest past the size limit is not read, and the request's debug ID
+/// does not stand in for it.
+#[actix_web::test]
+async fn a_source_bundle_with_an_oversized_manifest_fails() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project_id = project(&db, "difs-bundle-bomb").await;
+    let mut manifest = vec![b' '; rustrak::services::jvm::MAX_BUNDLE_ENTRY_SIZE as usize];
+    manifest.extend(format!(r#"{{"debug_id":"{BUNDLE_ID}","files":{{}}}}"#).as_bytes());
+    // symbolic's header, then a zip whose offsets count it.
+    let mut cursor = std::io::Cursor::new(b"SYSB\x02\0\0\0".to_vec());
+    cursor.set_position(8);
+    let mut zip = zip::ZipWriter::new(cursor);
+    zip.start_file("manifest.json", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(&manifest).unwrap();
+    let bundle = zip.finish().unwrap().into_inner();
+    let chunk = store_chunk(&db, &bundle).await;
+    let body = json!({chunk.clone(): {
+        "name": "Greeter.zip",
+        "debug_id": BUNDLE_ID,
+        "chunks": [chunk.clone()]
+    }});
+
+    assemble(&db, &token, "difs-bundle-bomb", body.clone()).await;
+    sqlx::query("UPDATE assembly_jobs SET max_retries = 1")
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    run_worker(&db).await;
+    let (_, done) = assemble(&db, &token, "difs-bundle-bomb", body).await;
+
+    assert_eq!(done[&chunk]["state"], "error", "{done}");
+    assert_eq!(file_types(&db, project_id).await, []);
 }

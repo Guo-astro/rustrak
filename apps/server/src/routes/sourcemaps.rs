@@ -372,10 +372,13 @@ async fn enqueue_assembly(
     .fetch_optional(pool)
     .await?;
     let failed = match existing_job {
+        Some(job) if job.state == "ok" && job.kind == DIF_JOB_KIND => {
+            return proguard_reupload(pool, project_id, &job, &new).await
+        }
         Some(job) if job.state != "error" => {
             return Ok(job_response(job.state.as_str(), job.detail))
         }
-        Some(job) => Some(job.detail),
+        Some(job) => Some(job),
         None => None,
     };
 
@@ -384,8 +387,12 @@ async fn enqueue_assembly(
     if !missing.is_empty() {
         // A failed job's chunks are gone, so a poll after the failure must
         // hear the failure, as Sentry answers, not be asked to upload again.
-        if let Some(detail) = failed {
-            return Ok(job_response("error", detail));
+        // Sentry forgets that state after 10 minutes (`set_assemble_status`,
+        // `ex=600`); then the file is unknown and its chunks are asked for.
+        if let Some(job) = failed {
+            if chrono::Utc::now() - job.updated_at < chrono::Duration::minutes(10) {
+                return Ok(job_response("error", job.detail));
+            }
         }
         return Ok(not_found(missing));
     }
@@ -468,6 +475,33 @@ async fn enqueue_assembly(
 
     tx.commit().await?;
 
+    Ok(job_response(job.state.as_str(), job.detail.clone()))
+}
+
+/// Answers for a DIF already assembled. The same ProGuard mapping requested
+/// under another UUID is stored for that UUID too, as Sentry's
+/// `batch_assemble` clones it (`_is_proguard_reupload_clone_request`).
+async fn proguard_reupload(
+    pool: &DbPool,
+    project_id: i32,
+    job: &crate::models::source_file::AssemblyJob,
+    new: &NewJob<'_>,
+) -> AppResult<AssembleResponse> {
+    use crate::services::debug_file::{alias_proguard_mapping, proguard_uuid_from_name};
+    let requested = new.name.and_then(proguard_uuid_from_name);
+    let stored = job.name.as_deref().and_then(proguard_uuid_from_name);
+    match (requested, stored) {
+        (Some(to), Some(from)) if to != from => {
+            alias_proguard_mapping(pool, project_id, from, to).await?
+        }
+        (Some(_), None) => {
+            return Ok(job_response(
+                "error",
+                Some("This file is not a ProGuard mapping.".into()),
+            ))
+        }
+        _ => {}
+    }
     Ok(job_response(job.state.as_str(), job.detail.clone()))
 }
 
@@ -658,6 +692,12 @@ pub async fn dif_upload(
             .content_disposition()
             .and_then(|cd| cd.get_name())
             .is_some_and(|name| name == "file");
+        if !is_file {
+            while let Some(chunk) = field.next().await {
+                chunk.map_err(|e| AppError::Validation(format!("multipart chunk error: {}", e)))?;
+            }
+            continue;
+        }
         let mut buf = Vec::new();
         while let Some(chunk) = field.next().await {
             let data =
@@ -669,9 +709,7 @@ pub async fn dif_upload(
             }
             buf.extend_from_slice(&data);
         }
-        if is_file {
-            upload = Some(buf);
-        }
+        upload = Some(buf);
     }
     let Some(upload) = upload else {
         return Err(AppError::Validation("Missing uploaded file".into()));
@@ -722,11 +760,13 @@ pub async fn dif_upload(
 }
 
 /// The ProGuard mappings in an uploaded zip, as `(uuid, name, bytes)`.
+/// `max_size` bounds all of them together, since they are all held at once.
 fn proguard_entries(zip: &[u8], max_size: usize) -> AppResult<Vec<(String, String, Vec<u8>)>> {
     use std::io::Read as _;
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip))
         .map_err(|e| AppError::Validation(format!("invalid ZIP archive: {}", e)))?;
     let mut out = Vec::new();
+    let mut total = 0;
     for i in 0..archive.len() {
         let file = archive
             .by_index(i)
@@ -740,10 +780,11 @@ fn proguard_entries(zip: &[u8], max_size: usize) -> AppResult<Vec<(String, Strin
             continue;
         };
         let mut data = Vec::new();
-        file.take(max_size as u64 + 1)
+        file.take((max_size - total) as u64 + 1)
             .read_to_end(&mut data)
             .map_err(|e| AppError::Validation(format!("unreadable ZIP entry: {}", e)))?;
-        if data.len() > max_size {
+        total += data.len();
+        if total > max_size {
             return Err(AppError::Validation(format!(
                 "upload too large: exceeds {max_size} bytes"
             )));
