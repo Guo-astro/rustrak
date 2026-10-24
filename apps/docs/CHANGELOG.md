@@ -1,5 +1,11 @@
 # docs
 
+## 0.16.6
+
+### Patch Changes
+
+- [`acc1ff6`](https://github.com/rustrak/rustrak/commit/acc1ff6c2817269472f22155c34998560b50112f) Thanks [@AbianS](https://github.com/AbianS)! - Document OIDC group-to-role mapping and SSO-only login, reclaiming SQLite disk space and the Compact database action, the environment filter in the client, and the hyphenated form of `sentry_key`.
+
 ## 0.16.5
 
 ### Patch Changes
