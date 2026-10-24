@@ -61,9 +61,10 @@ pub fn is_macho(data: &[u8]) -> bool {
 }
 
 /// One SymCache per object in a debug file (a fat Mach-O holds one per
-/// architecture), keyed by the object's debug ID. Refuses a file with no
+/// architecture), keyed by the object's debug ID, with whether the object has
+/// debug info (DWARF) and not only a symbol table. Refuses a file with no
 /// object that has symbols.
-pub fn build_symcaches(data: &[u8]) -> Result<Vec<(Uuid, Vec<u8>)>, String> {
+pub fn build_symcaches(data: &[u8]) -> Result<Vec<(Uuid, bool, Vec<u8>)>, String> {
     let archive = Archive::parse(data).map_err(|e| e.to_string())?;
     let mut out = Vec::new();
     for object in archive.objects() {
@@ -79,7 +80,7 @@ pub fn build_symcaches(data: &[u8]) -> Result<Vec<(Uuid, Vec<u8>)>, String> {
         converter
             .serialize(&mut std::io::Cursor::new(&mut cache))
             .map_err(|e| e.to_string())?;
-        out.push((object.debug_id().uuid(), cache));
+        out.push((object.debug_id().uuid(), object.has_debug_info(), cache));
     }
     if out.is_empty() {
         return Err("no object with debug information or symbols".into());

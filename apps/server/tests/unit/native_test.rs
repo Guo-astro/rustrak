@@ -27,7 +27,7 @@ fn symcache() -> Vec<u8> {
     let caches = build_symcaches(DWARF).expect("valid dSYM");
     assert_eq!(caches.len(), 1);
     assert_eq!(caches[0].0.to_string(), DEBUG_ID);
-    caches.into_iter().next().unwrap().1
+    caches.into_iter().next().unwrap().2
 }
 
 /// A sentry-cocoa event: frames caller first, the crashing frame last.
@@ -100,6 +100,49 @@ fn crashing_frame_expands_inlined_functions() {
     assert_eq!(
         event["exception"]["values"][0]["raw_stacktrace"]["frames"],
         json!([frame("0x10400041c")])
+    );
+}
+
+/// `rel:<index>` and `rel:<debug id>` name the image by its position in
+/// `debug_meta.images`, which lookup sorts by address: listed after the
+/// system image here, the app keeps index 1.
+#[test]
+fn relative_addresses_find_the_image_by_index_or_debug_id() {
+    let cache = symcache();
+    for mode in ["rel:1", &format!("rel:{DEBUG_ID}")] {
+        let mut event = event(json!([
+            {"instruction_addr": "0x41c", "addr_mode": mode, "in_app": true}
+        ]));
+        event["debug_meta"]["images"]
+            .as_array_mut()
+            .unwrap()
+            .reverse();
+
+        symbolicate_event(&mut event, &files(Some(&cache), None));
+
+        assert_eq!(
+            summary(frames(&event)),
+            ["\"compute\" \"crash.c\":10", "\"divide\" \"crash.c\":5"],
+            "{mode}"
+        );
+    }
+}
+
+/// An image without `image_size` spans up to the next image.
+#[test]
+fn an_image_without_a_size_spans_to_the_next_one() {
+    let cache = symcache();
+    let mut event = event(json!([frame("0x10400041c")]));
+    event["debug_meta"]["images"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("image_size");
+
+    symbolicate_event(&mut event, &files(Some(&cache), None));
+
+    assert_eq!(
+        summary(frames(&event)),
+        ["\"compute\" \"crash.c\":10", "\"divide\" \"crash.c\":5"]
     );
 }
 

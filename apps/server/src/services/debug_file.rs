@@ -7,6 +7,7 @@
 
 use std::sync::LazyLock;
 
+use bytes::Bytes;
 use uuid::Uuid;
 
 use crate::db::DbPool;
@@ -42,7 +43,7 @@ pub async fn assemble_dif_for_job(
     let data = join_chunks(pool, job.chunk_list(), max_size_bytes, &job.bundle_checksum).await?;
     let name = job.name.as_deref().unwrap_or_default();
 
-    let files: Vec<(Uuid, &str, Vec<u8>)> = if let Some(uuid) = proguard_uuid_from_name(name) {
+    let files: Vec<(Uuid, &str, Bytes)> = if let Some(uuid) = proguard_uuid_from_name(name) {
         // ponytail: the cache build peaks at ~40x the mapping's size in RAM;
         // the single assembly worker builds one at a time.
         let (data, cache) = tokio::task::spawn_blocking(move || {
@@ -53,8 +54,8 @@ pub async fn assemble_dif_for_job(
         .map_err(|e| AppError::Internal(format!("proguard cache build panicked: {e}")))?;
         let cache = cache.map_err(AppError::Validation)?;
         vec![
-            (uuid, PROGUARD_FILE_TYPE, data),
-            (uuid, PROGUARD_CACHE_FILE_TYPE, cache),
+            (uuid, PROGUARD_FILE_TYPE, data.into()),
+            (uuid, PROGUARD_CACHE_FILE_TYPE, cache.into()),
         ]
     } else if data.starts_with(b"SYSB") {
         let uuid = source_bundle_debug_id(&data)?
@@ -64,7 +65,7 @@ pub async fn assemble_dif_for_job(
                     .and_then(|id| Uuid::parse_str(id).ok())
             })
             .ok_or_else(|| AppError::Validation("source bundle has no debug ID".into()))?;
-        vec![(uuid, SOURCE_BUNDLE_FILE_TYPE, data)]
+        vec![(uuid, SOURCE_BUNDLE_FILE_TYPE, data.into())]
     } else if crate::services::native::is_macho(&data) {
         // The raw file is kept too, as with ProGuard, so a cache can be rebuilt.
         let (data, caches) = tokio::task::spawn_blocking(move || {
@@ -74,15 +75,20 @@ pub async fn assemble_dif_for_job(
         .await
         .map_err(|e| AppError::Internal(format!("symcache build panicked: {e}")))?;
         let caches = caches.map_err(AppError::Validation)?;
-        caches
-            .into_iter()
-            .flat_map(|(uuid, cache)| {
-                [
-                    (uuid, MACHO_FILE_TYPE, data.clone()),
-                    (uuid, SYMCACHE_FILE_TYPE, cache),
-                ]
-            })
-            .collect()
+        // One copy of the upload, shared by every object of a fat file.
+        let data = Bytes::from(data);
+        let mut files = Vec::new();
+        for (uuid, has_debug_info, cache) in caches {
+            // Sentry keeps every DIF of a debug ID and Symbolicator prefers the
+            // one with debug info (`object_quality`). One SymCache per UUID is
+            // kept here, so an executable must not replace its dSYM's.
+            if !has_debug_info && has_symcache(pool, job.project_id, uuid).await? {
+                continue;
+            }
+            files.push((uuid, MACHO_FILE_TYPE, data.clone()));
+            files.push((uuid, SYMCACHE_FILE_TYPE, cache.into()));
+        }
+        files
     } else {
         return Err(AppError::Validation(format!(
             "unsupported debug information file: {name}"
@@ -96,6 +102,22 @@ pub async fn assemble_dif_for_job(
     finish_job(&mut tx, Some(job.id), job.chunk_list()).await?;
     tx.commit().await?;
     Ok(())
+}
+
+/// Whether a SymCache is stored for `uuid` in the project.
+async fn has_symcache(pool: &DbPool, project_id: i32, uuid: Uuid) -> AppResult<bool> {
+    #[cfg(not(feature = "postgres"))]
+    let uuid = uuid.to_string();
+    let row: Option<i32> = sqlx::query_scalar(
+        "SELECT 1 FROM source_file_metadata
+         WHERE project_id = $1 AND debug_id = $2 AND file_type = $3",
+    )
+    .bind(project_id)
+    .bind(uuid)
+    .bind(SYMCACHE_FILE_TYPE)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.is_some())
 }
 
 /// The `debug_id` a source bundle's `manifest.json` declares, if any. A

@@ -546,6 +546,51 @@ async fn dsym_is_stored_with_its_symcache() {
     );
 }
 
+/// The app's executable after its dSYM, same UUID but only a symbol table
+/// (`crash_arm64.exe`: `crash.c` built without `-g`, its LC_UUID set to the
+/// dSYM's). Sentry keeps both files and Symbolicator prefers the one with
+/// debug info (`object_quality`), so the DWARF SymCache stays.
+#[actix_web::test]
+async fn an_executable_does_not_replace_its_dsym_symcache() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project_id = project(&db, "difs-exe").await;
+    let symcache_file = || async {
+        let (id,): (String,) = sqlx::query_as(
+            "SELECT CAST(file_id AS TEXT) FROM source_file_metadata
+             WHERE project_id = $1 AND file_type = 'symcache'",
+        )
+        .bind(project_id)
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
+        id
+    };
+    let mut done = Value::Null;
+    let mut files = Vec::new();
+    for (name, data) in [
+        (
+            "Contents/Resources/DWARF/crash",
+            include_bytes!("../fixtures/crash_arm64.dwarf").as_slice(),
+        ),
+        (
+            "Crash.app/Crash",
+            include_bytes!("../fixtures/crash_arm64.exe").as_slice(),
+        ),
+    ] {
+        let chunk = store_chunk(&db, data).await;
+        let body =
+            json!({chunk.clone(): {"name": name, "debug_id": DSYM_ID, "chunks": [chunk.clone()]}});
+        assemble(&db, &token, "difs-exe", body.clone()).await;
+        run_worker(&db).await;
+        done = assemble(&db, &token, "difs-exe", body).await.1;
+        assert_eq!(done[&chunk]["state"], "ok", "{done}");
+        files.push(symcache_file().await);
+    }
+
+    assert_eq!(files[0], files[1], "{done}");
+}
+
 /// An iOS crash in the app's own code, digested with its dSYM and sources
 /// stored: symbolicated before grouping, so the issue is named after it.
 #[actix_web::test]
