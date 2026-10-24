@@ -3,7 +3,7 @@
 //! Detection follows Sentry's `detect_dif_from_path`
 //! (`src/sentry/models/debugfile.py`, 2458718b2c): a ProGuard mapping is
 //! known by its name, which carries its UUID; anything else must parse as a
-//! known format. Only the JVM formats are handled for now.
+//! known format: JVM source bundles and Apple Mach-O debug files for now.
 
 use std::sync::LazyLock;
 
@@ -14,6 +14,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::jvm::{
     build_proguard_cache, PROGUARD_CACHE_FILE_TYPE, PROGUARD_FILE_TYPE, SOURCE_BUNDLE_FILE_TYPE,
 };
+use crate::services::native::{MACHO_FILE_TYPE, SYMCACHE_FILE_TYPE};
 use crate::services::sourcemap::{finish_job, join_chunks, store_file};
 use crate::services::sourcemap_store::SourceMapStore;
 
@@ -63,6 +64,24 @@ pub async fn assemble_dif_for_job(
             })
             .ok_or_else(|| AppError::Validation("source bundle has no debug ID".into()))?;
         vec![(uuid, SOURCE_BUNDLE_FILE_TYPE, data)]
+    } else if crate::services::native::is_macho(&data) {
+        // The raw file is kept too, as with ProGuard, so a cache can be rebuilt.
+        let (data, caches) = tokio::task::spawn_blocking(move || {
+            let caches = crate::services::native::build_symcaches(&data);
+            (data, caches)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("symcache build panicked: {e}")))?;
+        let caches = caches.map_err(AppError::Validation)?;
+        caches
+            .into_iter()
+            .flat_map(|(uuid, cache)| {
+                [
+                    (uuid, MACHO_FILE_TYPE, data.clone()),
+                    (uuid, SYMCACHE_FILE_TYPE, cache),
+                ]
+            })
+            .collect()
     } else {
         return Err(AppError::Validation(format!(
             "unsupported debug information file: {name}"

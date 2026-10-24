@@ -9,11 +9,12 @@
 //! `proguard` crate.
 
 use std::collections::HashMap;
-use std::io::{Cursor, Read as _};
 use std::sync::LazyLock;
 
 use proguard::{ProguardCache, ProguardMapping};
-use serde_json::{json, Map, Value};
+
+use crate::services::source_bundle::{get_context_lines, SourceBundle};
+use serde_json::{json, Value};
 
 /// `source_file_metadata.file_type` of an uploaded ProGuard mapping, as uploaded.
 pub const PROGUARD_FILE_TYPE: &str = "proguard";
@@ -24,8 +25,6 @@ pub const PROGUARD_CACHE_FILE_TYPE: &str = "proguard_cache";
 pub const SOURCE_BUNDLE_FILE_TYPE: &str = "source_bundle";
 
 const JAVA_PLATFORMS: &[&str] = &["java"];
-/// Symbolicator's `DEFAULT_CONTEXT_LINES`.
-const CONTEXT_LINES: usize = 5;
 
 /// The debug files an event's `debug_meta` names, as loaded from storage.
 pub struct JvmFiles<'a> {
@@ -803,60 +802,6 @@ fn map_class(mapper: &ProguardCache<'_>, frame: &JvmFrame) -> Option<Vec<JvmFram
 // Symbolicator port: source context
 // ---------------------------------------------------------------------------
 
-/// A JVM source bundle: symbolic's 8-byte `SYSB` header, then a zip whose
-/// `manifest.json` gives each file's `~/` URL, written as one stream.
-struct SourceBundle<'a> {
-    archive: zip::ZipArchive<Cursor<&'a [u8]>>,
-    /// URL -> path inside the zip.
-    urls: HashMap<String, String>,
-    /// Files already read for this event, `None` when unreadable.
-    read: HashMap<String, Option<String>>,
-}
-
-impl<'a> SourceBundle<'a> {
-    fn parse(data: &'a [u8]) -> Option<Self> {
-        // The zip's offsets count the header, so it opens over the whole
-        // stream; the zip crate skips data before the first entry.
-        let mut archive = zip::ZipArchive::new(Cursor::new(data))
-            .map_err(|e| log::warn!("unreadable source bundle: {}", e))
-            .ok()?;
-        let mut manifest = String::new();
-        archive
-            .by_name("manifest.json")
-            .ok()?
-            .read_to_string(&mut manifest)
-            .ok()?;
-        let manifest: Value = serde_json::from_str(&manifest).ok()?;
-        let urls = manifest["files"]
-            .as_object()
-            .unwrap_or(&Map::new())
-            .iter()
-            .filter_map(|(path, info)| Some((info["url"].as_str()?.to_string(), path.clone())))
-            .collect();
-        Some(Self {
-            archive,
-            urls,
-            read: HashMap::new(),
-        })
-    }
-
-    fn source_by_url(&mut self, url: &str) -> Option<&str> {
-        if !self.read.contains_key(url) {
-            let contents = self.urls.get(url).and_then(|path| {
-                let mut out = String::new();
-                self.archive
-                    .by_name(path)
-                    .ok()?
-                    .read_to_string(&mut out)
-                    .ok()?;
-                Some(out)
-            });
-            self.read.insert(url.to_string(), contents);
-        }
-        self.read.get(url)?.as_deref()
-    }
-}
-
 /// Symbolicator's `apply_source_context`.
 fn apply_source_context(bundles: &mut [SourceBundle<'_>], frame: &mut JvmFrame) {
     let lineno = match frame.lineno {
@@ -865,7 +810,7 @@ fn apply_source_context(bundles: &mut [SourceBundle<'_>], frame: &mut JvmFrame) 
     };
     let url = build_source_file_name(frame);
     for bundle in bundles {
-        let Some(source) = bundle.source_by_url(&url) else {
+        let Some(source) = bundle.source(&url) else {
             continue;
         };
         if let Some((pre, line, post)) = get_context_lines(source, lineno) {
@@ -904,41 +849,6 @@ fn build_source_file_name(frame: &JvmFrame) -> String {
     name
 }
 
-/// Symbolicator's `get_context_lines` with `trim_to_column` 0.
-fn get_context_lines(source: &str, lineno: usize) -> Option<(Vec<String>, String, Vec<String>)> {
-    let start_line = lineno.saturating_sub(CONTEXT_LINES).saturating_sub(1);
-    let line_diff = (lineno - start_line).saturating_sub(1);
-    let mut lines = source.lines().skip(start_line);
-    let pre = (&mut lines)
-        .take(line_diff)
-        .map(trim_context_line)
-        .collect();
-    let line = trim_context_line(lines.next()?);
-    let post = lines.take(CONTEXT_LINES).map(trim_context_line).collect();
-    Some((pre, line, post))
-}
-
-/// Symbolicator's `trim_context_line` at column 0: lines over 150 bytes are
-/// cut to their first 140 and marked `{snip}`.
-fn trim_context_line(line: &str) -> String {
-    let len = line.len();
-    if len <= 150 {
-        return line.to_string();
-    }
-    let mut end = 140.min(len);
-    if end > len.saturating_sub(5) {
-        end = len;
-    }
-    while !line.is_char_boundary(end) {
-        end -= 1;
-    }
-    let mut out = line[..end].to_string();
-    if end < len {
-        out.push_str(" {snip}");
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -965,14 +875,5 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(build_source_file_name(&frame), "~/com/example/Greeter.jvm");
-    }
-
-    #[test]
-    fn long_context_lines_are_snipped() {
-        let line = "x".repeat(200);
-        assert_eq!(
-            trim_context_line(&line),
-            format!("{} {{snip}}", "x".repeat(140))
-        );
     }
 }
