@@ -11,6 +11,7 @@ mod crons_ingest_test;
 mod dashboard_test;
 mod digest_test;
 mod envelope_v2_test;
+mod environments_test;
 mod event_lookup_test;
 mod events_api_test;
 mod feedback_test;

@@ -2782,6 +2782,10 @@ export type SentryListIssuesData = {
          * `24h` (default), `14d`, or empty for no stats.
          */
         statsPeriod?: string | null;
+        /**
+         * Only issues seen in this environment, counted there.
+         */
+        environment?: string | null;
     };
     url: '/api/0/projects/{org_slug}/{project_slug}/issues/';
 };
@@ -4628,6 +4632,40 @@ export type EventsDownloadAttachmentResponses = {
 
 export type EventsDownloadAttachmentResponse = EventsDownloadAttachmentResponses[keyof EventsDownloadAttachmentResponses];
 
+export type EnvironmentsListData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/environments';
+};
+
+export type EnvironmentsListErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Project not found
+     */
+    404: ErrorResponse;
+};
+
+export type EnvironmentsListError = EnvironmentsListErrors[keyof EnvironmentsListErrors];
+
+export type EnvironmentsListResponses = {
+    /**
+     * Environments the project's issues have been seen in
+     */
+    200: Array<string>;
+};
+
+export type EnvironmentsListResponse = EnvironmentsListResponses[keyof EnvironmentsListResponses];
+
 export type EventsGetBySentryIdData = {
     body?: never;
     path: {
@@ -5009,6 +5047,11 @@ export type IssuesListData = {
          * Free-text search across type, value, transaction, and culprit.
          */
         q?: string | null;
+        /**
+         * Only issues seen in this environment, with that environment's first
+         * and last seen, event count, users and trend.
+         */
+        environment?: string | null;
     };
     url: '/api/projects/{project_id}/issues';
 };
@@ -5392,6 +5435,10 @@ export type EventsListData = {
          * Pagination cursor
          */
         cursor?: string | null;
+        /**
+         * Only events in this environment.
+         */
+        environment?: string | null;
     };
     url: '/api/projects/{project_id}/issues/{issue_id}/events';
 };

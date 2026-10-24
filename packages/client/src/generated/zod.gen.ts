@@ -2027,7 +2027,8 @@ export const zSentryListIssuesQuery = z.object({
     sort: z.string().nullish(),
     limit: z.string().nullish(),
     cursor: z.string().nullish(),
-    statsPeriod: z.string().nullish()
+    statsPeriod: z.string().nullish(),
+    environment: z.string().nullish()
 });
 
 /**
@@ -2546,6 +2547,15 @@ export const zEventsDownloadAttachmentPath = z.object({
  */
 export const zEventsDownloadAttachmentResponse = zAttachmentBytes;
 
+export const zEnvironmentsListPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+/**
+ * Environments the project's issues have been seen in
+ */
+export const zEnvironmentsListResponse = z.array(z.string());
+
 export const zEventsGetBySentryIdPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
     event_id: z.string()
@@ -2661,7 +2671,8 @@ export const zIssuesListQuery = z.object({
     order: zSortOrder.optional(),
     filter: zIssueFilter.optional(),
     category: zIssueCategory.optional(),
-    q: z.string().nullish()
+    q: z.string().nullish(),
+    environment: z.string().nullish()
 });
 
 /**
@@ -2800,7 +2811,8 @@ export const zEventsListPath = z.object({
 
 export const zEventsListQuery = z.object({
     order: zSortOrder.optional(),
-    cursor: z.string().nullish()
+    cursor: z.string().nullish(),
+    environment: z.string().nullish()
 });
 
 /**

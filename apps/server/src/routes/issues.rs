@@ -95,13 +95,15 @@ pub async fn list_issues(
         query.page,
         query.per_page,
         query.q.as_deref(),
+        query.environment.as_deref(),
     )
     .await?;
 
     // Bulk-compute per-issue user_count/trend for this page in one request
     // (avoids the list UI firing one aggregates/stats call per visible row).
     let issue_ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();
-    let list_stats = IssueService::list_stats(pool.get_ref(), &issue_ids).await?;
+    let list_stats =
+        IssueService::list_stats(pool.get_ref(), &issue_ids, query.environment.as_deref()).await?;
 
     // Build responses
     let responses: Vec<_> = issues
@@ -122,6 +124,40 @@ pub async fn list_issues(
         query.page,
         query.per_page,
     )))
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/environments",
+    operation_id = "environments.list",
+    tag = "Issues",
+    params(("project_id" = i32, Path, description = "Project ID")),
+    responses(
+        (status = 200, description = "Environments the project's issues have been seen in", body = Vec<String>),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// GET /api/projects/{project_id}/environments
+/// Lists the environments a project's issues have been seen in, by name.
+pub async fn list_environments(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+    ProjectService::get_by_id(pool.get_ref(), project_id).await?;
+    let environments = IssueService::environments(pool.get_ref(), project_id).await?;
+    Ok(HttpResponse::Ok().json(environments))
 }
 
 /// Query of the feedback list.
@@ -203,6 +239,7 @@ pub async fn list_feedback(
         crate::pagination::IssueCategory::Feedback,
         query.page,
         query.per_page,
+        None,
         None,
     )
     .await?;
@@ -1137,6 +1174,10 @@ pub struct IssuesApi;
 
 /// Configure issue routes
 pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.route(
+        "/api/projects/{project_id}/environments",
+        web::get().to(list_environments),
+    );
     cfg.route(
         "/api/projects/{project_id}/feedback",
         web::get().to(list_feedback),

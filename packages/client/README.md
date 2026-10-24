@@ -334,6 +334,7 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `environments.list({ path })` | `GET /api/projects/{project_id}/environments` | Lists the environments a project's issues have been seen in, by name. |
 | `feedback.list({ path, query? })` | `GET /api/projects/{project_id}/feedback` | Lists user feedback with what each user submitted. |
 | `issues.bulkDelete({ path, body })` | `DELETE /api/projects/{project_id}/issues` | Bulk delete by ids or filter |
 | `issues.bulkUpdate({ path, body })` | `PUT /api/projects/{project_id}/issues` | Bulk mutate |

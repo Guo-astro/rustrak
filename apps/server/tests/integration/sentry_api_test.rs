@@ -1132,3 +1132,69 @@ async fn the_spec_constrains_sentry_issue_ids_to_digits() {
     }
     assert_eq!(checked, 4, "get, put and latest event, plus the issue link");
 }
+
+// =============================================================================
+// environment on the issue list
+// =============================================================================
+
+/// `ProjectGroupIndexEndpoint` takes one `?environment=`, or `environment:x`
+/// in the query: the issues seen there, counted there (`group.py:906-918`,
+/// `group_stream.py:206-229`). One nothing was seen in is an empty list.
+#[actix_web::test]
+async fn issues_filter_by_environment() {
+    let db = TestDb::new().await;
+    let token = admin_token(&db.pool).await;
+    let p = project(&db.pool, "Demo App").await;
+    let now = Utc::now();
+    let env = |name: &str, user: &str| json!({"environment": name, "user": {"id": user}});
+    let shared = ingest_with(&db.pool, p.id, "Shared", "boom", now, env("acme", "a")).await;
+    ingest_with(&db.pool, p.id, "Shared", "boom", now, env("lanza", "b")).await;
+    ingest_with(&db.pool, p.id, "Shared", "boom", now, env("lanza", "c")).await;
+    ingest_with(&db.pool, p.id, "AcmeOnly", "boom", now, env("acme", "d")).await;
+    let app = app!(db.pool);
+    let base = "/api/0/projects/rustrak/demo-app/issues/";
+
+    for uri in [
+        format!("{base}?environment=lanza&statsPeriod=24h"),
+        format!("{base}?query=environment:lanza&statsPeriod=24h"),
+        format!("{base}?query=is:unresolved%20environment:lanza&statsPeriod=24h"),
+    ] {
+        let (status, body) = get_json(&app, &uri, &token).await;
+        assert_eq!(status, 200, "{uri}");
+        let issues = body.as_array().unwrap();
+        assert_eq!(issues.len(), 1, "{uri}");
+        assert_eq!(issues[0]["id"], shared.numeric_id.to_string());
+        assert_eq!(issues[0]["count"], "2", "{uri}: counted in lanza");
+        assert_eq!(issues[0]["userCount"], 2, "{uri}");
+        let points = issues[0]["stats"]["24h"].as_array().unwrap();
+        let total: i64 = points.iter().map(|p| p[1].as_i64().unwrap()).sum();
+        assert_eq!(total, 2, "{uri}");
+    }
+
+    // The parameter and the query both hold for the issue's events.
+    let (_, body) = get_json(
+        &app,
+        &format!("{base}?environment=acme&query=environment:lanza"),
+        &token,
+    )
+    .await;
+    assert_eq!(body, json!([]));
+
+    let (status, body) = get_json(&app, &format!("{base}?environment=nowhere"), &token).await;
+    assert_eq!(status, 200);
+    assert_eq!(body, json!([]));
+
+    // A quoted name is one name, spaces and all.
+    ingest_with(&db.pool, p.id, "Spaced", "boom", now, env("Acme Corp", "e")).await;
+    for query in ["environment:%22lanza%22", "environment:%22Acme%20Corp%22"] {
+        let (status, body) = get_json(&app, &format!("{base}?query={query}"), &token).await;
+        assert_eq!(status, 200, "{query}");
+        assert_eq!(body.as_array().unwrap().len(), 1, "{query}");
+    }
+
+    // The rest of Sentry's grammar for it is not supported.
+    for query in ["!environment:acme", "environment:[acme,lanza]"] {
+        let (status, _) = get_json(&app, &format!("{base}?query={query}"), &token).await;
+        assert_eq!(status, 400, "{query}");
+    }
+}
