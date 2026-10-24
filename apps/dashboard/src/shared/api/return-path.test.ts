@@ -9,6 +9,7 @@ import { createReturnPathStore, resumablePath } from './return-path';
  * `sessionStorage` would outlive the file.
  */
 
+/** A storage that keeps its items in a `Map`, exposed for assertions. */
 function memoryStorage() {
   const items = new Map<string, string>();
   return {
@@ -23,6 +24,7 @@ function memoryStorage() {
   };
 }
 
+/** Throws the way a browser does when it refuses storage. */
 function refused(): never {
   throw new DOMException('The operation is insecure.', 'SecurityError');
 }
@@ -72,6 +74,17 @@ describe('createReturnPathStore', () => {
     const store = createReturnPathStore(() => storage);
 
     expect(() => store.remember('/projects/3')).not.toThrow();
+    expect(store.take()).toBeUndefined();
+  });
+
+  it('forgets an earlier page when the next one cannot be stored', () => {
+    const storage = memoryStorage();
+    const store = createReturnPathStore(() => storage);
+
+    store.remember('/projects/3/issues');
+    storage.setItem = refused;
+    store.remember('/settings/members');
+
     expect(store.take()).toBeUndefined();
   });
 });

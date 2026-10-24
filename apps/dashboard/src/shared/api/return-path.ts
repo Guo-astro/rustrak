@@ -39,7 +39,14 @@ export function createReturnPathStore(
       try {
         storage().setItem(RETURN_PATH_KEY, href);
       } catch {
-        // Refused: see above.
+        // Refused: see above. A spent quota refuses the write but still holds
+        // the address an earlier page left, and following that one would be
+        // worse than following none.
+        try {
+          storage().removeItem(RETURN_PATH_KEY);
+        } catch {
+          // Nothing could have been stored to read back either.
+        }
       }
     },
 
