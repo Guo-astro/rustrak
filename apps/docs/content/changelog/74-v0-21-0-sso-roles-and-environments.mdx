@@ -1,0 +1,63 @@
+---
+version: v0.21.0
+title: SSO Roles and Environments
+description: OIDC groups map to roles and SSO can be the only way in, issues filter by environment, and SQLite gives deleted space back to the disk
+date: 2026-10-24
+tags: [server, dashboard, client]
+---
+
+## SSO roles and SSO-only login
+
+Your identity provider can now decide who is an admin, and can be the only
+way to sign in.
+
+- `OIDC_ADMIN_GROUPS` lists the groups that grant the global admin role. With
+  it set, every SSO login refreshes the account's role: in one of those groups
+  is admin, anyone else is a member. Left unset, roles are not touched
+- `OIDC_GROUPS_CLAIM` names the claim that carries the groups, `groups` by
+  default
+- `OIDC_DISABLE_PASSWORD_LOGIN=true` refuses password sign-in and puts SSO
+  first on the login page. The first account (`CREATE_SUPERUSER`) keeps its
+  password as a break-glass, and startup fails if SSO is not configured, so
+  nobody gets locked out
+- Invitations still work under SSO-only: the account is created, and its
+  owner then signs in through the provider
+
+Thanks to [@GhaziBenDahmane](https://github.com/GhaziBenDahmane).
+
+## Filter issues by environment
+
+Issues now record which environments they have been seen in, with first
+seen, last seen and count per environment, as Sentry does. Existing issues
+are backfilled from the events retention has kept.
+
+- `?environment=` on the issue and event lists returns only what was seen
+  there, with that environment's numbers
+- `GET /api/projects/{id}/environments` lists a project's environments
+- The Sentry-compatible API understands `environment:production` and
+  `environment:"Acme Corp"` in search
+- `@rustrak/client` has the new parameter and endpoint
+
+## SQLite gives disk space back
+
+A storage cleanup on SQLite now shrinks the database file instead of only
+reusing the freed space ([@chrisedington](https://github.com/chrisedington)).
+
+- Databases created from this release on use incremental auto-vacuum, and
+  every cleanup hands the pages it freed back to the disk
+- An older database shows a **Compact database** action on the Storage page.
+  It rewrites the file once, and checks there is enough free disk before it
+  starts
+
+See [Reclaiming disk space](/configuration/database#reclaiming-disk-space).
+
+## Improvements
+
+- Signing in returns you to the page you were trying to open, also through
+  SSO, and a return address that leads to another host is refused
+  ([@chrisedington](https://github.com/chrisedington))
+- Project keys carried over from Sentry that are not RFC 4122 UUIDs are
+  accepted by the API spec and `@rustrak/client`
+  ([@chrisedington](https://github.com/chrisedington))
+- A stray quote in an issue search no longer swallows the filters after it
+- `ctutils` is updated for RUSTSEC-2026-0385
