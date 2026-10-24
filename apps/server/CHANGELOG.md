@@ -1,5 +1,11 @@
 # @rustrak/server
 
+## 0.21.0
+
+### Minor Changes
+
+- [`acc1ff6`](https://github.com/rustrak/rustrak/commit/acc1ff6c2817269472f22155c34998560b50112f) Thanks [@AbianS](https://github.com/AbianS)! - SSO can map OIDC groups to the global admin role (`OIDC_GROUPS_CLAIM`, `OIDC_ADMIN_GROUPS`) and can be made the only way to sign in (`OIDC_DISABLE_PASSWORD_LOGIN`), with the first account kept as a break-glass (@GhaziBenDahmane). Issues and events can be filtered by environment through `?environment=`, `GET /api/projects/{id}/environments` and `environment:` in the Sentry-compatible search, and a stray quote in a search no longer swallows the filters after it. On SQLite, a storage cleanup now gives the freed space back to the disk (@chrisedington), and a database created before this release can be compacted once from the Storage page. Signing in returns to the page that asked for it, including through SSO (@chrisedington), and project keys carried over from Sentry that are not RFC 4122 UUIDs are accepted (@chrisedington).
+
 ## 0.20.0
 
 ### Minor Changes
