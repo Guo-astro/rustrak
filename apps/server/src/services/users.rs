@@ -17,12 +17,58 @@ pub enum OidcOutcome {
 
 /// What an SSO login may do with an identity that is not linked to an
 /// account yet.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct OidcLinkPolicy {
     /// Create a local account when no account has the identity's email.
     pub auto_provision: bool,
     /// Attach the identity to an existing account with the same verified email.
     pub link_existing_accounts: bool,
+    /// Groups that grant the global `admin` role. Empty leaves roles alone.
+    pub admin_groups: Vec<String>,
+}
+
+impl OidcLinkPolicy {
+    /// The role an identity's groups ask for, or `None` when the operator has
+    /// not configured a mapping and roles are therefore left alone.
+    pub fn role_for(&self, groups: &[String]) -> Option<UserRole> {
+        let matched = self.matched_admin_groups(groups);
+        self.role_from_matched(&matched)
+    }
+
+    /// The identity's groups that are admin groups right now.
+    ///
+    /// Bounded by the operator's list, never by what the provider sends, which
+    /// is what makes it safe to keep in a session cookie until the account's
+    /// password arrives.
+    pub fn matched_admin_groups(&self, groups: &[String]) -> Vec<String> {
+        self.admin_groups
+            .iter()
+            .filter(|admin| groups.iter().any(|group| group == *admin))
+            .cloned()
+            .collect()
+    }
+
+    /// The role for a link interrupted by the password step, decided against
+    /// the configuration as it is now.
+    ///
+    /// The matched groups were read from the token minutes earlier; a group the
+    /// operator has since removed from `OIDC_ADMIN_GROUPS`, or a mapping that
+    /// has since been turned off, must not still grant admin.
+    pub fn role_from_matched(&self, matched: &[String]) -> Option<UserRole> {
+        if self.admin_groups.is_empty() {
+            return None;
+        }
+        Some(
+            if matched
+                .iter()
+                .any(|group| self.admin_groups.iter().any(|admin| admin == group))
+            {
+                UserRole::Admin
+            } else {
+                UserRole::Member
+            },
+        )
+    }
 }
 
 impl UsersService {
@@ -115,6 +161,7 @@ impl UsersService {
             subject,
             email,
             email_verified,
+            groups,
         } = identity;
         let (issuer, subject, email, email_verified) = (
             issuer.as_str(),
@@ -122,12 +169,13 @@ impl UsersService {
             email.as_str(),
             *email_verified,
         );
+        let mapped_role = policy.role_for(groups);
 
-        if let Some(user) = Self::get_by_oidc_identity(pool, issuer, subject).await? {
+        if let Some(mut user) = Self::get_by_oidc_identity(pool, issuer, subject).await? {
             if !user.is_active {
                 return Err(AppError::Unauthorized("Account is disabled".to_string()));
             }
-            Self::touch_oidc_login(pool, issuer, subject, user.id).await?;
+            Self::touch_oidc_login(pool, issuer, subject, &mut user, mapped_role).await?;
             return Ok(OidcOutcome::SignedIn(user));
         }
 
@@ -188,7 +236,7 @@ impl UsersService {
         }
         let user = candidates.into_iter().next();
 
-        let user = if let Some(existing) = user {
+        let mut user = if let Some(existing) = user {
             if !existing.is_active {
                 return Err(AppError::Unauthorized("Account is disabled".to_string()));
             }
@@ -207,14 +255,18 @@ impl UsersService {
             let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
                 .fetch_one(&mut *tx)
                 .await?;
+            // The first account on an installation still bootstraps as admin:
+            // a mapping that nobody satisfies must not leave a fresh instance
+            // with no administrator at all.
             let role = if count.0 == 0 {
                 UserRole::Admin
             } else {
-                UserRole::Member
+                mapped_role.unwrap_or(UserRole::Member)
             };
             Self::create_user_with_password_hash(&mut *tx, &normalized_email, &password_hash, role)
                 .await?
         };
+        Self::apply_sso_role(&mut tx, &mut user, mapped_role).await?;
 
         let inserted = sqlx::query(
             r#"
@@ -256,6 +308,7 @@ impl UsersService {
         identity: &OidcIdentity,
         user_id: i32,
         password: &str,
+        role: Option<UserRole>,
     ) -> AppResult<User> {
         let invalid = || AppError::Unauthorized("Invalid credentials".to_string());
         let user = Self::get_by_id(pool, user_id).await?.ok_or_else(invalid)?;
@@ -265,7 +318,7 @@ impl UsersService {
 
         // Argon2 off the Actix worker, as account provisioning does.
         let (user, password) = (user, password.to_string());
-        let (user, matches) = tokio::task::spawn_blocking(move || {
+        let (mut user, matches) = tokio::task::spawn_blocking(move || {
             let matches = user.verify_password(&password);
             (user, matches)
         })
@@ -289,6 +342,13 @@ impl UsersService {
         .bind(identity.email.trim())
         .execute(&mut *tx)
         .await?;
+        // The role follows the groups only once the account's owner has proved
+        // they are the person behind the identity (the password above), and
+        // only when the link actually landed: before that point anyone who can
+        // authenticate at the provider with this email could change it.
+        if inserted.rows_affected() > 0 {
+            Self::apply_sso_role(&mut tx, &mut user, role).await?;
+        }
         sqlx::query("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1")
             .bind(user.id)
             .execute(&mut *tx)
@@ -336,15 +396,17 @@ impl UsersService {
     }
 
     /// Stamp a successful SSO login on both the identity and the local account,
-    /// in one transaction so the two cannot disagree about when the user last
-    /// signed in.
+    /// and bring the account's role in line with the operator's group mapping,
+    /// all in one transaction so the rows cannot disagree.
     async fn touch_oidc_login(
         pool: &DbPool,
         issuer: &str,
         subject: &str,
-        user_id: i32,
+        user: &mut User,
+        role: Option<UserRole>,
     ) -> AppResult<()> {
         let mut tx = crate::db::begin_write(pool).await?;
+        Self::apply_sso_role(&mut tx, user, role).await?;
         sqlx::query(
             "UPDATE oidc_identities SET last_login = CURRENT_TIMESTAMP WHERE issuer = $1 AND subject = $2",
         )
@@ -353,10 +415,43 @@ impl UsersService {
         .execute(&mut *tx)
         .await?;
         sqlx::query("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1")
-            .bind(user_id)
+            .bind(user.id)
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;
+        Ok(())
+    }
+
+    /// Write an SSO-derived role, unless that would take admin away from the
+    /// primary account.
+    ///
+    /// The primary account is the bootstrap superuser and is protected from
+    /// demotion everywhere else; a group mapping must not become the way around
+    /// that, or a misconfigured claim could lock the instance's owner out.
+    async fn apply_sso_role(
+        tx: &mut sqlx::Transaction<'_, crate::db::Db>,
+        user: &mut User,
+        role: Option<UserRole>,
+    ) -> AppResult<()> {
+        let Some(role) = role else {
+            return Ok(());
+        };
+        if user.role == role.as_str() {
+            return Ok(());
+        }
+        if Self::primary_user_id(&mut **tx).await? == Some(user.id)
+            && user.is_admin()
+            && role == UserRole::Member
+        {
+            return Ok(());
+        }
+
+        sqlx::query("UPDATE users SET role = $1 WHERE id = $2")
+            .bind(role.as_str())
+            .bind(user.id)
+            .execute(&mut **tx)
+            .await?;
+        user.role = role.as_str().to_string();
         Ok(())
     }
 
@@ -394,9 +489,15 @@ impl UsersService {
     /// The primary user = the first-registered account (lowest id), i.e. the
     /// bootstrap superuser Rustrak was set up with. It is protected from demotion
     /// and deletion. Returns `None` only when there are no users.
-    pub async fn primary_user_id(pool: &DbPool) -> AppResult<Option<i32>> {
+    ///
+    /// Takes a pool or a transaction, so a write that guards the primary
+    /// account can read it under the same lock.
+    pub async fn primary_user_id<'e, E>(executor: E) -> AppResult<Option<i32>>
+    where
+        E: sqlx::Executor<'e, Database = crate::db::Db>,
+    {
         let row: (Option<i32>,) = sqlx::query_as("SELECT MIN(id) FROM users")
-            .fetch_one(pool)
+            .fetch_one(executor)
             .await?;
 
         Ok(row.0)

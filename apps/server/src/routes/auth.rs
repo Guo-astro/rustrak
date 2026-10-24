@@ -24,6 +24,15 @@ struct AuthResponse {
 
 #[derive(Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+struct AcceptInvitationResponse {
+    user: UserResponse,
+    /// Whether the response opened a session. False when password login is
+    /// disabled: the account exists, and its owner signs in through SSO.
+    signed_in: bool,
+}
+
+#[derive(Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 struct UserResponse {
     id: i32,
     email: String,
@@ -53,6 +62,10 @@ struct PendingLink {
     email: String,
     email_verified: bool,
     user_id: i32,
+    /// The identity's groups that were admin groups when the token was read.
+    /// Only the intersection is kept, which the operator's own list bounds,
+    /// and it is re-checked against the current mapping before it is used.
+    matched_admin_groups: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -79,6 +92,9 @@ struct SsoConfigResponse {
     enabled: bool,
     #[cfg_attr(feature = "openapi", schema(required))]
     provider_name: Option<String>,
+    /// Whether the login page should show the password form. False only when
+    /// the operator turned password sign-in off.
+    password_login_enabled: bool,
 }
 
 #[derive(Serialize)]
@@ -191,7 +207,7 @@ pub async fn register(
     tag = "Auth",
     request_body = AcceptInvitation,
     responses(
-        (status = 201, description = "Invitation accepted, user created and logged in", body = AuthResponse),
+        (status = 201, description = "Invitation accepted and user created; signed in unless password login is disabled", body = AcceptInvitationResponse),
         (status = 400, description = "Invalid or expired invitation", body = crate::error::ErrorResponse),
     ),
     security(()),
@@ -200,14 +216,37 @@ pub async fn register(
 /// Accept a pending invitation: creates the user (with the invite's email + role) and logs in.
 pub async fn accept_invitation(
     pool: web::Data<crate::db::DbPool>,
+    oidc: web::Data<Option<OidcService>>,
     session: Session,
     req: web::Json<AcceptInvitation>,
 ) -> AppResult<impl Responder> {
     let user = InvitationService::accept(pool.get_ref(), &req.token, &req.password).await?;
 
-    auth::set_user_session(&session, user.id)?;
+    // Under OIDC_DISABLE_PASSWORD_LOGIN the account is still created, since
+    // without auto-provisioning an invitation is the only way to make one, but
+    // the password does not open a session: the person signs in through the
+    // provider, and the password only confirms the SSO link to this account.
+    // A session the browser already had belongs to someone else; keeping it
+    // would leave them signed in as that account while the page tells them
+    // to sign in as this one.
+    let signed_in = !password_login_disabled(&oidc);
+    if signed_in {
+        auth::set_user_session(&session, user.id)?;
+    } else {
+        auth::clear_session(&session);
+    }
 
-    Ok(HttpResponse::Created().json(AuthResponse { user: user.into() }))
+    Ok(HttpResponse::Created().json(AcceptInvitationResponse {
+        user: user.into(),
+        signed_in,
+    }))
+}
+
+/// Whether the operator turned password sign-in off.
+fn password_login_disabled(oidc: &web::Data<Option<OidcService>>) -> bool {
+    oidc.as_ref()
+        .as_ref()
+        .is_some_and(|service| service.password_login_disabled())
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(
@@ -256,6 +295,7 @@ pub async fn get_invitation(
     responses(
         (status = 200, description = "Logged in", body = AuthResponse),
         (status = 401, description = "Invalid credentials", body = crate::error::ErrorResponse),
+        (status = 403, description = "Password login is disabled; use SSO", body = crate::error::ErrorResponse),
     ),
     security(()),
 ))]
@@ -263,6 +303,7 @@ pub async fn get_invitation(
 /// Authenticate user and create session
 pub async fn login(
     pool: web::Data<crate::db::DbPool>,
+    oidc: web::Data<Option<OidcService>>,
     session: Session,
     req: web::Json<LoginRequest>,
 ) -> AppResult<impl Responder> {
@@ -279,6 +320,19 @@ pub async fn login(
     // Verify password
     if !user.verify_password(&req.password)? {
         return Err(AppError::Unauthorized("Invalid credentials".to_string()));
+    }
+
+    // With OIDC_DISABLE_PASSWORD_LOGIN the provider is the only way in. The
+    // primary account stays as the documented break-glass: it is the one
+    // CREATE_SUPERUSER created, and blocking it too would leave a provider
+    // outage with no way back. The check comes after the password so it does
+    // not tell an anonymous caller which account is primary.
+    if password_login_disabled(&oidc)
+        && UsersService::primary_user_id(pool.get_ref()).await? != Some(user.id)
+    {
+        return Err(AppError::Forbidden(
+            "Password login is disabled; sign in through SSO".to_string(),
+        ));
     }
 
     // Update last login
@@ -301,12 +355,13 @@ pub async fn login(
 /// GET /auth/sso/config
 /// Public, non-sensitive information used to render the login page.
 pub async fn sso_config(oidc: web::Data<Option<OidcService>>) -> impl Responder {
+    let service = oidc.as_ref().as_ref();
     HttpResponse::Ok().json(SsoConfigResponse {
-        enabled: oidc.is_some(),
-        provider_name: oidc
-            .as_ref()
-            .as_ref()
-            .map(|service| service.provider_name().to_string()),
+        enabled: service.is_some(),
+        provider_name: service.map(|service| service.provider_name().to_string()),
+        // Startup refuses the switch without SSO configured, so "no provider"
+        // always means password login is the way in.
+        password_login_enabled: service.is_none_or(|service| !service.password_login_disabled()),
     })
 }
 
@@ -391,6 +446,10 @@ async fn handle_sso_callback(
             "SSO provider returned an invalid email address".to_string(),
         ));
     }
+    // Bounded by OIDC_ADMIN_GROUPS, so the cookie cannot grow with whatever
+    // the provider sends. Re-decided at confirmation, in case the mapping
+    // changed in between.
+    let matched_admin_groups = service.link_policy().matched_admin_groups(&identity.groups);
     let result =
         match UsersService::find_or_provision_oidc(pool, &identity, service.link_policy()).await? {
             OidcOutcome::SignedIn(user) => CallbackResult::SignedIn(user),
@@ -400,6 +459,7 @@ async fn handle_sso_callback(
                 email: identity.email,
                 email_verified: identity.email_verified,
                 user_id: user.id,
+                matched_admin_groups,
             }),
         };
     Ok(result)
@@ -483,9 +543,14 @@ pub async fn sso_callback(
 }
 
 fn pending_link(session: &Session) -> AppResult<PendingLink> {
+    // A value that no longer deserializes is a link started before an upgrade
+    // changed this struct. The cookie is signed and encrypted, so it is ours,
+    // just stale: the browser has to start the login again, which is the same
+    // answer as "nothing pending" and not a server error.
     session
         .get::<PendingLink>(OIDC_PENDING_LINK_KEY)
-        .map_err(|e| AppError::Internal(format!("Failed to read SSO session: {e}")))?
+        .ok()
+        .flatten()
         .ok_or_else(|| AppError::NotFound("No SSO account link is pending".to_string()))
 }
 
@@ -536,19 +601,35 @@ pub async fn sso_link(
 /// is given, and sign in. A wrong password keeps the link pending for a retry.
 pub async fn confirm_sso_link(
     pool: web::Data<DbPool>,
+    oidc: web::Data<Option<OidcService>>,
     session: Session,
     req: web::Json<ConfirmSsoLinkRequest>,
 ) -> AppResult<HttpResponse> {
+    let service = oidc
+        .as_ref()
+        .as_ref()
+        .ok_or_else(|| AppError::NotFound("SSO is not configured".to_string()))?;
     let pending = pending_link(&session)?;
     let identity = auth::OidcIdentity {
         issuer: pending.issuer,
         subject: pending.subject,
         email: pending.email,
         email_verified: pending.email_verified,
+        groups: Vec::new(),
     };
-    let user =
-        UsersService::confirm_oidc_link(pool.get_ref(), &identity, pending.user_id, &req.password)
-            .await?;
+    // Decided now, not at the callback: the operator may have changed the
+    // mapping, or turned SSO off, while this link waited for a password.
+    let role = service
+        .link_policy()
+        .role_from_matched(&pending.matched_admin_groups);
+    let user = UsersService::confirm_oidc_link(
+        pool.get_ref(),
+        &identity,
+        pending.user_id,
+        &req.password,
+        role,
+    )
+    .await?;
 
     session.remove(OIDC_PENDING_LINK_KEY);
     session.renew();

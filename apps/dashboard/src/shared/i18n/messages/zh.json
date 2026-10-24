@@ -1384,6 +1384,9 @@
       "ssoRedirecting": "正在跳转...",
       "ssoFailure": "单点登录失败，请重试。",
       "or": "或",
+      "passwordLoginDisabled": "密码登录已禁用，请使用 {provider} 继续。",
+      "usePassword": "使用密码登录",
+      "passwordLoginDisallowed": "该账户已禁用密码登录，请使用单点登录。",
       "invalidCredentials": "电子邮件或密码无效",
       "failureNetwork": "无法连接服务器。请检查您的网络连接后重试。",
       "failureRateLimited": "登录尝试次数过多。请等待约 {duration} 后再试。",
@@ -1431,7 +1434,10 @@
       "accept": "接受并继续",
       "passwordRequired": "密码为必填项",
       "confirmRequired": "请确认您的密码",
-      "passwordsMismatch": "两次输入的密码不一致"
+      "passwordsMismatch": "两次输入的密码不一致",
+      "createdTitle": "账户已创建",
+      "createdUseSso": "此实例已禁用密码登录。请使用单点登录，并使用接收此邀请的电子邮件地址。",
+      "goToLogin": "前往登录"
     },
     "unavailable": {
       "brandStatement": "链接会过期",

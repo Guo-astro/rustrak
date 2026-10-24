@@ -38,6 +38,10 @@ function loginFailureMessage(error: RustrakError, t: LoginTranslator): string {
   switch (error.kind) {
     case 'network':
       return t('form.failureNetwork');
+    case 'forbidden':
+      // The only 403 this form can get is the SSO-only switch: the account
+      // exists but may not sign in with a password.
+      return t('form.passwordLoginDisallowed');
     case 'rate_limited':
       // `retryAfter` is reachable only on this arm, which is what branching on
       // the client's own union buys over a flattened domain enum.
@@ -59,6 +63,41 @@ function formatWait(seconds: number, t: LoginTranslator): string {
   return t('form.waitHours', { count: hours });
 }
 
+/**
+ * The note shown when the operator turned password sign-in off, and the one
+ * generic way back to the form: the account that may still use a password is
+ * the first one, and naming it would publish which account that is.
+ */
+function PasswordLoginDisabled({
+  provider,
+  revealed,
+  onReveal,
+}: {
+  provider: string;
+  revealed: boolean;
+  onReveal: () => void;
+}) {
+  const t = useTranslations('auth');
+
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        {t('form.passwordLoginDisabled', { provider })}
+      </p>
+      {!revealed && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full text-xs uppercase tracking-widest"
+          onClick={onReveal}
+        >
+          {t('form.usePassword')}
+        </Button>
+      )}
+    </>
+  );
+}
+
 export function LoginForm({
   ssoConfig,
   ssoFailed,
@@ -78,6 +117,16 @@ export function LoginForm({
   const [ssoErrorDismissed, setSsoErrorDismissed] = useState(false);
   const [ssoStartFailed, setSsoStartFailed] = useState(false);
   const hasSsoError = ssoStartFailed || (ssoFailed && !ssoErrorDismissed);
+  // A failed or absent config lookup means the login page is all we have, so
+  // the password form stays; the server decides whether it is allowed.
+  const passwordLoginEnabled = ssoConfig?.password_login_enabled ?? true;
+  // The switch hides the form for everyone, but the first account can still
+  // sign in with its password as a break-glass when the provider is down. That
+  // account cannot be named here without publishing which one it is, so the
+  // recovery is one generic link, and the server rejects everyone else.
+  const [passwordFormRevealed, setPasswordFormRevealed] = useState(false);
+  const passwordFormVisible = passwordLoginEnabled || passwordFormRevealed;
+  const providerName = ssoConfig?.provider_name ?? 'SSO';
 
   const loginSchema = z.object({
     email: z.email(t('form.emailInvalid')),
@@ -178,9 +227,7 @@ export function LoginForm({
             >
               {isSsoPending
                 ? t('form.ssoRedirecting')
-                : t('form.continueWithSso', {
-                    provider: ssoConfig.provider_name ?? 'SSO',
-                  })}
+                : t('form.continueWithSso', { provider: providerName })}
             </Button>
             {hasSsoError && (
               <p className="text-sm font-medium text-destructive" role="alert">
@@ -189,98 +236,110 @@ export function LoginForm({
             )}
           </div>
 
-          <div className="flex items-center gap-3" aria-hidden="true">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs uppercase tracking-widest text-muted-foreground">
-              {t('form.or')}
-            </span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
+          {passwordFormVisible && (
+            <div className="flex items-center gap-3" aria-hidden="true">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                {t('form.or')}
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          )}
         </>
       )}
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {t('form.emailLabel')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder={t('form.emailPlaceholder')}
-                    autoComplete="email"
-                    disabled={isPending || isSsoPending}
-                    className="bg-background border-border px-4 py-3.5 text-sm placeholder:text-muted-foreground/30"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      {!passwordLoginEnabled && (
+        <PasswordLoginDisabled
+          provider={providerName}
+          revealed={passwordFormRevealed}
+          onReveal={() => setPasswordFormRevealed(true)}
+        />
+      )}
 
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <div className="flex items-center justify-between">
+      {passwordFormVisible && (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
                   <FormLabel className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {t('form.passwordLabel')}
+                    {t('form.emailLabel')}
                   </FormLabel>
-                </div>
-                <FormControl>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder={t('form.passwordPlaceholder')}
-                      autoComplete="current-password"
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder={t('form.emailPlaceholder')}
+                      autoComplete="email"
                       disabled={isPending || isSsoPending}
-                      className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-4 py-3.5 pr-10 text-sm shadow-xs outline-none placeholder:text-muted-foreground/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                      className="bg-background border-border px-4 py-3.5 text-sm placeholder:text-muted-foreground/30"
                       {...field}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      disabled={isPending || isSsoPending}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                      tabIndex={-1}
-                      aria-label={
-                        showPassword
-                          ? t('form.hidePassword')
-                          : t('form.showPassword')
-                      }
-                    >
-                      {showPassword ? (
-                        <EyeOff className="size-4" />
-                      ) : (
-                        <Eye className="size-4" />
-                      )}
-                    </button>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                      {t('form.passwordLabel')}
+                    </FormLabel>
                   </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormControl>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder={t('form.passwordPlaceholder')}
+                        autoComplete="current-password"
+                        disabled={isPending || isSsoPending}
+                        className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-4 py-3.5 pr-10 text-sm shadow-xs outline-none placeholder:text-muted-foreground/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        disabled={isPending || isSsoPending}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                        tabIndex={-1}
+                        aria-label={
+                          showPassword
+                            ? t('form.hidePassword')
+                            : t('form.showPassword')
+                        }
+                      >
+                        {showPassword ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          {/* Where an outage lands, kept off the credential fields. */}
-          <FormRootError />
+            {/* Where an outage lands, kept off the credential fields. */}
+            <FormRootError />
 
-          <Button
-            type="submit"
-            className="w-full font-extrabold uppercase tracking-widest text-xs py-6 mt-2"
-            disabled={isPending || isSsoPending}
-          >
-            {isPending ? t('form.signingIn') : t('form.login')}
-          </Button>
-        </form>
-      </Form>
+            <Button
+              type="submit"
+              className="w-full font-extrabold uppercase tracking-widest text-xs py-6 mt-2"
+              disabled={isPending || isSsoPending}
+            >
+              {isPending ? t('form.signingIn') : t('form.login')}
+            </Button>
+          </form>
+        </Form>
+      )}
     </div>
   );
 }

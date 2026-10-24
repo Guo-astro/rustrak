@@ -1384,6 +1384,9 @@
       "ssoRedirecting": "Redirection...",
       "ssoFailure": "L’authentification unique a échoué. Veuillez réessayer.",
       "or": "ou",
+      "passwordLoginDisabled": "La connexion par mot de passe est désactivée. Utilisez {provider} pour continuer.",
+      "usePassword": "Se connecter avec un mot de passe",
+      "passwordLoginDisallowed": "La connexion par mot de passe est désactivée pour ce compte. Utilisez l’authentification unique.",
       "invalidCredentials": "E-mail ou mot de passe incorrect",
       "failureNetwork": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
       "failureRateLimited": "Trop de tentatives de connexion. Attendez environ {duration} avant de réessayer.",
@@ -1431,7 +1434,10 @@
       "accept": "Accepter et continuer",
       "passwordRequired": "Le mot de passe est obligatoire",
       "confirmRequired": "Veuillez confirmer votre mot de passe",
-      "passwordsMismatch": "Les mots de passe ne correspondent pas"
+      "passwordsMismatch": "Les mots de passe ne correspondent pas",
+      "createdTitle": "Compte créé",
+      "createdUseSso": "La connexion par mot de passe est désactivée sur cette instance. Connectez-vous avec l’authentification unique, en utilisant l’adresse e-mail à laquelle cette invitation a été envoyée.",
+      "goToLogin": "Aller à la connexion"
     },
     "unavailable": {
       "brandStatement": "Les liens expirent",
