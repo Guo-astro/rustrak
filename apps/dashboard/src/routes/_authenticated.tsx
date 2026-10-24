@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useTranslations } from 'use-intl';
 import { Header } from '@/features/user/ui/components/header';
 import { TimeZoneSync } from '@/features/user/ui/components/time-zone-sync';
+import { rememberReturnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
 import { Link } from '@/shared/ui/components/link';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
@@ -31,14 +32,15 @@ import { CommandBarSlot } from './_authenticated/-components/command-bar-slot';
  * user.
  */
 export const Route = createFileRoute('/_authenticated')({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location, preload }) => {
     const answer = await session.ensure();
 
     if (answer.state === 'anonymous') {
-      // No `?redirect=` on the way out, and that is the existing behaviour
-      // rather than an omission: signing in lands on `/`, which sends the
-      // reader to `/projects`. Carrying the intended destination through the
-      // login page is a feature this port is not the place to add.
+      // Signing in lands on `/`, which comes back here rather than to
+      // `/projects`: a link to an issue, from Slack or an alert email, should
+      // open the issue. Not on a preload, which is a hovered link rather than
+      // somewhere the reader went.
+      if (!preload) rememberReturnPath(location.href);
       throw redirect({ to: '/login' });
     }
 
