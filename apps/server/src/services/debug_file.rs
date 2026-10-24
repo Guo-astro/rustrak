@@ -15,6 +15,7 @@ use crate::services::jvm::{
     build_proguard_cache, PROGUARD_CACHE_FILE_TYPE, PROGUARD_FILE_TYPE, SOURCE_BUNDLE_FILE_TYPE,
 };
 use crate::services::native::{MACHO_FILE_TYPE, SYMCACHE_FILE_TYPE};
+use crate::services::source_bundle::bundle_manifest;
 use crate::services::sourcemap::{finish_job, join_chunks, store_file};
 use crate::services::sourcemap_store::SourceMapStore;
 
@@ -56,7 +57,7 @@ pub async fn assemble_dif_for_job(
             (uuid, PROGUARD_CACHE_FILE_TYPE, cache),
         ]
     } else if data.starts_with(b"SYSB") {
-        let uuid = source_bundle_debug_id(&data)
+        let uuid = source_bundle_debug_id(&data)?
             .or_else(|| {
                 job.debug_id
                     .as_deref()
@@ -97,19 +98,52 @@ pub async fn assemble_dif_for_job(
     Ok(())
 }
 
-/// The `debug_id` a source bundle's `manifest.json` declares.
-fn source_bundle_debug_id(data: &[u8]) -> Option<Uuid> {
-    use std::io::Read as _;
+/// The `debug_id` a source bundle's `manifest.json` declares, if any. A
+/// bundle whose manifest cannot be read is not a source bundle.
+fn source_bundle_debug_id(data: &[u8]) -> AppResult<Option<Uuid>> {
     // The zip's offsets count the 8-byte header, so it opens over all of it.
-    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(data)).ok()?;
-    let mut manifest = String::new();
-    archive
-        .by_name("manifest.json")
-        .ok()?
-        .read_to_string(&mut manifest)
-        .ok()?;
-    let manifest: serde_json::Value = serde_json::from_str(&manifest).ok()?;
-    Uuid::parse_str(manifest["debug_id"].as_str()?).ok()
+    let manifest = zip::ZipArchive::new(std::io::Cursor::new(data))
+        .ok()
+        .and_then(|mut archive| bundle_manifest(&mut archive))
+        .ok_or_else(|| AppError::Validation("invalid source bundle manifest".into()))?;
+    Ok(manifest["debug_id"]
+        .as_str()
+        .and_then(|id| Uuid::parse_str(id).ok()))
+}
+
+/// Records the mapping (and its cache) stored for `from` under `to` as well,
+/// for the same mapping uploaded again under another UUID. Sentry's
+/// `_clone_proguard_debug_file_for_reupload`: the stored files are shared.
+pub async fn alias_proguard_mapping(
+    pool: &DbPool,
+    project_id: i32,
+    from: Uuid,
+    to: Uuid,
+) -> AppResult<()> {
+    let mut tx = pool.begin().await?;
+    for file_type in [PROGUARD_FILE_TYPE, PROGUARD_CACHE_FILE_TYPE] {
+        #[cfg(feature = "postgres")]
+        let (id, to, from) = (Uuid::new_v4(), to, from);
+        #[cfg(not(feature = "postgres"))]
+        let (id, to, from) = (Uuid::new_v4().to_string(), to.to_string(), from.to_string());
+        sqlx::query(
+            r#"
+            INSERT INTO source_file_metadata(id, project_id, debug_id, file_type, file_id)
+            SELECT $1, project_id, $2, file_type, file_id FROM source_file_metadata
+            WHERE project_id = $3 AND debug_id = $4 AND file_type = $5
+            ON CONFLICT(project_id, debug_id, file_type) DO UPDATE SET file_id = EXCLUDED.file_id
+            "#,
+        )
+        .bind(id)
+        .bind(to)
+        .bind(project_id)
+        .bind(from)
+        .bind(file_type)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(())
 }
 
 #[cfg(test)]
