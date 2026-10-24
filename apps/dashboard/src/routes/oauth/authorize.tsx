@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { getAuthorization } from '@/features/mcp/api/queries';
 import { ConsentForm } from '@/features/mcp/ui/components/consent-form';
-import { rememberReturnPath } from '@/shared/api/return-path';
+import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
 import { translator } from '@/shared/i18n/intl';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
@@ -38,7 +38,7 @@ export const Route = createFileRoute('/oauth/authorize')({
     if (answer.state === 'anonymous') {
       // If storage is refused (private mode), signing in lands on the
       // projects list instead, and the assistant can simply start over.
-      rememberReturnPath(location.href);
+      returnPath.remember(location.href);
       throw redirect({ to: '/login' });
     }
     return { answer };

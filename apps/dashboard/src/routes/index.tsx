@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { takeReturnPath } from '@/shared/api/return-path';
+import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
 
@@ -26,8 +26,8 @@ export const Route = createFileRoute('/')({
     if (answer.state === 'authenticated') {
       // The page the reader was sent away from to sign in: a screen behind
       // `_authenticated`, or an assistant's consent page.
-      const returnPath = takeReturnPath();
-      if (returnPath) throw redirect({ href: returnPath });
+      const destination = returnPath.take();
+      if (destination) throw redirect({ href: destination });
 
       // `href`, not `to`: `/projects` carries an optional `page`, and the
       // typed form would make this state a search object the route is happy

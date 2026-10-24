@@ -13,26 +13,51 @@
  */
 const RETURN_PATH_KEY = 'rustrak.returnPath';
 
-/** Leave `href`, a location's path, search and hash, for `/` to resume. */
-export function rememberReturnPath(href: string): void {
-  try {
-    sessionStorage.setItem(RETURN_PATH_KEY, href);
-  } catch {
-    // Storage refused (private mode): signing in lands on the projects list
-    // instead, which is what it did before there was anywhere to return to.
-  }
+/** Where a sign-in should return to, as the router's guards use it. */
+export interface ReturnPathStore {
+  /** Leave `href`, a location's path, search and hash, for `/` to resume. */
+  remember(href: string): void;
+  /** Reads the stored address once, if it is one `/` may follow. */
+  take(): string | undefined;
 }
 
-/** Reads the stored address once, if it is one `/` may follow. */
-export function takeReturnPath(): string | undefined {
-  try {
-    const stored = sessionStorage.getItem(RETURN_PATH_KEY);
-    sessionStorage.removeItem(RETURN_PATH_KEY);
-    return resumablePath(stored);
-  } catch {
-    return undefined;
-  }
+type ReturnPathStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+/**
+ * The store, over any storage.
+ *
+ * `storage` is read on every call rather than once, because merely touching
+ * `sessionStorage` throws where the browser refuses it (private mode, blocked
+ * site data). Either way signing in lands on the projects list instead, which
+ * is what it did before there was anywhere to return to.
+ */
+export function createReturnPathStore(
+  storage: () => ReturnPathStorage,
+): ReturnPathStore {
+  return {
+    remember(href) {
+      try {
+        storage().setItem(RETURN_PATH_KEY, href);
+      } catch {
+        // Refused: see above.
+      }
+    },
+
+    take() {
+      try {
+        const store = storage();
+        const stored = store.getItem(RETURN_PATH_KEY);
+        store.removeItem(RETURN_PATH_KEY);
+        return resumablePath(stored);
+      } catch {
+        return undefined;
+      }
+    },
+  };
 }
+
+/** The application's return path, in this tab's `sessionStorage`. */
+export const returnPath = createReturnPathStore(() => sessionStorage);
 
 const ORIGIN = 'http://rustrak.invalid';
 

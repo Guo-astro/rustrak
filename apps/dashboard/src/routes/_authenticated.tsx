@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useTranslations } from 'use-intl';
 import { Header } from '@/features/user/ui/components/header';
 import { TimeZoneSync } from '@/features/user/ui/components/time-zone-sync';
-import { rememberReturnPath } from '@/shared/api/return-path';
+import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
 import { Link } from '@/shared/ui/components/link';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
@@ -40,7 +40,7 @@ export const Route = createFileRoute('/_authenticated')({
       // `/projects`: a link to an issue, from Slack or an alert email, should
       // open the issue. Not on a preload, which is a hovered link rather than
       // somewhere the reader went.
-      if (!preload) rememberReturnPath(location.href);
+      if (!preload) returnPath.remember(location.href);
       throw redirect({ to: '/login' });
     }
 
