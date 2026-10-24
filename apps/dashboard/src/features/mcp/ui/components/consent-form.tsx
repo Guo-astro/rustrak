@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { decideAuthorization } from '@/features/mcp/api/mutations';
-import { navigableRedirect } from '@/features/mcp/lib/pending-authorization';
+import { navigableRedirect } from '@/features/mcp/lib/navigable-redirect';
 import { Button } from '@/shared/ui/components/shadcn/button';
 
 interface ConsentFormProps {

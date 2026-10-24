@@ -97,8 +97,14 @@ component:** one that redirects has already painted what it was protecting.
 | | means | the guard |
 |---|---|---|
 | `authenticated` | `/auth/me` returned a user | renders the page |
-| `anonymous` | the server answered 401 | redirects to `/login` |
+| `anonymous` | the server answered 401 | redirects to `/login`, leaving its address for `/` |
 | `unavailable` | network, timeout, 5xx, 403, bad schema | renders "the server did not answer" |
+
+Every way in (the password form, SSO, SSO's account linking) lands on `/`
+afterwards, so the guard leaves the address it refused in `sessionStorage`
+(`shared/api/return-path.ts`) and `/` resumes it. A link to an issue from Slack
+opens the issue once the reader signs in, not the projects list. The consent
+page at `/oauth/authorize` guards itself and uses the same hand-off.
 
 The third row matters: only `anonymous` means signed out. Collapsing a dropped
 connection into it bounces to `/login`, where the login request fails for the

@@ -1,8 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import {
-  PENDING_AUTHORIZATION_KEY,
-  resumableAuthorization,
-} from '@/features/mcp/lib/pending-authorization';
+import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
 
@@ -27,9 +24,10 @@ export const Route = createFileRoute('/')({
     }
 
     if (answer.state === 'authenticated') {
-      // An assistant's consent page the reader left to sign in.
-      const pending = takePendingAuthorization();
-      if (pending) throw redirect({ href: pending });
+      // The page the reader was sent away from to sign in: a screen behind
+      // `_authenticated`, or an assistant's consent page.
+      const destination = returnPath.take();
+      if (destination) throw redirect({ href: destination });
 
       // `href`, not `to`: `/projects` carries an optional `page`, and the
       // typed form would make this state a search object the route is happy
@@ -45,15 +43,4 @@ export const Route = createFileRoute('/')({
 function Outage() {
   const { error } = Route.useRouteContext();
   return <OutageScreen error={error} />;
-}
-
-/** Reads the stored consent page once, if it is one `/` may follow. */
-function takePendingAuthorization(): string | undefined {
-  try {
-    const stored = sessionStorage.getItem(PENDING_AUTHORIZATION_KEY);
-    sessionStorage.removeItem(PENDING_AUTHORIZATION_KEY);
-    return resumableAuthorization(stored);
-  } catch {
-    return undefined;
-  }
 }
