@@ -1568,6 +1568,7 @@ export const zSpanDetailResponse = zSpanResponse.and(z.object({
 
 export const zSsoConfigResponse = z.object({
     enabled: z.boolean(),
+    password_login_enabled: z.boolean(),
     provider_name: z.string().nullable()
 });
 
@@ -1900,6 +1901,11 @@ export const zUserResponse = z.object({
     language: z.string().nullable(),
     role: zUserRole,
     timezone: z.string().nullable()
+});
+
+export const zAcceptInvitationResponse = z.object({
+    signed_in: z.boolean(),
+    user: zUserResponse
 });
 
 export const zAuthResponse = z.object({
@@ -3576,9 +3582,9 @@ export const zTokensGetResponse = zAuthTokenCreatedResponse;
 export const zAuthAcceptInvitationBody = zAcceptInvitation;
 
 /**
- * Invitation accepted, user created and logged in
+ * Invitation accepted and user created; signed in unless password login is disabled
  */
-export const zAuthAcceptInvitationResponse = zAuthResponse;
+export const zAuthAcceptInvitationResponse = zAcceptInvitationResponse;
 
 export const zAuthGetInvitationPath = z.object({
     token: z.string()
