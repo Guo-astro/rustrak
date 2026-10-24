@@ -43,6 +43,10 @@ const ORIGIN = 'http://rustrak.invalid';
  * read it, so what `/` follows is what was checked. `//host/x` and `/\host/x`
  * both parse to another host, and following either would turn `/` into an
  * open redirect.
+ *
+ * The normalised path is checked as well as the origin: `/.//host/x` stays on
+ * this origin while it is parsed, but dot-segment removal leaves the path
+ * `//host/x`, which the browser then reads as another host.
  */
 export function resumablePath(
   stored: string | null | undefined,
@@ -52,7 +56,8 @@ export function resumablePath(
   try {
     const url = new URL(stored, ORIGIN);
     if (url.origin !== ORIGIN) return undefined;
-    return url.pathname + url.search + url.hash;
+    const path = url.pathname + url.search + url.hash;
+    return /^\/(?![/\\])/.test(path) ? path : undefined;
   } catch {
     return undefined;
   }

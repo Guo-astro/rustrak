@@ -23,6 +23,10 @@ describe('resumablePath', () => {
       '//evil.example/projects',
       '/\\evil.example/projects',
       '/\t/evil.example/projects',
+      '/.//evil.example/projects',
+      '/..//evil.example/projects',
+      '/%2e//evil.example/projects',
+      '/%2E%2E//evil.example/projects',
       'https://evil.example/projects',
       'javascript:alert(document.domain)',
     ]) {
