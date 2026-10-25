@@ -928,6 +928,7 @@
       "url": "URL",
       "environment": "环境",
       "release": "版本",
+      "dist": "构建",
       "runtime": "运行时",
       "traceId": "追踪 ID"
     },

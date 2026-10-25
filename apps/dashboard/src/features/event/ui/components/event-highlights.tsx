@@ -72,6 +72,8 @@ export function EventHighlights({
       value: event.environment ?? tags.environment,
     },
     { labelKey: 'highlights.release', value: event.release, mono: true },
+    // A release's build per target (Android versionCode, Apple build number).
+    { labelKey: 'highlights.dist', value: str(eventData.dist), mono: true },
     { labelKey: 'highlights.runtime', value: runtimeLabel || undefined },
     { labelKey: 'highlights.traceId', value: str(trace?.trace_id), mono: true },
   ].filter((i) => Boolean(i.value));

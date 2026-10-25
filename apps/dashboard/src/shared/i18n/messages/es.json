@@ -928,6 +928,7 @@
       "url": "url",
       "environment": "entorno",
       "release": "versión",
+      "dist": "dist",
       "runtime": "runtime",
       "traceId": "id de traza"
     },

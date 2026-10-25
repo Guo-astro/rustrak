@@ -928,6 +928,7 @@
       "url": "url",
       "environment": "environnement",
       "release": "version",
+      "dist": "dist",
       "runtime": "runtime",
       "traceId": "id de trace"
     },
