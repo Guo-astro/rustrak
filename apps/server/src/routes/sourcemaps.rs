@@ -373,7 +373,10 @@ async fn enqueue_assembly(
     .await?;
     let failed = match existing_job {
         Some(job) if job.state == "ok" && job.kind == DIF_JOB_KIND => {
-            return proguard_reupload(pool, project_id, &job, &new).await
+            match proguard_reupload(pool, project_id, &job, &new).await? {
+                Some(response) => return Ok(response),
+                None => None,
+            }
         }
         Some(job) if job.state != "error" => {
             return Ok(job_response(job.state.as_str(), job.detail))
@@ -481,17 +484,21 @@ async fn enqueue_assembly(
 /// Answers for a DIF already assembled. The same ProGuard mapping requested
 /// under another UUID is stored for that UUID too, as Sentry's
 /// `batch_assemble` clones it (`_is_proguard_reupload_clone_request`).
+///
+/// `None` when no UUID holds the mapping any more: the job is forgotten and
+/// the file is assembled again like a new one.
 async fn proguard_reupload(
     pool: &DbPool,
     project_id: i32,
     job: &crate::models::source_file::AssemblyJob,
     new: &NewJob<'_>,
-) -> AppResult<AssembleResponse> {
+) -> AppResult<Option<AssembleResponse>> {
     use crate::services::debug_file::{
         alias_proguard_mapping, proguard_mapping_holder, proguard_uuid_from_name,
     };
+    let done = || Some(job_response(job.state.as_str(), job.detail.clone()));
     let Some(to) = new.name.and_then(proguard_uuid_from_name) else {
-        return Ok(job_response(job.state.as_str(), job.detail.clone()));
+        return Ok(done());
     };
     if job
         .name
@@ -499,25 +506,24 @@ async fn proguard_reupload(
         .and_then(proguard_uuid_from_name)
         .is_none()
     {
-        return Ok(job_response(
+        return Ok(Some(job_response(
             "error",
             Some("This file is not a ProGuard mapping.".into()),
-        ));
+        )));
     }
     match proguard_mapping_holder(pool, project_id, &job.bundle_checksum).await? {
         Some(from) if from == to => {}
         Some(from) => alias_proguard_mapping(pool, project_id, from, to).await?,
-        // Every UUID it was stored under now holds another mapping, and its
-        // chunks are gone: forget the job so the file is uploaded again.
+        // Every UUID it was stored under now holds another mapping.
         None => {
             sqlx::query("DELETE FROM assembly_jobs WHERE id = $1")
                 .bind(job.id)
                 .execute(pool)
                 .await?;
-            return Ok(not_found(new.chunks.to_vec()));
+            return Ok(None);
         }
     }
-    Ok(job_response(job.state.as_str(), job.detail.clone()))
+    Ok(done())
 }
 
 fn not_found(missing_chunks: Vec<String>) -> AssembleResponse {
