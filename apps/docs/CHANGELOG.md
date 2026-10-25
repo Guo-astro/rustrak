@@ -1,5 +1,11 @@
 # docs
 
+## 0.16.7
+
+### Patch Changes
+
+- [`41973e1`](https://github.com/rustrak/rustrak/commit/41973e1d867c30e89e3ed66d7c07a2545a55633b) Thanks [@AbianS](https://github.com/AbianS)! - New Debug Files guide covering Android, JVM, iOS/macOS and Kotlin Multiplatform, and the `debugFiles` methods in the client reference.
+
 ## 0.16.6
 
 ### Patch Changes
