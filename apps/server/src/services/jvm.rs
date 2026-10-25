@@ -449,13 +449,23 @@ impl JvmException {
     }
 }
 
-/// Likely Java class references in free text (Sentry's `_JAVA_CLASS_IN_TEXT_RE`).
+/// Likely Java class references in free text (Sentry's `_JAVA_CLASS_IN_TEXT_RE`,
+/// 9f79f84e): a qualified name, or a quoted single segment the text
+/// introduces as a class. R8 hands out names like `en` that messages also
+/// quote as plain values.
 static JAVA_CLASS_IN_TEXT: LazyLock<fancy_regex::Regex> = LazyLock::new(|| {
     fancy_regex::Regex::new(
-        r#"(?:[A-Za-z_$][\w$]*\.){1,}[A-Za-z_$][\w$]*(?:\$[A-Za-z_$][\w$]*)*|['"][A-Za-z_$][\w$]*['"]"#,
+        r#"(?i)(?P<qualified>(?:[A-Za-z_$][\w$]*\.){1,}[A-Za-z_$][\w$]*(?:\$[A-Za-z_$][\w$]*)*)|(?<![\w$])(?:class|subclass|superclass|interface|enum|type|serial name|scope of|instance of)\s+(?P<quoted>['"][A-Za-z_$][\w$]*['"])"#,
     )
     .expect("valid regex")
 });
+
+/// The class name a `JAVA_CLASS_IN_TEXT` match found.
+fn found_class<'t>(caps: &fancy_regex::Captures<'t, str>) -> &'t str {
+    caps.name("qualified")
+        .or_else(|| caps.name("quoted"))
+        .map_or("", |m| m.as_str())
+}
 
 /// A whole `<from> cannot be cast to <to>` value (Sentry's `_CLASS_CAST_MESSAGE_RE`).
 static CLASS_CAST_MESSAGE: LazyLock<fancy_regex::Regex> = LazyLock::new(|| {
@@ -491,9 +501,9 @@ impl Exceptions {
             let classes: Vec<String> = match CLASS_CAST_MESSAGE.captures(value).ok().flatten() {
                 Some(caps) => vec![caps["from_class"].to_string(), caps["to_class"].to_string()],
                 None => JAVA_CLASS_IN_TEXT
-                    .find_iter(value)
+                    .captures_iter(value)
                     .filter_map(Result::ok)
-                    .map(|m| m.as_str().to_string())
+                    .map(|caps| found_class(&caps).to_string())
                     .collect(),
             };
             if !classes.is_empty() {
@@ -532,7 +542,9 @@ impl Exceptions {
         if classes.is_empty() {
             return;
         }
-        for (i, names) in &self.with_values {
+        // Each class is replaced where it was matched, not by searching for
+        // its text, so the same word elsewhere in the value is left alone.
+        for (i, _) in &self.with_values {
             let exc = &mut values[*i];
             let Some(original) = exc["value"].as_str().map(str::to_string) else {
                 continue;
@@ -542,31 +554,45 @@ impl Exceptions {
                 exc["value"] = mapped.into();
                 continue;
             }
-            let mut tokens: Vec<&String> = Vec::new();
-            for name in names {
-                if !tokens.contains(&name) {
-                    tokens.push(name);
-                }
-            }
-            tokens.sort_by_key(|t| std::cmp::Reverse(strip_quotes(t).len()));
-            let mut value = original.clone();
-            let mut replaced = false;
-            for token in tokens {
-                let Some(mapped) = classes
-                    .get(token.as_str())
-                    .or_else(|| classes.get(strip_quotes(token)))
-                else {
-                    continue;
-                };
-                replaced = true;
-                value = value.replace(token.as_str(), &wrap_with_same_quotes(token, mapped));
-            }
-            if replaced {
+            let value = JAVA_CLASS_IN_TEXT
+                .replace_all(&original, |caps: &fancy_regex::Captures<'_, str>| {
+                    deobfuscate_class_match(caps, classes)
+                })
+                .into_owned();
+            if value != original {
                 exc["raw_value"] = original.into();
                 exc["value"] = value.into();
             }
         }
     }
+}
+
+/// Sentry's `_deobfuscate_class_match`.
+fn deobfuscate_class_match(
+    caps: &fancy_regex::Captures<'_, str>,
+    classes: &HashMap<String, String>,
+) -> String {
+    let whole = &caps[0];
+    if let Some(qualified) = caps.name("qualified") {
+        let qualified = qualified.as_str();
+        return classes
+            .get(qualified)
+            .map_or(qualified, String::as_str)
+            .to_string();
+    }
+    let Some(quoted) = caps.name("quoted") else {
+        return whole.to_string();
+    };
+    let name = quoted.as_str();
+    let Some(mapped) = classes
+        .get(name)
+        .or_else(|| classes.get(strip_quotes(name)))
+    else {
+        return whole.to_string();
+    };
+    // Keep the words that introduce the class and swap only the quoted name.
+    let introduction = &whole[..quoted.start() - caps.get(0).map_or(0, |m| m.start())];
+    format!("{introduction}{}", wrap_with_same_quotes(name, mapped))
 }
 
 fn deobfuscate_class_cast_message(
