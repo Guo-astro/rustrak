@@ -142,6 +142,10 @@ pub fn trim_function_name(function: &str, platform: &str) -> String {
     function.to_string()
 }
 
+/// How deep generics nested at the start of a name are walked. Real names
+/// nest a few levels (`<<A as B>::C as D>::e`).
+const MAX_GENERICS_DEPTH: usize = 64;
+
 fn trim_native_function_name(function: &str, platform: &str) -> String {
     if function == "<redacted>" || function == "<unknown>" {
         return function.to_string();
@@ -199,7 +203,7 @@ fn trim_native_function_name(function: &str, platform: &str) -> String {
     function = sub(&IL2CPP_METHOD_HASH, "", &function);
 
     // Generics become `<T>`, except Rust's `<Foo as Bar>::baz` trait form.
-    fn process_generics(value: &str, start: usize) -> String {
+    fn process_generics(value: &str, start: usize, depth: usize) -> String {
         if value == "lambda"
             || LAMBDA
                 .find(value)
@@ -212,11 +216,18 @@ fn trim_native_function_name(function: &str, platform: &str) -> String {
         if start > 0 {
             return "<T>".to_string();
         }
+        // Each level recurses and copies the rest of the name; an uploaded
+        // symbol can nest without limit. Python stops at its recursion limit.
+        if depth >= MAX_GENERICS_DEPTH {
+            return format!("<{value}>");
+        }
         let value = sub(&RUST_BLANKET, "", value);
-        let value = replace_enclosed_string(&value, '<', '>', &mut process_generics);
+        let value = replace_enclosed_string(&value, '<', '>', &mut |v, s| {
+            process_generics(v, s, depth + 1)
+        });
         value.split(" as ").next().unwrap_or(&value).to_string()
     }
-    function = replace_enclosed_string(&function, '<', '>', &mut process_generics);
+    function = replace_enclosed_string(&function, '<', '>', &mut |v, s| process_generics(v, s, 0));
 
     let is_thunk = function.contains("thunk for "); // Swift
 
@@ -325,6 +336,14 @@ mod tests {
             ),
             "(new value)::foo::bar()"
         );
+    }
+
+    #[test]
+    fn deeply_nested_generics_do_not_overflow_the_stack() {
+        // A symbol from an uploaded file can nest `<` at its start without
+        // limit; each level used to be another recursive call.
+        let name = format!("{}f{}", "<".repeat(10_000), ">".repeat(10_000));
+        assert!(trim_function_name(&name, "cocoa").starts_with('<'));
     }
 
     #[test]
