@@ -13,6 +13,13 @@ ignore = [
     # provider's public key; no secret ever goes through it. The fix is 0.7.6,
     # which `openidconnect` 4 cannot use yet: drop this once it moves to it.
     { id = "RUSTSEC-2026-0387", reason = "only ECDSA public-key verification is used (OIDC ID tokens)" },
+    # `zip` 7, pulled in by `symbolic-debuginfo` (up to 13.9 it requires ^7.2):
+    # all three are in `ZipArchive::extract` / `ZipStreamReader::extract`,
+    # which neither symbolic nor Rustrak calls; both only read entries. Rustrak's
+    # own `zip` is 9. Drop these once symbolic moves to zip 9.
+    { id = "RUSTSEC-2026-0367", reason = "zip 7 extract() is never called (symbolic-debuginfo reads entries only)" },
+    { id = "RUSTSEC-2026-0368", reason = "zip 7 extract() is never called (symbolic-debuginfo reads entries only)" },
+    { id = "RUSTSEC-2026-0369", reason = "zip 7 extract() is never called (symbolic-debuginfo reads entries only)" },
 ]
 [licenses]
 version = 2
@@ -28,6 +35,9 @@ allow = [
     "0BSD",
     "CDLA-Permissive-2.0",
     "GPL-3.0-only",
+    # nom-supreme, brownstone, indent_write (via symbolic-debuginfo). MPL-2.0
+    # is GPL-3.0 compatible (MPL 2.0 section 3.3).
+    "MPL-2.0",
 ]
 private = { ignore = true }
 
