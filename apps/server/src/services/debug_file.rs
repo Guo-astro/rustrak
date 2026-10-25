@@ -95,14 +95,28 @@ pub async fn assemble_dif_for_job(
         )));
     };
 
+    let covered = files.is_empty();
     let mut tx = pool.begin().await?;
     for (uuid, file_type, bytes) in files {
         store_file(&mut tx, store, job.project_id, uuid, file_type, bytes).await?;
     }
     finish_job(&mut tx, Some(job.id), job.chunk_list()).await?;
+    if covered {
+        // Nothing holds this file's bytes, on purpose: a re-upload must not
+        // take it for a replaced one.
+        sqlx::query("UPDATE assembly_jobs SET detail = $1 WHERE id = $2")
+            .bind(COVERED_BY_DSYM)
+            .bind(job.id)
+            .execute(&mut *tx)
+            .await?;
+    }
     tx.commit().await?;
     Ok(())
 }
+
+/// The `detail` of a finished job that stored nothing because the dSYMs it
+/// describes are already stored. An `ok` job's detail is never sent.
+pub const COVERED_BY_DSYM: &str = "covered by its dSYM";
 
 /// Whether a SymCache is stored for `uuid` in the project.
 async fn has_symcache(pool: &DbPool, project_id: i32, uuid: Uuid) -> AppResult<bool> {

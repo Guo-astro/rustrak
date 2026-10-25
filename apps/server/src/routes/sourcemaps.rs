@@ -495,7 +495,7 @@ async fn dif_reupload(
     new: &NewJob<'_>,
 ) -> AppResult<Option<AssembleResponse>> {
     use crate::services::debug_file::{
-        alias_proguard_mapping, debug_file_holder, proguard_uuid_from_name,
+        alias_proguard_mapping, debug_file_holder, proguard_uuid_from_name, COVERED_BY_DSYM,
     };
     let requested = new.name.and_then(proguard_uuid_from_name);
     if requested.is_some()
@@ -519,6 +519,8 @@ async fn dif_reupload(
             alias_proguard_mapping(pool, project_id, from, to).await?
         }
         (Some(_), _) => {}
+        // An executable whose dSYMs were already stored is held by them.
+        (None, _) if job.detail.as_deref() == Some(COVERED_BY_DSYM) => {}
         // Every debug ID it was stored under now holds another file.
         (None, _) => {
             sqlx::query("DELETE FROM assembly_jobs WHERE id = $1")
