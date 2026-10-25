@@ -525,6 +525,60 @@ async fn a_known_mapping_under_a_new_uuid_is_stored_for_it_too() {
     );
 }
 
+/// A re-uploaded mapping is cloned from a UUID that still holds it, not from
+/// the UUID its job first stored, which a later upload may have replaced.
+#[actix_web::test]
+async fn a_reupload_clones_the_mapping_it_names() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project_id = project(&db, "difs-replaced").await;
+    let other = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    let replacement: &[u8] = b"com.example.Other -> b.b:
+    1:1:void run():3:3 -> b
+";
+    let request = |uuid: &str, chunk: &str| json!({chunk: {"name": format!("/proguard/{uuid}.txt"), "chunks": [chunk]}});
+    let mapping_of = |uuid: &'static str| {
+        let pool = db.pool.clone();
+        async move {
+            sqlx::query_scalar::<_, String>(
+                "SELECT f.checksum FROM source_file_metadata m JOIN source_file f ON f.id = m.file_id
+                 WHERE m.project_id = $1 AND CAST(m.debug_id AS TEXT) = $2 AND m.file_type = 'proguard'",
+            )
+            .bind(project_id)
+            .bind(uuid)
+            .fetch_one(&pool)
+            .await
+            .expect("mapping lookup must succeed")
+        }
+    };
+    let chunk = store_chunk(&db, MAPPING).await;
+    assemble(&db, &token, "difs-replaced", request(MAPPING_UUID, &chunk)).await;
+    run_worker(&db).await;
+    let replaced = store_chunk(&db, replacement).await;
+    assemble(
+        &db,
+        &token,
+        "difs-replaced",
+        request(MAPPING_UUID, &replaced),
+    )
+    .await;
+    run_worker(&db).await;
+    assert_eq!(mapping_of(MAPPING_UUID).await, sha1_hex(replacement));
+
+    // MAPPING no longer lives anywhere: its chunks are asked for again.
+    let (_, polled) = assemble(&db, &token, "difs-replaced", request(other, &chunk)).await;
+    assert_eq!(polled[&chunk]["state"], "not_found", "{polled}");
+    store_chunk(&db, MAPPING).await;
+    assemble(&db, &token, "difs-replaced", request(other, &chunk)).await;
+    run_worker(&db).await;
+    assert_eq!(mapping_of(other).await, sha1_hex(MAPPING));
+
+    // Asked for under its first UUID again, it is cloned back from `other`.
+    let (_, done) = assemble(&db, &token, "difs-replaced", request(MAPPING_UUID, &chunk)).await;
+    assert_eq!(done[&chunk]["state"], "ok", "{done}");
+    assert_eq!(mapping_of(MAPPING_UUID).await, sha1_hex(MAPPING));
+}
+
 /// Sentry keeps an assemble state for 10 minutes (`set_assemble_status`,
 /// `ex=600`). After that a failed file is unknown, so sentry-cli uploads
 /// its chunks again and the job is re-queued.

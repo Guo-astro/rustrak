@@ -487,20 +487,35 @@ async fn proguard_reupload(
     job: &crate::models::source_file::AssemblyJob,
     new: &NewJob<'_>,
 ) -> AppResult<AssembleResponse> {
-    use crate::services::debug_file::{alias_proguard_mapping, proguard_uuid_from_name};
-    let requested = new.name.and_then(proguard_uuid_from_name);
-    let stored = job.name.as_deref().and_then(proguard_uuid_from_name);
-    match (requested, stored) {
-        (Some(to), Some(from)) if to != from => {
-            alias_proguard_mapping(pool, project_id, from, to).await?
+    use crate::services::debug_file::{
+        alias_proguard_mapping, proguard_mapping_holder, proguard_uuid_from_name,
+    };
+    let Some(to) = new.name.and_then(proguard_uuid_from_name) else {
+        return Ok(job_response(job.state.as_str(), job.detail.clone()));
+    };
+    if job
+        .name
+        .as_deref()
+        .and_then(proguard_uuid_from_name)
+        .is_none()
+    {
+        return Ok(job_response(
+            "error",
+            Some("This file is not a ProGuard mapping.".into()),
+        ));
+    }
+    match proguard_mapping_holder(pool, project_id, &job.bundle_checksum).await? {
+        Some(from) if from == to => {}
+        Some(from) => alias_proguard_mapping(pool, project_id, from, to).await?,
+        // Every UUID it was stored under now holds another mapping, and its
+        // chunks are gone: forget the job so the file is uploaded again.
+        None => {
+            sqlx::query("DELETE FROM assembly_jobs WHERE id = $1")
+                .bind(job.id)
+                .execute(pool)
+                .await?;
+            return Ok(not_found(new.chunks.to_vec()));
         }
-        (Some(_), None) => {
-            return Ok(job_response(
-                "error",
-                Some("This file is not a ProGuard mapping.".into()),
-            ))
-        }
-        _ => {}
     }
     Ok(job_response(job.state.as_str(), job.detail.clone()))
 }
