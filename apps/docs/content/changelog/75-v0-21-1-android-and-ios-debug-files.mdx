@@ -1,0 +1,33 @@
+---
+version: v0.21.1
+title: Android and iOS Debug Files
+description: ProGuard mappings, dSYMs and source bundles turn obfuscated JVM and Apple native stack traces back into your code
+date: 2026-10-25
+tags: [server, dashboard, client]
+---
+
+## Debug files for Android, JVM and Apple
+
+Stack traces from minified Android and JVM builds and from Apple native
+crashes now come back with real names, files, lines and source context. The
+files upload with the same tools as for Sentry, and each one is matched to
+events by its debug ID, so there is nothing to configure on the server.
+
+- ProGuard / R8 mappings restore class, method and line names on JVM events
+- dSYMs resolve Apple native addresses to functions, files and lines,
+  inlined calls included
+- JVM and native source bundles add the source lines around each frame
+- The Sentry Android Gradle plugin and `sentry-cli` (`upload-proguard`,
+  `debug-files upload`) work as they are once pointed at your server
+- Uploading an app's executable next to its dSYM is harmless: the dSYM, which
+  has line information, is the one kept
+- An event whose mapping or dSYM is missing says so in its JSON: a
+  `proguard_missing_mapping` error, or an image with `"debug_status": "missing"`
+- `@rustrak/client` has `debugFiles.assemble` and `debugFiles.upload`
+
+See [Debug Files](/usage/debug-files), which also covers Kotlin Multiplatform.
+
+## Improvements
+
+- The event highlights show the release's `dist` (Android version code, Apple
+  build number) next to the release
