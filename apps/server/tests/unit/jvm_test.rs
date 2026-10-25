@@ -343,6 +343,38 @@ fn deobfuscates_class_names_in_the_exception_value() {
 }
 
 #[test]
+fn only_replaces_a_quoted_name_the_value_introduces_as_a_class() {
+    // Sentry `test_exceptions.py` (9f79f84e): R8 names a class `en`, which a
+    // message also quotes as a plain locale code.
+    let mapping = b"com.example.Screen -> en:\n    1:1:void show():3:3 -> a\n";
+    let mut event = json!({
+        "platform": "java",
+        "exception": {"values": [
+            {"type": "IllegalStateException", "module": "java.lang", "value": "class 'en': requested 'en-IE', got 'en'"},
+            {"type": "IllegalStateException", "module": "java.lang", "value": "string/dialog_positive: requested 'en-IE', got 'en'"}
+        ]}
+    });
+    let cache = cache(mapping);
+
+    symbolicate_event(&mut event, &files(Some(&cache), None), None);
+
+    let values = &event["exception"]["values"];
+    assert_eq!(
+        values[0]["value"],
+        "class 'com.example.Screen': requested 'en-IE', got 'en'"
+    );
+    assert_eq!(
+        values[0]["raw_value"],
+        "class 'en': requested 'en-IE', got 'en'"
+    );
+    assert_eq!(
+        values[1]["value"],
+        "string/dialog_positive: requested 'en-IE', got 'en'"
+    );
+    assert!(values[1].get("raw_value").is_none(), "{}", values[1]);
+}
+
+#[test]
 fn detects_jvm_events_like_sentry() {
     assert!(is_jvm_event(&json!({"platform": "java"})));
     assert!(is_jvm_event(&json!({
