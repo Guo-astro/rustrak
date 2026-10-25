@@ -537,7 +537,7 @@ async fn a_reupload_clones_the_mapping_it_names() {
     1:1:void run():3:3 -> b
 ";
     let request = |uuid: &str, chunk: &str| json!({chunk: {"name": format!("/proguard/{uuid}.txt"), "chunks": [chunk]}});
-    let mapping_of = |uuid| mapping_checksum(&db, project_id, uuid);
+    let mapping_of = |uuid| stored_checksum(&db, project_id, uuid, "proguard");
     let chunk = store_chunk(&db, MAPPING).await;
     assemble(&db, &token, "difs-replaced", request(MAPPING_UUID, &chunk)).await;
     run_worker(&db).await;
@@ -603,18 +603,56 @@ async fn a_legacy_reupload_of_a_replaced_mapping_is_queued() {
     run_worker(&db).await;
 
     assert_eq!(
-        mapping_checksum(&db, project_id, other).await,
+        stored_checksum(&db, project_id, other, "proguard").await,
         sha1_hex(MAPPING)
     );
 }
 
-async fn mapping_checksum(db: &TestDb, project_id: i32, uuid: &str) -> String {
+/// Sentry's `batch_assemble` answers a known file from the debug files that
+/// hold it, for every kind: a bundle another upload under its debug ID has
+/// replaced is assembled again.
+#[actix_web::test]
+async fn a_replaced_source_bundle_is_assembled_again() {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project_id = project(&db, "difs-bundle-replaced").await;
+    let mut cursor = std::io::Cursor::new(b"SYSB\x02\0\0\0".to_vec());
+    cursor.set_position(8);
+    let mut zip = zip::ZipWriter::new(cursor);
+    zip.start_file("manifest.json", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(format!(r#"{{"debug_id":"{BUNDLE_ID}","files":{{}}}}"#).as_bytes())
+        .unwrap();
+    let replacement = zip.finish().unwrap().into_inner();
+    let request = |chunk: &str| json!({chunk: {"name": "Greeter.zip", "chunks": [chunk]}});
+    let original = source_bundle();
+    for bundle in [&original, &replacement] {
+        let chunk = store_chunk(&db, bundle).await;
+        assemble(&db, &token, "difs-bundle-replaced", request(&chunk)).await;
+        run_worker(&db).await;
+    }
+    let chunk = sha1_hex(&original);
+
+    let (_, polled) = assemble(&db, &token, "difs-bundle-replaced", request(&chunk)).await;
+    assert_eq!(polled[&chunk]["state"], "not_found", "{polled}");
+    store_chunk(&db, &original).await;
+    assemble(&db, &token, "difs-bundle-replaced", request(&chunk)).await;
+    run_worker(&db).await;
+
+    assert_eq!(
+        stored_checksum(&db, project_id, BUNDLE_ID, "source_bundle").await,
+        chunk
+    );
+}
+
+async fn stored_checksum(db: &TestDb, project_id: i32, uuid: &str, file_type: &str) -> String {
     sqlx::query_scalar(
         "SELECT f.checksum FROM source_file_metadata m JOIN source_file f ON f.id = m.file_id
-         WHERE m.project_id = $1 AND CAST(m.debug_id AS TEXT) = $2 AND m.file_type = 'proguard'",
+         WHERE m.project_id = $1 AND CAST(m.debug_id AS TEXT) = $2 AND m.file_type = $3",
     )
     .bind(project_id)
     .bind(uuid)
+    .bind(file_type)
     .fetch_one(&db.pool)
     .await
     .expect("mapping lookup must succeed")

@@ -92,24 +92,25 @@ fn source_bundle_debug_id(data: &[u8]) -> AppResult<Option<Uuid>> {
         .and_then(|id| Uuid::parse_str(id).ok()))
 }
 
-/// A UUID that still holds the mapping whose SHA-1 is `checksum`. Another
-/// upload under the same UUID replaces it, so the UUID a job stored is not
-/// enough.
-pub async fn proguard_mapping_holder(
+/// A debug ID that still holds the file whose SHA-1 is `checksum`, as a
+/// `file_type` when given. Another upload under the same debug ID replaces
+/// it, so the debug ID a job stored is not enough.
+pub async fn debug_file_holder(
     pool: &DbPool,
     project_id: i32,
     checksum: &str,
+    file_type: Option<&str>,
 ) -> AppResult<Option<Uuid>> {
     let id: Option<String> = sqlx::query_scalar(
         r#"
         SELECT CAST(m.debug_id AS TEXT) FROM source_file_metadata m
         JOIN source_file f ON f.id = m.file_id
-        WHERE m.project_id = $1 AND m.file_type = $2 AND f.checksum = $3
+        WHERE m.project_id = $1 AND ($2 IS NULL OR m.file_type = $2) AND f.checksum = $3
         LIMIT 1
         "#,
     )
     .bind(project_id)
-    .bind(PROGUARD_FILE_TYPE)
+    .bind(file_type)
     .bind(checksum)
     .fetch_optional(pool)
     .await?;

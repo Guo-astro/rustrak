@@ -373,7 +373,7 @@ async fn enqueue_assembly(
     .await?;
     let failed = match existing_job {
         Some(job) if job.state == "ok" && job.kind == DIF_JOB_KIND => {
-            match proguard_reupload(pool, project_id, &job, &new).await? {
+            match dif_reupload(pool, project_id, &job, &new).await? {
                 Some(response) => return Ok(response),
                 None => None,
             }
@@ -481,41 +481,46 @@ async fn enqueue_assembly(
     Ok(job_response(job.state.as_str(), job.detail.clone()))
 }
 
-/// Answers for a DIF already assembled. The same ProGuard mapping requested
-/// under another UUID is stored for that UUID too, as Sentry's
-/// `batch_assemble` clones it (`_is_proguard_reupload_clone_request`).
+/// Answers for a DIF already assembled, from the debug files that still hold
+/// it, as Sentry's `batch_assemble` does. The same ProGuard mapping requested
+/// under another UUID is stored for that UUID too
+/// (`_is_proguard_reupload_clone_request`).
 ///
-/// `None` when no UUID holds the mapping any more: the job is forgotten and
+/// `None` when no debug ID holds the file any more: the job is forgotten and
 /// the file is assembled again like a new one.
-async fn proguard_reupload(
+async fn dif_reupload(
     pool: &DbPool,
     project_id: i32,
     job: &crate::models::source_file::AssemblyJob,
     new: &NewJob<'_>,
 ) -> AppResult<Option<AssembleResponse>> {
     use crate::services::debug_file::{
-        alias_proguard_mapping, proguard_mapping_holder, proguard_uuid_from_name,
+        alias_proguard_mapping, debug_file_holder, proguard_uuid_from_name,
     };
-    let done = || Some(job_response(job.state.as_str(), job.detail.clone()));
-    let Some(to) = new.name.and_then(proguard_uuid_from_name) else {
-        return Ok(done());
-    };
-    if job
-        .name
-        .as_deref()
-        .and_then(proguard_uuid_from_name)
-        .is_none()
+    let requested = new.name.and_then(proguard_uuid_from_name);
+    if requested.is_some()
+        && job
+            .name
+            .as_deref()
+            .and_then(proguard_uuid_from_name)
+            .is_none()
     {
         return Ok(Some(job_response(
             "error",
             Some("This file is not a ProGuard mapping.".into()),
         )));
     }
-    match proguard_mapping_holder(pool, project_id, &job.bundle_checksum).await? {
-        Some(from) if from == to => {}
-        Some(from) => alias_proguard_mapping(pool, project_id, from, to).await?,
-        // Every UUID it was stored under now holds another mapping.
-        None => {
+    let file_type = requested.map(|_| crate::services::jvm::PROGUARD_FILE_TYPE);
+    match (
+        debug_file_holder(pool, project_id, &job.bundle_checksum, file_type).await?,
+        requested,
+    ) {
+        (Some(from), Some(to)) if from != to => {
+            alias_proguard_mapping(pool, project_id, from, to).await?
+        }
+        (Some(_), _) => {}
+        // Every debug ID it was stored under now holds another file.
+        (None, _) => {
             sqlx::query("DELETE FROM assembly_jobs WHERE id = $1")
                 .bind(job.id)
                 .execute(pool)
@@ -523,7 +528,7 @@ async fn proguard_reupload(
             return Ok(None);
         }
     }
-    Ok(done())
+    Ok(Some(job_response(job.state.as_str(), job.detail.clone())))
 }
 
 fn not_found(missing_chunks: Vec<String>) -> AssembleResponse {
