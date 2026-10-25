@@ -1,5 +1,11 @@
 # @rustrak/server
 
+## 0.21.1
+
+### Patch Changes
+
+- [`41973e1`](https://github.com/rustrak/rustrak/commit/41973e1d867c30e89e3ed66d7c07a2545a55633b) Thanks [@AbianS](https://github.com/AbianS)! - Debug files for Android, JVM and Apple apps. ProGuard/R8 mappings and JVM source bundles deobfuscate JVM events, and dSYMs with native source bundles symbolicate Apple native events, all uploaded with the Sentry Android Gradle plugin or `sentry-cli` through the new `difs/assemble` and `files/dsyms` endpoints. `@rustrak/client` gains `debugFiles.assemble` and `debugFiles.upload`, and the dashboard shows an event's dist next to its release.
+
 ## 0.21.0
 
 ### Minor Changes
