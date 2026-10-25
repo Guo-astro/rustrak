@@ -5,6 +5,7 @@ export default {
   crons: 'Crons',
   agents: 'AI Agents',
   'source-maps': 'Source Maps',
+  'debug-files': 'Debug Files',
   alerts: 'Alerts',
   team: 'Team & Access',
   tokens: 'API Tokens',

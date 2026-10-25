@@ -1,0 +1,220 @@
+# Debug Files
+
+Debug files let Rustrak turn the stack traces of compiled and obfuscated apps
+back into your code. They are to Android, JVM and iOS apps what
+[source maps](/usage/source-maps) are to JavaScript.
+
+| Platform | What you upload | What Rustrak does with it |
+| --- | --- | --- |
+| Android, JVM | ProGuard / R8 mapping | Restores class, method and line names |
+| Android, JVM, Kotlin | JVM source bundle | Adds the source lines around each frame |
+| iOS, macOS (Apple) | dSYM | Resolves addresses to functions, files and lines, inlined calls included |
+| iOS, macOS (Apple) | Native source bundle | Adds the source lines around each frame |
+
+Every file is matched to events by its **debug ID**, which the SDK sends with
+each event (`debug_meta`). There is nothing to configure on the server.
+
+Rustrak only reads these formats. Android NDK libraries (ELF), Windows (PDB),
+Breakpad symbols and WebAssembly are not supported yet.
+
+## Before and after
+
+An R8 build without its mapping:
+
+```bash
+java.lang.IllegalStateException: empty cart
+
+    at i.a.a(SourceFile:45)
+    at i.b.a(SourceFile:3)
+    at i.c.a(SourceFile:15)
+    at com.example.shop.MainActivity.onCreate(SourceFile:17)
+```
+
+With the mapping and a source bundle:
+
+```bash
+java.lang.IllegalStateException: empty cart
+
+    at com.example.shop.Cart.total(Checkout.kt:6)
+        throw IllegalStateException("empty cart")
+    at com.example.shop.Checkout.pay(Checkout.kt:13)
+    at com.example.shop.CheckoutKt.runCheckout(Checkout.kt:16)
+    at com.example.shop.MainActivity.onCreate(MainActivity.kt:11)
+```
+
+## Pointing the upload at Rustrak
+
+Uploads go through the same tools as with Sentry: the Sentry Android Gradle
+plugin or `sentry-cli`. Point them at your server with the same four options
+the [source maps](/usage/source-maps#what-org-and-project-mean-in-rustrak)
+page describes:
+
+| Option | Env var | Value |
+| --- | --- | --- |
+| `url` | `SENTRY_URL` | Your Rustrak server |
+| `authToken` | `SENTRY_AUTH_TOKEN` | A token from **Settings → API Tokens** |
+| `projectName` / `project` | `SENTRY_PROJECT` | The project's slug |
+| `org` | `SENTRY_ORG` | Anything; Rustrak ignores it |
+
+> **Without `url`, uploads go to sentry.io.** The DSN decides where events go,
+> not where debug files go.
+
+## Android
+
+The [Sentry Android Gradle plugin](https://docs.sentry.io/platforms/android/configuration/gradle/)
+uploads the R8 mapping, and the sources when `includeSourceContext` is on, on
+every release build:
+
+```kotlin
+// app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("io.sentry.android.gradle") version "6.24.0"
+}
+
+android {
+    buildTypes {
+        release {
+            isMinifyEnabled = true // the mapping only exists for minified builds
+        }
+    }
+}
+
+sentry {
+    url.set("https://rustrak.example.com/")
+    org.set("anything")
+    projectName.set("my-app")
+    authToken.set(System.getenv("SENTRY_AUTH_TOKEN"))
+    includeSourceContext.set(true)
+}
+```
+
+`./gradlew assembleRelease` prints one `UPLOADED` line per file:
+
+```bash
+UPLOADED a07609d2-… (Proguard mapping)
+UPLOADED 855f6493-… (855f6493-….zip; sources)
+```
+
+The plugin also writes their IDs into the APK, so the SDK knows which mapping
+and bundle each event belongs to.
+
+## JVM
+
+Outside Android, run ProGuard or R8 yourself and upload with `sentry-cli`:
+
+```bash
+# the mapping, and the properties file the SDK reads to find it
+sentry-cli upload-proguard --write-properties build/sentry-debug-meta.properties mapping.txt
+
+# the sources, under a debug ID you choose
+sentry-cli debug-files bundle-jvm --output build/bundle --debug-id "$BUNDLE_ID" src/main/kotlin
+sentry-cli debug-files upload --type jvm build/bundle
+echo "io.sentry.bundle-ids=$BUNDLE_ID" >> build/sentry-debug-meta.properties
+```
+
+Put `sentry-debug-meta.properties` at the root of the obfuscated jar. The Java
+SDK reads it from the classpath.
+
+**Point `bundle-jvm` at the source root**, the folder where package paths
+start (`src/main/kotlin`), not at the project. Frames are looked up as
+`<package path>/<file>`, so a bundle made one level up never matches.
+
+## iOS and macOS
+
+Upload each dSYM with its sources:
+
+```bash
+sentry-cli debug-files upload --include-sources path/to/MyApp.app.dSYM
+```
+
+In Xcode, run it from a **Run Script** build phase so every archive uploads its
+own dSYMs:
+
+```bash
+export SENTRY_URL=https://rustrak.example.com/
+export SENTRY_ORG=anything
+export SENTRY_PROJECT=my-app
+# SENTRY_AUTH_TOKEN comes from the build environment, never from the project
+sentry-cli debug-files upload --include-sources "$DWARF_DSYM_FOLDER_PATH"
+```
+
+Uploading the app's executable as well is harmless: when its dSYM is already
+there, Rustrak keeps the dSYM, which has line information.
+
+## Kotlin Multiplatform
+
+A KMP app is the two cases above in one project: the Android target uploads
+with the Android Gradle plugin, and the iOS target uploads its dSYM with
+`sentry-cli`. Crashes in `commonMain` come back with their source lines on both.
+
+```kotlin
+// build.gradle.kts
+plugins {
+    kotlin("multiplatform")
+    id("com.android.application")
+    id("io.sentry.kotlin.multiplatform.gradle") version "0.29.0" // adds the SDK to commonMain
+    id("io.sentry.android.gradle") version "6.24.0"              // uploads the Android files
+}
+
+sentry {
+    autoInstallation { enabled.set(false) } // the KMP plugin already adds the SDK
+    includeSourceContext.set(true)
+    additionalSourceDirsForSourceContext.set(setOf("src/commonMain/kotlin"))
+    url.set("https://rustrak.example.com/")
+    org.set("anything")
+    projectName.set("my-app")
+    authToken.set(System.getenv("SENTRY_AUTH_TOKEN"))
+}
+```
+
+**`additionalSourceDirsForSourceContext` is what gives `commonMain` frames
+their source.** The Android plugin only bundles the Android source sets unless
+you list the shared ones.
+
+Three things to know about the KMP SDK (0.29):
+
+- **Initialise it from code on Android.** The KMP SDK turns off the Android
+  SDK's automatic start, so a DSN in `AndroidManifest.xml` alone sends nothing.
+  Call `Sentry.init { … }` from your `Application` or first `Activity`.
+- **Set `release` yourself.** On Android the KMP SDK passes its own `release`
+  to the Android SDK even when it is unset, so events arrive with no release
+  instead of the usual `com.example.app@1.2+3`. Set it in `Sentry.init`;
+  `dist` (the version code) is still filled in.
+- **Sentry Cocoa is not installed for you below Kotlin 2.4.** Add it with
+  Swift Package Manager in Xcode, or tell the plugin where it is with
+  `sentryKmp { linker { frameworkPath.set("path/to/Sentry.xcframework") } }`.
+
+```kotlin
+// commonMain
+Sentry.init { options ->
+    options.dsn = "https://<key>@rustrak.example.com/<project_id>"
+    options.release = "com.example.app@1.2+3"
+}
+```
+
+Each target's `release` and `dist` show in the event's highlights, so an
+Android crash and an iOS crash of the same version can be told apart.
+
+## Troubleshooting: the stack trace is still obfuscated
+
+**1. Did the build print `UPLOADED` lines?** No output usually means a missing
+`authToken`. `404 project not found` means `projectName` is not a project slug.
+
+**2. Was the file uploaded before the crash was processed?** Rustrak reads
+debug files when it processes an event and does not go back to it later.
+Android crashes are often sent the moment they happen, so a crash that arrives
+while the upload is still being processed keeps its raw frames. Upload as part
+of the build, before the app is installed.
+
+**3. What does the event say?** Open the event's JSON:
+
+- an `errors` entry with `proguard_missing_mapping` names the mapping UUID the
+  app asked for and Rustrak does not have. Compare it with the `UPLOADED` line.
+- an image under `debug_meta.images` with `"debug_status": "missing"` is a
+  binary whose dSYM was never uploaded. Its `debug_id` is the dSYM's UUID
+  (`dwarfdump --uuid MyApp.app.dSYM`).
+
+**4. Frames are named but have no source lines?** The source bundle is missing
+or was built from the wrong folder: see `additionalSourceDirsForSourceContext`
+for Kotlin Multiplatform, and the source root note for JVM.
