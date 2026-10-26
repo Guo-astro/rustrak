@@ -155,40 +155,6 @@ pub async fn get_stats_summary(
     Ok(HttpResponse::Ok().json(summary))
 }
 
-#[cfg_attr(feature = "openapi", utoipa::path(
-    get,
-    path = "/api/projects/{project_id}/releases",
-    operation_id = "releases.list",
-    tag = "Stats",
-    params(("project_id" = i32, Path, description = "Project ID")),
-    responses(
-        (status = 200, description = "Release names, newest first", body = Vec<String>),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-    ),
-    security(("bearer_auth" = [])),
-))]
-/// The releases a project's events arrived in, newest first.
-pub async fn list_releases(
-    pool: web::Data<DbPool>,
-    path: web::Path<i32>,
-    actor: ApiActor,
-) -> AppResult<HttpResponse> {
-    let project_id = path.into_inner();
-
-    access::require(
-        pool.get_ref(),
-        actor.is_admin(),
-        actor.user_id(),
-        project_id,
-        Action::ViewProject,
-    )
-    .await?;
-
-    let releases = StatsService::releases(pool.get_ref(), project_id).await?;
-    Ok(HttpResponse::Ok().json(releases))
-}
-
 #[cfg(feature = "openapi")]
 #[derive(OpenApi)]
 #[openapi(

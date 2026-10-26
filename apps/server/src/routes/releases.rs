@@ -6,10 +6,11 @@ use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::models::{CreateRelease, UpdateRelease};
 use crate::services::access::{self, Action};
+use crate::services::release::SummaryFilter;
 use crate::services::{IssueService, ProjectService, ReleaseService};
 
 #[cfg(feature = "openapi")]
-use crate::models::{IssueResponse, ReleaseResponse};
+use crate::models::{IssueResponse, ReleaseResponse, ReleaseSummary};
 #[cfg(feature = "openapi")]
 use utoipa::OpenApi;
 
@@ -24,6 +25,138 @@ impl NewIssuesQuery {
     fn limit(&self) -> i64 {
         self.limit.unwrap_or(10).clamp(1, 50)
     }
+}
+
+/// Query of the release list and of one release.
+#[derive(serde::Deserialize)]
+pub struct ReleasesQuery {
+    pub environment: Option<String>,
+    pub period: Option<String>,
+    pub query: Option<String>,
+    #[serde(default = "first_page")]
+    pub page: i64,
+    #[serde(default = "default_per_page")]
+    pub per_page: i64,
+}
+
+fn first_page() -> i64 {
+    1
+}
+
+fn default_per_page() -> i64 {
+    25
+}
+
+impl ReleasesQuery {
+    fn filter(&self) -> SummaryFilter {
+        SummaryFilter {
+            environment: self.environment.clone().filter(|e| !e.is_empty()),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+            query: self.query.clone().filter(|q| !q.trim().is_empty()),
+        }
+    }
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/releases",
+    operation_id = "releases.list",
+    tag = "Releases",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        ("environment" = Option<String>, Query, description = "Count only this environment"),
+        ("period" = Option<String>, Query, description = "Count only this window (24h, 7d, 14d...); all time if absent"),
+        ("query" = Option<String>, Query, description = "Only the versions containing this text, ignoring case"),
+        ("page" = Option<i64>, Query, description = "Page number (1-indexed, default: 1)"),
+        ("per_page" = Option<i64>, Query, description = "Items per page (default: 25, max: 100)"),
+    ),
+    responses(
+        (status = 200, description = "Releases, newest first", body = inline(crate::pagination::OffsetPaginatedResponse<ReleaseSummary>)),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "Project not found"),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// Lists a project's releases, newest first, with the events, new issues,
+/// environments and session health of each.
+pub async fn list_releases(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    query: web::Query<ReleasesQuery>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+    ProjectService::get_by_id(pool.get_ref(), project_id).await?;
+
+    let per_page = query.per_page.clamp(1, 100);
+    let page = query.page.max(1);
+    let all = ReleaseService::summaries(pool.get_ref(), project_id, &query.filter()).await?;
+    let total = all.len() as i64;
+    let items: Vec<_> = all
+        .into_iter()
+        .skip(crate::pagination::offset(page, per_page) as usize)
+        .take(per_page as usize)
+        .collect();
+
+    Ok(
+        HttpResponse::Ok().json(crate::pagination::OffsetPaginatedResponse::new(
+            items, total, page, per_page,
+        )),
+    )
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/releases/{release}",
+    operation_id = "releases.get",
+    tag = "Releases",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        ("release" = String, Path, description = "Release version"),
+        ("environment" = Option<String>, Query, description = "Count only this environment"),
+        ("period" = Option<String>, Query, description = "Count only this window; all time if absent"),
+    ),
+    responses(
+        (status = 200, description = "The release", body = ReleaseSummary),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "No such release in this project"),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// Gets one release with its events, new issues, environments and session
+/// health.
+pub async fn get_release(
+    pool: web::Data<DbPool>,
+    path: web::Path<(i32, String)>,
+    query: web::Query<ReleasesQuery>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let (project_id, version) = path.into_inner();
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+
+    let release = ReleaseService::summaries(pool.get_ref(), project_id, &query.filter())
+        .await?
+        .into_iter()
+        .find(|r| r.version == version)
+        .ok_or_else(|| AppError::NotFound(format!("Release {version} not found")))?;
+    Ok(HttpResponse::Ok().json(release))
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(
@@ -208,7 +341,13 @@ pub async fn finalize_release(
 #[derive(OpenApi)]
 #[openapi(
     paths(new_issues_for_release, create_release, finalize_release),
-    components(schemas(IssueResponse, CreateRelease, UpdateRelease, ReleaseResponse))
+    components(schemas(
+        IssueResponse,
+        CreateRelease,
+        UpdateRelease,
+        ReleaseResponse,
+        ReleaseSummary
+    ))
 )]
 pub struct ReleasesApi;
 
@@ -216,8 +355,8 @@ pub struct ReleasesApi;
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/projects/{project_id}/releases")
-            // Served from `stats`: it reads events, like the overview it fills.
-            .route("", web::get().to(crate::routes::stats::list_releases))
+            .route("", web::get().to(list_releases))
+            .route("/{release}", web::get().to(get_release))
             .route(
                 "/{release}/new-issues",
                 web::get().to(new_issues_for_release),

@@ -12,11 +12,13 @@
 import type {
   IssueResponse,
   ReleaseHealthRow,
+  ReleaseSummary,
+  ReleasesGetData,
+  ReleasesListData,
+  ReleasesListResponse,
   Result,
   RustrakError,
   SessionSummary,
-  SessionsGetStatsData,
-  SessionsGetStatsResponse,
   SessionsGetTimeseriesResponse,
 } from '@rustrak/client';
 import { Ok } from '@rustrak/client';
@@ -47,22 +49,27 @@ export async function getNewIssuesForRelease(
 }
 
 /**
- * Get one page of per-release health stats for a project.
- *
- * The failure is returned, not swallowed: an empty page and an unreachable API
- * must not render the same way.
- *
- * @param projectId - The project ID
- * @param options - Time window, release scoping and pagination.
+ * One page of a project's releases, newest first, each with its events, new
+ * issues, environments and session health in the window.
  */
-export async function getReleaseHealth(
+export async function listReleases(
   projectId: number,
-  options?: NonNullable<SessionsGetStatsData['query']>,
-): Promise<Result<SessionsGetStatsResponse, RustrakError>> {
+  query: NonNullable<ReleasesListData['query']>,
+): Promise<Result<ReleasesListResponse, RustrakError>> {
   const client = await createClient();
-  return client.sessions.getStats({
-    path: { project_id: projectId },
-    query: options,
+  return client.releases.list({ path: { project_id: projectId }, query });
+}
+
+/** One release, with the same figures as its row in the list. */
+export async function getRelease(
+  projectId: number,
+  release: string,
+  query: NonNullable<ReleasesGetData['query']>,
+): Promise<Result<ReleaseSummary, RustrakError>> {
+  const client = await createClient();
+  return client.releases.get({
+    path: { project_id: projectId, release },
+    query,
   });
 }
 

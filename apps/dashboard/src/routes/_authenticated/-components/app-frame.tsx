@@ -184,6 +184,15 @@ const GROUPS: { label: 'groupTriage' | 'groupMonitor'; routes: NavRoute[] }[] =
 
 const ROUTES = [OVERVIEW, ...GROUPS.flatMap((group) => group.routes)];
 
+/** A path segment as written, or as it came when it does not decode. */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 /** The route the URL is in. Overview only on its exact path. */
 function activeRoute(pathname: string, base: string): NavRoute | undefined {
   return ROUTES.find((route) =>
@@ -588,6 +597,28 @@ function SettingsLink({
   );
 }
 
+/**
+ * The section's crumb, a link back to it from a page below it -- an issue, a
+ * release -- and for a release its version, which the path names. An
+ * issue's id says nothing, so it gets no crumb of its own.
+ */
+function sectionCrumbs(
+  pathname: string,
+  base: string,
+  route: NavRoute | undefined,
+  label: string,
+): Crumb[] {
+  const section = route?.path ? `${base}${route.path}` : null;
+  const below = section ? pathname.slice(section.length + 1) : '';
+  if (!section || !below) return [{ label }];
+  return [
+    { label, render: <Link href={section} /> },
+    ...(route?.key === 'releases'
+      ? [{ label: decodeSegment(below.split('/')[0] ?? ''), mono: true }]
+      : []),
+  ];
+}
+
 /** Where you are, at the top of the sheet. */
 export function AppBreadcrumbs() {
   const t = useTranslations('projects');
@@ -626,11 +657,12 @@ export function AppBreadcrumbs() {
         icon: <ProjectLogo project={project} size={18} />,
         render: <Link href={base} />,
       },
-      {
-        label: route
-          ? t(`nav.${route.key}`)
-          : tSettings('nav.projectSettingsTitle'),
-      },
+      ...sectionCrumbs(
+        pathname,
+        base,
+        route,
+        route ? t(`nav.${route.key}`) : tSettings('nav.projectSettingsTitle'),
+      ),
     ];
   } else if (pathname.startsWith('/settings')) {
     items = [

@@ -1107,25 +1107,64 @@
     "openInGitHub": "Abrir en GitHub"
   },
   "releases": {
-    "all": "Todas",
-    "empty": {
-      "title": "No hay versiones en esta ventana",
-      "hint": "Prueba con un período más largo o borra el filtro."
-    },
     "columns": {
-      "release": "Versión"
+      "release": "Versión",
+      "adoption": "Adopción",
+      "crashFreeSessions": "Sin fallos",
+      "crashFreeUsers": "Usuarios sin fallos",
+      "sessions": "Sesiones",
+      "newIssues": "Nuevos",
+      "events": "Eventos",
+      "lastEvent": "Último evento"
     },
-    "sessions": "Sesiones",
-    "crashFree": "Sin fallos",
-    "crashFreeSessions": "Sesiones sin fallos",
-    "crashFreeUsers": "Usuarios sin fallos",
-    "crashed": "Fallos",
-    "users": "Usuarios",
-    "healthy": "Saludable",
-    "noSessionData": "Sin datos de sesión",
-    "enableReleaseHealth": "Activa la salud de versiones en tu SDK para seguir las tasas sin fallos",
-    "noTrendHistory": "No hay historial suficiente para trazar una tendencia",
-    "noSessionDataForPeriod": "Sin datos de sesión para este período"
+    "count": "{count, plural, one {# versión} other {# versiones}}",
+    "released": "Publicada",
+    "unreleased": "Sin publicar",
+    "loadFailed": "No se pudieron cargar las versiones",
+    "emptyWindow": "No hay versiones",
+    "empty": {
+      "title": "Aún no hay versiones",
+      "description": "Envía un <code>release</code> con tus eventos o sesiones, o crea uno desde CI con sentry-cli, para ver aquí cada versión."
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar esta versión",
+      "copy": "Copiar versión",
+      "copied": "Versión copiada",
+      "created": "Creada {when}",
+      "releasedOn": "Publicada el {when}",
+      "crashFreeSessions": "Sesiones sin fallos",
+      "crashFreeUsers": "Usuarios sin fallos",
+      "adoption": "Adopción",
+      "adoptionHint": "de todas las sesiones del periodo",
+      "sessions": "Sesiones",
+      "crashedSessions": "{count} con fallo",
+      "newIssues": "Issues nuevos",
+      "newIssuesHint": "Vistos por primera vez en esta versión",
+      "events": "Eventos",
+      "lastEvent": "Último {when}",
+      "projectAverage": "Proyecto {rate}",
+      "noSessions": "Sin sesiones",
+      "noSessionsHint": "Activa la salud de versiones en el SDK para ver cuántas sesiones fallan.",
+      "sessionsPanel": "Sesiones",
+      "sessionsPanelHint": "Sesiones sanas y con fallo en el periodo",
+      "healthy": "Sanas",
+      "crashed": "Con fallo",
+      "noNewIssues": "Esta versión no ha traído issues nuevos",
+      "viewInIssues": "Ver sus issues",
+      "environments": "Entornos",
+      "sessionsCount": "{count} sesiones",
+      "details": "Detalles",
+      "version": "Versión",
+      "package": "Paquete",
+      "commit": "Commit",
+      "createdAt": "Creada",
+      "releasedAt": "Publicada",
+      "notReleased": "Aún no",
+      "firstEvent": "Primer evento",
+      "lastEventAt": "Último evento"
+    },
+    "search": "Buscar versiones…",
+    "environment": "Entorno"
   },
   "transactions": {
     "columns": {
@@ -1724,22 +1763,13 @@
         "title": "Versiones | {project} | Rustrak",
         "description": "Salud de versiones de {project}"
       },
-      "title": "Versiones",
-      "subtitle": "Salud de sesiones por versión para {project}",
-      "loadFailed": "No se pudo cargar la salud de versiones",
-      "emptyTitle": "Aún no hay versiones",
-      "emptyDescription": "Envía un atributo <code>release</code> con tus eventos o sesiones para empezar a seguir la salud de versiones."
+      "title": "Versiones"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "Salud de versiones de {release}"
-      },
-      "loadFailed": "No se pudo cargar esta versión",
-      "subtitle": "Salud de versiones de {project}",
-      "newIssues": "Problemas nuevos",
-      "newIssuesEmpty": "Ningún problema nuevo introducido en esta versión",
-      "loadNewIssuesFailed": "No se pudieron cargar los problemas nuevos"
+      }
     },
     "agents": {
       "meta": {

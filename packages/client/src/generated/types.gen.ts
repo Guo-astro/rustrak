@@ -1588,6 +1588,44 @@ export type ReleaseResponse = {
     version: string;
 };
 
+/**
+ * One release as the releases page reads it: its record, if CI created
+ * one, and what it brought -- events, new issues, environments and session
+ * health -- the shape of Sentry's release list with `health=1`.
+ *
+ * Counts and rates cover the asked window and environment; the dates do not,
+ * so a release keeps its age however narrow the window.
+ */
+export type ReleaseSummary = {
+    /**
+     * Its share of every release's sessions in the window, 0 to 1.
+     */
+    adoption: number | null;
+    crash_free_sessions: number | null;
+    crash_free_users: number | null;
+    crashed: number;
+    /**
+     * The record's, else the first time the release was seen.
+     */
+    date_created: string;
+    date_released: string | null;
+    /**
+     * Where it ran, from its events and its sessions.
+     */
+    environments: Array<string>;
+    event_count: number;
+    first_event: string | null;
+    last_event: string | null;
+    /**
+     * Error issues first seen in it.
+     */
+    new_issues: number;
+    ref: string | null;
+    sessions: number;
+    url: string | null;
+    version: string;
+};
+
 export type RepoCommit = {
     author_login: string | null;
     author_name: string;
@@ -6689,7 +6727,28 @@ export type ReleasesListData = {
          */
         project_id: number;
     };
-    query?: never;
+    query?: {
+        /**
+         * Count only this environment
+         */
+        environment?: string;
+        /**
+         * Count only this window (24h, 7d, 14d...); all time if absent
+         */
+        period?: string;
+        /**
+         * Only the versions containing this text, ignoring case
+         */
+        query?: string;
+        /**
+         * Page number (1-indexed, default: 1)
+         */
+        page?: number;
+        /**
+         * Items per page (default: 25, max: 100)
+         */
+        per_page?: number;
+    };
     url: '/api/projects/{project_id}/releases';
 };
 
@@ -6702,16 +6761,103 @@ export type ReleasesListErrors = {
      * Forbidden
      */
     403: unknown;
+    /**
+     * Project not found
+     */
+    404: unknown;
 };
 
 export type ReleasesListResponses = {
     /**
-     * Release names, newest first
+     * Offset-based paginated response wrapper
      */
-    200: Array<string>;
+    200: {
+        items: Array<{
+            /**
+             * Its share of every release's sessions in the window, 0 to 1.
+             */
+            adoption: number | null;
+            crash_free_sessions: number | null;
+            crash_free_users: number | null;
+            crashed: number;
+            /**
+             * The record's, else the first time the release was seen.
+             */
+            date_created: string;
+            date_released: string | null;
+            /**
+             * Where it ran, from its events and its sessions.
+             */
+            environments: Array<string>;
+            event_count: number;
+            first_event: string | null;
+            last_event: string | null;
+            /**
+             * Error issues first seen in it.
+             */
+            new_issues: number;
+            ref: string | null;
+            sessions: number;
+            url: string | null;
+            version: string;
+        }>;
+        page: number;
+        per_page: number;
+        total_count: number;
+        total_pages: number;
+    };
 };
 
 export type ReleasesListResponse = ReleasesListResponses[keyof ReleasesListResponses];
+
+export type ReleasesGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * Release version
+         */
+        release: string;
+    };
+    query?: {
+        /**
+         * Count only this environment
+         */
+        environment?: string;
+        /**
+         * Count only this window; all time if absent
+         */
+        period?: string;
+    };
+    url: '/api/projects/{project_id}/releases/{release}';
+};
+
+export type ReleasesGetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * No such release in this project
+     */
+    404: unknown;
+};
+
+export type ReleasesGetResponses = {
+    /**
+     * The release
+     */
+    200: ReleaseSummary;
+};
+
+export type ReleasesGetResponse = ReleasesGetResponses[keyof ReleasesGetResponses];
 
 export type ReleasesNewIssuesData = {
     body?: never;

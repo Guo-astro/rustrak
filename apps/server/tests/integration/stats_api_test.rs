@@ -922,28 +922,6 @@ async fn timeseries_and_summary_count_only_the_asked_release() {
 }
 
 #[actix_web::test]
-async fn releases_lists_the_ones_events_arrived_in_newest_first() {
-    let db = TestDb::new().await;
-    let project_id = create_project(&db.pool, "Stats Releases").await;
-
-    let old = seed_issue(&db.pool, project_id, 1, 1).await;
-    let new = seed_issue(&db.pool, project_id, 2, 1).await;
-    let none = seed_issue(&db.pool, project_id, 3, 1).await;
-    seed_event(&db.pool, project_id, Some(old), "error", "error", 30).await;
-    seed_event(&db.pool, project_id, Some(new), "error", "error", 1).await;
-    seed_event(&db.pool, project_id, Some(none), "error", "error", 1).await;
-    place_in_release(&db.pool, old, "1.0.0").await;
-    place_in_release(&db.pool, new, "2.0.0").await;
-
-    let releases = StatsService::releases(&db.pool, project_id)
-        .await
-        .expect("query failed");
-
-    // An event with no release is in none, not in "".
-    assert_eq!(releases, vec!["2.0.0".to_string(), "1.0.0".to_string()]);
-}
-
-#[actix_web::test]
 async fn issue_list_shows_only_the_issues_seen_in_the_asked_release() {
     let db = TestDb::new().await;
     let project_id = create_project(&db.pool, "Issues Release").await;

@@ -405,6 +405,8 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 |---|---|---|
 | `releases.create({ path, body })` | `POST /api/0/projects/{org_slug}/{project_slug}/releases/` | Sentry-compatible release creation. |
 | `releases.finalize({ path, body })` | `PUT /api/0/projects/{org_slug}/{project_slug}/releases/{version}/` | Generic partial update (`ref`, `url`, `dateReleased`). |
+| `releases.get({ path, query? })` | `GET /api/projects/{project_id}/releases/{release}` | Gets one release with its events, new issues, environments and session health. |
+| `releases.list({ path, query? })` | `GET /api/projects/{project_id}/releases` | Lists a project's releases, newest first, with the events, new issues, environments and session health of each. |
 | `releases.newIssues({ path, query? })` | `GET /api/projects/{project_id}/releases/{release}/new-issues` |  |
 
 ### Schedules
@@ -465,7 +467,6 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `releases.list({ path })` | `GET /api/projects/{project_id}/releases` | The releases a project's events arrived in, newest first. |
 | `stats.getEventTimeseries({ path, query? })` | `GET /api/projects/{project_id}/events/stats` |  |
 | `stats.getSummary({ path, query? })` | `GET /api/projects/{project_id}/stats/summary` |  |
 

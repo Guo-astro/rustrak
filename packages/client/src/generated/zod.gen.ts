@@ -1224,6 +1224,32 @@ export const zReleaseResponse = z.object({
     version: z.string()
 });
 
+/**
+ * One release as the releases page reads it: its record, if CI created
+ * one, and what it brought -- events, new issues, environments and session
+ * health -- the shape of Sentry's release list with `health=1`.
+ *
+ * Counts and rates cover the asked window and environment; the dates do not,
+ * so a release keeps its age however narrow the window.
+ */
+export const zReleaseSummary = z.object({
+    adoption: z.number().nullable(),
+    crash_free_sessions: z.number().nullable(),
+    crash_free_users: z.number().nullable(),
+    crashed: z.int(),
+    date_created: z.iso.datetime({ offset: true }),
+    date_released: z.iso.datetime({ offset: true }).nullable(),
+    environments: z.array(z.string()),
+    event_count: z.int(),
+    first_event: z.iso.datetime({ offset: true }).nullable(),
+    last_event: z.iso.datetime({ offset: true }).nullable(),
+    new_issues: z.int(),
+    ref: z.string().nullable(),
+    sessions: z.int(),
+    url: z.string().nullable(),
+    version: z.string()
+});
+
 export const zRepoCommit = z.object({
     author_login: z.string().nullable(),
     author_name: z.string(),
@@ -3243,10 +3269,55 @@ export const zReleasesListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
 });
 
+export const zReleasesListQuery = z.object({
+    environment: z.string().optional(),
+    period: z.string().optional(),
+    query: z.string().optional(),
+    page: z.int().optional(),
+    per_page: z.int().optional()
+});
+
 /**
- * Release names, newest first
+ * Offset-based paginated response wrapper
  */
-export const zReleasesListResponse = z.array(z.string());
+export const zReleasesListResponse = z.object({
+    items: z.array(z.object({
+        adoption: z.number().nullable(),
+        crash_free_sessions: z.number().nullable(),
+        crash_free_users: z.number().nullable(),
+        crashed: z.int(),
+        date_created: z.iso.datetime({ offset: true }),
+        date_released: z.iso.datetime({ offset: true }).nullable(),
+        environments: z.array(z.string()),
+        event_count: z.int(),
+        first_event: z.iso.datetime({ offset: true }).nullable(),
+        last_event: z.iso.datetime({ offset: true }).nullable(),
+        new_issues: z.int(),
+        ref: z.string().nullable(),
+        sessions: z.int(),
+        url: z.string().nullable(),
+        version: z.string()
+    })),
+    page: z.int(),
+    per_page: z.int(),
+    total_count: z.int(),
+    total_pages: z.int()
+});
+
+export const zReleasesGetPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    release: z.string()
+});
+
+export const zReleasesGetQuery = z.object({
+    environment: z.string().optional(),
+    period: z.string().optional()
+});
+
+/**
+ * The release
+ */
+export const zReleasesGetResponse = zReleaseSummary;
 
 export const zReleasesNewIssuesPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),

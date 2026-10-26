@@ -1107,25 +1107,64 @@
     "openInGitHub": "Open in GitHub"
   },
   "releases": {
-    "all": "All",
-    "empty": {
-      "title": "No releases in this window",
-      "hint": "Try a longer period or clear the filter."
-    },
     "columns": {
-      "release": "Release"
+      "release": "Release",
+      "adoption": "Adoption",
+      "crashFreeSessions": "Crash-free",
+      "crashFreeUsers": "Crash-free users",
+      "sessions": "Sessions",
+      "newIssues": "New issues",
+      "events": "Events",
+      "lastEvent": "Last event"
     },
-    "sessions": "Sessions",
-    "crashFree": "Crash-free",
-    "crashFreeSessions": "Crash-free sessions",
-    "crashFreeUsers": "Crash-free users",
-    "crashed": "Crashed",
-    "users": "Users",
-    "healthy": "Healthy",
-    "noSessionData": "No session data",
-    "enableReleaseHealth": "Enable release health in your SDK to track crash-free rates",
-    "noTrendHistory": "Not enough history to chart a trend",
-    "noSessionDataForPeriod": "No session data for this period"
+    "count": "{count, plural, one {# release} other {# releases}}",
+    "released": "Released",
+    "unreleased": "Unreleased",
+    "loadFailed": "Could not load the releases",
+    "emptyWindow": "No releases",
+    "empty": {
+      "title": "No releases yet",
+      "description": "Send a <code>release</code> with your events or sessions, or create one from CI with sentry-cli, to see each version here."
+    },
+    "detail": {
+      "loadFailed": "Could not load this release",
+      "copy": "Copy version",
+      "copied": "Version copied",
+      "created": "Created {when}",
+      "releasedOn": "Released {when}",
+      "crashFreeSessions": "Crash-free sessions",
+      "crashFreeUsers": "Crash-free users",
+      "adoption": "Adoption",
+      "adoptionHint": "of all sessions in the window",
+      "sessions": "Sessions",
+      "crashedSessions": "{count} crashed",
+      "newIssues": "New issues",
+      "newIssuesHint": "First seen in this release",
+      "events": "Events",
+      "lastEvent": "Last {when}",
+      "projectAverage": "Project {rate}",
+      "noSessions": "No sessions",
+      "noSessionsHint": "Turn on release health in the SDK to see how many sessions crash.",
+      "sessionsPanel": "Sessions",
+      "sessionsPanelHint": "Healthy and crashed sessions in the window",
+      "healthy": "Healthy",
+      "crashed": "Crashed",
+      "noNewIssues": "No new issues in this release",
+      "viewInIssues": "View its issues",
+      "environments": "Environments",
+      "sessionsCount": "{count} sessions",
+      "details": "Details",
+      "version": "Version",
+      "package": "Package",
+      "commit": "Commit",
+      "createdAt": "Created",
+      "releasedAt": "Released",
+      "notReleased": "Not yet",
+      "firstEvent": "First event",
+      "lastEventAt": "Last event"
+    },
+    "search": "Search versions…",
+    "environment": "Environment"
   },
   "transactions": {
     "columns": {
@@ -1724,22 +1763,13 @@
         "title": "Releases | {project} | Rustrak",
         "description": "Release health for {project}"
       },
-      "title": "Releases",
-      "subtitle": "Session health per release for {project}",
-      "loadFailed": "Could not load release health",
-      "emptyTitle": "No releases yet",
-      "emptyDescription": "Send a <code>release</code> attribute with your events or sessions to start tracking release health."
+      "title": "Releases"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "Release health for {release}"
-      },
-      "loadFailed": "Could not load this release",
-      "subtitle": "Release health for {project}",
-      "newIssues": "New Issues",
-      "newIssuesEmpty": "No new issues introduced in this release",
-      "loadNewIssuesFailed": "Could not load new issues"
+      }
     },
     "agents": {
       "meta": {
