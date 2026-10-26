@@ -106,12 +106,16 @@ export function IssueHeader({
                   {issue.culprit}
                 </span>
               ) : null}
-              <span title={format.dateTime(new Date(issue.first_seen), 'long')}>
+              <span
+                title={format.dateTime(new Date(issue.first_seen), 'dateTime')}
+              >
                 {t('detail.firstSeen', {
                   when: format.relativeTime(new Date(issue.first_seen)),
                 })}
               </span>
-              <span title={format.dateTime(new Date(issue.last_seen), 'long')}>
+              <span
+                title={format.dateTime(new Date(issue.last_seen), 'dateTime')}
+              >
                 {t('detail.lastSeen', {
                   when: format.relativeTime(new Date(issue.last_seen)),
                 })}

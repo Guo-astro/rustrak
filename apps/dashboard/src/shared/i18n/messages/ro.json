@@ -1846,7 +1846,19 @@
         "title": "Niciun feedback aici",
         "description": "Aici apare feedbackul trimis cu widgetul de feedback al SDK-ului sau cu captureFeedback"
       },
-      "anonymous": "Anonim"
+      "anonymous": "Anonim",
+      "count": "{count, plural, one {# mesaj} few {# mesaje} other {# de mesaje}}",
+      "pageOf": "Pagina {page} din {total}",
+      "previousPage": "Pagina anterioară",
+      "nextPage": "Pagina următoare",
+      "attachments": "{count, plural, one {# atașament} few {# atașamente} other {# de atașamente}}",
+      "linkedError": "Eroare asociată",
+      "noLinkedError": "Trimis fără nicio eroare",
+      "viewError": "Vezi eroarea la care se referă",
+      "page": "Pagină",
+      "received": "Primit",
+      "openIssue": "Deschide ca problemă",
+      "back": "Înapoi la listă"
     }
   },
   "settings": {

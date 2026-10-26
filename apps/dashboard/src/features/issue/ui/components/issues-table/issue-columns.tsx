@@ -222,7 +222,7 @@ export function issueColumns({
       id: 'lastSeen',
       header: t('columns.lastSeen'),
       cell: ({ getValue }) => (
-        <span title={format.dateTime(new Date(getValue()), 'long')}>
+        <span title={format.dateTime(new Date(getValue()), 'dateTime')}>
           {relative(getValue())}
         </span>
       ),
@@ -239,7 +239,7 @@ export function issueColumns({
       id: 'firstSeen',
       header: t('columns.age'),
       cell: ({ getValue }) => (
-        <span title={format.dateTime(new Date(getValue()), 'long')}>
+        <span title={format.dateTime(new Date(getValue()), 'dateTime')}>
           {relative(getValue())}
         </span>
       ),

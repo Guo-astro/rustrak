@@ -101,7 +101,7 @@ export function TabList({ className, children, meta, ...props }: TabListProps) {
   const styles = tabs();
 
   return (
-    <div className={styles.strip({ className })}>
+    <div data-slot="tab-strip" className={styles.strip({ className })}>
       <BaseTabs.List className={styles.list()} {...props}>
         {children}
         {/* `renderBeforeHydration` paints the position into the server HTML, so

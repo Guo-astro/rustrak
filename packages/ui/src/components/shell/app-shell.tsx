@@ -198,8 +198,11 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'shrink-0 border-b border-border-divider px-page-gutter pt-7',
-        tabs ? null : 'pb-6',
+        'shrink-0 px-page-gutter pt-7',
+        // With tabs, their own rule is the header's bottom edge: a border here
+        // as well would draw a second line under it, and the lime indicator
+        // would sit on one and not the other.
+        tabs ? null : 'border-b border-border-divider pb-6',
         className,
       )}
     >
@@ -213,8 +216,12 @@ export function PageHeader({
               {facts.map((fact, index) => (
                 // Facts are positional: the order is the reading order.
                 <span key={index} className="flex items-center gap-2">
+                  {/* On a phone the facts wrap, and a dot would lead the new line. */}
                   {index > 0 ? (
-                    <span aria-hidden="true" className="text-fg-ghost">
+                    <span
+                      aria-hidden="true"
+                      className="hidden text-fg-ghost sm:inline"
+                    >
                       ·
                     </span>
                   ) : null}
@@ -230,7 +237,13 @@ export function PageHeader({
           </div>
         ) : null}
       </div>
-      {tabs ? <div className="mt-5">{tabs}</div> : null}
+      {/* Out to the page's edges, so the rule runs as wide as a border would;
+          the gutter moves inside the strip. */}
+      {tabs ? (
+        <div className="-mx-page-gutter mt-5 [&_[data-slot=tab-strip]]:px-page-gutter [&_[data-slot=tab-strip]]:after:bg-border-divider">
+          {tabs}
+        </div>
+      ) : null}
     </div>
   );
 }

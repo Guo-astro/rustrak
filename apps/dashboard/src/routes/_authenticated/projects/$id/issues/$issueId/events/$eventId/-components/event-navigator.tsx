@@ -214,7 +214,7 @@ export function EventNavigator({
           <Text
             variant="meta"
             tone="subtle"
-            title={format.dateTime(new Date(event.timestamp), 'long')}
+            title={format.dateTime(new Date(event.timestamp), 'dateTime')}
           >
             {format.relativeTime(new Date(event.timestamp))}
           </Text>
