@@ -77,6 +77,26 @@ pub struct IssueListStats {
 const LIST_TREND_BUCKETS: i64 = 24;
 const LIST_TREND_BUCKET_SECS: i64 = 3600;
 
+/// Who an issue list is narrowed to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Assignee {
+    Nobody,
+    User(i32),
+}
+
+/// The issue table's own filters, beyond status and scope. Empty narrows
+/// nothing, which is what every caller but the table passes.
+#[derive(Debug, Default, Clone)]
+pub struct IssueFilters {
+    pub levels: Vec<String>,
+    pub priorities: Vec<String>,
+    pub assigned: Option<Assignee>,
+    pub first_seen_hours: Option<i64>,
+    pub last_seen_hours: Option<i64>,
+    pub events_min: Option<i64>,
+    pub events_max: Option<i64>,
+}
+
 pub struct IssueService;
 
 /// Derives an initial issue priority from the event level, mirroring Sentry's
@@ -474,10 +494,10 @@ impl IssueService {
             // IssueCursor has no event-count field, so cursor-based EventCount
             // pagination isn't implemented — the live sort=event_count path is
             // IssueService::list_offset.
-            (IssueSort::EventCount, _, _) => {
-                return Err(AppError::Validation(
-                    "EventCount sort is not supported for cursor-based pagination".to_string(),
-                ));
+            (IssueSort::EventCount | IssueSort::FirstSeen | IssueSort::Priority, _, _) => {
+                return Err(AppError::Validation(format!(
+                    "{sort} sort is not supported for cursor-based pagination"
+                )));
             }
         };
 
@@ -527,6 +547,7 @@ impl IssueService {
         per_page: i64,
         search: Option<&str>,
         scope: Scope<'_>,
+        filters: &IssueFilters,
     ) -> AppResult<(Vec<Issue>, i64)> {
         if page < 1 {
             return Err(AppError::Validation(format!(
@@ -550,6 +571,16 @@ impl IssueService {
             (IssueSort::LastSeen, SortOrder::Asc) => "last_seen ASC, id ASC",
             (IssueSort::EventCount, SortOrder::Desc) => "digested_event_count DESC, id DESC",
             (IssueSort::EventCount, SortOrder::Asc) => "digested_event_count ASC, id ASC",
+            (IssueSort::FirstSeen, SortOrder::Desc) => "first_seen DESC, id DESC",
+            (IssueSort::FirstSeen, SortOrder::Asc) => "first_seen ASC, id ASC",
+            (IssueSort::Priority, SortOrder::Desc) => {
+                "CASE priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 \
+                 ELSE 0 END DESC, last_seen DESC, id DESC"
+            }
+            (IssueSort::Priority, SortOrder::Asc) => {
+                "CASE priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 \
+                 ELSE 0 END ASC, last_seen DESC, id DESC"
+            }
         };
 
         Self::list_window(
@@ -562,6 +593,7 @@ impl IssueService {
             per_page,
             search,
             scope,
+            filters,
         )
         .await
     }
@@ -582,6 +614,7 @@ impl IssueService {
         per_page: i64,
         search: Option<&str>,
         scope: Scope<'_>,
+        filters: &IssueFilters,
     ) -> AppResult<(Vec<Issue>, i64)> {
         let status_clause = filter_clause(filter, category);
         // Bound after `$1` (project_id), in order.
@@ -646,7 +679,10 @@ impl IssueService {
             }
             None => String::new(),
         };
-        let from = format!("FROM {source} WHERE {status_clause} {search_clause} {release_clause}");
+        let filter_clause = narrowing_clause(filters, &mut binds);
+        let from = format!(
+            "FROM {source} WHERE {status_clause} {search_clause} {release_clause} {filter_clause}"
+        );
 
         let count_query = format!("SELECT COUNT(*) {from}");
         let mut count =
@@ -1656,6 +1692,61 @@ const ENV_SCOPED_COLUMNS: &str = "i.id, i.project_id, i.digest_order, i.numeric_
     i.last_frame_module, i.last_frame_function, i.level, i.platform, i.status, i.substatus, \
     i.priority, i.priority_locked_at, i.culprit, i.logger, i.status_details, i.assigned_to, \
     i.assignee_type, i.issue_type, i.issue_category, i.first_release, i.last_release";
+
+/// The `AND ...` for the table's own filters. Text values are bound, in
+/// order after whatever `binds` already holds; numbers are inlined, which is
+/// safe because an `i32`/`i64` can only render as digits and a sign.
+fn narrowing_clause(filters: &IssueFilters, binds: &mut Vec<String>) -> String {
+    let mut clause = String::new();
+
+    for (column, values) in [
+        ("level", &filters.levels),
+        ("priority", &filters.priorities),
+    ] {
+        if values.is_empty() {
+            continue;
+        }
+        let placeholders: Vec<String> = values
+            .iter()
+            .map(|value| {
+                binds.push(value.clone());
+                format!("${}", binds.len() + 1)
+            })
+            .collect();
+        clause.push_str(&format!(" AND {column} IN ({})", placeholders.join(", ")));
+    }
+
+    match filters.assigned {
+        Some(Assignee::Nobody) => clause.push_str(" AND assigned_to IS NULL"),
+        Some(Assignee::User(id)) => clause.push_str(&format!(" AND assigned_to = {id}")),
+        None => {}
+    }
+
+    for (column, hours) in [
+        ("first_seen", filters.first_seen_hours),
+        ("last_seen", filters.last_seen_hours),
+    ] {
+        if let Some(hours) = hours {
+            #[cfg(feature = "postgres")]
+            clause.push_str(&format!(
+                " AND {column} >= NOW() - INTERVAL '{hours} hours'"
+            ));
+            #[cfg(not(feature = "postgres"))]
+            clause.push_str(&format!(
+                " AND datetime({column}) >= datetime('now', '-{hours} hours')"
+            ));
+        }
+    }
+
+    if let Some(min) = filters.events_min {
+        clause.push_str(&format!(" AND digested_event_count >= {min}"));
+    }
+    if let Some(max) = filters.events_max {
+        clause.push_str(&format!(" AND digested_event_count <= {max}"));
+    }
+
+    clause
+}
 
 /// WHERE clause for an issue filter; `$1` is the project id.
 fn filter_clause(filter: IssueFilter, category: IssueCategory) -> String {

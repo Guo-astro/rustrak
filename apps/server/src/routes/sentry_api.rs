@@ -650,6 +650,7 @@ pub async fn list_issues(
         page.size,
         search.text.as_deref(),
         Scope::environment(environment),
+        &crate::services::issue::IssueFilters::default(),
     )
     .await?;
 

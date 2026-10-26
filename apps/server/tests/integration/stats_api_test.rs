@@ -966,6 +966,7 @@ async fn issue_list_shows_only_the_issues_seen_in_the_asked_release() {
         20,
         None,
         in_release("2.0.0"),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .expect("query failed");

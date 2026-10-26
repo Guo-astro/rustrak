@@ -212,6 +212,37 @@ export const EscapeClearsACommittedSearch: Story = {
   },
 };
 
+/**
+ * The input is the search. A search that was sent and then deleted from the
+ * input is gone: picking a filter afterwards must not bring it back.
+ */
+export const ADeletedSearchStaysDeleted: Story = {
+  render: () => <Harness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole('combobox');
+
+    await userEvent.click(input);
+    await userEvent.keyboard('prueba{Escape}{Enter}');
+    await waitFor(() =>
+      expect(canvas.getByTestId('committed').textContent).toContain(
+        'search="prueba"',
+      ),
+    );
+
+    await userEvent.clear(input);
+    await userEvent.keyboard('lev{Enter}');
+    await canvas.findByRole('option', { name: /Warning/ });
+    await userEvent.keyboard('warn{Enter}');
+
+    await waitFor(() => {
+      const committed = canvas.getByTestId('committed').textContent;
+      expect(committed).toContain('{"id":"level","value":["warning"]}');
+      expect(committed).toContain('search=""');
+    });
+  },
+};
+
 /** Backspace on an empty input eats the last chip, like every tag input. */
 export const RemoveWithBackspace: Story = {
   render: () => (

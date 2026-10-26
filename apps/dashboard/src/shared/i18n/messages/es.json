@@ -77,7 +77,39 @@
     "lastPage": "Última página",
     "selectAllPageRows": "Seleccionar todas las filas de esta página",
     "selectRow": "Seleccionar fila",
-    "expand": "Expandir"
+    "expand": "Expandir",
+    "selected": "{count} seleccionados",
+    "clearSelection": "Limpiar",
+    "selectionToolbar": "Acciones para las filas seleccionadas",
+    "noMatches": "Nada coincide con los filtros actuales.",
+    "nothingYet": "Aún no hay nada aquí.",
+    "clearFilters": "Quitar filtros",
+    "actions": "Acciones",
+    "rowActions": "Acciones de la fila",
+    "columns": "Columnas",
+    "chooseColumns": "Elegir columnas",
+    "resizeColumn": "Cambiar ancho de columna",
+    "filterValues": "Filtrar valores",
+    "filterValuesPlaceholder": "Filtrar valores…",
+    "nothingMatches": "Nada coincide",
+    "contains": "Contiene…",
+    "filterText": "Filtrar texto",
+    "min": "Mín",
+    "max": "Máx",
+    "lowestFirst": "Menor primero",
+    "highestFirst": "Mayor primero",
+    "aToZ": "A a Z",
+    "zToA": "Z a A",
+    "clearFilter": "Quitar filtro",
+    "hideColumn": "Ocultar columna",
+    "range": "{first}–{last} de {total}",
+    "rowsPerPage": "{size} filas",
+    "rowsOption": "{size} filas",
+    "filterBy": "Filtrar por",
+    "suggestions": "Sugerencias",
+    "filterAndSearch": "Filtra con clave:valor o busca…",
+    "addFilter": "Añadir un filtro…",
+    "clearAll": "Quitar filtros y búsqueda"
   },
   "commands": {
     "overview": "Resumen",
@@ -215,7 +247,9 @@
       "age": "Antigüedad",
       "events": "Eventos",
       "users": "Usuarios",
-      "lastSeen": "Visto por última vez"
+      "lastSeen": "Visto por última vez",
+      "level": "Nivel",
+      "assignee": "Asignado"
     },
     "actionsTitle": "Acciones",
     "actionsFor": "Acciones para {title}",
@@ -307,6 +341,43 @@
     "card": {
       "usersAffected": "{count, plural, =1 {# usuario afectado} other {# usuarios afectados}}",
       "eventCount": "{count, plural, =1 {# evento} other {# eventos}}"
+    },
+    "table": {
+      "windows": {
+        "1h": "Última hora",
+        "24h": "Últimas 24 horas",
+        "7d": "Últimos 7 días",
+        "14d": "Últimos 14 días",
+        "30d": "Últimos 30 días"
+      },
+      "levels": {
+        "fatal": "Fatal",
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Info"
+      },
+      "fewest": "Menos eventos",
+      "most": "Más eventos",
+      "lowestPriority": "Menor prioridad primero",
+      "highestPriority": "Mayor prioridad primero",
+      "me": "Yo",
+      "unassigned": "Sin asignar",
+      "oldest": "Más antiguos primero",
+      "newest": "Más recientes primero",
+      "environment": "Entorno",
+      "release": "Release",
+      "assign": "Asignar",
+      "assignToMe": "Asignarme",
+      "unassign": "Quitar asignación",
+      "copyId": "Copiar ID",
+      "copied": "ID copiado",
+      "count": "{count} issues",
+      "views": {
+        "open": "Abiertos",
+        "resolved": "Resueltos",
+        "muted": "Silenciados",
+        "all": "Todos"
+      }
     }
   },
   "roles": {
@@ -1574,7 +1645,7 @@
         "description": "Problemas de {project}"
       },
       "title": "Problemas",
-      "subtitle": "Problemas abiertos de {project}",
+      "subtitle": "Errores de {project}, agrupados por su causa",
       "loadFailed": "No se pudieron cargar los problemas",
       "loadLatestEventFailed": "No se pudo cargar el último evento"
     },

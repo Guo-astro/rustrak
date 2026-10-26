@@ -4,6 +4,7 @@ import { focusRingWithin } from '../../lib/focus';
 import { dropIn, interactiveTransition } from '../../lib/motion';
 import { tv } from '../../lib/tv';
 import { Count } from '../count/count';
+import { useDataTableLabels } from '../data-table/labels';
 import {
   CloseIcon,
   FacetsIcon,
@@ -241,13 +242,14 @@ function SuggestionsPopup({
   onHighlight,
   onSelect,
 }: SuggestionsPopupProps) {
+  const labels = useDataTableLabels();
   return (
     <div className={styles.popup()} data-side="bottom">
       {activeField && activeField.variant === 'options' ? (
         <div className={styles.groupLabel()}>{activeField.label}</div>
       ) : null}
       {!activeField && suggestions.some((s) => s.kind === 'field') ? (
-        <div className={styles.groupLabel()}>Filter by</div>
+        <div className={styles.groupLabel()}>{labels.filterBy}</div>
       ) : null}
 
       <div className={styles.list()}>
@@ -262,7 +264,7 @@ function SuggestionsPopup({
         <div
           role="listbox"
           id={listboxId}
-          aria-label="Suggestions"
+          aria-label={labels.suggestions}
           aria-busy={optionsPending || undefined}
         >
           {suggestions.map((suggestion, index) => (
@@ -332,10 +334,11 @@ export function QueryBar({
   filters,
   search,
   onChange,
-  placeholder = 'Filter by key:value, or search…',
-  label = 'Filter and search',
+  placeholder,
+  label,
   className,
 }: QueryBarProps) {
+  const labels = useDataTableLabels();
   const {
     id,
     inputRef,
@@ -399,14 +402,14 @@ export function QueryBar({
               : undefined
           }
           aria-autocomplete="list"
-          aria-label={label}
+          aria-label={label ?? labels.filterAndSearch}
           value={draft}
           placeholder={
             pickedField
               ? `${pickedField.label}…`
               : chips.length
-                ? 'Add a filter…'
-                : placeholder
+                ? labels.addFilter
+                : (placeholder ?? labels.filterAndSearch)
           }
           autoComplete="off"
           spellCheck={false}
@@ -431,7 +434,7 @@ export function QueryBar({
         {showClear ? (
           <button
             type="button"
-            aria-label="Clear filters and search"
+            aria-label={labels.clearAll}
             className={styles.clear()}
             onClick={clearAll}
           >

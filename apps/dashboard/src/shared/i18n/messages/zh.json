@@ -77,7 +77,39 @@
     "lastPage": "最后一页",
     "selectAllPageRows": "选择本页所有行",
     "selectRow": "选择此行",
-    "expand": "展开"
+    "expand": "展开",
+    "selected": "已选 {count} 项",
+    "clearSelection": "清除",
+    "selectionToolbar": "所选行的操作",
+    "noMatches": "没有符合当前筛选条件的结果。",
+    "nothingYet": "这里还没有内容。",
+    "clearFilters": "清除筛选",
+    "actions": "操作",
+    "rowActions": "行操作",
+    "columns": "列",
+    "chooseColumns": "选择列",
+    "resizeColumn": "调整列宽",
+    "filterValues": "筛选值",
+    "filterValuesPlaceholder": "筛选值…",
+    "nothingMatches": "无匹配项",
+    "contains": "包含…",
+    "filterText": "筛选文本",
+    "min": "最小",
+    "max": "最大",
+    "lowestFirst": "从低到高",
+    "highestFirst": "从高到低",
+    "aToZ": "A 到 Z",
+    "zToA": "Z 到 A",
+    "clearFilter": "清除筛选",
+    "hideColumn": "隐藏列",
+    "range": "第 {first}–{last} 项，共 {total} 项",
+    "rowsPerPage": "每页 {size} 行",
+    "rowsOption": "{size} 行",
+    "filterBy": "筛选条件",
+    "suggestions": "建议",
+    "filterAndSearch": "使用 键:值 筛选，或搜索…",
+    "addFilter": "添加筛选…",
+    "clearAll": "清除筛选和搜索"
   },
   "commands": {
     "overview": "概览",
@@ -215,7 +247,9 @@
       "age": "时长",
       "events": "事件数",
       "users": "用户数",
-      "lastSeen": "最后出现"
+      "lastSeen": "最后出现",
+      "level": "级别",
+      "assignee": "负责人"
     },
     "actionsTitle": "操作",
     "actionsFor": "{title} 的操作",
@@ -307,6 +341,43 @@
     "card": {
       "usersAffected": "影响 {count} 位用户",
       "eventCount": "{count} 个事件"
+    },
+    "table": {
+      "windows": {
+        "1h": "最近 1 小时",
+        "24h": "最近 24 小时",
+        "7d": "最近 7 天",
+        "14d": "最近 14 天",
+        "30d": "最近 30 天"
+      },
+      "levels": {
+        "fatal": "致命",
+        "error": "错误",
+        "warning": "警告",
+        "info": "信息"
+      },
+      "fewest": "事件最少",
+      "most": "事件最多",
+      "lowestPriority": "优先级从低到高",
+      "highestPriority": "优先级从高到低",
+      "me": "我",
+      "unassigned": "未分配",
+      "oldest": "最早优先",
+      "newest": "最新优先",
+      "environment": "环境",
+      "release": "版本",
+      "assign": "分配",
+      "assignToMe": "分配给我",
+      "unassign": "取消分配",
+      "copyId": "复制 ID",
+      "copied": "已复制 ID",
+      "count": "{count} 个问题",
+      "views": {
+        "open": "未解决",
+        "resolved": "已解决",
+        "muted": "已静音",
+        "all": "全部"
+      }
     }
   },
   "roles": {
@@ -1574,7 +1645,7 @@
         "description": "{project} 的问题"
       },
       "title": "问题",
-      "subtitle": "{project} 的未解决问题",
+      "subtitle": "{project} 的错误，按原因分组",
       "loadFailed": "无法加载问题",
       "loadLatestEventFailed": "无法加载最新事件"
     },

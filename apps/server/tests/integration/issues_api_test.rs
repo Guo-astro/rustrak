@@ -1601,3 +1601,150 @@ async fn test_get_issue_tag_values_returns_bare_list_not_wrapped() {
     );
     assert_eq!(body.as_array().unwrap().len(), 0);
 }
+
+// =============================================================================
+// List filters and sorts the issues table asks for
+// =============================================================================
+
+/// Lists `project`'s issues with `query` appended, as the dashboard does, and
+/// returns the titles in the order they came back.
+async fn list_titles(pool: &rustrak::db::DbPool, project_id: i32, query: &str) -> Vec<String> {
+    let token = create_test_token(pool).await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(create_test_config()))
+            .configure(routes::issues::configure)
+            .configure(routes::projects::configure),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!(
+            "/api/projects/{project_id}/issues?filter=all&{query}"
+        ))
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert!(resp.status().is_success(), "{query}: {}", resp.status());
+
+    let body: Value = test::read_body_json(resp).await;
+    body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["title"].as_str().unwrap().to_string())
+        .collect()
+}
+
+async fn set_issue(pool: &rustrak::db::DbPool, id: Uuid, assignment: &str) {
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "UPDATE issues SET {assignment} WHERE id = $1"
+    )))
+    .bind(id)
+    .execute(pool)
+    .await
+    .expect("update issue failed");
+}
+
+#[actix_web::test]
+async fn test_list_issues_filters_by_level_and_priority() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "Level Filter Project").await;
+    let fatal = create_test_issue(&db.pool, project.id, "Fatal", "a").await;
+    let warning = create_test_issue(&db.pool, project.id, "Warning", "b").await;
+    create_test_issue(&db.pool, project.id, "Error", "c").await;
+    set_issue(&db.pool, fatal.id, "level = 'fatal', priority = 'high'").await;
+    set_issue(&db.pool, warning.id, "level = 'warning', priority = 'low'").await;
+
+    let mut by_level = list_titles(&db.pool, project.id, "level=fatal,warning").await;
+    by_level.sort();
+    assert_eq!(by_level, vec!["Fatal: a", "Warning: b"]);
+
+    let by_priority = list_titles(&db.pool, project.id, "priority=low").await;
+    assert_eq!(by_priority, vec!["Warning: b"]);
+}
+
+#[actix_web::test]
+async fn test_list_issues_filters_by_assignee() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "Assignee Filter Project").await;
+    let mine = create_test_issue(&db.pool, project.id, "Mine", "a").await;
+    create_test_issue(&db.pool, project.id, "Nobodys", "b").await;
+
+    sqlx::query(
+        "INSERT INTO users (email, password_hash, is_active, role) VALUES ('a@b.c', 'x', true, 'member')",
+    )
+    .execute(&db.pool)
+    .await
+    .expect("insert user failed");
+    let (user_id,): (i32,) = sqlx::query_as("SELECT id FROM users WHERE email = 'a@b.c'")
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
+    set_issue(&db.pool, mine.id, &format!("assigned_to = {user_id}")).await;
+
+    let assigned = list_titles(&db.pool, project.id, &format!("assigned={user_id}")).await;
+    assert_eq!(assigned, vec!["Mine: a"]);
+
+    let unassigned = list_titles(&db.pool, project.id, "assigned=none").await;
+    assert_eq!(unassigned, vec!["Nobodys: b"]);
+}
+
+#[actix_web::test]
+async fn test_list_issues_filters_by_seen_window_and_event_count() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "Seen Filter Project").await;
+    let old = create_test_issue(&db.pool, project.id, "Old", "a").await;
+    let loud = create_test_issue(&db.pool, project.id, "Loud", "b").await;
+
+    #[cfg(feature = "postgres")]
+    let long_ago =
+        "first_seen = NOW() - INTERVAL '10 days', last_seen = NOW() - INTERVAL '10 days'";
+    #[cfg(not(feature = "postgres"))]
+    let long_ago =
+        "first_seen = datetime('now', '-10 days'), last_seen = datetime('now', '-10 days')";
+    set_issue(&db.pool, old.id, long_ago).await;
+    set_issue(&db.pool, loud.id, "digested_event_count = 500").await;
+
+    assert_eq!(
+        list_titles(&db.pool, project.id, "last_seen=7d").await,
+        vec!["Loud: b"]
+    );
+    assert_eq!(
+        list_titles(&db.pool, project.id, "first_seen=24h").await,
+        vec!["Loud: b"]
+    );
+    assert_eq!(
+        list_titles(&db.pool, project.id, "events_min=100").await,
+        vec!["Loud: b"]
+    );
+    assert_eq!(
+        list_titles(&db.pool, project.id, "events_max=100").await,
+        vec!["Old: a"]
+    );
+}
+
+#[actix_web::test]
+async fn test_list_issues_sorts_by_first_seen_and_priority() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "First Seen Sort Project").await;
+    let old = create_test_issue(&db.pool, project.id, "Old", "a").await;
+    let urgent = create_test_issue(&db.pool, project.id, "Urgent", "b").await;
+
+    #[cfg(feature = "postgres")]
+    let long_ago = "first_seen = NOW() - INTERVAL '10 days'";
+    #[cfg(not(feature = "postgres"))]
+    let long_ago = "first_seen = datetime('now', '-10 days')";
+    set_issue(&db.pool, old.id, &format!("{long_ago}, priority = 'low'")).await;
+    set_issue(&db.pool, urgent.id, "priority = 'high'").await;
+
+    assert_eq!(
+        list_titles(&db.pool, project.id, "sort=first_seen&order=asc").await,
+        vec!["Old: a", "Urgent: b"]
+    );
+    assert_eq!(
+        list_titles(&db.pool, project.id, "sort=priority&order=desc").await,
+        vec!["Urgent: b", "Old: a"]
+    );
+}

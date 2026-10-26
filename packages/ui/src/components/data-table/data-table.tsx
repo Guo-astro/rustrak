@@ -1,6 +1,14 @@
 import type { Cell, Header, Row, RowData } from '@tanstack/react-table';
 import { flexRender } from '@tanstack/react-table';
-import type { MouseEvent, ReactNode } from 'react';
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { interactiveTransition, swapAnimation } from '../../lib/motion';
 import { tv } from '../../lib/tv';
 import { Button } from '../button/button';
@@ -8,6 +16,7 @@ import { EmptyIcon } from '../icon/icon-catalog';
 import { Text } from '../text/text';
 import { DataTableColumnHeader } from './column-header';
 import type { DataTableFeatures } from './features';
+import { useDataTableLabels } from './labels';
 import { DataTablePagination } from './pagination';
 import type { DataTableInstance } from './use-data-table';
 
@@ -29,7 +38,9 @@ const dataTable = tv({
       'rounded-xl border border-border-subtle bg-panel',
     ],
     scroller: 'min-h-0 flex-1 overflow-auto',
-    table: 'w-full border-separate border-spacing-0',
+    // Fixed layout: the widths in the colgroup are the widths, so dragging
+    // one column moves only the flexible one, never the rest.
+    table: 'w-full table-fixed border-separate border-spacing-0',
     /*
      * Sticky needs everything else to be true at once: the `th` is the
      * sticking element (a sticky `thead` breaks in Safari), it needs its own
@@ -39,7 +50,7 @@ const dataTable = tv({
      */
     th: [
       // Above the row-action overlays, which are z-10 later in tree order.
-      'sticky top-0 z-20 h-row-head bg-surface',
+      'group/th sticky top-0 z-20 h-row-head bg-surface',
       'border-border-subtle border-b px-2',
       'text-start first:pl-4 last:pr-4',
     ],
@@ -75,8 +86,42 @@ const dataTable = tv({
       'px-6 py-16 text-center',
     ],
     skeleton: 'h-3 animate-pulse rounded-xs bg-surface-chip',
+    /*
+     * The row's actions, held to the right edge however far the table is
+     * scrolled sideways: what you can do to a row is never off screen.
+     * Sticky cells need an opaque ground, so the row's hover and selection
+     * tints are repeated on a layer of the cell's own.
+     */
+    pinned: [
+      'sticky right-0 z-10 bg-panel',
+      "before:pointer-events-none before:absolute before:inset-0 before:content-['']",
+      'group-hover/row:before:bg-surface-hover',
+      'group-data-[selected=true]/row:before:bg-surface-raised',
+      '[&>*]:relative',
+    ],
+    pinnedHead: 'right-0 z-30',
+    /*
+     * The column's right edge, made grabbable. Invisible until the header is
+     * hovered, a hairline then, brand while dragging: the reader finds it
+     * where every spreadsheet keeps it, and it never decorates a resting
+     * header.
+     */
+    resizer: [
+      'absolute top-0 -right-1 z-10 flex h-full w-2 cursor-col-resize',
+      'touch-none select-none justify-center',
+      'after:h-full after:w-px after:bg-transparent',
+      'group-hover/th:after:bg-border-strong',
+      'hover:after:bg-fg-ghost data-[resizing=true]:after:bg-border-brand',
+      interactiveTransition,
+    ],
   },
 });
+
+/** The flexible column never gets narrower than this while others grow. */
+const FLEX_MIN_WIDTH = 320;
+
+/** No column is dragged narrower than this. */
+const MIN_WIDTH = 48;
 
 const styles = dataTable();
 
@@ -125,8 +170,36 @@ export function DataTable<TData extends RowData>({
   onRowClick,
   className,
 }: DataTableProps<TData>) {
+  const labels = useDataTableLabels();
   const rows = table.getRowModel().rows;
   const columns = table.getVisibleLeafColumns();
+  const sizing = table.state.columnSizing;
+  const sizedWidth = (column: (typeof columns)[number]) =>
+    sizing[column.id] ?? column.columnDef.meta?.width;
+  // Once the reader has sized every column, the actions column is the one
+  // that takes up the slack -- so the menu stays against the right edge.
+  const anyFlexible = columns.some(
+    (column) =>
+      column.id !== 'select' &&
+      column.id !== 'actions' &&
+      sizedWidth(column) === undefined,
+  );
+  const widthOf = (column: (typeof columns)[number]) =>
+    column.id === 'select'
+      ? 40
+      : column.id === 'actions'
+        ? anyFlexible
+          ? 48
+          : undefined
+        : sizedWidth(column);
+  // Wide enough for every sized column and a readable flexible one; past
+  // that the card scrolls sideways instead of crushing the title.
+  const minWidth = columns.reduce(
+    (sum, column) =>
+      sum +
+      (widthOf(column) ?? (column.id === 'actions' ? 48 : FLEX_MIN_WIDTH)),
+    0,
+  );
   const filtered =
     table.state.columnFilters.length > 0 || Boolean(table.state.globalFilter);
   const selectedCount = Object.keys(table.state.rowSelection).length;
@@ -147,19 +220,44 @@ export function DataTable<TData extends RowData>({
     onRowClick(row);
   }
 
+  /*
+   * The list is worked from the keyboard the way a mail client is: arrows
+   * or j/k walk the rows, x ticks the one you are on, Enter opens it.
+   * Focus moves between the rows' own tab stops, so the browser's focus ring
+   * is the cursor and screen readers follow it.
+   */
+  function handleRowKey(
+    event: KeyboardEvent<HTMLTableRowElement>,
+    row: Row<DataTableFeatures, TData>,
+  ) {
+    const step = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }[event.key];
+    if (step) {
+      event.preventDefault();
+      const sibling =
+        step > 0
+          ? event.currentTarget.nextElementSibling
+          : event.currentTarget.previousElementSibling;
+      (sibling as HTMLElement | null)?.focus();
+      return;
+    }
+    if (event.key === 'x' && row.getCanSelect()) {
+      event.preventDefault();
+      row.toggleSelected();
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onRowClick?.(row);
+    }
+  }
+
   return (
     <div className={styles.card({ className })}>
       <div className={styles.scroller()} aria-busy={loading}>
-        <table className={styles.table()}>
+        <table className={styles.table()} style={{ minWidth }}>
           <colgroup>
             {columns.map((column) => (
-              <col
-                key={column.id}
-                style={{
-                  width:
-                    column.id === 'select' ? 40 : column.columnDef.meta?.width,
-                }}
-              />
+              <col key={column.id} style={{ width: widthOf(column) }} />
             ))}
           </colgroup>
 
@@ -185,11 +283,11 @@ export function DataTable<TData extends RowData>({
                     >
                       <div
                         role="toolbar"
-                        aria-label="Actions for the selected rows"
+                        aria-label={labels.selectionToolbar}
                         className={styles.bulk()}
                       >
                         <span aria-live="polite" className={styles.bulkCount()}>
-                          {selectedCount} selected
+                          {labels.selected(selectedCount)}
                         </span>
                         {bulkActions}
                         <Button
@@ -198,14 +296,18 @@ export function DataTable<TData extends RowData>({
                           className="ms-auto"
                           onClick={() => table.toggleAllRowsSelected(false)}
                         >
-                          Clear
+                          {labels.clearSelection}
                         </Button>
                       </div>
                     </th>
                   </>
                 ) : (
                   headerGroup.headers.map((header) => (
-                    <HeaderCell key={header.id} header={header} />
+                    <HeaderCell
+                      key={header.id}
+                      header={header}
+                      width={widthOf(header.column)}
+                    />
                   ))
                 )}
               </tr>
@@ -224,10 +326,8 @@ export function DataTable<TData extends RowData>({
                 onClick={(event) => handleRowClick(row, event)}
                 onKeyDown={(event) => {
                   if (!onRowClick) return;
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
                   if (event.target !== event.currentTarget) return;
-                  event.preventDefault();
-                  onRowClick(row);
+                  handleRowKey(event, row);
                 }}
                 className={styles.row()}
               >
@@ -235,7 +335,12 @@ export function DataTable<TData extends RowData>({
                   <td
                     key={cell.id}
                     {...cellAttributes(cell)}
-                    className={styles.td()}
+                    className={styles.td({
+                      className:
+                        cell.column.id === 'actions'
+                          ? styles.pinned()
+                          : undefined,
+                    })}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -273,12 +378,12 @@ export function DataTable<TData extends RowData>({
               className="text-fg-ghost"
             />
             <div className="flex flex-col gap-1">
-              <Text variant="card-title">{empty?.title ?? 'No results'}</Text>
+              <Text variant="card-title">
+                {empty?.title ?? labels.noResults}
+              </Text>
               <Text variant="meta" tone="subtle">
                 {empty?.description ??
-                  (filtered
-                    ? 'Nothing matches the current filters.'
-                    : 'There is nothing here yet.')}
+                  (filtered ? labels.noMatches : labels.nothingYet)}
               </Text>
             </div>
             {filtered ? (
@@ -290,7 +395,7 @@ export function DataTable<TData extends RowData>({
                   table.setGlobalFilter('');
                 }}
               >
-                Clear filters
+                {labels.clearFilters}
               </Button>
             ) : null}
           </div>
@@ -313,8 +418,11 @@ DataTable.displayName = 'DataTable';
  */
 function HeaderCell<TData extends RowData>({
   header,
+  width,
 }: {
   header: Header<DataTableFeatures, TData, unknown>;
+  /** The width the reader set or the design states; none when flexible. */
+  width: number | undefined;
 }) {
   const sorted = header.column.getIsSorted();
   const ariaSort =
@@ -329,9 +437,16 @@ function HeaderCell<TData extends RowData>({
       scope="col"
       colSpan={header.colSpan}
       aria-sort={ariaSort}
-      className={styles.th()}
+      className={styles.th({
+        className:
+          header.column.id === 'actions' ? styles.pinnedHead() : undefined,
+      })}
     >
       <HeaderContent header={header} />
+      {/* The two injected columns have one width by design. */}
+      {header.column.id !== 'select' && header.column.id !== 'actions' ? (
+        <Resizer header={header} width={width} />
+      ) : null}
     </th>
   );
 }
@@ -358,5 +473,90 @@ function HeaderContent<TData extends RowData>({
     <div className={styles.headerSwap()}>
       <DataTableColumnHeader header={header} />
     </div>
+  );
+}
+
+/**
+ * The handle on a column's right edge. Drag to size it, double-click to put
+ * it back to the width it was designed at -- or back to flexible, for the
+ * column that had none. The arrow keys size it too, so the gesture is not
+ * pointer-only.
+ *
+ * Every drag starts from the width the column is drawn at, measured, not
+ * from a number in state: the flexible column has no number until the
+ * reader gives it one, and it must not jump to some default when grabbed.
+ */
+function Resizer<TData extends RowData>({
+  header,
+  width,
+}: {
+  header: Header<DataTableFeatures, TData, unknown>;
+  width: number | undefined;
+}) {
+  const labels = useDataTableLabels();
+  const [dragging, setDragging] = useState(false);
+  const handle = useRef<HTMLDivElement>(null);
+  // The flexible column has no width in state; what it is drawn at is still
+  // its value, and a separator a screen reader can move must say one.
+  const [drawn, setDrawn] = useState(width ?? 0);
+  useLayoutEffect(() => {
+    const cell = handle.current?.parentElement;
+    if (cell) setDrawn(Math.round(cell.getBoundingClientRect().width));
+  }, [width]);
+  const { column } = header;
+  const { table } = header.getContext();
+
+  const resize = (next: number) =>
+    table.setColumnSizing((previous) => ({
+      ...previous,
+      [column.id]: Math.max(MIN_WIDTH, Math.round(next)),
+    }));
+
+  const drawnWidth = (handle: HTMLElement) =>
+    handle.parentElement?.getBoundingClientRect().width ?? width ?? 0;
+
+  function startDrag(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = drawnWidth(event.currentTarget);
+
+    const move = (moved: globalThis.PointerEvent) =>
+      resize(startWidth + moved.clientX - startX);
+    const end = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+    };
+
+    setDragging(true);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+  }
+
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a separator that is also a slider is the ARIA pattern for a resizable splitter; there is no element for it.
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={labels.resizeColumn}
+      aria-valuenow={width ?? drawn}
+      ref={handle}
+      tabIndex={0}
+      data-resizing={dragging || undefined}
+      className={styles.resizer()}
+      onPointerDown={startDrag}
+      onDoubleClick={() =>
+        table.setColumnSizing((previous) => {
+          const { [column.id]: _, ...rest } = previous;
+          return rest;
+        })
+      }
+      onKeyDown={(event) => {
+        const delta = { ArrowLeft: -16, ArrowRight: 16 }[event.key];
+        if (!delta) return;
+        event.preventDefault();
+        resize(drawnWidth(event.currentTarget) + delta);
+      }}
+    />
   );
 }

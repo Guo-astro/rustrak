@@ -77,7 +77,39 @@
     "lastPage": "Ultima pagină",
     "selectAllPageRows": "Selectează toate rândurile din această pagină",
     "selectRow": "Selectează rândul",
-    "expand": "Extinde"
+    "expand": "Extinde",
+    "selected": "{count} selectate",
+    "clearSelection": "Golește",
+    "selectionToolbar": "Acțiuni pentru rândurile selectate",
+    "noMatches": "Nimic nu corespunde filtrelor curente.",
+    "nothingYet": "Încă nu este nimic aici.",
+    "clearFilters": "Șterge filtrele",
+    "actions": "Acțiuni",
+    "rowActions": "Acțiunile rândului",
+    "columns": "Coloane",
+    "chooseColumns": "Alege coloanele",
+    "resizeColumn": "Redimensionează coloana",
+    "filterValues": "Filtrează valorile",
+    "filterValuesPlaceholder": "Filtrează valorile…",
+    "nothingMatches": "Nimic nu corespunde",
+    "contains": "Conține…",
+    "filterText": "Filtrează textul",
+    "min": "Min",
+    "max": "Max",
+    "lowestFirst": "Cel mai mic întâi",
+    "highestFirst": "Cel mai mare întâi",
+    "aToZ": "A la Z",
+    "zToA": "Z la A",
+    "clearFilter": "Șterge filtrul",
+    "hideColumn": "Ascunde coloana",
+    "range": "{first}–{last} din {total}",
+    "rowsPerPage": "{size} rânduri",
+    "rowsOption": "{size} rânduri",
+    "filterBy": "Filtrează după",
+    "suggestions": "Sugestii",
+    "filterAndSearch": "Filtrează cu cheie:valoare sau caută…",
+    "addFilter": "Adaugă un filtru…",
+    "clearAll": "Șterge filtrele și căutarea"
   },
   "commands": {
     "overview": "Prezentare generală",
@@ -215,7 +247,9 @@
       "age": "Vechime",
       "events": "Evenimente",
       "users": "Utilizatori",
-      "lastSeen": "Ultima apariție"
+      "lastSeen": "Ultima apariție",
+      "level": "Nivel",
+      "assignee": "Asignat"
     },
     "actionsTitle": "Acțiuni",
     "actionsFor": "Acțiuni pentru {title}",
@@ -307,6 +341,43 @@
     "card": {
       "usersAffected": "{count, plural, one {# utilizator afectat} few {# utilizatori afectați} other {# de utilizatori afectați}}",
       "eventCount": "{count, plural, one {# eveniment} few {# evenimente} other {# de evenimente}}"
+    },
+    "table": {
+      "windows": {
+        "1h": "Ultima oră",
+        "24h": "Ultimele 24 de ore",
+        "7d": "Ultimele 7 zile",
+        "14d": "Ultimele 14 zile",
+        "30d": "Ultimele 30 de zile"
+      },
+      "levels": {
+        "fatal": "Fatal",
+        "error": "Eroare",
+        "warning": "Avertisment",
+        "info": "Info"
+      },
+      "fewest": "Cele mai puține evenimente",
+      "most": "Cele mai multe evenimente",
+      "lowestPriority": "Prioritate mică întâi",
+      "highestPriority": "Prioritate mare întâi",
+      "me": "Eu",
+      "unassigned": "Neasignat",
+      "oldest": "Cele mai vechi întâi",
+      "newest": "Cele mai noi întâi",
+      "environment": "Mediu",
+      "release": "Release",
+      "assign": "Asignează",
+      "assignToMe": "Asignează-mi",
+      "unassign": "Elimină asignarea",
+      "copyId": "Copiază ID-ul",
+      "copied": "ID copiat",
+      "count": "{count} issue-uri",
+      "views": {
+        "open": "Deschise",
+        "resolved": "Rezolvate",
+        "muted": "Silențioase",
+        "all": "Toate"
+      }
     }
   },
   "roles": {
@@ -1574,7 +1645,7 @@
         "description": "Probleme pentru {project}"
       },
       "title": "Probleme",
-      "subtitle": "Problemele deschise pentru {project}",
+      "subtitle": "Erorile din {project}, grupate după cauză",
       "loadFailed": "Problemele nu au putut fi încărcate",
       "loadLatestEventFailed": "Ultimul eveniment nu a putut fi încărcat"
     },

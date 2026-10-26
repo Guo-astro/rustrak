@@ -212,7 +212,10 @@ export function useQueryBar({
       filters: nextValues.length
         ? [...rest, { id: field.key, value: nextValues }]
         : rest,
-      search,
+      // The input is the search: what is written ahead of the field being
+      // filled, not whatever was sent last. A search deleted from the input
+      // and never re-sent would otherwise come back with the next filter.
+      search: parseFilterQuery(prefix, variants).search,
     });
 
     /*
@@ -261,7 +264,7 @@ export function useQueryBar({
   function removeFilter(key: string) {
     onChange({
       filters: filters.filter((filter) => filter.id !== key),
-      search,
+      search: parseFilterQuery(draft, variants).search,
     });
     inputRef.current?.focus();
   }

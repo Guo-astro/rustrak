@@ -36,8 +36,18 @@ const tabs = tv({
        end of. It is not the `tablist`: `role="tablist"` owns tabs and nothing
        else, so a filter summary sitting inside it is content a screen reader
        has no reason to reach. */
-    strip: 'flex items-center border-b border-border-subtle',
-    list: 'relative flex items-center gap-5',
+    // Scrolls rather than overflows: on a phone a few tabs are wider than
+    // the screen, and the page must not scroll sideways to reach them.
+    //
+    // The rule is drawn inside the strip, on its bottom edge, rather than as
+    // its border: the lime indicator then lies on the same baseline, over the
+    // rule, instead of a pixel above it -- and a scroller clips anything
+    // pushed below its border, so the indicator could not reach a border.
+    strip: [
+      'relative flex min-w-0 items-center overflow-x-auto',
+      "after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border-subtle after:content-['']",
+    ],
+    list: 'relative flex shrink-0 items-center gap-5',
     meta: 'ms-auto ps-5 pb-0.5',
     tab: [
       'relative flex h-tab shrink-0 items-center gap-1.75',
@@ -50,7 +60,7 @@ const tabs = tv({
       focusRing,
     ],
     indicator: [
-      'absolute bottom-0 left-0 h-(--stroke-indicator) bg-surface-brand',
+      'absolute bottom-0 left-0 z-10 h-(--stroke-indicator) bg-surface-brand',
       'w-(--active-tab-width) translate-x-(--active-tab-left)',
       slideTransition,
     ],

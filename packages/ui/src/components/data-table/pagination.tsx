@@ -4,6 +4,7 @@ import { Button } from '../button/button';
 import { ChevronLeftIcon, ChevronRightIcon } from '../icon/icon-catalog';
 import { Menu } from '../menu/menu';
 import { Tooltip } from '../tooltip/tooltip';
+import { useDataTableLabels } from './labels';
 import type { DataTableInstance } from './use-data-table';
 
 /**
@@ -39,6 +40,8 @@ export interface DataTablePaginationProps<TData extends RowData> {
 export function DataTablePagination<TData extends RowData>({
   table,
 }: DataTablePaginationProps<TData>) {
+  const labels = useDataTableLabels();
+  const figure = (n: number) => n.toLocaleString(labels.locale);
   const { pageIndex, pageSize } = table.state.pagination;
   const rowCount = table.options.rowCount ?? table.getRowCount();
   const pageCount = table.getPageCount();
@@ -50,14 +53,12 @@ export function DataTablePagination<TData extends RowData>({
   return (
     <div className={styles.footer()}>
       <span aria-live="polite">
-        <span className={styles.figure()}>
-          {first.toLocaleString('en-US')}–{last.toLocaleString('en-US')}
-        </span>{' '}
-        of {rowCount.toLocaleString('en-US')}
+        {labels.range(figure(first), figure(last), figure(rowCount))}
         {selected > 0 ? (
           <>
             {' '}
-            · <span className={styles.figure()}>{selected} selected</span>
+            ·{' '}
+            <span className={styles.figure()}>{labels.selected(selected)}</span>
           </>
         ) : null}
       </span>
@@ -67,23 +68,23 @@ export function DataTablePagination<TData extends RowData>({
           align="end"
           trigger={
             <Button variant="ghost" size="xs" menu>
-              Rows {pageSize}
+              {labels.rowsPerPage(pageSize)}
             </Button>
           }
           actions={PAGE_SIZES.map((size) => ({
             id: String(size),
-            label: `${size} rows`,
+            label: labels.rowsOption(size),
             onSelect: () => table.setPageSize(size),
           }))}
         />
 
         <div className="flex items-center gap-1">
-          <Tooltip content="Previous page">
+          <Tooltip content={labels.previousPage}>
             <Button
               variant="secondary"
               size="xs"
               icon={ChevronLeftIcon}
-              aria-label="Previous page"
+              aria-label={labels.previousPage}
               disabled={!table.getCanPreviousPage()}
               onClick={() => table.previousPage()}
             />
@@ -91,12 +92,12 @@ export function DataTablePagination<TData extends RowData>({
           <span aria-hidden="true" className={styles.fraction()}>
             {pageCount === 0 ? 0 : pageIndex + 1} / {pageCount}
           </span>
-          <Tooltip content="Next page">
+          <Tooltip content={labels.nextPage}>
             <Button
               variant="secondary"
               size="xs"
               icon={ChevronRightIcon}
-              aria-label="Next page"
+              aria-label={labels.nextPage}
               disabled={!table.getCanNextPage()}
               onClick={() => table.nextPage()}
             />

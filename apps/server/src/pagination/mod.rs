@@ -75,6 +75,10 @@ pub enum IssueSort {
     LastSeen,
     /// Sort by digested_event_count (most/least frequent issues)
     EventCount,
+    /// Sort by first_seen (newest or oldest issues)
+    FirstSeen,
+    /// Sort by priority: high, then medium, then low
+    Priority,
 }
 
 impl IssueSort {
@@ -83,6 +87,8 @@ impl IssueSort {
             IssueSort::DigestOrder => "digest_order",
             IssueSort::LastSeen => "last_seen",
             IssueSort::EventCount => "event_count",
+            IssueSort::FirstSeen => "first_seen",
+            IssueSort::Priority => "priority",
         }
     }
 }
@@ -165,6 +171,67 @@ pub struct ListIssuesQuery {
     /// Only issues that had an event in this release.
     #[serde(default)]
     pub release: Option<String>,
+
+    /// Only these levels, comma-separated: `fatal,error`.
+    #[serde(default)]
+    pub level: Option<String>,
+
+    /// Only these priorities, comma-separated: `high,medium`.
+    #[serde(default)]
+    pub priority: Option<String>,
+
+    /// `none` for unassigned issues, or a user id.
+    #[serde(default)]
+    pub assigned: Option<String>,
+
+    /// Only issues first seen within this window: `24h`, `7d`.
+    #[serde(default)]
+    pub first_seen: Option<String>,
+
+    /// Only issues last seen within this window: `24h`, `7d`.
+    #[serde(default)]
+    pub last_seen: Option<String>,
+
+    /// Only issues with at least this many events.
+    #[serde(default)]
+    pub events_min: Option<i64>,
+
+    /// Only issues with at most this many events.
+    #[serde(default)]
+    pub events_max: Option<i64>,
+}
+
+impl ListIssuesQuery {
+    /// The table's narrowing filters, read out of the query string. A value
+    /// that does not parse narrows nothing rather than failing the list.
+    pub fn issue_filters(&self) -> crate::services::issue::IssueFilters {
+        let list = |raw: &Option<String>| -> Vec<String> {
+            raw.as_deref()
+                .unwrap_or("")
+                .split(',')
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+                .collect()
+        };
+        let period = |raw: &Option<String>| {
+            raw.as_deref()
+                .and_then(|p| crate::routes::period::parse_period_hours(Some(p)))
+        };
+        crate::services::issue::IssueFilters {
+            levels: list(&self.level),
+            priorities: list(&self.priority),
+            assigned: match self.assigned.as_deref() {
+                Some("none") => Some(crate::services::issue::Assignee::Nobody),
+                Some(id) => id.parse().ok().map(crate::services::issue::Assignee::User),
+                None => None,
+            },
+            first_seen_hours: period(&self.first_seen),
+            last_seen_hours: period(&self.last_seen),
+            events_min: self.events_min,
+            events_max: self.events_max,
+        }
+    }
 }
 
 fn default_page() -> i64 {
