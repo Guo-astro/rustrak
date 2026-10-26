@@ -57,6 +57,10 @@ import { isSettingsPath } from '@/shared/lib/settings-path';
 import { CommandBar } from '@/shared/ui/components/command-bar/command-bar';
 import { Link } from '@/shared/ui/components/link';
 import { useAsync } from '@/shared/ui/hooks/use-async';
+import {
+  type TrailCrumb,
+  usePageTrailCrumbs,
+} from '@/shared/ui/hooks/use-page-trail';
 import { usePathname } from '@/shared/ui/hooks/use-pathname';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
@@ -183,15 +187,6 @@ const GROUPS: { label: 'groupTriage' | 'groupMonitor'; routes: NavRoute[] }[] =
   ];
 
 const ROUTES = [OVERVIEW, ...GROUPS.flatMap((group) => group.routes)];
-
-/** A path segment as written, or as it came when it does not decode. */
-function decodeSegment(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
 
 /** The route the URL is in. Overview only on its exact path. */
 function activeRoute(pathname: string, base: string): NavRoute | undefined {
@@ -598,24 +593,27 @@ function SettingsLink({
 }
 
 /**
- * The section's crumb, a link back to it from a page below it -- an issue, a
- * release -- and for a release its version, which the path names. An
- * issue's id says nothing, so it gets no crumb of its own.
+ * The section's crumb, then whatever the page says it is (a release's
+ * version, an endpoint's name). Below the section's own page, the section
+ * crumb is the way back to it.
  */
 function sectionCrumbs(
   pathname: string,
   base: string,
   route: NavRoute | undefined,
   label: string,
+  trail: TrailCrumb[],
 ): Crumb[] {
   const section = route?.path ? `${base}${route.path}` : null;
-  const below = section ? pathname.slice(section.length + 1) : '';
+  const below = section ? pathname.length > section.length + 1 : false;
   if (!section || !below) return [{ label }];
   return [
     { label, render: <Link href={section} /> },
-    ...(route?.key === 'releases'
-      ? [{ label: decodeSegment(below.split('/')[0] ?? ''), mono: true }]
-      : []),
+    ...trail.map((crumb) => ({
+      label: crumb.label,
+      mono: crumb.mono,
+      render: crumb.href ? <Link href={crumb.href} /> : undefined,
+    })),
   ];
 }
 
@@ -625,6 +623,7 @@ export function AppBreadcrumbs() {
   const tSettings = useTranslations('settings');
   const pathname = usePathname();
   const project = useCurrentProject();
+  const trail = usePageTrailCrumbs();
 
   let items: Crumb[];
 
@@ -662,6 +661,7 @@ export function AppBreadcrumbs() {
         base,
         route,
         route ? t(`nav.${route.key}`) : tSettings('nav.projectSettingsTitle'),
+        trail,
       ),
     ];
   } else if (pathname.startsWith('/settings')) {

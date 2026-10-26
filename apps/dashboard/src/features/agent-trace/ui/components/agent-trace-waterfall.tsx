@@ -166,7 +166,7 @@ function opBreakdown(tree: TreeNode[]): { color: string; ms: number }[] {
 }
 
 /**
- * Waterfall for one agent trace. Unlike `SpanWaterfall` (transaction detail),
+ * Waterfall for one agent trace. Unlike the transaction page's trace (`Waterfall` from `@rustrak/ui`),
  * spans here come from `listSpans({ trace_id })` — the flat `spans` table
  * shape, which covers both standalone and transaction-embedded spans
  * uniformly and already carries precomputed `duration_ms`/`exclusive_time_ms`

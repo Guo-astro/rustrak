@@ -309,6 +309,19 @@ pub struct ListTransactionsQuery {
 
     /// Filter by release.
     pub release: Option<String>,
+
+    /// `slowest` for the longest first; newest first otherwise.
+    #[cfg_attr(feature = "openapi", param(inline))]
+    pub sort: Option<TransactionListSort>,
+}
+
+/// The order of a transaction list.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionListSort {
+    Recent,
+    Slowest,
 }
 
 /// Query parameters for listing logs (offset-based)
@@ -454,6 +467,31 @@ pub struct TransactionStatsQuery {
     #[serde(default = "default_per_page")]
     #[cfg_attr(feature = "openapi", param(minimum = 1, maximum = 100))]
     pub per_page: i64,
+
+    /// Only this environment.
+    pub environment: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+
+    /// Only the endpoints whose name contains this, ignoring case.
+    pub query: Option<String>,
+
+    /// How to rank them; most time spent in all by default.
+    #[serde(default)]
+    #[cfg_attr(feature = "openapi", param(inline))]
+    pub sort: crate::services::transaction::StatsSort,
+}
+
+impl TransactionStatsQuery {
+    pub fn filter(&self) -> crate::services::transaction::StatsFilter {
+        crate::services::transaction::StatsFilter {
+            environment: self.environment.clone().filter(|e| !e.is_empty()),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+            query: self.query.clone(),
+            sort: self.sort,
+        }
+    }
 }
 
 /// Query parameters for a single transaction group's aggregate stats.
@@ -464,6 +502,20 @@ pub struct TransactionStatGroupQuery {
     pub name: String,
     /// Trace operation of the group (omit for groups with no op).
     pub op: Option<String>,
+    /// Only this environment.
+    pub environment: Option<String>,
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+}
+
+impl TransactionStatGroupQuery {
+    pub fn filter(&self) -> crate::services::transaction::StatsFilter {
+        crate::services::transaction::StatsFilter {
+            environment: self.environment.clone().filter(|e| !e.is_empty()),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+            ..Default::default()
+        }
+    }
 }
 
 /// Query parameters for listing events

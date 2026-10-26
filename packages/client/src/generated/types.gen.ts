@@ -2249,6 +2249,10 @@ export type TransactionResponse = {
     platform: string;
     release: string;
     start_timestamp: string | null;
+    /**
+     * Trace status (`ok`, `internal_error`...), if the SDK sent one.
+     */
+    status: string | null;
     timestamp: string;
     transaction_name: string;
 };
@@ -2260,6 +2264,7 @@ export type TransactionResponse = {
  * interpolation, matching Postgres `percentile_cont`).
  */
 export type TransactionStatsResponse = {
+    avg_ms: number;
     /**
      * Number of transactions in this group.
      */
@@ -2268,11 +2273,32 @@ export type TransactionStatsResponse = {
      * Fraction (0.0–1.0) of transactions whose trace status is set and not "ok".
      */
     failure_rate: number;
+    last_seen: string;
     op: string | null;
     p50_ms: number;
     p95_ms: number;
     p99_ms: number;
+    /**
+     * Its share, 0 to 1, of the time every endpoint in the same read takes.
+     */
+    time_share: number;
+    /**
+     * Every sample's duration added up: how much time the endpoint takes in all.
+     */
+    total_ms: number;
     transaction_name: string;
+};
+
+/**
+ * One bucket of an endpoint's trend: how often it ran, how often it failed
+ * and how long it took.
+ */
+export type TransactionTimeseriesPoint = {
+    bucket: string;
+    count: number;
+    failures: number;
+    p50_ms: number;
+    p95_ms: number;
 };
 
 /**
@@ -7295,6 +7321,10 @@ export type TransactionsListData = {
          * Filter by release.
          */
         release?: string | null;
+        /**
+         * `slowest` for the longest first; newest first otherwise.
+         */
+        sort?: 'recent' | 'slowest' | null;
     };
     url: '/api/projects/{project_id}/transactions';
 };
@@ -7332,6 +7362,10 @@ export type TransactionsListResponses = {
             platform: string;
             release: string;
             start_timestamp: string | null;
+            /**
+             * Trace status (`ok`, `internal_error`...), if the SDK sent one.
+             */
+            status: string | null;
             timestamp: string;
             transaction_name: string;
         }>;
@@ -7361,6 +7395,22 @@ export type TransactionsGetStatsData = {
          * Items per page (default: 20, max: 100)
          */
         per_page?: number;
+        /**
+         * Only this environment.
+         */
+        environment?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
+        /**
+         * Only the endpoints whose name contains this, ignoring case.
+         */
+        query?: string | null;
+        /**
+         * How the endpoints are ranked.
+         */
+        sort?: 'time_spent' | 'count' | 'avg' | 'failure_rate';
     };
     url: '/api/projects/{project_id}/transactions/stats';
 };
@@ -7384,6 +7434,7 @@ export type TransactionsGetStatsResponses = {
      */
     200: {
         items: Array<{
+            avg_ms: number;
             /**
              * Number of transactions in this group.
              */
@@ -7392,10 +7443,19 @@ export type TransactionsGetStatsResponses = {
              * Fraction (0.0–1.0) of transactions whose trace status is set and not "ok".
              */
             failure_rate: number;
+            last_seen: string;
             op: string | null;
             p50_ms: number;
             p95_ms: number;
             p99_ms: number;
+            /**
+             * Its share, 0 to 1, of the time every endpoint in the same read takes.
+             */
+            time_share: number;
+            /**
+             * Every sample's duration added up: how much time the endpoint takes in all.
+             */
+            total_ms: number;
             transaction_name: string;
         }>;
         page: number;
@@ -7424,6 +7484,14 @@ export type TransactionsGetStatGroupData = {
          * Trace operation of the group (omit for groups with no op).
          */
         op?: string | null;
+        /**
+         * Only this environment.
+         */
+        environment?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
     };
     url: '/api/projects/{project_id}/transactions/stats/group';
 };
@@ -7449,6 +7517,57 @@ export type TransactionsGetStatGroupResponses = {
 };
 
 export type TransactionsGetStatGroupResponse = TransactionsGetStatGroupResponses[keyof TransactionsGetStatGroupResponses];
+
+export type TransactionsGetStatGroupTimeseriesData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query: {
+        /**
+         * Exact transaction name of the group.
+         */
+        name: string;
+        /**
+         * Trace operation of the group (omit for groups with no op).
+         */
+        op?: string | null;
+        /**
+         * Only this environment.
+         */
+        environment?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
+    };
+    url: '/api/projects/{project_id}/transactions/stats/group/timeseries';
+};
+
+export type TransactionsGetStatGroupTimeseriesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type TransactionsGetStatGroupTimeseriesError = TransactionsGetStatGroupTimeseriesErrors[keyof TransactionsGetStatGroupTimeseriesErrors];
+
+export type TransactionsGetStatGroupTimeseriesResponses = {
+    /**
+     * The endpoint's runs, failures, p50 and p95 per bucket, oldest first
+     */
+    200: Array<TransactionTimeseriesPoint>;
+};
+
+export type TransactionsGetStatGroupTimeseriesResponse = TransactionsGetStatGroupTimeseriesResponses[keyof TransactionsGetStatGroupTimeseriesResponses];
 
 export type TransactionsGetData = {
     body?: never;

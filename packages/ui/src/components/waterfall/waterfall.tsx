@@ -75,6 +75,9 @@ const waterfall = tv({
      * The divider between names and time. A real control: it drags, it
      * takes the keyboard, and it clamps -- neither column may vanish.
      */
+    /* The rows and the divider that resizes them; the legend sits below,
+       so the divider ends where the rows do. */
+    body: 'relative',
     divider: [
       'absolute inset-y-0 z-20 w-1.5 -translate-x-1/2 cursor-ew-resize',
       '@max-2xl:hidden',
@@ -156,7 +159,7 @@ const waterfall = tv({
       '@max-2xl:px-1',
     ],
     legend: [
-      'flex shrink-0 flex-wrap items-center gap-4 ps-4 pe-4 pt-2.5',
+      'flex shrink-0 flex-wrap items-center gap-4 px-4 py-3',
       'text-fg-subtle text-mono-sm',
     ],
     legendItem: 'inline-flex items-center gap-1.5',
@@ -646,51 +649,53 @@ export function Waterfall({
       className={styles.root({ className })}
       aria-label={label}
     >
-      <div className={styles.ruler()} aria-hidden="true">
-        <div className="w-(--wf-gutter) shrink-0 @max-2xl:hidden" />
-        <div className={styles.rulerTrack()}>
-          {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
-            <span key={fraction}>{formatSpanDuration(total * fraction)}</span>
-          ))}
+      <div className={styles.body()}>
+        <div className={styles.ruler()} aria-hidden="true">
+          <div className="w-(--wf-gutter) shrink-0 @max-2xl:hidden" />
+          <div className={styles.rulerTrack()}>
+            {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+              <span key={fraction}>{formatSpanDuration(total * fraction)}</span>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div role="tree" aria-label={label}>
-        {rows.map((row, rowIndex) =>
-          row.kind === 'gap' ? (
-            <GapRow key={row.id} row={row} start={start} total={total} />
-          ) : (
-            <SpanRow
-              key={row.id}
-              row={row}
-              start={start}
-              total={total}
-              tabStop={rowIndex === 0}
-              selected={row.kind === 'span' && selectedId === row.id}
-              onSelect={onSelect}
-              renderDetail={renderDetail}
-              onToggle={row.kind === 'group' ? toggleGroup : toggleCollapsed}
-              moveFocus={moveFocus}
-            />
-          ),
-        )}
-      </div>
+        <div role="tree" aria-label={label}>
+          {rows.map((row, rowIndex) =>
+            row.kind === 'gap' ? (
+              <GapRow key={row.id} row={row} start={start} total={total} />
+            ) : (
+              <SpanRow
+                key={row.id}
+                row={row}
+                start={start}
+                total={total}
+                tabStop={rowIndex === 0}
+                selected={row.kind === 'span' && selectedId === row.id}
+                onSelect={onSelect}
+                renderDetail={renderDetail}
+                onToggle={row.kind === 'group' ? toggleGroup : toggleCollapsed}
+                moveFocus={moveFocus}
+              />
+            ),
+          )}
+        </div>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: a window splitter is
+        {/* biome-ignore lint/a11y/useSemanticElements: a window splitter is
           ARIA-only -- <hr> cannot drag, focus or resize anything */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize the name column"
-        aria-valuenow={Math.round(split * 100)}
-        aria-valuemin={MIN_SPLIT * 100}
-        aria-valuemax={MAX_SPLIT * 100}
-        tabIndex={0}
-        style={{ left: `calc(16px + (100% - 32px) * ${split})` }}
-        onPointerDown={onDividerPointerDown}
-        onKeyDown={onDividerKeyDown}
-        className={styles.divider()}
-      />
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the name column"
+          aria-valuenow={Math.round(split * 100)}
+          aria-valuemin={MIN_SPLIT * 100}
+          aria-valuemax={MAX_SPLIT * 100}
+          tabIndex={0}
+          style={{ left: `calc(16px + (100% - 32px) * ${split})` }}
+          onPointerDown={onDividerPointerDown}
+          onKeyDown={onDividerKeyDown}
+          className={styles.divider()}
+        />
+      </div>
 
       <div className={styles.legend()}>
         {kinds.map((kind) => (

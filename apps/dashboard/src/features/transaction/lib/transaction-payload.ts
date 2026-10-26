@@ -96,3 +96,108 @@ export function readTransactionPayload(
     status: asString(trace?.status),
   };
 }
+
+/** One row of the trace waterfall, in the shape `@rustrak/ui`'s takes. */
+export interface WaterfallRow {
+  id: string;
+  parentId: string | null;
+  op?: string;
+  description?: string;
+  /** Milliseconds from the transaction's start. */
+  startMs: number;
+  endMs: number;
+  status?: string;
+}
+
+/**
+ * The transaction as a tree of rows on its own clock: the transaction itself
+ * at the root, named after it, and every span under its parent. A span whose
+ * parent was never sent hangs off the root rather than off nothing, and one
+ * without both timestamps has no place on a clock and is left out.
+ */
+export function waterfallSpans(
+  payload: TransactionPayload,
+  name: string,
+): WaterfallRow[] {
+  const start = payload.transactionStart;
+  const ms = (seconds: number) => (seconds - start) * 1000;
+  const rootId = payload.trace?.span_id ?? 'root';
+  const ids = new Set([
+    rootId,
+    ...payload.spans.flatMap((s) => (s.span_id ? [s.span_id] : [])),
+  ]);
+
+  const spans = payload.spans.flatMap((span, index): WaterfallRow[] => {
+    if (span.start_timestamp == null || span.timestamp == null) return [];
+    return [
+      {
+        id: span.span_id ?? `span-${index}`,
+        parentId:
+          span.parent_span_id && ids.has(span.parent_span_id)
+            ? span.parent_span_id
+            : rootId,
+        op: span.op,
+        description: span.description,
+        startMs: ms(span.start_timestamp),
+        endMs: ms(span.timestamp),
+        status: span.status,
+      },
+    ];
+  });
+
+  return [
+    {
+      id: rootId,
+      parentId: null,
+      op: payload.op,
+      description: name,
+      startMs: 0,
+      endMs: ms(payload.transactionEnd),
+      status: payload.status,
+    },
+    ...spans,
+  ];
+}
+
+/** Web-vital thresholds (good up to, poor from) from web.dev, in ms but CLS. */
+const VITALS: Record<string, { good: number; poor: number }> = {
+  lcp: { good: 2500, poor: 4000 },
+  fcp: { good: 1800, poor: 3000 },
+  fid: { good: 100, poor: 300 },
+  inp: { good: 200, poor: 500 },
+  ttfb: { good: 800, poor: 1800 },
+  cls: { good: 0.1, poor: 0.25 },
+};
+
+export interface MeasurementRow {
+  key: string;
+  value: number;
+  unit?: string;
+  /** One of the web vitals, with a known label and thresholds. */
+  vital: boolean;
+  rating: 'good' | 'meh' | 'poor' | null;
+}
+
+/** The numeric measurements, the web vitals first and rated. */
+export function readMeasurements(
+  measurements: Record<string, unknown> | null,
+): MeasurementRow[] {
+  if (!measurements) return [];
+  const rows = Object.entries(measurements).flatMap(
+    ([key, raw]): MeasurementRow[] => {
+      const m = asObject(raw);
+      if (!m || typeof m.value !== 'number') return [];
+      const vital = VITALS[key.toLowerCase()];
+      const value = m.value;
+      const rating: MeasurementRow['rating'] = vital
+        ? value <= vital.good
+          ? 'good'
+          : value <= vital.poor
+            ? 'meh'
+            : 'poor'
+        : null;
+      return [{ key, value, unit: asString(m.unit), vital: !!vital, rating }];
+    },
+  );
+  return rows.sort((a, b) => Number(b.vital) - Number(a.vital));
+}

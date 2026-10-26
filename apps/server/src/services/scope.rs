@@ -19,3 +19,26 @@ impl<'a> Scope<'a> {
         }
     }
 }
+
+/// `column` falls in the last `hours`, as a SQL condition; true without a
+/// window. `hours` is a parsed integer, never request text.
+pub(crate) fn since(column: &str, hours: Option<i64>) -> String {
+    let Some(hours) = hours else {
+        return "1 = 1".to_string();
+    };
+    #[cfg(feature = "postgres")]
+    return format!("{column} >= NOW() - INTERVAL '{hours} hours'");
+    #[cfg(not(feature = "postgres"))]
+    return format!("datetime({column}) >= datetime('now', '-{hours} hours')");
+}
+
+/// [`since`] for a `DATE` column.
+pub(crate) fn since_day(column: &str, hours: Option<i64>) -> String {
+    let Some(hours) = hours else {
+        return "1 = 1".to_string();
+    };
+    #[cfg(feature = "postgres")]
+    return format!("{column} >= (NOW() - INTERVAL '{hours} hours')::date");
+    #[cfg(not(feature = "postgres"))]
+    return format!("{column} >= date('now', '-{hours} hours')");
+}

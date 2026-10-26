@@ -20,13 +20,13 @@ import {
   PERIOD_CHOICES,
   type PeriodChoice,
 } from '@/features/release/model/session-health';
+import { PeriodFilter } from '@/features/release/ui/components/period-filter';
 import { ReleasesTable } from '@/features/release/ui/components/releases-table';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { useAsync } from '@/shared/ui/hooks/use-async';
-import { PeriodFilter } from './-components/release-filters';
 
 const PAGE_SIZE = 25;
 

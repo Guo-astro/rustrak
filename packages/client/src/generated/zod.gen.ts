@@ -1778,6 +1778,7 @@ export const zTransactionResponse = z.object({
     platform: z.string(),
     release: z.string(),
     start_timestamp: z.iso.datetime({ offset: true }).nullable(),
+    status: z.string().nullable(),
     timestamp: z.iso.datetime({ offset: true }),
     transaction_name: z.string()
 });
@@ -1789,13 +1790,29 @@ export const zTransactionResponse = z.object({
  * interpolation, matching Postgres `percentile_cont`).
  */
 export const zTransactionStatsResponse = z.object({
+    avg_ms: z.number(),
     count: z.int(),
     failure_rate: z.number(),
+    last_seen: z.iso.datetime({ offset: true }),
     op: z.string().nullable(),
     p50_ms: z.number(),
     p95_ms: z.number(),
     p99_ms: z.number(),
+    time_share: z.number(),
+    total_ms: z.number(),
     transaction_name: z.string()
+});
+
+/**
+ * One bucket of an endpoint's trend: how often it ran, how often it failed
+ * and how long it took.
+ */
+export const zTransactionTimeseriesPoint = z.object({
+    bucket: z.iso.datetime({ offset: true }),
+    count: z.int(),
+    failures: z.int(),
+    p50_ms: z.number(),
+    p95_ms: z.number()
 });
 
 /**
@@ -3483,7 +3500,11 @@ export const zTransactionsListQuery = z.object({
     op: z.string().nullish(),
     status: z.string().nullish(),
     environment: z.string().nullish(),
-    release: z.string().nullish()
+    release: z.string().nullish(),
+    sort: z.union([
+        z.literal('recent'),
+        z.literal('slowest')
+    ]).nullish()
 });
 
 /**
@@ -3499,6 +3520,7 @@ export const zTransactionsListResponse = z.object({
         platform: z.string(),
         release: z.string(),
         start_timestamp: z.iso.datetime({ offset: true }).nullable(),
+        status: z.string().nullable(),
         timestamp: z.iso.datetime({ offset: true }),
         transaction_name: z.string()
     })),
@@ -3514,7 +3536,16 @@ export const zTransactionsGetStatsPath = z.object({
 
 export const zTransactionsGetStatsQuery = z.object({
     page: z.int().gte(1).optional(),
-    per_page: z.int().gte(1).lte(100).optional()
+    per_page: z.int().gte(1).lte(100).optional(),
+    environment: z.string().nullish(),
+    period: z.string().nullish(),
+    query: z.string().nullish(),
+    sort: z.enum([
+        'time_spent',
+        'count',
+        'avg',
+        'failure_rate'
+    ]).optional()
 });
 
 /**
@@ -3522,12 +3553,16 @@ export const zTransactionsGetStatsQuery = z.object({
  */
 export const zTransactionsGetStatsResponse = z.object({
     items: z.array(z.object({
+        avg_ms: z.number(),
         count: z.int(),
         failure_rate: z.number(),
+        last_seen: z.iso.datetime({ offset: true }),
         op: z.string().nullable(),
         p50_ms: z.number(),
         p95_ms: z.number(),
         p99_ms: z.number(),
+        time_share: z.number(),
+        total_ms: z.number(),
         transaction_name: z.string()
     })),
     page: z.int(),
@@ -3542,13 +3577,31 @@ export const zTransactionsGetStatGroupPath = z.object({
 
 export const zTransactionsGetStatGroupQuery = z.object({
     name: z.string(),
-    op: z.string().nullish()
+    op: z.string().nullish(),
+    environment: z.string().nullish(),
+    period: z.string().nullish()
 });
 
 /**
  * Aggregate stats for one (transaction, op) group
  */
 export const zTransactionsGetStatGroupResponse = zTransactionStatsResponse;
+
+export const zTransactionsGetStatGroupTimeseriesPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zTransactionsGetStatGroupTimeseriesQuery = z.object({
+    name: z.string(),
+    op: z.string().nullish(),
+    environment: z.string().nullish(),
+    period: z.string().nullish()
+});
+
+/**
+ * The endpoint's runs, failures, p50 and p95 per bucket, oldest first
+ */
+export const zTransactionsGetStatGroupTimeseriesResponse = z.array(zTransactionTimeseriesPoint);
 
 export const zTransactionsGetPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),

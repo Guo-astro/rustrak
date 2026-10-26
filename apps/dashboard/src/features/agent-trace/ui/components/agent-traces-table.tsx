@@ -27,8 +27,7 @@ function formatMs(ms: number | null | undefined): string {
 /**
  * The AI Agent Monitoring "Traces" table: one row per trace_id, aggregating
  * every AI span in that trace regardless of origin (standalone or
- * transaction-embedded). Same offset-pagination shape and flex-div list
- * pattern as `TransactionStatsTable` for visual consistency.
+ * transaction-embedded), offset-paginated.
  */
 export function AgentTracesTable({
   projectId,
