@@ -70,29 +70,6 @@ export function resolveAgentFilters(params: {
 }
 
 /**
- * Rebuilds the dashboard's query string with one filter changed.
- *
- * Omitting a filter rather than writing an empty value keeps the URL honest:
- * `?period=7d` and `?period=7d&environment=` mean the same thing, and only
- * one of them should exist.
- */
-export function agentDashboardQuery(
-  current: { period?: string; environment?: string },
-  change: { period?: string | null; environment?: string | null },
-): string {
-  const next = new URLSearchParams();
-  const period = change.period !== undefined ? change.period : current.period;
-  const environment =
-    change.environment !== undefined ? change.environment : current.environment;
-
-  if (period) next.set('period', period);
-  if (environment) next.set('environment', environment);
-
-  const query = next.toString();
-  return query ? `?${query}` : '';
-}
-
-/**
  * The span whose details open when a trace is loaded with none selected.
  *
  * The first LLM call, falling back to the first AI span, then to the first

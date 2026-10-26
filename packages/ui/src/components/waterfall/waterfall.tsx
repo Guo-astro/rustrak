@@ -46,6 +46,10 @@ import { formatSpanDuration } from './format';
  * on the page: bar, duration and row tint at once. Not one hue per op: the
  * gutter already names the op, and the question a waterfall answers is "is
  * the time in the database, on the wire, or in us".
+ *
+ * An AI trace asks a different question -- "is the time in the agent, the
+ * model or a tool" -- so `gen_ai.*` spans get the four kinds every agent
+ * tracer draws: agent, LLM call, tool call and handoff.
  */
 const waterfall = tv({
   slots: {
@@ -191,8 +195,16 @@ export interface WaterfallSpan {
   status?: string;
 }
 
-/** The three kinds time divides into, plus the one that broke. */
-type SpanKind = 'db' | 'http' | 'internal' | 'error';
+/** The kinds time divides into, plus the one that broke. */
+type SpanKind =
+  | 'db'
+  | 'http'
+  | 'internal'
+  | 'agent'
+  | 'llm'
+  | 'tool'
+  | 'handoff'
+  | 'error';
 
 /*
  * A static map, never `bg-${kind}`: Tailwind extracts class names from the
@@ -202,12 +214,22 @@ const KIND_BAR: Record<SpanKind, string> = {
   db: 'bg-chart-1',
   http: 'bg-border-control',
   internal: 'bg-chart-3',
+  agent: 'bg-chart-1',
+  llm: 'bg-chart-4',
+  tool: 'bg-chart-5',
+  handoff: 'bg-fg-ghost',
   error: 'bg-sev-error',
 };
 
 function spanKind(span: WaterfallSpan): SpanKind {
   if (span.status && span.status !== 'ok') return 'error';
   const op = (span.op ?? '').toLowerCase();
+  if (op.startsWith('gen_ai.') || op.startsWith('ai.')) {
+    if (op.includes('invoke_agent')) return 'agent';
+    if (op.includes('execute_tool')) return 'tool';
+    if (op.includes('handoff')) return 'handoff';
+    return 'llm';
+  }
   if (op.startsWith('db') || op.startsWith('cache')) return 'db';
   if (op.startsWith('http') || op.startsWith('resource')) return 'http';
   return 'internal';
@@ -562,9 +584,18 @@ export function Waterfall({
   const kinds = useMemo(() => {
     const present = new Set<SpanKind>();
     for (const span of spans) present.add(spanKind(span));
-    return (['db', 'internal', 'http', 'error'] as const).filter((kind) =>
-      present.has(kind),
-    );
+    return (
+      [
+        'agent',
+        'llm',
+        'tool',
+        'handoff',
+        'db',
+        'internal',
+        'http',
+        'error',
+      ] as const
+    ).filter((kind) => present.has(kind));
   }, [spans]);
 
   const toggleCollapsed = toggleSet(setCollapsed);

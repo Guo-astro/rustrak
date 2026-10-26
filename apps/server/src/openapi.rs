@@ -158,6 +158,8 @@ impl Modify for SecurityAddon {
         crate::routes::agents::agent_models_tokens,
         crate::routes::agents::agent_tools,
         crate::routes::agents::agent_traces,
+        crate::routes::agents::agent_conversations,
+        crate::routes::agents::agent_conversation,
         crate::routes::storage::get_summary,
         crate::routes::storage::get_projects,
         crate::routes::storage::preview_cleanup,

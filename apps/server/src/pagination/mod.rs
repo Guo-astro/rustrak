@@ -497,6 +497,58 @@ pub struct AgentTracesQuery {
     #[serde(default = "default_per_page")]
     #[cfg_attr(feature = "openapi", param(minimum = 1, maximum = 100))]
     pub per_page: i64,
+
+    /// Only the traces where this agent ran.
+    pub agent: Option<String>,
+
+    /// Only the traces that called this model (response model, else request).
+    pub model: Option<String>,
+
+    /// Only the traces that used this tool.
+    pub tool: Option<String>,
+
+    /// Only the traces with a failing AI span.
+    #[serde(default)]
+    pub errors: bool,
+
+    /// How to rank them; newest first by default.
+    #[serde(default)]
+    #[cfg_attr(feature = "openapi", param(inline))]
+    pub sort: crate::services::span::AgentTraceSort,
+}
+
+impl AgentTracesQuery {
+    pub fn trace_filters(&self) -> crate::services::span::AgentTraceFilters {
+        let set = |v: &Option<String>| v.clone().filter(|s| !s.is_empty());
+        crate::services::span::AgentTraceFilters {
+            agent: set(&self.agent),
+            model: set(&self.model),
+            tool: set(&self.tool),
+            errors: self.errors,
+            sort: self.sort,
+        }
+    }
+}
+
+/// Query parameters for the agent conversations list (offset-based).
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+pub struct AgentConversationsQuery {
+    /// Lookback window in hours (default: all time, no filter).
+    pub period_hours: Option<i64>,
+
+    /// Restrict to spans reporting this environment (default: all).
+    pub environment: Option<String>,
+
+    /// Page number (1-indexed, default: 1)
+    #[serde(default = "default_page")]
+    #[cfg_attr(feature = "openapi", param(minimum = 1))]
+    pub page: i64,
+
+    /// Items per page (default: 20, max: 100)
+    #[serde(default = "default_per_page")]
+    #[cfg_attr(feature = "openapi", param(minimum = 1, maximum = 100))]
+    pub per_page: i64,
 }
 
 /// Query parameters for the transaction stats overview (offset-based)

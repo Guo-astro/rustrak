@@ -117,8 +117,8 @@ pub use alert::{
 pub use auth_token::{AuthToken, AuthTokenCreatedResponse, AuthTokenResponse, CreateAuthToken};
 pub use event::{Event, EventDetailResponse, EventResponse, EventSummary};
 pub use gen_ai::{
-    AgentDurationPoint, AgentModelRow, AgentSummary, AgentTimeseriesPoint, AgentToolRow,
-    AgentTraceSummary, GenAiBreakdownRow,
+    AgentConversation, AgentConversationSummary, AgentDurationPoint, AgentModelRow, AgentSummary,
+    AgentTimeseriesPoint, AgentToolRow, AgentTraceSummary, ConversationSpan, GenAiBreakdownRow,
 };
 pub use grouping::Grouping;
 pub use installation::{Installation, QuotaWindows};

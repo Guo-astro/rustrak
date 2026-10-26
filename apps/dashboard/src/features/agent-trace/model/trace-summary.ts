@@ -111,3 +111,57 @@ export function resolveSelectedSpan(
     requestedMissing: !inTrace,
   };
 }
+
+/** A span as the design system's waterfall draws it. */
+export interface WaterfallRow {
+  id: string;
+  parentId: string | null;
+  op?: string;
+  description?: string;
+  startMs: number;
+  endMs: number;
+  status?: string;
+}
+
+/**
+ * The trace as waterfall rows: children linked through `parent_span_id` to
+ * their parent's row, each named by what it ran -- the agent, the model, the
+ * tool -- since the op already says what kind it is. A span without both
+ * timestamps has no place on a time axis and is left out.
+ */
+export function waterfallSpans(spans: SpanResponse[]): WaterfallRow[] {
+  const rowOf = new Map(
+    spans.flatMap((s) => (s.span_id ? [[s.span_id, s.id] as const] : [])),
+  );
+  return spans.flatMap((s) => {
+    const startMs = epochMs(s.start_timestamp);
+    const endMs = epochMs(s.timestamp);
+    if (startMs === null || endMs === null) return [];
+    const name = spanName(s);
+    return [
+      {
+        id: s.id,
+        parentId: (s.parent_span_id && rowOf.get(s.parent_span_id)) || null,
+        op: s.op ?? undefined,
+        description: name ?? s.description ?? undefined,
+        startMs,
+        endMs,
+        status: s.status ?? undefined,
+      },
+    ];
+  });
+}
+
+/** What a span ran: its agent, its model or its tool. */
+function spanName(span: SpanResponse): string | null {
+  switch (span.gen_ai_operation_type) {
+    case 'agent':
+      return span.gen_ai_agent_name;
+    case 'ai_client':
+      return span.gen_ai_response_model ?? span.gen_ai_request_model;
+    case 'tool':
+      return span.gen_ai_tool_name;
+    default:
+      return null;
+  }
+}

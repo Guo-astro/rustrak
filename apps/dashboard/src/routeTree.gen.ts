@@ -55,6 +55,7 @@ import { Route as AuthenticatedProjectsIdSettingsGeneralRouteImport } from './ro
 import { Route as AuthenticatedProjectsIdSettingsGithubRouteImport } from './routes/_authenticated/projects/$id/settings/github';
 import { Route as AuthenticatedProjectsIdSettingsMembersRouteImport } from './routes/_authenticated/projects/$id/settings/members';
 import { Route as AuthenticatedProjectsIdSettingsProductsRouteImport } from './routes/_authenticated/projects/$id/settings/products';
+import { Route as AuthenticatedProjectsIdAgentsConversationsConversationIdRouteImport } from './routes/_authenticated/projects/$id/agents/conversations/$conversationId';
 import { Route as AuthenticatedProjectsIdEventsSentryEventIdRouteImport } from './routes/_authenticated/projects/$id/events/sentry/$eventId';
 import { Route as AuthenticatedProjectsIdIssuesIssueIdIndexRouteImport } from './routes/_authenticated/projects/$id/issues/$issueId/index';
 import { Route as AuthenticatedProjectsIdCronsMSlugIndexRouteImport } from './routes/_authenticated/projects/$id/crons/m/$slug/index';
@@ -329,6 +330,12 @@ const AuthenticatedProjectsIdSettingsProductsRoute =
     path: '/products',
     getParentRoute: () => AuthenticatedProjectsIdSettingsRoute,
   } as any);
+const AuthenticatedProjectsIdAgentsConversationsConversationIdRoute =
+  AuthenticatedProjectsIdAgentsConversationsConversationIdRouteImport.update({
+    id: '/agents/conversations/$conversationId',
+    path: '/agents/conversations/$conversationId',
+    getParentRoute: () => AuthenticatedProjectsIdRoute,
+  } as any);
 const AuthenticatedProjectsIdEventsSentryEventIdRoute =
   AuthenticatedProjectsIdEventsSentryEventIdRouteImport.update({
     id: '/events/sentry/$eventId',
@@ -412,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/projects/$id/performance/': typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   '/projects/$id/releases/': typeof AuthenticatedProjectsIdReleasesIndexRoute;
   '/projects/$id/settings/': typeof AuthenticatedProjectsIdSettingsIndexRoute;
+  '/projects/$id/agents/conversations/$conversationId': typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
   '/projects/$id/events/sentry/$eventId': typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
   '/projects/$id/issues/$issueId/': typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   '/projects/$id/crons/m/$slug/edit': typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
@@ -462,6 +470,7 @@ export interface FileRoutesByTo {
   '/projects/$id/performance': typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   '/projects/$id/releases': typeof AuthenticatedProjectsIdReleasesIndexRoute;
   '/projects/$id/settings': typeof AuthenticatedProjectsIdSettingsIndexRoute;
+  '/projects/$id/agents/conversations/$conversationId': typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
   '/projects/$id/events/sentry/$eventId': typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
   '/projects/$id/issues/$issueId': typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   '/projects/$id/crons/m/$slug/edit': typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
@@ -517,6 +526,7 @@ export interface FileRoutesById {
   '/_authenticated/projects/$id/performance/': typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   '/_authenticated/projects/$id/releases/': typeof AuthenticatedProjectsIdReleasesIndexRoute;
   '/_authenticated/projects/$id/settings/': typeof AuthenticatedProjectsIdSettingsIndexRoute;
+  '/_authenticated/projects/$id/agents/conversations/$conversationId': typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
   '/_authenticated/projects/$id/events/sentry/$eventId': typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
   '/_authenticated/projects/$id/issues/$issueId/': typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   '/_authenticated/projects/$id/crons/m/$slug/edit': typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
@@ -572,6 +582,7 @@ export interface FileRouteTypes {
     | '/projects/$id/performance/'
     | '/projects/$id/releases/'
     | '/projects/$id/settings/'
+    | '/projects/$id/agents/conversations/$conversationId'
     | '/projects/$id/events/sentry/$eventId'
     | '/projects/$id/issues/$issueId/'
     | '/projects/$id/crons/m/$slug/edit'
@@ -622,6 +633,7 @@ export interface FileRouteTypes {
     | '/projects/$id/performance'
     | '/projects/$id/releases'
     | '/projects/$id/settings'
+    | '/projects/$id/agents/conversations/$conversationId'
     | '/projects/$id/events/sentry/$eventId'
     | '/projects/$id/issues/$issueId'
     | '/projects/$id/crons/m/$slug/edit'
@@ -676,6 +688,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/$id/performance/'
     | '/_authenticated/projects/$id/releases/'
     | '/_authenticated/projects/$id/settings/'
+    | '/_authenticated/projects/$id/agents/conversations/$conversationId'
     | '/_authenticated/projects/$id/events/sentry/$eventId'
     | '/_authenticated/projects/$id/issues/$issueId/'
     | '/_authenticated/projects/$id/crons/m/$slug/edit'
@@ -1017,6 +1030,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsIdSettingsProductsRouteImport;
       parentRoute: typeof AuthenticatedProjectsIdSettingsRoute;
     };
+    '/_authenticated/projects/$id/agents/conversations/$conversationId': {
+      id: '/_authenticated/projects/$id/agents/conversations/$conversationId';
+      path: '/agents/conversations/$conversationId';
+      fullPath: '/projects/$id/agents/conversations/$conversationId';
+      preLoaderRoute: typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdRoute;
+    };
     '/_authenticated/projects/$id/events/sentry/$eventId': {
       id: '/_authenticated/projects/$id/events/sentry/$eventId';
       path: '/events/sentry/$eventId';
@@ -1155,6 +1175,7 @@ interface AuthenticatedProjectsIdRouteChildren {
   AuthenticatedProjectsIdIssuesIndexRoute: typeof AuthenticatedProjectsIdIssuesIndexRoute;
   AuthenticatedProjectsIdPerformanceIndexRoute: typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   AuthenticatedProjectsIdReleasesIndexRoute: typeof AuthenticatedProjectsIdReleasesIndexRoute;
+  AuthenticatedProjectsIdAgentsConversationsConversationIdRoute: typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
   AuthenticatedProjectsIdEventsSentryEventIdRoute: typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
   AuthenticatedProjectsIdIssuesIssueIdIndexRoute: typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   AuthenticatedProjectsIdCronsMSlugEditRoute: typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
@@ -1190,6 +1211,8 @@ const AuthenticatedProjectsIdRouteChildren: AuthenticatedProjectsIdRouteChildren
       AuthenticatedProjectsIdPerformanceIndexRoute,
     AuthenticatedProjectsIdReleasesIndexRoute:
       AuthenticatedProjectsIdReleasesIndexRoute,
+    AuthenticatedProjectsIdAgentsConversationsConversationIdRoute:
+      AuthenticatedProjectsIdAgentsConversationsConversationIdRoute,
     AuthenticatedProjectsIdEventsSentryEventIdRoute:
       AuthenticatedProjectsIdEventsSentryEventIdRoute,
     AuthenticatedProjectsIdIssuesIssueIdIndexRoute:

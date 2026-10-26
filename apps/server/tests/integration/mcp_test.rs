@@ -671,3 +671,60 @@ async fn a_legacy_client_initializes_then_lists_and_calls_tools() {
     .await;
     assert_eq!(tool_output(&body)["items"][0]["name"], "Shop", "{body}");
 }
+
+/// `list_agent_traces` takes the traces list's filters and rankings: the
+/// tool calls the handler, so they mean what they mean on the dashboard.
+#[actix_web::test]
+async fn list_agent_traces_narrows_and_ranks() {
+    use rustrak::digest::processors::{Processor, ProcessorCtx, SpanProcessor};
+
+    let db = TestDb::new().await;
+    let admin = seed_legacy_token(&db.pool).await;
+    let project = seed_project(&db.pool, "Agents").await;
+    let ctx = ProcessorCtx {
+        pool: db.pool.clone(),
+        project_id: project,
+        event_id: uuid::Uuid::nil(),
+        ingested_at: chrono::Utc::now(),
+        remote_addr: None,
+        keep_ai_spans: true,
+    };
+    for (span, trace, tool, tokens) in [
+        ("a1", "small", "search", 10),
+        ("b1", "large", "refund", 900),
+    ] {
+        for body in [
+            json!({"span_id": format!("{span}00000000000000"), "trace_id": trace, "start_timestamp": 1.0, "timestamp": 2.0,
+                   "data": {"gen_ai.operation.type": "tool", "gen_ai.tool.name": tool}}),
+            json!({"span_id": format!("{span}11111111111111"), "trace_id": trace, "start_timestamp": 1.0, "timestamp": 2.0,
+                   "data": {"gen_ai.operation.type": "ai_client", "gen_ai.request.model": "gpt-4o", "gen_ai.usage.total_tokens": tokens}}),
+        ] {
+            SpanProcessor
+                .process(bytes::Bytes::from(serde_json::to_vec(&body).unwrap()), &ctx)
+                .await
+                .unwrap();
+        }
+    }
+    let app = build_app!(db.pool.clone());
+    test::call_service(&app, set_mcp(&admin, true).to_request()).await;
+
+    let ids = |body: &Value| -> Vec<String> {
+        tool_output(body)["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["trace_id"].as_str().unwrap().to_string())
+            .collect()
+    };
+    let call =
+        |arguments: Value| call_tool(Some(&admin), "list_agent_traces", arguments).to_request();
+
+    let body: Value =
+        test::call_and_read_body_json(&app, call(json!({"project_id": project, "tool": "refund"})))
+            .await;
+    assert_eq!(ids(&body), ["large"], "{body}");
+    let body: Value =
+        test::call_and_read_body_json(&app, call(json!({"project_id": project, "sort": "tokens"})))
+            .await;
+    assert_eq!(ids(&body), ["large", "small"], "{body}");
+}

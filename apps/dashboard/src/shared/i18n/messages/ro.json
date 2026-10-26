@@ -1209,34 +1209,17 @@
     "unnamedAgent": "(agent fără nume)",
     "charts": {
       "noData": "Încă nu există date",
-      "durationTooltip": "medie {avg} · p95 {p95}"
-    },
-    "waterfall": {
-      "expand": "Extinde",
-      "collapse": "Restrânge",
-      "spanFallback": "span"
+      "durationTooltip": "medie {avg} · p95 {p95}",
+      "runs": "Rulări de agent",
+      "runsHint": "Rulări pornite pe interval",
+      "duration": "Durată",
+      "durationHint": "Timpul mediu și p95 al rulărilor de agent și al apelurilor la model",
+      "avg": "Medie",
+      "runsOk": "Rulări",
+      "runsFailed": "Eșuate"
     },
     "empty": {
       "noSpans": "Acest trace nu are span-uri."
-    },
-    "detail": {
-      "op": "op",
-      "description": "descriere",
-      "status": "stare",
-      "duration": "durată",
-      "selfTime": "timp propriu",
-      "spanId": "span_id",
-      "parentSpanId": "parent_span_id",
-      "operationType": "tip operațiune",
-      "agentName": "nume agent",
-      "toolName": "nume instrument",
-      "requestModel": "model cerere",
-      "responseModel": "model răspuns",
-      "conversationId": "id conversație",
-      "inputTokens": "token-uri de intrare",
-      "outputTokens": "token-uri de ieșire",
-      "totalTokens": "token-uri totale",
-      "genAiSection": "gen_ai"
     },
     "spanDetail": {
       "agentName": "Agent",
@@ -1265,11 +1248,28 @@
       "totalTokens": "Token-uri",
       "avgDuration": "Durată medie",
       "p95Duration": "Durată p95",
-      "errors": "Erori"
+      "errors": "Erori",
+      "avg": "medie {duration}",
+      "errorRate": "{rate} din span-urile AI"
     },
     "filters": {
       "allTime": "Tot intervalul",
-      "allEnvironments": "Toate mediile"
+      "allEnvironments": "Toate mediile",
+      "agent": "Agent",
+      "model": "Model",
+      "tool": "Unealtă",
+      "status": "Stare",
+      "failing": "Cu eșecuri",
+      "search": "Filtrează după agent:, model:, tool: sau status:",
+      "environment": "Mediu",
+      "noEnvironments": "Încă nu există medii",
+      "allTimeShort": "Tot",
+      "periods": {
+        "1h": "Ultima oră",
+        "24h": "Ultimele 24 de ore",
+        "7d": "Ultimele 7 zile",
+        "30d": "Ultimele 30 de zile"
+      }
     },
     "modelsTable": {
       "empty": "Niciun apel de model în această fereastră.",
@@ -1281,7 +1281,9 @@
       "input": "Intrare",
       "cached": "Din cache",
       "output": "Ieșire",
-      "reasoning": "Raționament"
+      "reasoning": "Raționament",
+      "title": "Modele",
+      "hint": "Apeluri, eșecuri, tokeni și latență pe model; un rând îi deschide trace-urile"
     },
     "toolsTable": {
       "empty": "Niciun apel de instrument în această fereastră.",
@@ -1289,7 +1291,62 @@
       "calls": "Apeluri",
       "errors": "Erori",
       "avg": "Medie",
-      "p95": "P95"
+      "p95": "P95",
+      "title": "Unelte",
+      "hint": "Apeluri, eșecuri și latență pe unealtă; un rând îi deschide trace-urile"
+    },
+    "tabs": {
+      "overview": "Prezentare",
+      "traces": "Trace-uri",
+      "conversations": "Conversații"
+    },
+    "runsCount": "{count, plural, one {# rulare de agent} few {# rulări de agent} other {# de rulări de agent}}",
+    "errorsCount": "{count, plural, one {# span eșuat} few {# span-uri eșuate} other {# de span-uri eșuate}}",
+    "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}",
+    "table": {
+      "most": "Cel mai mare întâi",
+      "newest": "Cele mai noi întâi",
+      "empty": "Niciun trace nu corespunde acestor filtre"
+    },
+    "trace": {
+      "models": "Modele",
+      "waterfallOf": "Span-urile trace-ului {traceId}",
+      "conversation": "Conversație"
+    },
+    "graph": {
+      "viewLabel": "Cum se afișează trace-ul",
+      "waterfall": "Cascadă",
+      "graph": "Agenți",
+      "empty": "Niciun agent nu a rulat în acest trace.",
+      "handoff": "{count, plural, one {predare} few {# predări} other {# de predări}}",
+      "then": "apoi",
+      "runs": "{count, plural, one {# rulare} few {# rulări} other {# de rulări}}",
+      "models": "Modele",
+      "tools": "Unelte"
+    },
+    "conversations": {
+      "title": "Conversații",
+      "metaTitle": "{conversation} | Conversații | Rustrak",
+      "loadFailed": "Conversația nu a putut fi încărcată",
+      "empty": "Nicio conversație în această perioadă. Trimite gen_ai.conversation.id pe span-urile agenților pentru a le grupa rundele.",
+      "pageOf": "Pagina {page} din {total}",
+      "newer": "Conversații mai noi",
+      "older": "Conversații mai vechi",
+      "unnamed": "(agent fără nume)",
+      "turns": "{count, plural, one {# rundă} few {# runde} other {# de runde}}",
+      "calls": "{count, plural, one {# apel LLM} few {# apeluri LLM} other {# de apeluri LLM}}",
+      "tools": "{count, plural, one {# apel de unealtă} few {# apeluri de unelte} other {# de apeluri de unelte}}",
+      "tokens": "{count} tokeni",
+      "errors": "{count, plural, one {# eșec} few {# eșecuri} other {# de eșecuri}}",
+      "turn": "Runda {number}",
+      "openTrace": "Deschide trace-ul",
+      "user": "Utilizator",
+      "assistant": "Asistent",
+      "noAnswer": "Runda a eșuat înainte de a răspunde.",
+      "turnsLabel": "Runde",
+      "tokensLabel": "Tokeni",
+      "errorsLabel": "Erori",
+      "started": "Început"
     }
   },
   "tokens": {
@@ -1745,40 +1802,17 @@
         "description": "Monitorizare agenți AI pentru {project}"
       },
       "title": "Agenți",
-      "subtitle": "Rulările agenților AI, token-urile și folosirea instrumentelor pentru {project}",
       "loadFailed": "Activitatea agenților nu a putut fi încărcată",
       "emptyTitle": "Încă nu există activitate a agenților",
-      "emptyDescription": "Instrumentează agentul tău AI cu un SDK Sentry care folosește convențiile semantice OpenTelemetry GenAI pentru a începe capturarea rulărilor de agenți.",
-      "cardRuns": "Rulări agent",
-      "cardRunsDescription": "Rulări pornite per interval",
-      "cardDuration": "Durată",
-      "cardDurationDescription": "Durata medie și p95 a rulărilor de agent",
-      "cardModelsByCalls": "Apeluri LLM per model",
-      "cardModelsByCallsDescription": "Top modele după numărul de apeluri",
-      "cardModelsByTokens": "Token-uri folosite per model",
-      "cardModelsByTokensDescription": "Top modele după volumul de token-uri",
-      "cardTools": "Apeluri de instrument per instrument",
-      "cardToolsDescription": "Top instrumente după numărul de apeluri",
-      "cardTraces": "Trace-uri",
-      "cardTracesDescription": "Un rând per trace, agregând fiecare span AI pe care îl conține",
-      "cardModelsTable": "Modele",
-      "cardModelsTableDescription": "Volum, eșecuri, latență și împărțirea token-urilor per model.",
-      "cardToolsTable": "Instrumente",
-      "cardToolsTableDescription": "Volumul de apeluri și rata de eșec per instrument."
+      "emptyDescription": "Instrumentează agentul tău AI cu un SDK Sentry care folosește convențiile semantice OpenTelemetry GenAI pentru a începe capturarea rulărilor de agenți."
     },
     "trace": {
       "meta": {
         "title": "{traceId} | Agenți | Rustrak"
       },
       "loadFailed": "Trace-ul nu a putut fi încărcat",
-      "backLink": "Agenți",
       "unnamed": "(agent fără nume)",
-      "tokens": "{count} token-uri",
-      "toolCalls": "{count, plural, one {# apel de instrument} few {# apeluri de instrument} other {# de apeluri de instrument}}",
       "spans": "Span-uri",
-      "llmCalls": "{count} apeluri LLM",
-      "errors": "{count} erori",
-      "spanDetail": "Detalii span",
       "selectSpan": "Selectează un span pentru a-i vedea promptul, răspunsul și atributele.",
       "spanUnavailable": "Acest span nu mai este disponibil."
     },

@@ -283,6 +283,8 @@ Every method, grouped as it hangs off the client.
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `agents.conversation({ path })` | `GET /api/projects/{project_id}/agents/conversations/{conversation_id}` | Returns every AI span of a conversation's turns, oldest first, with its input and output. |
+| `agents.conversations({ path, query? })` | `GET /api/projects/{project_id}/agents/conversations` | Lists conversations -- traces sharing a `gen_ai.conversation.id` -- the most recently active first. |
 | `agents.duration({ path, query? })` | `GET /api/projects/{project_id}/agents/duration` | Time-bucketed avg/p95 duration for `agent`/`ai_client` spans. |
 | `agents.environments({ path })` | `GET /api/projects/{project_id}/agents/environments` | The options the environment filter offers, read from the data rather than hardcoded — an installation may name its environments anything. |
 | `agents.modelsCalls({ path, query? })` | `GET /api/projects/{project_id}/agents/models/calls` | Top models by LLM call count (`gen_ai.operation.type:ai_client`). |

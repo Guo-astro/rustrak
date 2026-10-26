@@ -1,6 +1,10 @@
 import type { SpanResponse } from '@rustrak/client';
 import { describe, expect, it } from 'vitest';
-import { resolveSelectedSpan, summarizeTrace } from './trace-summary';
+import {
+  resolveSelectedSpan,
+  summarizeTrace,
+  waterfallSpans,
+} from './trace-summary';
 
 function span(over: Partial<SpanResponse> & { id: string }): SpanResponse {
   return {
@@ -159,5 +163,55 @@ describe('resolveSelectedSpan', () => {
       selectedSpanId: undefined,
       requestedMissing: false,
     });
+  });
+});
+
+describe('waterfallSpans', () => {
+  it('links children by span id and names each span by what it ran', () => {
+    const rows = waterfallSpans([
+      span({
+        id: 'row-agent',
+        span_id: 'a1',
+        op: 'gen_ai.invoke_agent',
+        gen_ai_operation_type: 'agent',
+        gen_ai_agent_name: 'Support Agent',
+        description: 'invoke_agent Support Agent',
+        start_timestamp: '2026-01-01T00:00:00.000Z',
+        timestamp: '2026-01-01T00:00:02.000Z',
+      }),
+      span({
+        id: 'row-llm',
+        span_id: 'c1',
+        parent_span_id: 'a1',
+        op: 'gen_ai.chat',
+        gen_ai_operation_type: 'ai_client',
+        gen_ai_request_model: 'gpt-4o',
+        start_timestamp: '2026-01-01T00:00:00.500Z',
+        timestamp: '2026-01-01T00:00:01.500Z',
+        status: 'internal_error',
+      }),
+      span({ id: 'row-untimed', span_id: 'x' }),
+    ]);
+
+    expect(rows).toEqual([
+      {
+        id: 'row-agent',
+        parentId: null,
+        op: 'gen_ai.invoke_agent',
+        description: 'Support Agent',
+        startMs: Date.parse('2026-01-01T00:00:00.000Z'),
+        endMs: Date.parse('2026-01-01T00:00:02.000Z'),
+        status: undefined,
+      },
+      {
+        id: 'row-llm',
+        parentId: 'row-agent',
+        op: 'gen_ai.chat',
+        description: 'gpt-4o',
+        startMs: Date.parse('2026-01-01T00:00:00.500Z'),
+        endMs: Date.parse('2026-01-01T00:00:01.500Z'),
+        status: 'internal_error',
+      },
+    ]);
   });
 });
