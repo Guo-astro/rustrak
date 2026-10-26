@@ -1,9 +1,10 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+/**
+ * The design system's `cn`, which knows its token scale as well as Tailwind's
+ * own. A plain tailwind-merge does not: it reads `text-sm` and `text-label` as
+ * unrelated classes, keeps both, and the shadcn default wins over the token a
+ * screen asked for.
+ */
+export { cn } from '@rustrak/ui';
 
 /**
  * Format a byte count as a human-readable size (e.g. 1536 → "1.5 KB").

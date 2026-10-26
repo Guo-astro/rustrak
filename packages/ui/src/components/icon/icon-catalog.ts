@@ -46,6 +46,7 @@ import {
   Minus,
   PanelLeft,
   PanelRight,
+  Pencil,
   Plug,
   Plus,
   RefreshCw,
@@ -130,6 +131,8 @@ export const NewIcon = fromLucide('NewIcon', Plus);
 export const RemoveIcon = fromLucide('RemoveIcon', Minus);
 export const CloseIcon = fromLucide('CloseIcon', X);
 export const CopyIcon = fromLucide('CopyIcon', Copy);
+/** Take a value over by hand: a slug that stops following its name. */
+export const EditIcon = fromLucide('EditIcon', Pencil);
 export const ExportIcon = fromLucide('ExportIcon', Download);
 export const RefreshIcon = fromLucide('RefreshIcon', RefreshCw);
 export const DeleteIcon = fromLucide('DeleteIcon', Trash2);
@@ -229,6 +232,7 @@ export const icons = {
   remove: RemoveIcon,
   close: CloseIcon,
   copy: CopyIcon,
+  edit: EditIcon,
   export: ExportIcon,
   refresh: RefreshIcon,
   delete: DeleteIcon,
