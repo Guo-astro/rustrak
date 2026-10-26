@@ -1,42 +1,65 @@
 import type { TagSummary } from '@rustrak/client';
+import { Text } from '@rustrak/ui';
+import { useFormatter } from 'use-intl';
+
+/** The top values, then whatever is left, in the chart palette's order. */
+const SEGMENTS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3'] as const;
 
 /**
- * Sentry-style tag distribution: one row per tag key showing the most common
- * value with a proportional bar. The percentage is the top value's share
- * among the top values returned (`top_values` is capped server-side), not
- * a share of all occurrences of the tag.
+ * How an issue spreads across each tag: the key, its leading value and that
+ * value's share, and under it one bar split by the top three values --
+ * enough to tell "only in production" from "everywhere" at a glance.
+ *
+ * Shares are of the values listed, not of every occurrence: the server
+ * returns the top values only, and the remainder is drawn as grey.
  */
 export function TagDistribution({ tags }: { tags: TagSummary[] }) {
+  const format = useFormatter();
+
   return (
-    <div className="space-y-2.5">
+    <ul className="flex flex-col gap-3">
       {tags.map((tag) => {
         const total = tag.top_values.reduce((sum, v) => sum + v.count, 0);
         const top = tag.top_values[0];
-        const pct =
-          top && total > 0 ? Math.round((top.count / total) * 100) : 0;
+        const share = (count: number) => (total > 0 ? count / total : 0);
+
         return (
-          <div key={tag.key} className="flex items-center gap-3 text-xs">
-            <span className="w-28 shrink-0 truncate font-medium text-foreground">
-              {tag.key}
-            </span>
-            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary/60"
-                style={{ width: `${pct}%` }}
-              />
+          <li key={tag.key} className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-3">
+              <Text variant="meta" tone="meta" truncate>
+                {tag.key}
+              </Text>
+              <span className="flex min-w-0 items-baseline gap-2">
+                <Text variant="mono-sm" truncate className="max-w-40 text-fg">
+                  {top?.value ?? '–'}
+                </Text>
+                <Text variant="meta" tone="subtle" className="tabular-nums">
+                  {format.number(top ? share(top.count) : 0, {
+                    style: 'percent',
+                  })}
+                </Text>
+              </span>
             </div>
-            <span
-              className="w-9 shrink-0 text-right tabular-nums text-muted-foreground"
-              title="Share of the top values shown, not of all occurrences"
+            <div
+              className="flex h-1.5 overflow-hidden rounded-pill bg-surface-chip"
+              title={tag.top_values
+                .map(
+                  (v) =>
+                    `${v.value}: ${format.number(share(v.count), { style: 'percent' })}`,
+                )
+                .join('\n')}
             >
-              {pct}%
-            </span>
-            <span className="w-24 shrink-0 truncate font-mono text-muted-foreground">
-              {top?.value ?? '—'}
-            </span>
-          </div>
+              {tag.top_values.slice(0, SEGMENTS.length).map((value, index) => (
+                <span
+                  key={value.value}
+                  className={SEGMENTS[index]}
+                  style={{ width: `${share(value.count) * 100}%` }}
+                />
+              ))}
+            </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

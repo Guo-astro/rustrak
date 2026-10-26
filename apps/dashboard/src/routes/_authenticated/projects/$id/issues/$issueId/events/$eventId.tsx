@@ -9,7 +9,14 @@ import type {
   IssuesListUserReportsResponse,
   ProjectRepository,
 } from '@rustrak/client';
+import {
+  Button,
+  CollapsePanelIcon,
+  ExpandPanelIcon,
+  Tooltip,
+} from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
+import { type ReactNode, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
   type EventNavigation,
@@ -30,6 +37,7 @@ import {
   getProjectRepository,
 } from '@/features/github/api/queries';
 import { frameSourceUrl } from '@/features/github/lib/source-url';
+import { IssueGitHubButton } from '@/features/github/ui/components/issue-github-button';
 import {
   getIssue,
   getIssueActivity,
@@ -37,16 +45,17 @@ import {
   getIssueStats,
   listUserReports,
 } from '@/features/issue/api/queries';
+import { type Assignable, assignable } from '@/features/issue/model/assignable';
 import { getProject } from '@/features/project/api/queries';
+import { listProjectMembers } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { CollapsibleRail } from '@/shared/ui/components/collapsible-rail';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { EventHeader } from './$eventId/-components/event-header';
-import { EventIdentityBar } from './$eventId/-components/event-identity-bar';
 import { EventLoading } from './$eventId/-components/event-loading';
+import { EventNavigator } from './$eventId/-components/event-navigator';
 import { EventRail } from './$eventId/-components/event-rail';
 import { EventSections } from './$eventId/-components/event-sections';
 import { EventTrends } from './$eventId/-components/event-trends';
+import { IssueHeader } from './$eventId/-components/issue-header';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/issues/$issueId/events/$eventId',
@@ -67,6 +76,7 @@ export const Route = createFileRoute(
       code,
       userReports,
       attachments,
+      members,
     ] = await Promise.all([
       getProject(projectId),
       getIssue(projectId, issueId),
@@ -79,6 +89,7 @@ export const Route = createFileRoute(
       getIssueGitHub(projectId, issueId),
       listUserReports(projectId, issueId),
       listEventAttachments(projectId, issueId, eventId),
+      listProjectMembers(projectId),
     ]);
 
     return {
@@ -93,6 +104,7 @@ export const Route = createFileRoute(
       code,
       userReports,
       attachments,
+      members,
     };
   },
   head: ({ loaderData }) => {
@@ -119,17 +131,10 @@ export const Route = createFileRoute(
   component: EventPage,
 });
 
-const LEVEL_TEXT: Record<string, string> = {
-  fatal: 'text-red-500',
-  error: 'text-red-500',
-  warning: 'text-amber-500',
-  info: 'text-sky-500',
-  debug: 'text-muted-foreground',
-};
-
 function EventPage() {
   const t = useTranslations('projectPages');
   const { id, issueId } = Route.useParams();
+  const context = Route.useRouteContext();
   const {
     project: projectResult,
     issue: issueResult,
@@ -142,6 +147,7 @@ function EventPage() {
     code: codeResult,
     userReports: userReportsResult,
     attachments: attachmentsResult,
+    members: membersResult,
   } = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
 
@@ -189,6 +195,11 @@ function EventPage() {
       code={codeResult.success ? codeResult.data : null}
       userReports={userReportsResult.success ? userReportsResult.data : null}
       attachments={attachmentsResult.success ? attachmentsResult.data : []}
+      members={assignable(
+        membersResult.success ? membersResult.data : [],
+        context.state === 'authenticated' ? context.user : null,
+      )}
+      me={context.state === 'authenticated' ? context.user.id : 0}
     />
   );
 }
@@ -206,6 +217,8 @@ function EventView({
   code,
   userReports,
   attachments,
+  members,
+  me,
 }: {
   projectId: number;
   issueId: string;
@@ -223,6 +236,8 @@ function EventView({
   userReports: IssuesListUserReportsResponse | null;
   /** Files sent with the event. */
   attachments: AttachmentInfo[];
+  members: Assignable[];
+  me: number;
 }) {
   const t = useTranslations('projectPages');
   const eventData = event.data as Record<string, unknown>;
@@ -232,11 +247,6 @@ function EventView({
     issue.title,
     issue.value,
   );
-  const levelText =
-    LEVEL_TEXT[(event.level ?? '').toLowerCase()] ?? 'text-muted-foreground';
-
-  const userCount = aggregates?.user_count ?? 0;
-
   // One entry per section the event actually has. Labelled here rather than
   // in `eventJumpTargets` so every message key stays a literal the
   // message-keys architecture rule can check.
@@ -257,41 +267,52 @@ function EventView({
       projectId={projectId}
       issueId={issueId}
       issue={issue}
+      aggregates={aggregates}
       activity={activity}
       code={code}
       connected={repository === undefined ? null : repository !== null}
+      members={members}
+      me={me}
     />
   );
   const sourceUrl = repository
     ? (frame: { filename?: string; lineno?: number | null }) =>
         frameSourceUrl(repository, frame.filename, frame.lineno)
     : undefined;
+  // Links outlive a disconnected repository and can still be unlinked.
+  // Unloaded links are not "no links": offering Create then could open a
+  // second GitHub issue for one already linked.
+  const githubLinks =
+    code && (repository || code.links.length > 0) ? code.links : null;
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <EventHeader
+    // On a phone the whole page scrolls as one; from lg the reading column
+    // and the rail scroll on their own, under a header that stays.
+    <div className="flex h-full flex-col max-lg:overflow-y-auto">
+      <IssueHeader
         issue={issue}
         projectId={projectId}
+        me={me}
         titleType={titleType}
         message={message}
-        levelText={levelText}
-        userCount={userCount}
-        // Links outlive a disconnected repository and can still be unlinked.
-        // Unloaded links are not "no links": offering Create then could
-        // open a second GitHub issue for one already linked.
-        githubLinks={
-          code && (repository || code.links.length > 0) ? code.links : null
+        github={
+          githubLinks ? (
+            <IssueGitHubButton
+              projectId={projectId}
+              issueId={issue.id}
+              links={githubLinks}
+              canLink={repository != null}
+            />
+          ) : undefined
         }
-        githubConnected={repository != null}
       />
 
-      {/* Body */}
-      <div className="flex-1 min-h-0 flex">
-        <main className="flex-1 min-w-0 overflow-y-auto">
-          <div className="w-full px-4 md:px-8 py-5 space-y-5">
+      <div className="flex min-h-0 flex-1 max-lg:flex-col">
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">
+          <div className="flex flex-col gap-5 px-page-gutter pb-8 pt-5">
             <EventTrends stats={stats30d} aggregates={aggregates} />
 
-            <EventIdentityBar
+            <EventNavigator
               projectId={projectId}
               issueId={issueId}
               event={event}
@@ -309,17 +330,92 @@ function EventView({
               eventData={eventData}
               sourceUrl={sourceUrl}
             />
-
-            {/* Right rail (mobile) */}
-            <div className="lg:hidden rounded-lg border bg-card overflow-hidden">
-              {rail}
-            </div>
           </div>
         </main>
 
-        {/* Right rail (desktop, collapsible) */}
-        <CollapsibleRail title={t('event.details')}>{rail}</CollapsibleRail>
+        <IssueRail title={t('event.details')}>{rail}</IssueRail>
       </div>
     </div>
+  );
+}
+
+/** Whether the reader last left the rail folded, in this browser. */
+function railFolded(): boolean {
+  try {
+    return window.localStorage.getItem('rustrak:issue-rail') === 'folded';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The rail, foldable from lg up. The arrows point where the rail goes: out
+ * to the right when folding, back in from it when opening.
+ *
+ * Foldable so a long stack trace can have the width.
+ * Folded, it leaves a strip with the way back in the same place; the choice
+ * is remembered, since a reader who folds it once wants it folded on the
+ * next issue too. Below lg it is not beside the page but under it, so there
+ * is nothing to fold.
+ */
+function IssueRail({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const tCommon = useTranslations('common');
+  const [folded, setFolded] = useState(railFolded);
+
+  const toggle = () =>
+    setFolded((previous) => {
+      const next = !previous;
+      try {
+        window.localStorage.setItem(
+          'rustrak:issue-rail',
+          next ? 'folded' : 'open',
+        );
+      } catch {
+        // Storage unavailable: the fold lasts as long as the page.
+      }
+      return next;
+    });
+
+  if (folded) {
+    return (
+      <div className="hidden w-12 shrink-0 justify-center border-border-divider border-l bg-panel pt-3 lg:flex">
+        <Tooltip content={tCommon('showSidebar')} side="left">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={CollapsePanelIcon}
+            aria-label={tCommon('openSidebar')}
+            onClick={toggle}
+          />
+        </Tooltip>
+      </div>
+    );
+  }
+
+  return (
+    <aside
+      aria-label={title}
+      className="border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88"
+    >
+      <div className="sticky top-0 z-10 hidden h-11 items-center justify-between border-border-divider border-b bg-panel ps-5 pe-3 lg:flex">
+        <span className="text-card-title text-fg">{title}</span>
+        <Tooltip content={tCommon('hideSidebar')} side="left">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ExpandPanelIcon}
+            aria-label={tCommon('closeSidebar')}
+            onClick={toggle}
+          />
+        </Tooltip>
+      </div>
+      {children}
+    </aside>
   );
 }

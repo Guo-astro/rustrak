@@ -249,7 +249,8 @@
       "users": "Usuarios",
       "lastSeen": "Visto por última vez",
       "level": "Nivel",
-      "assignee": "Asignado"
+      "assignee": "Asignado",
+      "firstSeen": "Visto por primera vez"
     },
     "actionsTitle": "Acciones",
     "actionsFor": "Acciones para {title}",
@@ -378,6 +379,27 @@
         "muted": "Silenciados",
         "all": "Todos"
       }
+    },
+    "detail": {
+      "linkCopied": "Enlace copiado",
+      "copyLink": "Copiar enlace",
+      "moreArchiveOptions": "Más formas de archivar",
+      "archiveUntilEscalating": "Archivar hasta que escale",
+      "archiveUntilEscalatingHint": "Vuelve si empieza a ocurrir más",
+      "archiveForever": "Archivar para siempre",
+      "status": "Estado",
+      "firstSeen": "Visto por primera vez {when}",
+      "lastSeen": "Visto por última vez {when}",
+      "activity30d": "Eventos, últimos 30 días",
+      "activity30dHint": "Cada evento agrupado en este issue, por día",
+      "noActivity": "Sin eventos en los últimos 30 días",
+      "eventPosition": "Evento {current} de {total}",
+      "copyEventId": "Copiar ID del evento",
+      "jumpTo": "Saltar a",
+      "properties": "Propiedades",
+      "tags": "Tags",
+      "code": "Código",
+      "activity": "Actividad"
     }
   },
   "roles": {

@@ -249,7 +249,8 @@
       "users": "用户数",
       "lastSeen": "最后出现",
       "level": "级别",
-      "assignee": "负责人"
+      "assignee": "负责人",
+      "firstSeen": "首次出现"
     },
     "actionsTitle": "操作",
     "actionsFor": "{title} 的操作",
@@ -378,6 +379,27 @@
         "muted": "已静音",
         "all": "全部"
       }
+    },
+    "detail": {
+      "linkCopied": "已复制链接",
+      "copyLink": "复制链接",
+      "moreArchiveOptions": "更多归档方式",
+      "archiveUntilEscalating": "归档直至升级",
+      "archiveUntilEscalatingHint": "若发生频率上升会重新出现",
+      "archiveForever": "永久归档",
+      "status": "状态",
+      "firstSeen": "首次出现于 {when}",
+      "lastSeen": "最近出现于 {when}",
+      "activity30d": "事件，最近 30 天",
+      "activity30dHint": "此问题每天归组的事件数",
+      "noActivity": "最近 30 天没有事件",
+      "eventPosition": "第 {current} 个事件，共 {total} 个",
+      "copyEventId": "复制事件 ID",
+      "jumpTo": "跳转到",
+      "properties": "属性",
+      "tags": "标签",
+      "code": "代码",
+      "activity": "动态"
     }
   },
   "roles": {

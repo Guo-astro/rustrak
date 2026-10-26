@@ -249,7 +249,8 @@
       "users": "Users",
       "lastSeen": "Last seen",
       "level": "Level",
-      "assignee": "Assignee"
+      "assignee": "Assignee",
+      "firstSeen": "First seen"
     },
     "actionsTitle": "Actions",
     "actionsFor": "Actions for {title}",
@@ -378,6 +379,27 @@
         "muted": "Muted",
         "all": "All"
       }
+    },
+    "detail": {
+      "linkCopied": "Link copied",
+      "copyLink": "Copy link",
+      "moreArchiveOptions": "More ways to archive",
+      "archiveUntilEscalating": "Archive until escalating",
+      "archiveUntilEscalatingHint": "Comes back if it starts happening more",
+      "archiveForever": "Archive forever",
+      "status": "Status",
+      "firstSeen": "First seen {when}",
+      "lastSeen": "Last seen {when}",
+      "activity30d": "Events, last 30 days",
+      "activity30dHint": "Every event this issue grouped, per day",
+      "noActivity": "No events in the last 30 days",
+      "eventPosition": "Event {current} of {total}",
+      "copyEventId": "Copy event ID",
+      "jumpTo": "Jump to",
+      "properties": "Properties",
+      "tags": "Tags",
+      "code": "Code",
+      "activity": "Activity"
     }
   },
   "roles": {

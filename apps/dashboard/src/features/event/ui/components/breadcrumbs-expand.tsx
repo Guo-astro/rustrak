@@ -1,10 +1,10 @@
+import { Button } from '@rustrak/ui';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
   type Breadcrumb,
   groupConsecutiveBreadcrumbs,
 } from '@/features/event/lib/breadcrumbs';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import { BreadcrumbTimeline } from './breadcrumb-timeline';
 
 interface BreadcrumbsExpandProps {
@@ -32,7 +32,7 @@ export function BreadcrumbsExpand({
       <BreadcrumbTimeline grouped={grouped} />
       {hiddenCount > 0 && !isExpanded && (
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           className="mt-2 w-full"
           onClick={() => setIsExpanded(true)}

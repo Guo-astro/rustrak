@@ -3,25 +3,31 @@ import type {
   IssueResponse,
   Result,
   RustrakError,
+  UpdateIssueState,
 } from '@rustrak/client';
 import {
-  Archive,
-  ArchiveRestore,
-  Bell,
-  BellOff,
-  Bookmark,
-  BookmarkCheck,
-  Check,
-  ChevronDown,
-  Inbox,
-  Loader2,
-  MoreHorizontal,
-  Rocket,
-  ShieldAlert,
-  Trash2,
-  Undo,
-} from 'lucide-react';
-import { useState, useTransition } from 'react';
+  Button,
+  CopyIcon,
+  DeleteIcon,
+  LinkIcon,
+  Menu,
+  type MenuAction,
+  MoreIcon,
+  MuteIcon,
+  NotificationIcon,
+  ResolveIcon,
+  SplitButton,
+  StarIcon,
+  Tooltip,
+  UnresolveIcon,
+} from '@rustrak/ui';
+import {
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import {
@@ -31,354 +37,357 @@ import {
   setIssueSubscription,
   updateIssueState,
 } from '@/features/issue/api/mutations';
-import { priorityDisplay } from '@/features/issue/model/status';
-import { cn } from '@/shared/lib/utils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/shared/ui/components/shadcn/dropdown-menu';
 import { useRouter } from '@/shared/ui/hooks/use-router';
+import { DeleteIssuesDialog } from './issues-table/delete-issues-dialog';
 
-interface IssueActionsProps {
-  issue: IssueResponse;
-  projectId: number;
-  /** Composed in by the page, e.g. the GitHub button, after the overflow menu. */
-  extra?: React.ReactNode;
+/**
+ * One request against the issue, refreshed on success and spoken on failure.
+ * Everything that changes the issue -- the header's buttons, the rail's
+ * pickers, the keyboard -- goes through this, so they all fail and settle
+ * the same way.
+ */
+export function useIssueChange(projectId: number, issue: IssueResponse) {
+  const t = useTranslations('issues');
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const run = (
+    request: () => Promise<Result<unknown, RustrakError>>,
+    failed: string = t('toasts.updateFailed'),
+  ) =>
+    startTransition(async () => {
+      const result = await request();
+      if (!result.success) {
+        toast.error(failed, { description: result.error.message });
+        return;
+      }
+      router.refresh();
+    });
+
+  return {
+    isPending,
+    update: (body: UpdateIssueState, failed?: string) =>
+      run(() => updateIssueState(projectId, issue.id, body), failed),
+    run,
+  };
 }
 
-const PRIORITIES: IssuePriority[] = ['high', 'medium', 'low'];
-
-/** The mute button's face: on a feedback, Sentry's spam mailbox. */
-function ArchiveLabel({
-  feedback,
-  archived,
-}: {
-  feedback: boolean;
-  archived: boolean;
-}) {
-  const t = useTranslations('issues');
-  if (feedback) {
-    return archived ? (
-      <>
-        <Inbox className="mr-2 size-4" />
-        {t('actions.moveToInbox')}
-      </>
-    ) : (
-      <>
-        <ShieldAlert className="mr-2 size-4" />
-        {t('actions.markSpam')}
-      </>
-    );
-  }
-  return archived ? (
-    <>
-      <ArchiveRestore className="mr-2 size-4" />
-      {t('actions.unarchive')}
-    </>
-  ) : (
-    <>
-      <Archive className="mr-2 size-4" />
-      {t('actions.archive')}
-    </>
+/** True while the reader is typing, when single-key shortcuts stand down. */
+function typing(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  return Boolean(
+    element?.closest('input, textarea, select, [contenteditable="true"]'),
   );
 }
 
-export function IssueActions({ issue, projectId, extra }: IssueActionsProps) {
+/**
+ * Single-key shortcuts for the page, Linear-style: off while a field has
+ * focus, and never with a modifier other than Shift, so the browser's own
+ * shortcuts are untouched.
+ */
+export function useShortcuts(keys: Record<string, () => void>) {
+  const latest = useRef(keys);
+  latest.current = keys;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (typing(event.target)) return;
+      const action = latest.current[event.key];
+      if (!action) return;
+      event.preventDefault();
+      action();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}
+
+interface IssueActionBarProps {
+  issue: IssueResponse;
+  projectId: number;
+  /** The reader, for "assign to me". */
+  me: number;
+  /** The GitHub control, when the project has a repository. */
+  extra?: ReactNode;
+}
+
+/**
+ * What can be done to the issue, ordered by how often it is done.
+ *
+ * The two verbs of triage -- resolve and archive -- are split buttons: the
+ * common form one click away, its variants behind the chevron. Two toggles
+ * that only change the reader's own relationship to the issue sit as icons.
+ * Everything else goes in ⋯, which is where this bar grows: a new action is
+ * a new row there, not a new button here. Every action has a key.
+ */
+export function IssueActionBar({
+  issue,
+  projectId,
+  me,
+  extra,
+}: IssueActionBarProps) {
   const t = useTranslations('issues');
   const router = useRouter();
-  const [, startTransition] = useTransition();
-  const [pending, setPending] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { isPending, update, run } = useIssueChange(projectId, issue);
+  const [deleting, setDeleting] = useState(false);
+  const [isDeleting, startDelete] = useTransition();
 
-  const busy = pending !== null;
-  const isResolved = issue.status === 'resolved';
-  const isArchived = issue.status === 'ignored';
-  // A muted feedback is spam, as in Sentry's feedback inbox.
-  const isFeedback = issue.issue_category === 'feedback';
-  const priorityMeta = priorityDisplay(issue.priority);
+  const resolved = issue.status === 'resolved';
+  const archived = issue.status === 'ignored';
+  const feedback = issue.issue_category === 'feedback';
 
-  /**
-   * Run one toolbar action and report whether it worked.
-   *
-   * The `try`/`finally` this replaces had no `catch`, which used to be fine
-   * because a throw propagated. Now that the actions return their failure, an
-   * ignored `Result` means a resolve or a mute that silently did nothing: the
-   * button stops spinning, the refresh puts the old state back, and nothing
-   * says why.
-   */
-  const run = (
-    action: string,
-    label: string,
-    fn: () => Promise<Result<unknown, RustrakError>>,
-  ) => {
-    setPending(action);
-    startTransition(async () => {
-      const result = await fn();
-
-      if (!result.success) {
-        toast.error(label, { description: result.error.message });
-      } else {
-        router.refresh();
-      }
-
-      setPending(null);
-    });
+  const resolve = () =>
+    update({ status: resolved ? 'unresolved' : 'resolved' });
+  const archive = () =>
+    update(
+      archived
+        ? { status: 'unresolved' }
+        : { status: 'ignored', substatus: 'archived_until_escalating' },
+    );
+  const bookmark = () =>
+    run(
+      () => setIssueBookmark(projectId, issue.id, !issue.is_bookmarked),
+      t('toasts.bookmarkFailed'),
+    );
+  const subscribe = () =>
+    run(
+      () => setIssueSubscription(projectId, issue.id, !issue.is_subscribed),
+      t('toasts.subscriptionFailed'),
+    );
+  const copy = (text: string, done: string) => {
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => toast.success(done))
+      .catch(() => {});
   };
+  const copyLink = () => copy(window.location.href, t('detail.linkCopied'));
 
-  const handleConfirmDelete = () => {
-    setPending('delete');
-    startTransition(async () => {
+  // A key pressed again before the first request settles would act on the
+  // state the page still shows -- bookmarking twice instead of toggling back
+  // -- so a shortcut waits for the one before it.
+  const once = (action: () => void) => () => {
+    if (!isPending) action();
+  };
+  useShortcuts({
+    r: once(resolve),
+    e: once(archive),
+    b: once(bookmark),
+    i: once(() => update({ assigned_to: me })),
+    C: copyLink,
+  });
+
+  const confirmDelete = () =>
+    startDelete(async () => {
       const result = await deleteIssue(projectId, issue.id);
-
       if (!result.success) {
         toast.error(t('toasts.deleteOneFailed'), {
           description: result.error.message,
         });
-        setPending(null);
         return;
       }
-
-      setDeleteDialogOpen(false);
-      router.push(`/projects/${projectId}`);
-      setPending(null);
+      setDeleting(false);
+      router.push(`/projects/${projectId}/issues`);
     });
-  };
+
+  const overflow: MenuAction[] = [
+    {
+      id: 'bookmark',
+      label: issue.is_bookmarked
+        ? t('actions.removeBookmark')
+        : t('actions.bookmark'),
+      icon: StarIcon,
+      shortcut: 'B',
+      onSelect: bookmark,
+    },
+    {
+      id: 'subscribe',
+      label: issue.is_subscribed
+        ? t('actions.unsubscribe')
+        : t('actions.subscribe'),
+      icon: NotificationIcon,
+      onSelect: subscribe,
+    },
+    {
+      separated: true,
+      id: 'link',
+      label: t('detail.copyLink'),
+      icon: LinkIcon,
+      shortcut: '⇧C',
+      onSelect: copyLink,
+    },
+    {
+      id: 'id',
+      label: t('table.copyId'),
+      icon: CopyIcon,
+      onSelect: () => copy(issue.short_id, t('table.copied')),
+    },
+    {
+      id: 'assign-me',
+      label: t('table.assignToMe'),
+      shortcut: 'I',
+      separated: true,
+      disabled: issue.assigned_to === me,
+      onSelect: () => update({ assigned_to: me }),
+    },
+    {
+      id: 'delete',
+      label: t('actions.deleteIssue'),
+      icon: DeleteIcon,
+      tone: 'danger',
+      separated: true,
+      onSelect: () => setDeleting(true),
+    },
+  ];
 
   return (
-    <div className="flex items-center justify-between gap-x-3 gap-y-2 flex-wrap">
-      {/* Left cluster */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Resolve (split) */}
-        <div className="flex">
-          <Button
-            size="sm"
-            className={cn(!isResolved && 'rounded-r-none')}
-            variant={isResolved ? 'outline' : 'default'}
-            disabled={busy}
-            onClick={() =>
-              run('resolve', t('toasts.updateFailed'), () =>
-                updateIssueState(projectId, issue.id, {
-                  status: isResolved ? 'unresolved' : 'resolved',
-                }),
-              )
-            }
-          >
-            {isResolved ? (
-              <Undo className="mr-2 size-4" />
-            ) : (
-              <Check className="mr-2 size-4" />
-            )}
-            {isResolved ? t('actions.unresolve') : t('actions.resolve')}
-          </Button>
-          {!isResolved && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    size="sm"
-                    className="rounded-l-none border-l border-primary-foreground/20 px-2"
-                    aria-label={t('moreResolveOptions')}
-                  />
-                }
-              >
-                <ChevronDown className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem
-                  disabled={busy}
-                  onClick={() =>
-                    run('next-release', t('toasts.updateFailed'), () =>
-                      resolveIssueInNextRelease(projectId, issue.id),
-                    )
-                  }
-                >
-                  <Rocket className="mr-2 size-4" />
-                  {t('actions.resolveInNextRelease')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-
-        {/* Archive (mute) */}
+    // Full width when it has a row of its own, so the toggles and ⋯ sit at
+    // the right edge; the two verbs never wrap apart.
+    <div className="flex w-full items-center gap-2 @4xl:w-auto">
+      {resolved ? (
         <Button
-          variant="outline"
-          size="sm"
-          disabled={busy}
-          onClick={() =>
-            run('archive', t('toasts.updateFailed'), () =>
-              updateIssueState(projectId, issue.id, {
-                status: isArchived ? 'unresolved' : 'ignored',
-              }),
-            )
+          variant="secondary"
+          icon={UnresolveIcon}
+          disabled={isPending}
+          onClick={resolve}
+          shortcut="R"
+        >
+          {t('actions.unresolve')}
+        </Button>
+      ) : (
+        <SplitButton
+          icon={ResolveIcon}
+          onClick={resolve}
+          disabled={isPending}
+          menuLabel={t('moreResolveOptions')}
+          actions={[
+            {
+              id: 'resolve',
+              label: t('actions.resolve'),
+              shortcut: 'R',
+              onSelect: resolve,
+            },
+            {
+              id: 'next-release',
+              label: t('actions.resolveInNextRelease'),
+              onSelect: () =>
+                run(() => resolveIssueInNextRelease(projectId, issue.id)),
+            },
+          ]}
+        >
+          {t('actions.resolve')}
+        </SplitButton>
+      )}
+
+      {feedback || archived ? (
+        <Button
+          variant="secondary"
+          icon={MuteIcon}
+          disabled={isPending}
+          onClick={archive}
+          shortcut="E"
+        >
+          {feedback
+            ? archived
+              ? t('actions.moveToInbox')
+              : t('actions.markSpam')
+            : t('actions.unarchive')}
+        </Button>
+      ) : (
+        <SplitButton
+          variant="secondary"
+          icon={MuteIcon}
+          onClick={archive}
+          disabled={isPending}
+          menuLabel={t('detail.moreArchiveOptions')}
+          actions={[
+            {
+              id: 'escalating',
+              label: t('detail.archiveUntilEscalating'),
+              hint: t('detail.archiveUntilEscalatingHint'),
+              shortcut: 'E',
+              onSelect: archive,
+            },
+            {
+              id: 'forever',
+              label: t('detail.archiveForever'),
+              onSelect: () =>
+                update({ status: 'ignored', substatus: 'archived_forever' }),
+            },
+          ]}
+        >
+          {t('actions.archive')}
+        </SplitButton>
+      )}
+
+      <span
+        aria-hidden="true"
+        className="mx-1 hidden h-5 w-px bg-border-divider @4xl:block"
+      />
+
+      {/* The toggles are icons where there is room and rows of ⋯ where there
+          is not: on a phone two more icons would push ⋯ off the row. */}
+      <div className="ms-auto flex items-center gap-1 @4xl:ms-0">
+        <Tooltip
+          content={
+            issue.is_bookmarked
+              ? t('actions.removeBookmark')
+              : t('actions.bookmark')
           }
         >
-          <ArchiveLabel feedback={isFeedback} archived={isArchived} />
-        </Button>
-
-        {/* Overflow */}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="outline"
-                size="sm"
-                className="size-8 px-0"
-                aria-label={t('issueActionsLabel')}
-              />
-            }
-          >
-            <MoreHorizontal className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuItem
-              disabled={busy}
-              onClick={() =>
-                run('bookmark', t('toasts.bookmarkFailed'), () =>
-                  setIssueBookmark(projectId, issue.id, !issue.is_bookmarked),
-                )
-              }
-            >
-              {issue.is_bookmarked ? (
-                <BookmarkCheck className="mr-2 size-4" />
-              ) : (
-                <Bookmark className="mr-2 size-4" />
-              )}
-              {issue.is_bookmarked
-                ? t('actions.removeBookmark')
-                : t('actions.bookmark')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={busy}
-              onClick={() =>
-                run('subscribe', t('toasts.subscriptionFailed'), () =>
-                  setIssueSubscription(
-                    projectId,
-                    issue.id,
-                    !issue.is_subscribed,
-                  ),
-                )
-              }
-            >
-              {issue.is_subscribed ? (
-                <BellOff className="mr-2 size-4" />
-              ) : (
-                <Bell className="mr-2 size-4" />
-              )}
-              {issue.is_subscribed
-                ? t('actions.unsubscribe')
-                : t('actions.subscribe')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={busy}
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="mr-2 size-4" />
-              {t('actions.deleteIssue')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <Button
+            variant="ghost"
+            icon={StarIcon}
+            className="hidden @md:inline-flex"
+            selected={issue.is_bookmarked ?? false}
+            disabled={isPending}
+            aria-label={t('actions.bookmark')}
+            onClick={bookmark}
+          />
+        </Tooltip>
+        <Tooltip
+          content={
+            issue.is_subscribed
+              ? t('actions.unsubscribe')
+              : t('actions.subscribe')
+          }
+        >
+          <Button
+            variant="ghost"
+            icon={NotificationIcon}
+            className="hidden @md:inline-flex"
+            selected={issue.is_subscribed ?? false}
+            disabled={isPending}
+            aria-label={t('actions.subscribe')}
+            onClick={subscribe}
+          />
+        </Tooltip>
 
         {extra}
+
+        <Menu
+          align="end"
+          actions={overflow}
+          trigger={
+            <Button
+              variant="ghost"
+              icon={MoreIcon}
+              aria-label={t('issueActionsLabel')}
+            />
+          }
+        />
       </div>
 
-      {/* Right: priority */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">{t('priority')}</span>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="sm" disabled={busy} />}
-          >
-            {priorityMeta ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span
-                  className={cn('size-1.5 rounded-full', priorityMeta.dot)}
-                />
-                {t(priorityMeta.labelKey)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">{t('set')}</span>
-            )}
-            <ChevronDown className="ml-1.5 size-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {PRIORITIES.map((priority) => {
-              const meta = priorityDisplay(priority);
-              return (
-                <DropdownMenuItem
-                  key={priority}
-                  disabled={busy}
-                  onClick={() =>
-                    run('priority', t('toasts.priorityFailed'), () =>
-                      updateIssueState(projectId, issue.id, { priority }),
-                    )
-                  }
-                >
-                  <span
-                    className={cn(
-                      'mr-2 size-1.5 rounded-full',
-                      meta?.dot ?? 'bg-muted-foreground',
-                    )}
-                  />
-                  {meta ? t(meta.labelKey) : priority}
-                  {issue.priority === priority && (
-                    <Check className="ml-auto size-4 text-muted-foreground" />
-                  )}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Delete confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('deleteDialog.title', { count: 1 })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteDialog.description', { count: 1 })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending === 'delete'}>
-              {t('deleteDialog.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={pending === 'delete'}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {pending === 'delete' ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  {t('deleteDialog.deleting')}
-                </>
-              ) : (
-                t('deleteDialog.confirm')
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteIssuesDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        count={1}
+        isPending={isDeleting}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
+
+/** The priorities, highest first, for the rail's picker. */
+export const PRIORITIES: IssuePriority[] = ['high', 'medium', 'low'];

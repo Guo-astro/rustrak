@@ -83,25 +83,20 @@ export function StackFrameItem({
   const href = frame.in_app ? sourceUrl?.(frame) : null;
 
   return (
-    <div
-      className={cn(
-        'border rounded-lg overflow-hidden transition-colors',
-        frame.in_app
-          ? 'border-primary/40 bg-primary/5'
-          : 'border-border bg-card/50 opacity-60',
-      )}
-    >
+    // The app's own frames read at full weight; library frames recede, so
+    // the eye lands on the code the reader can change.
+    <div className={frame.in_app ? 'bg-surface' : 'bg-panel'}>
       {/* The link sits beside the toggle, not in it: an anchor inside a
           button is invalid and would toggle the frame on every click. */}
-      <div className="flex items-center hover:bg-muted/30 transition-colors">
+      <div className="flex items-center hover:bg-surface-hover">
         <button
           type="button"
           onClick={() => setIsExpanded((expanded) => !expanded)}
-          className="flex-1 min-w-0 px-4 py-3 flex items-center gap-4 text-left"
+          className="flex min-w-0 flex-1 items-center gap-4 px-4 py-2.5 text-left"
         >
           <FrameSignature frame={frame} index={index} />
           {hasContext && (
-            <span className="text-muted-foreground">
+            <span className="text-fg-ghost">
               <Chevron className="size-4" />
             </span>
           )}
@@ -113,7 +108,7 @@ export function StackFrameItem({
             rel="noreferrer"
             title={t('openInGitHub')}
             aria-label={t('openInGitHub')}
-            className="px-3 py-3 text-muted-foreground hover:text-foreground"
+            className="px-3 py-2.5 text-fg-subtle hover:text-fg"
           >
             <ArrowUpRight className="size-4" />
           </a>
@@ -141,20 +136,20 @@ function FrameSignature({
 }) {
   return (
     <>
-      <span
-        className={cn(
-          'text-xs font-mono',
-          frame.in_app ? 'text-primary' : 'text-muted-foreground',
-        )}
-      >
+      <span className="w-6 shrink-0 font-mono text-mono-sm text-fg-ghost tabular-nums">
         {String(index).padStart(2, '0')}
       </span>
 
-      <div className="flex-1 min-w-0">
-        <p className="font-mono text-sm font-semibold truncate">
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            'truncate font-mono text-mono',
+            frame.in_app ? 'font-medium text-fg' : 'text-fg-subtle',
+          )}
+        >
           {frame.function || frame.raw_function || '<anonymous>'}
         </p>
-        <p className="text-xs text-muted-foreground font-mono truncate">
+        <p className="truncate font-mono text-mono-sm text-fg-meta">
           {frameLocationLabel(frame)}
           {frame.lineno != null && `:${frame.lineno}`}
           {frame.colno != null && `:${frame.colno}`}
@@ -173,7 +168,8 @@ function FrameSource({
   language: string;
 }) {
   return (
-    <div className="bg-zinc-900 font-mono text-xs leading-relaxed overflow-x-auto">
+    // Dark in both themes: the highlighter paints a dark palette.
+    <div className="overflow-x-auto border-border-divider border-t bg-zinc-900 py-1.5 font-mono text-mono-sm leading-relaxed">
       {lines.map((line, i) => (
         // Deliberately not `line.lineNumber`. `buildFrameContextLines`
         // clamps its start at 0 when `pre_context` is longer than
@@ -197,15 +193,15 @@ function FrameSource({
 function FrameVariables({ vars }: { vars: Record<string, unknown> }) {
   const t = useTranslations('events');
   return (
-    <div className="border-t px-4 py-3 space-y-1.5">
-      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+    <div className="space-y-1.5 border-border-divider border-t px-4 py-3">
+      <p className="font-mono text-column text-fg-meta uppercase">
         {t('stackTrace.variables')}
       </p>
       <dl className="space-y-1">
         {Object.entries(vars).map(([key, value]) => (
-          <div key={key} className="flex gap-2 text-xs font-mono">
-            <dt className="shrink-0 text-muted-foreground">{key}</dt>
-            <dd className="min-w-0 break-all text-foreground">
+          <div key={key} className="flex gap-2 font-mono text-mono-sm">
+            <dt className="shrink-0 text-fg-meta">{key}</dt>
+            <dd className="min-w-0 break-all text-fg">
               {typeof value === 'string' ? value : JSON.stringify(value)}
             </dd>
           </div>
@@ -229,20 +225,21 @@ function CodeLine({
   return (
     <div
       className={cn(
-        'flex relative',
-        isHighlighted ? 'bg-primary/15' : 'opacity-60',
+        'relative flex',
+        // The line that threw, marked as the error it is.
+        isHighlighted ? 'bg-sev-error-surface' : 'opacity-70',
       )}
     >
       {/* Highlight indicator */}
       {isHighlighted && (
-        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary" />
+        <div className="absolute inset-y-0 left-0 w-0.5 bg-sev-error" />
       )}
 
       {/* Line number */}
       <span
         className={cn(
           'w-12 shrink-0 text-right pr-4 pl-3 select-none py-0.5',
-          isHighlighted ? 'text-primary font-medium' : 'text-muted-foreground',
+          isHighlighted ? 'font-medium text-sev-error-fg' : 'text-fg-ghost',
         )}
       >
         {lineNumber}
