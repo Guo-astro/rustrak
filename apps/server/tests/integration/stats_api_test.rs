@@ -9,6 +9,7 @@
 //!   - everything is scoped to one project
 
 use rustrak::db::DbPool;
+use rustrak::services::scope::Scope;
 use rustrak::services::stats::StatsService;
 use uuid::Uuid;
 
@@ -147,9 +148,10 @@ async fn timeseries_on_empty_project_is_all_zeros() {
     let db = TestDb::new().await;
     let project_id = create_project(&db.pool, "Stats Empty").await;
 
-    let points = StatsService::event_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     // Zero-filled, not empty: a quiet day is 25 bars of height zero.
     assert_eq!(points.len(), 25);
@@ -167,9 +169,10 @@ async fn timeseries_splits_volume_by_severity() {
     seed_event(&db.pool, project_id, None, "warning", "error", 2).await;
     seed_event(&db.pool, project_id, None, "info", "error", 2).await;
 
-    let points = StatsService::event_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(points.iter().map(|p| p.fatal).sum::<i64>(), 1);
     assert_eq!(points.iter().map(|p| p.error).sum::<i64>(), 2);
@@ -189,9 +192,10 @@ async fn timeseries_segments_always_sum_to_total() {
     seed_event(&db.pool, project_id, None, "wat", "error", 1).await;
     seed_event(&db.pool, project_id, None, "", "error", 1).await;
 
-    let points = StatsService::event_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     for p in &points {
         assert_eq!(p.total, p.fatal + p.error + p.warning + p.info);
@@ -208,9 +212,10 @@ async fn timeseries_excludes_transactions() {
     seed_event(&db.pool, project_id, None, "info", "transaction", 1).await;
     seed_event(&db.pool, project_id, None, "info", "transaction", 1).await;
 
-    let points = StatsService::event_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 1);
 }
@@ -223,9 +228,10 @@ async fn timeseries_respects_the_window() {
     seed_event(&db.pool, project_id, None, "error", "error", 1).await;
     seed_event(&db.pool, project_id, None, "error", "error", 100).await;
 
-    let points = StatsService::event_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 1);
 }
@@ -240,7 +246,7 @@ async fn timeseries_is_scoped_to_one_project() {
     seed_event(&db.pool, theirs, None, "error", "error", 1).await;
     seed_event(&db.pool, theirs, None, "error", "error", 1).await;
 
-    let points = StatsService::event_timeseries(&db.pool, mine, Some(24), 1)
+    let points = StatsService::event_timeseries(&db.pool, mine, Some(24), 1, Scope::default())
         .await
         .expect("query failed");
 
@@ -254,9 +260,10 @@ async fn timeseries_honours_a_wider_interval() {
 
     seed_event(&db.pool, project_id, None, "error", "error", 1).await;
 
-    let points = StatsService::event_timeseries(&db.pool, project_id, Some(24), 6)
-        .await
-        .expect("query failed");
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 6, Scope::default())
+            .await
+            .expect("query failed");
 
     // 24h in 6h buckets, inclusive at both ends.
     assert_eq!(points.len(), 5);
@@ -270,7 +277,7 @@ async fn summary_on_empty_project_is_zeroed() {
     let db = TestDb::new().await;
     let project_id = create_project(&db.pool, "Summary Empty").await;
 
-    let summary = StatsService::project_summary(&db.pool, project_id, Some(24))
+    let summary = StatsService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -294,7 +301,7 @@ async fn summary_splits_events_into_current_and_previous_windows() {
     // Older than both windows, so counted in neither.
     seed_event(&db.pool, project_id, None, "error", "error", 100).await;
 
-    let summary = StatsService::project_summary(&db.pool, project_id, Some(24))
+    let summary = StatsService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -311,7 +318,7 @@ async fn summary_counts_new_issues_by_first_seen() {
     seed_issue(&db.pool, project_id, 2, 5).await;
     seed_issue(&db.pool, project_id, 3, 30).await;
 
-    let summary = StatsService::project_summary(&db.pool, project_id, Some(24))
+    let summary = StatsService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -328,7 +335,7 @@ async fn summary_open_issues_ignores_the_window() {
     seed_issue(&db.pool, project_id, 1, 500).await;
     seed_issue(&db.pool, project_id, 2, 500).await;
 
-    let summary = StatsService::project_summary(&db.pool, project_id, Some(24))
+    let summary = StatsService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -346,7 +353,7 @@ async fn summary_all_time_has_no_previous_period() {
     seed_event(&db.pool, project_id, None, "error", "error", 5_000).await;
     seed_issue(&db.pool, project_id, 1, 5_000).await;
 
-    let summary = StatsService::project_summary(&db.pool, project_id, None)
+    let summary = StatsService::project_summary(&db.pool, project_id, None, Scope::default())
         .await
         .expect("query failed");
 
@@ -368,7 +375,7 @@ async fn summary_is_scoped_to_one_project() {
     seed_issue(&db.pool, mine, 1, 1).await;
     seed_issue(&db.pool, theirs, 1, 1).await;
 
-    let summary = StatsService::project_summary(&db.pool, mine, Some(24))
+    let summary = StatsService::project_summary(&db.pool, mine, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -386,9 +393,10 @@ async fn summary_accepts_the_maximum_clamped_window() {
 
     seed_event(&db.pool, project_id, None, "error", "error", 1).await;
 
-    let summary = StatsService::project_summary(&db.pool, project_id, Some(90 * 24))
-        .await
-        .expect("query failed");
+    let summary =
+        StatsService::project_summary(&db.pool, project_id, Some(90 * 24), Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(summary.events.current, 1);
 }
@@ -769,4 +777,199 @@ async fn list_stats_omits_projects_outside_the_requested_set() {
 
     assert_eq!(stats.len(), 1);
     assert!(!stats.contains_key(&unasked));
+}
+
+// ── environment filter ───────────────────────────────────────────────────────
+
+/// Moves every event of `issue_id` into `environment`, and records the issue
+/// as seen there, the way digest does.
+async fn place_in_environment(pool: &DbPool, project_id: i32, issue_id: Uuid, environment: &str) {
+    sqlx::query("UPDATE events SET environment = $1 WHERE issue_id = $2")
+        .bind(environment)
+        .bind(issue_id)
+        .execute(pool)
+        .await
+        .expect("set environment failed");
+
+    #[cfg(feature = "postgres")]
+    let sql = "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen) \
+               VALUES ($1, $2, $3, NOW(), NOW())";
+    #[cfg(not(feature = "postgres"))]
+    let sql = "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen) \
+               VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))";
+
+    sqlx::query(sql)
+        .bind(issue_id)
+        .bind(project_id)
+        .bind(environment)
+        .execute(pool)
+        .await
+        .expect("seed issue environment failed");
+}
+
+#[actix_web::test]
+async fn timeseries_counts_only_the_asked_environment() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Stats Env Series").await;
+
+    let prod = seed_issue(&db.pool, project_id, 1, 1).await;
+    let staging = seed_issue(&db.pool, project_id, 2, 1).await;
+    seed_event(&db.pool, project_id, Some(prod), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(prod), "error", "error", 2).await;
+    seed_event(&db.pool, project_id, Some(staging), "error", "error", 1).await;
+    place_in_environment(&db.pool, project_id, prod, "production").await;
+    place_in_environment(&db.pool, project_id, staging, "staging").await;
+
+    let points = StatsService::event_timeseries(
+        &db.pool,
+        project_id,
+        Some(24),
+        1,
+        Scope::environment(Some("production")),
+    )
+    .await
+    .expect("query failed");
+    assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 2);
+
+    let all = StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+        .await
+        .expect("query failed");
+    assert_eq!(all.iter().map(|p| p.total).sum::<i64>(), 3);
+}
+
+#[actix_web::test]
+async fn summary_counts_only_the_asked_environment() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Stats Env Summary").await;
+
+    let prod = seed_issue(&db.pool, project_id, 1, 1).await;
+    let staging = seed_issue(&db.pool, project_id, 2, 1).await;
+    seed_event(&db.pool, project_id, Some(prod), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(staging), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(staging), "error", "error", 2).await;
+    place_in_environment(&db.pool, project_id, prod, "production").await;
+    place_in_environment(&db.pool, project_id, staging, "staging").await;
+
+    let summary = StatsService::project_summary(
+        &db.pool,
+        project_id,
+        Some(24),
+        Scope::environment(Some("staging")),
+    )
+    .await
+    .expect("query failed");
+
+    assert_eq!(summary.events.current, 2);
+    assert_eq!(summary.new_issues.current, 1);
+    assert_eq!(summary.open_issues, 1);
+
+    let all_time = StatsService::project_summary(
+        &db.pool,
+        project_id,
+        None,
+        Scope::environment(Some("production")),
+    )
+    .await
+    .expect("query failed");
+    assert_eq!(all_time.events.current, 1);
+    assert_eq!(all_time.new_issues.current, 1);
+}
+
+// ── release filter ───────────────────────────────────────────────────────────
+
+async fn place_in_release(pool: &DbPool, issue_id: Uuid, release: &str) {
+    sqlx::query("UPDATE events SET release = $1 WHERE issue_id = $2")
+        .bind(release)
+        .bind(issue_id)
+        .execute(pool)
+        .await
+        .expect("set release failed");
+}
+
+fn in_release(release: &str) -> Scope<'_> {
+    Scope {
+        release: Some(release),
+        ..Scope::default()
+    }
+}
+
+#[actix_web::test]
+async fn timeseries_and_summary_count_only_the_asked_release() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Stats Release").await;
+
+    let old = seed_issue(&db.pool, project_id, 1, 1).await;
+    let new = seed_issue(&db.pool, project_id, 2, 1).await;
+    seed_event(&db.pool, project_id, Some(old), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(new), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(new), "error", "error", 2).await;
+    place_in_release(&db.pool, old, "1.0.0").await;
+    place_in_release(&db.pool, new, "2.0.0").await;
+
+    let points =
+        StatsService::event_timeseries(&db.pool, project_id, Some(24), 1, in_release("2.0.0"))
+            .await
+            .expect("query failed");
+    assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 2);
+
+    let summary =
+        StatsService::project_summary(&db.pool, project_id, Some(24), in_release("1.0.0"))
+            .await
+            .expect("query failed");
+    assert_eq!(summary.events.current, 1);
+    assert_eq!(summary.new_issues.current, 1);
+    assert_eq!(summary.open_issues, 1);
+}
+
+#[actix_web::test]
+async fn releases_lists_the_ones_events_arrived_in_newest_first() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Stats Releases").await;
+
+    let old = seed_issue(&db.pool, project_id, 1, 1).await;
+    let new = seed_issue(&db.pool, project_id, 2, 1).await;
+    let none = seed_issue(&db.pool, project_id, 3, 1).await;
+    seed_event(&db.pool, project_id, Some(old), "error", "error", 30).await;
+    seed_event(&db.pool, project_id, Some(new), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(none), "error", "error", 1).await;
+    place_in_release(&db.pool, old, "1.0.0").await;
+    place_in_release(&db.pool, new, "2.0.0").await;
+
+    let releases = StatsService::releases(&db.pool, project_id)
+        .await
+        .expect("query failed");
+
+    // An event with no release is in none, not in "".
+    assert_eq!(releases, vec!["2.0.0".to_string(), "1.0.0".to_string()]);
+}
+
+#[actix_web::test]
+async fn issue_list_shows_only_the_issues_seen_in_the_asked_release() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Issues Release").await;
+
+    let old = seed_issue(&db.pool, project_id, 1, 1).await;
+    let new = seed_issue(&db.pool, project_id, 2, 1).await;
+    seed_event(&db.pool, project_id, Some(old), "error", "error", 1).await;
+    seed_event(&db.pool, project_id, Some(new), "error", "error", 1).await;
+    place_in_release(&db.pool, old, "1.0.0").await;
+    place_in_release(&db.pool, new, "2.0.0").await;
+
+    let (issues, total) = rustrak::services::IssueService::list_offset(
+        &db.pool,
+        project_id,
+        rustrak::pagination::IssueSort::LastSeen,
+        rustrak::pagination::SortOrder::Desc,
+        rustrak::pagination::IssueFilter::All,
+        rustrak::pagination::IssueCategory::default(),
+        1,
+        20,
+        None,
+        in_release("2.0.0"),
+    )
+    .await
+    .expect("query failed");
+
+    assert_eq!(total, 1);
+    assert_eq!(issues[0].id, new);
 }

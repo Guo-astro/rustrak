@@ -8,6 +8,7 @@ use chrono::Utc;
 use rustrak::config::RateLimitConfig;
 use rustrak::ingest::{store_event, EventMetadata};
 use rustrak::models::{CleanupFilter, CreateProject, CreateRelease};
+use rustrak::services::scope::Scope;
 use rustrak::services::{
     EventService, IssueService, ProjectService, ReleaseService, StorageService,
 };
@@ -1179,7 +1180,7 @@ async fn test_issue_search_finds_the_frame_filename_and_module() {
             1,
             20,
             Some(term),
-            None,
+            Scope::default(),
         )
         .await
         .expect("search");
@@ -1241,7 +1242,7 @@ async fn test_search_follows_the_frame_of_the_latest_event() {
                 1,
                 20,
                 Some(term),
-                None,
+                Scope::default(),
             )
             .await
             .expect("search")
@@ -2879,7 +2880,7 @@ async fn test_list_offset_search_filters_by_text() {
         1,
         50,
         Some("databaseerror"),
-        None,
+        Scope::default(),
     )
     .await
     .unwrap();
@@ -2897,7 +2898,7 @@ async fn test_list_offset_search_filters_by_text() {
         1,
         50,
         Some("undefined"),
-        None,
+        Scope::default(),
     )
     .await
     .unwrap();
@@ -2915,7 +2916,7 @@ async fn test_list_offset_search_filters_by_text() {
         1,
         50,
         Some("nonexistent"),
-        None,
+        Scope::default(),
     )
     .await
     .unwrap();
@@ -2970,7 +2971,7 @@ async fn test_list_offset_search_escapes_like_wildcards() {
         1,
         50,
         Some("database_error"),
-        None,
+        Scope::default(),
     )
     .await
     .unwrap();
@@ -2996,7 +2997,7 @@ async fn test_list_offset_rejects_page_below_one() {
         0,
         20,
         None,
-        None,
+        Scope::default(),
     )
     .await
     .expect_err("page=0 must be rejected, not produce a negative SQL OFFSET");
@@ -3012,7 +3013,7 @@ async fn test_list_offset_rejects_page_below_one() {
         -5,
         20,
         None,
-        None,
+        Scope::default(),
     )
     .await
     .expect_err("negative page must be rejected");
@@ -3034,7 +3035,7 @@ async fn test_list_offset_rejects_per_page_out_of_range() {
         1,
         0,
         None,
-        None,
+        Scope::default(),
     )
     .await
     .expect_err("per_page=0 must be rejected");
@@ -3050,7 +3051,7 @@ async fn test_list_offset_rejects_per_page_out_of_range() {
         1,
         101,
         None,
-        None,
+        Scope::default(),
     )
     .await
     .expect_err("per_page over the documented max of 100 must be rejected");

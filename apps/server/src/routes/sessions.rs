@@ -6,6 +6,7 @@ use crate::error::AppResult;
 use crate::pagination::OffsetPaginatedResponse;
 use crate::routes::period::parse_period_hours;
 use crate::services::access::{self, Action};
+use crate::services::scope::Scope;
 use crate::services::session::SessionService;
 
 #[cfg(feature = "openapi")]
@@ -105,13 +106,17 @@ pub async fn get_stats(
     Ok(HttpResponse::Ok().json(OffsetPaginatedResponse::new(rows, total, page, per_page)))
 }
 
-/// Query params for the summary endpoint. Only `period` — unlike `StatsQuery`,
-/// this endpoint has no release scoping, so it doesn't accept `release` at all
-/// rather than silently ignoring it.
+/// Query params for the summary endpoint. Unlike `StatsQuery`, this endpoint
+/// has no release scoping, so it doesn't accept `release` at all rather than
+/// silently ignoring it.
 #[derive(serde::Deserialize)]
 pub struct SummaryQuery {
     /// Time window in hours (default: 24).
     pub period: Option<String>,
+    /// Only sessions from this environment.
+    pub environment: Option<String>,
+    /// Only sessions from this release.
+    pub release: Option<String>,
 }
 
 impl SummaryQuery {
@@ -128,6 +133,8 @@ impl SummaryQuery {
     params(
         ("project_id" = i32, Path, description = "Project ID"),
         ("period" = Option<String>, Query, description = "Time window, e.g. '24h', '7d' (default: 24h)"),
+        ("environment" = Option<String>, Query, description = "Only sessions from this environment. Omit for every environment."),
+        ("release" = Option<String>, Query, description = "Only sessions from this release. Omit for every release."),
     ),
     responses(
         (status = 200, description = "Project-wide session health summary", body = SessionSummary),
@@ -155,7 +162,16 @@ pub async fn get_summary(
     .await?;
 
     let period_hours = query.period_hours();
-    let summary = SessionService::project_summary(pool.get_ref(), project_id, period_hours).await?;
+    let summary = SessionService::project_summary(
+        pool.get_ref(),
+        project_id,
+        period_hours,
+        Scope {
+            environment: query.environment.as_deref(),
+            release: query.release.as_deref(),
+        },
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().json(summary))
 }
@@ -167,6 +183,10 @@ pub struct TimeseriesQuery {
     pub period: Option<String>,
     /// Bucket width in hours (default: 1, clamped to 1-24).
     pub interval: Option<i64>,
+    /// Only sessions from this environment.
+    pub environment: Option<String>,
+    /// Only sessions from this release.
+    pub release: Option<String>,
 }
 
 impl TimeseriesQuery {
@@ -188,6 +208,8 @@ impl TimeseriesQuery {
         ("project_id" = i32, Path, description = "Project ID"),
         ("period" = Option<String>, Query, description = "Time window, e.g. '24h', '7d' (default: 24h)"),
         ("interval" = Option<i64>, Query, description = "Bucket width in hours (default: 1, max: 24)"),
+        ("environment" = Option<String>, Query, description = "Only sessions from this environment. Omit for every environment."),
+        ("release" = Option<String>, Query, description = "Only sessions from this release. Omit for every release."),
     ),
     responses(
         (status = 200, description = "Time-bucketed session trend, project-wide", body = Vec<SessionTimeseriesPoint>),
@@ -219,6 +241,10 @@ pub async fn get_timeseries(
         project_id,
         query.period_hours(),
         query.interval_hours(),
+        Scope {
+            environment: query.environment.as_deref(),
+            release: query.release.as_deref(),
+        },
     )
     .await?;
 

@@ -5,6 +5,7 @@ use chrono::Utc;
 use crate::db::DbPool;
 use crate::error::AppResult;
 use crate::models::session::{ReleaseHealthRow, SessionSummary, SessionTimeseriesPoint};
+use crate::services::scope::Scope;
 
 #[cfg(feature = "postgres")]
 type PgHealthRow = (String, String, i64, i64, i64, i64, Option<f64>, Option<f64>);
@@ -93,8 +94,9 @@ impl SessionService {
         pool: &DbPool,
         project_id: i32,
         period_hours: Option<i64>,
+        scope: Scope<'_>,
     ) -> AppResult<SessionSummary> {
-        let summary = query_project_summary(pool, project_id, period_hours).await?;
+        let summary = query_project_summary(pool, project_id, period_hours, scope).await?;
         Ok(summary)
     }
 
@@ -107,9 +109,10 @@ impl SessionService {
         project_id: i32,
         period_hours: Option<i64>,
         interval_hours: i64,
+        scope: Scope<'_>,
     ) -> AppResult<Vec<SessionTimeseriesPoint>> {
         let points =
-            query_session_timeseries(pool, project_id, period_hours, interval_hours).await?;
+            query_session_timeseries(pool, project_id, period_hours, interval_hours, scope).await?;
         Ok(points)
     }
 }
@@ -376,6 +379,7 @@ async fn query_project_summary(
     pool: &DbPool,
     project_id: i32,
     period_hours: Option<i64>,
+    scope: Scope<'_>,
 ) -> Result<SessionSummary, sqlx::Error> {
     #[cfg(feature = "postgres")]
     {
@@ -409,6 +413,8 @@ async fn query_project_summary(
                         COUNT(DISTINCT CASE WHEN total > 0 THEN release END)::bigint AS active_releases
                     FROM session_counts
                     WHERE project_id = $1
+                      AND ($2::text IS NULL OR environment = $2)
+                      AND ($3::text IS NULL OR release = $3)
                       {}
                 ) counts
                 CROSS JOIN (
@@ -419,6 +425,8 @@ async fn query_project_summary(
                              ELSE NULL END AS crash_free_users_rate
                     FROM session_users
                     WHERE project_id = $1
+                      AND ($2::text IS NULL OR environment = $2)
+                      AND ($3::text IS NULL OR release = $3)
                       {}
                 ) users
                 "#,
@@ -436,6 +444,8 @@ async fn query_project_summary(
         ): (i64, i64, i64, i64, Option<f64>, Option<f64>, i64) =
             sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
                 .bind(project_id)
+                .bind(scope.environment)
+                .bind(scope.release)
                 .fetch_one(pool)
                 .await?;
 
@@ -464,6 +474,8 @@ async fn query_project_summary(
                 COUNT(DISTINCT CASE WHEN total > 0 THEN release END) AS active_releases
             FROM session_counts
             WHERE project_id = ?1
+              AND (?2 IS NULL OR environment = ?2)
+              AND (?3 IS NULL OR release = ?3)
               {}
             "#,
             time_filter_sc
@@ -472,6 +484,8 @@ async fn query_project_summary(
         let (total, errored, crashed, abnormal, active_releases): (i64, i64, i64, i64, i64) =
             sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
                 .bind(project_id)
+                .bind(scope.environment)
+                .bind(scope.release)
                 .fetch_one(pool)
                 .await?;
 
@@ -484,6 +498,8 @@ async fn query_project_summary(
                 COUNT(DISTINCT CASE WHEN crashed = 1 THEN did END)
             FROM session_users
             WHERE project_id = ?1
+              AND (?2 IS NULL OR environment = ?2)
+              AND (?3 IS NULL OR release = ?3)
               {}
             "#,
             time_filter_su
@@ -492,6 +508,8 @@ async fn query_project_summary(
         let (total_users, crashed_users): (i64, i64) =
             sqlx::query_as(sqlx::AssertSqlSafe(&*user_sql))
                 .bind(project_id)
+                .bind(scope.environment)
+                .bind(scope.release)
                 .fetch_one(pool)
                 .await?;
 
@@ -523,6 +541,7 @@ async fn query_session_timeseries(
     project_id: i32,
     period_hours: Option<i64>,
     interval_hours: i64,
+    scope: Scope<'_>,
 ) -> Result<Vec<SessionTimeseriesPoint>, sqlx::Error> {
     let interval_seconds = interval_hours.max(1) * 3600;
 
@@ -543,6 +562,8 @@ async fn query_session_timeseries(
                          ELSE NULL END AS crash_free_sessions_rate
                 FROM session_counts
                 WHERE project_id = $1
+                  AND ($2::text IS NULL OR environment = $2)
+                      AND ($3::text IS NULL OR release = $3)
                   {time_filter}
                 GROUP BY 1
                 ORDER BY 1 ASC
@@ -552,6 +573,8 @@ async fn query_session_timeseries(
         let rows: Vec<(DateTime<Utc>, i64, i64, Option<f64>)> =
             sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
                 .bind(project_id)
+                .bind(scope.environment)
+                .bind(scope.release)
                 .fetch_all(pool)
                 .await?;
 
@@ -580,6 +603,8 @@ async fn query_session_timeseries(
                 SUM(crashed) AS crashed
             FROM session_counts
             WHERE project_id = ?1
+              AND (?2 IS NULL OR environment = ?2)
+              AND (?3 IS NULL OR release = ?3)
               {time_filter}
             GROUP BY 1
             ORDER BY 1 ASC
@@ -588,6 +613,8 @@ async fn query_session_timeseries(
 
         let rows: Vec<(String, i64, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
             .bind(project_id)
+            .bind(scope.environment)
+            .bind(scope.release)
             .fetch_all(pool)
             .await?;
 

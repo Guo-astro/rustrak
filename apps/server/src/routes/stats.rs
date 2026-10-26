@@ -5,6 +5,7 @@ use crate::db::DbPool;
 use crate::error::AppResult;
 use crate::routes::period::parse_period_hours;
 use crate::services::access::{self, Action};
+use crate::services::scope::Scope;
 use crate::services::stats::StatsService;
 
 #[cfg(feature = "openapi")]
@@ -19,6 +20,10 @@ pub struct EventTimeseriesQuery {
     pub period: Option<String>,
     /// Bucket width in hours (default: 1, clamped to 1-24).
     pub interval: Option<i64>,
+    /// Only events from this environment.
+    pub environment: Option<String>,
+    /// Only events from this release.
+    pub release: Option<String>,
 }
 
 impl EventTimeseriesQuery {
@@ -40,6 +45,8 @@ impl EventTimeseriesQuery {
         ("project_id" = i32, Path, description = "Project ID"),
         ("period" = Option<String>, Query, description = "Time window, e.g. '24h', '7d'. Omit for all time."),
         ("interval" = Option<i64>, Query, description = "Bucket width in hours (default: 1, max: 24)"),
+        ("environment" = Option<String>, Query, description = "Only events from this environment. Omit for every environment."),
+        ("release" = Option<String>, Query, description = "Only events from this release. Omit for every release."),
     ),
     responses(
         (status = 200, description = "Time-bucketed error-event volume by severity", body = Vec<EventTimeseriesPoint>),
@@ -71,6 +78,10 @@ pub async fn get_event_timeseries(
         project_id,
         query.period_hours(),
         query.interval_hours(),
+        Scope {
+            environment: query.environment.as_deref(),
+            release: query.release.as_deref(),
+        },
     )
     .await?;
 
@@ -82,6 +93,10 @@ pub async fn get_event_timeseries(
 pub struct StatsSummaryQuery {
     /// Time window, e.g. "24h" or "7d". Omit for all time (no comparison).
     pub period: Option<String>,
+    /// Only events, and issues seen, in this environment.
+    pub environment: Option<String>,
+    /// Only events, and issues seen, in this release.
+    pub release: Option<String>,
 }
 
 impl StatsSummaryQuery {
@@ -98,6 +113,8 @@ impl StatsSummaryQuery {
     params(
         ("project_id" = i32, Path, description = "Project ID"),
         ("period" = Option<String>, Query, description = "Time window, e.g. '24h', '7d'. Omit for all time."),
+        ("environment" = Option<String>, Query, description = "Only events, and issues seen, in this environment. Omit for every environment."),
+        ("release" = Option<String>, Query, description = "Only events, and issues seen, in this release. Omit for every release."),
     ),
     responses(
         (status = 200, description = "Project counters with previous-period comparison", body = ProjectStatsSummary),
@@ -124,10 +141,52 @@ pub async fn get_stats_summary(
     )
     .await?;
 
-    let summary =
-        StatsService::project_summary(pool.get_ref(), project_id, query.period_hours()).await?;
+    let summary = StatsService::project_summary(
+        pool.get_ref(),
+        project_id,
+        query.period_hours(),
+        Scope {
+            environment: query.environment.as_deref(),
+            release: query.release.as_deref(),
+        },
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().json(summary))
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/releases",
+    operation_id = "releases.list",
+    tag = "Stats",
+    params(("project_id" = i32, Path, description = "Project ID")),
+    responses(
+        (status = 200, description = "Release names, newest first", body = Vec<String>),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// The releases a project's events arrived in, newest first.
+pub async fn list_releases(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+
+    let releases = StatsService::releases(pool.get_ref(), project_id).await?;
+    Ok(HttpResponse::Ok().json(releases))
 }
 
 #[cfg(feature = "openapi")]

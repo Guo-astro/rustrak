@@ -4669,6 +4669,24 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only events from this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only events from this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5252,6 +5270,18 @@
             "name": "environment",
             "in": "query",
             "description": "Only issues seen in this environment, with that environment's first\nand last seen, event count, users and trend.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only issues that had an event in this release.",
             "required": false,
             "schema": {
               "type": [
@@ -8288,6 +8318,53 @@
         ]
       }
     },
+    "/api/projects/{project_id}/releases": {
+      "get": {
+        "tags": [
+          "Stats"
+        ],
+        "summary": "The releases a project's events arrived in, newest first.",
+        "operationId": "releases.list",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Release names, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/releases/{release}/new-issues": {
       "get": {
         "tags": [
@@ -8557,6 +8634,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only sessions from this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only sessions from this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8619,6 +8714,24 @@
             "schema": {
               "type": "integer",
               "format": "int64"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only sessions from this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only sessions from this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -9096,6 +9209,24 @@
             "name": "period",
             "in": "query",
             "description": "Time window, e.g. '24h', '7d'. Omit for all time.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only events, and issues seen, in this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only events, and issues seen, in this release. Omit for every release.",
             "required": false,
             "schema": {
               "type": "string"

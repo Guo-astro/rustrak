@@ -25,6 +25,7 @@ use crate::models::{Event, Issue, Project, UpdateIssueState};
 use crate::pagination::{IssueCategory, IssueFilter, SortOrder};
 use crate::services::access::{self, Action};
 use crate::services::grouping::exception_values;
+use crate::services::scope::Scope;
 
 use crate::services::{
     EventService, IssueService, IssueSocialService, ProjectMemberService, ProjectService,
@@ -648,7 +649,7 @@ pub async fn list_issues(
         page.start,
         page.size,
         search.text.as_deref(),
-        environment,
+        Scope::environment(environment),
     )
     .await?;
 

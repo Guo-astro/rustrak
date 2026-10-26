@@ -136,11 +136,12 @@ export async function getAllReleaseHealthRows(
 export async function getSessionSummary(
   projectId: number,
   period?: string,
+  scope?: { environment?: string; release?: string },
 ): Promise<Result<SessionSummary, RustrakError>> {
   const client = await createClient();
   return client.sessions.getSummary({
     path: { project_id: projectId },
-    query: { period },
+    query: { period, ...scope },
   });
 }
 
@@ -160,10 +161,11 @@ export async function getSessionTimeseries(
   projectId: number,
   period?: string,
   interval?: number,
+  scope?: { environment?: string; release?: string },
 ): Promise<Result<SessionsGetTimeseriesResponse, RustrakError>> {
   const client = await createClient();
   return client.sessions.getTimeseries({
     path: { project_id: projectId },
-    query: { period, interval },
+    query: { period, interval, ...scope },
   });
 }

@@ -161,6 +161,10 @@ pub struct ListIssuesQuery {
     /// and last seen, event count, users and trend.
     #[serde(default)]
     pub environment: Option<String>,
+
+    /// Only issues that had an event in this release.
+    #[serde(default)]
+    pub release: Option<String>,
 }
 
 fn default_page() -> i64 {

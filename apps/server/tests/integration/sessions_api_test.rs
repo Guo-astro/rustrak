@@ -12,6 +12,7 @@
 use crate::common::TestDb;
 use chrono::Utc;
 use rustrak::db::DbPool;
+use rustrak::services::scope::Scope;
 use rustrak::services::session::SessionService;
 
 // ── seed helpers ─────────────────────────────────────────────────────────────
@@ -549,7 +550,7 @@ async fn test_project_summary_empty_project_returns_zeros() {
     let db = TestDb::new().await;
     let project_id = create_project(&db.pool, "Empty Summary Project").await;
 
-    let summary = SessionService::project_summary(&db.pool, project_id, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -570,7 +571,7 @@ async fn test_project_summary_aggregates_across_releases() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 100, 5, 10, 2).await;
     seed_count(&db.pool, project_id, "2.0.0", "prod", 1, 50, 1, 0, 0).await;
 
-    let summary = SessionService::project_summary(&db.pool, project_id, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -592,7 +593,7 @@ async fn test_project_summary_excludes_buckets_outside_window() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 50, 0, 0, 0).await;
     seed_count(&db.pool, project_id, "1.0.0", "prod", 48, 9999, 0, 0, 0).await;
 
-    let summary = SessionService::project_summary(&db.pool, project_id, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -608,7 +609,7 @@ async fn test_project_summary_crash_free_rates() {
     seed_user(&db.pool, project_id, "1.0.0", "prod", "user-1", false).await;
     seed_user(&db.pool, project_id, "1.0.0", "prod", "user-2", true).await;
 
-    let summary = SessionService::project_summary(&db.pool, project_id, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -654,7 +655,7 @@ async fn test_project_summary_total_not_inflated_by_multiple_users() {
         .await;
     }
 
-    let summary = SessionService::project_summary(&db.pool, project_id, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -672,7 +673,7 @@ async fn test_project_summary_active_releases_excludes_zero_total_releases() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 10, 0, 0, 0).await;
     seed_count(&db.pool, project_id, "0.9.0-empty", "prod", 1, 0, 0, 0, 0).await;
 
-    let summary = SessionService::project_summary(&db.pool, project_id, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -691,7 +692,7 @@ async fn test_project_summary_excludes_other_projects() {
     seed_count(&db.pool, project_a, "1.0.0", "prod", 1, 10, 0, 0, 0).await;
     seed_count(&db.pool, project_b, "1.0.0", "prod", 1, 999, 0, 0, 0).await;
 
-    let summary = SessionService::project_summary(&db.pool, project_a, Some(24))
+    let summary = SessionService::project_summary(&db.pool, project_a, Some(24), Scope::default())
         .await
         .expect("query failed");
 
@@ -709,9 +710,10 @@ async fn test_session_timeseries_empty_project_returns_empty() {
     let db = TestDb::new().await;
     let project_id = create_project(&db.pool, "Empty Timeseries Project").await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert!(points.is_empty());
 }
@@ -725,9 +727,10 @@ async fn test_session_timeseries_aggregates_across_releases_in_same_bucket() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 100, 5, 10, 2).await;
     seed_count(&db.pool, project_id, "2.0.0", "prod", 1, 50, 1, 0, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(
         points.len(),
@@ -747,9 +750,10 @@ async fn test_session_timeseries_separates_buckets_outside_interval() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 100, 0, 0, 0).await;
     seed_count(&db.pool, project_id, "1.0.0", "prod", 5, 50, 0, 0, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(
         points.len(),
@@ -766,9 +770,10 @@ async fn test_session_timeseries_excludes_buckets_outside_window() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 50, 0, 0, 0).await;
     seed_count(&db.pool, project_id, "1.0.0", "prod", 48, 9999, 0, 0, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     let total: i64 = points.iter().map(|p| p.total).sum();
     assert_eq!(
@@ -786,9 +791,10 @@ async fn test_session_timeseries_ordered_chronologically() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 5, 20, 0, 0, 0).await;
     seed_count(&db.pool, project_id, "1.0.0", "prod", 10, 30, 0, 0, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(points.len(), 3);
     assert!(
@@ -812,9 +818,10 @@ async fn test_session_timeseries_bucket_values_are_parsed_correctly() {
     seed_count(&db.pool, project_id, "1.0.0", "prod", 10, 30, 0, 0, 0).await;
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 10, 0, 0, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(points.len(), 2);
     // A fallback-to-now() bug would put both buckets within milliseconds of
@@ -839,9 +846,10 @@ async fn test_session_timeseries_crash_free_rate() {
 
     seed_count(&db.pool, project_id, "1.0.0", "prod", 1, 100, 0, 10, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     assert_eq!(points.len(), 1);
     let rate = points[0]
@@ -859,9 +867,10 @@ async fn test_session_timeseries_excludes_other_projects() {
     seed_count(&db.pool, project_a, "1.0.0", "prod", 1, 10, 0, 0, 0).await;
     seed_count(&db.pool, project_b, "1.0.0", "prod", 1, 999, 0, 0, 0).await;
 
-    let points = SessionService::session_timeseries(&db.pool, project_a, Some(24), 1)
-        .await
-        .expect("query failed");
+    let points =
+        SessionService::session_timeseries(&db.pool, project_a, Some(24), 1, Scope::default())
+            .await
+            .expect("query failed");
 
     let total: i64 = points.iter().map(|p| p.total).sum();
     assert_eq!(total, 10, "other project's data must not be visible");
@@ -975,4 +984,96 @@ async fn test_get_stats_defaults_to_first_page() {
     assert_eq!(body["page"], 1, "page defaults to 1 when omitted");
     assert_eq!(body["per_page"], 20, "per_page defaults to the page size");
     assert_eq!(body["items"].as_array().unwrap().len(), 1);
+}
+
+// ── environment filter ──────────────────────────────────────────────────────
+
+#[actix_web::test]
+async fn test_project_summary_counts_only_the_asked_environment() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Summary Env Project").await;
+
+    seed_count(
+        &db.pool,
+        project_id,
+        "1.0.0",
+        "production",
+        1,
+        100,
+        0,
+        10,
+        0,
+    )
+    .await;
+    seed_count(&db.pool, project_id, "1.0.0", "staging", 1, 40, 0, 0, 0).await;
+    seed_user(&db.pool, project_id, "1.0.0", "production", "a", true).await;
+    seed_user(&db.pool, project_id, "1.0.0", "staging", "b", false).await;
+
+    let summary = SessionService::project_summary(
+        &db.pool,
+        project_id,
+        Some(24),
+        Scope::environment(Some("staging")),
+    )
+    .await
+    .expect("query failed");
+
+    assert_eq!(summary.total, 40);
+    assert_eq!(summary.crash_free_sessions_rate, Some(1.0));
+    assert_eq!(summary.crash_free_users_rate, Some(1.0));
+}
+
+#[actix_web::test]
+async fn test_session_timeseries_counts_only_the_asked_environment() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Timeseries Env Project").await;
+
+    seed_count(&db.pool, project_id, "1.0.0", "production", 1, 100, 0, 0, 0).await;
+    seed_count(&db.pool, project_id, "1.0.0", "staging", 1, 40, 0, 0, 0).await;
+
+    let points = SessionService::session_timeseries(
+        &db.pool,
+        project_id,
+        Some(24),
+        1,
+        Scope::environment(Some("production")),
+    )
+    .await
+    .expect("query failed");
+
+    assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 100);
+}
+
+#[actix_web::test]
+async fn test_project_summary_counts_only_the_asked_release() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Summary Release Project").await;
+
+    seed_count(
+        &db.pool,
+        project_id,
+        "1.0.0",
+        "production",
+        1,
+        100,
+        0,
+        10,
+        0,
+    )
+    .await;
+    seed_count(&db.pool, project_id, "2.0.0", "production", 1, 40, 0, 0, 0).await;
+
+    let scope = Scope {
+        release: Some("2.0.0"),
+        ..Scope::default()
+    };
+    let summary = SessionService::project_summary(&db.pool, project_id, Some(24), scope)
+        .await
+        .expect("query failed");
+    assert_eq!(summary.total, 40);
+
+    let points = SessionService::session_timeseries(&db.pool, project_id, Some(24), 1, scope)
+        .await
+        .expect("query failed");
+    assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 40);
 }

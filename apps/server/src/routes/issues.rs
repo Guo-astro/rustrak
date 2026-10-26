@@ -10,6 +10,7 @@ use crate::models::{BulkDeleteIssues, BulkUpdateIssues, UpdateIssueState};
 use crate::pagination::{ListIssuesQuery, OffsetPaginatedResponse};
 use crate::services::access::{self, Action};
 use crate::services::github;
+use crate::services::scope::Scope;
 use crate::services::{EventService, IssueService, IssueSocialService, ProjectService};
 use serde::Deserialize;
 use serde_json::json;
@@ -95,7 +96,10 @@ pub async fn list_issues(
         query.page,
         query.per_page,
         query.q.as_deref(),
-        query.environment.as_deref(),
+        Scope {
+            environment: query.environment.as_deref(),
+            release: query.release.as_deref(),
+        },
     )
     .await?;
 
@@ -240,7 +244,7 @@ pub async fn list_feedback(
         query.page,
         query.per_page,
         None,
-        None,
+        Scope::default(),
     )
     .await?;
     let ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();

@@ -24,6 +24,7 @@ pub mod project;
 pub mod project_member;
 pub mod rate_limit;
 pub mod release;
+pub mod scope;
 pub mod session;
 pub mod source_bundle;
 pub mod sourcemap;

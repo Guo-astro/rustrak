@@ -14,6 +14,7 @@ use crate::error::AppResult;
 use crate::models::stats::{
     EventTimeseriesPoint, MetricDelta, ProjectListStats, ProjectStatsSummary,
 };
+use crate::services::scope::Scope;
 
 /// Levels the timeseries breaks out by name. Anything else (`debug`, or a
 /// level an SDK invented) folds into the `info` bucket so the four series
@@ -43,9 +44,11 @@ impl StatsService {
         project_id: i32,
         period_hours: Option<i64>,
         interval_hours: i64,
+        scope: Scope<'_>,
     ) -> AppResult<Vec<EventTimeseriesPoint>> {
         let interval_secs = interval_hours.max(1) * 3600;
-        let points = query_event_timeseries(pool, project_id, period_hours, interval_secs).await?;
+        let points =
+            query_event_timeseries(pool, project_id, period_hours, interval_secs, scope).await?;
 
         let Some(hours) = period_hours else {
             return Ok(points);
@@ -56,10 +59,15 @@ impl StatsService {
 
     /// Project-wide counters for the window, each paired with the same counter
     /// over the window immediately before it.
+    ///
+    /// In a `scope`, events count only there and issues only when they have
+    /// been seen there: an environment's from `issue_environments`, a
+    /// release's from its events.
     pub async fn project_summary(
         pool: &DbPool,
         project_id: i32,
         period_hours: Option<i64>,
+        scope: Scope<'_>,
     ) -> AppResult<ProjectStatsSummary> {
         // The comparison window is the same length, immediately before the
         // current one, so every query below scans `[previous_start, now]` once
@@ -72,9 +80,9 @@ impl StatsService {
             )
         });
 
-        let events = count_events(pool, project_id, bounds).await?;
-        let new_issues = count_new_issues(pool, project_id, bounds).await?;
-        let open_issues = count_open_issues(pool, project_id).await?;
+        let events = count_events(pool, project_id, bounds, scope).await?;
+        let new_issues = count_new_issues(pool, project_id, bounds, scope).await?;
+        let open_issues = count_open_issues(pool, project_id, scope).await?;
 
         Ok(ProjectStatsSummary {
             period_hours,
@@ -82,6 +90,20 @@ impl StatsService {
             new_issues,
             open_issues,
         })
+    }
+
+    /// The releases a project's events arrived in, newest first, for the
+    /// overview's release filter. An event sent without one is in none.
+    pub async fn releases(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
+        // ponytail: the latest 100; a search box when a project has more.
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT release FROM events WHERE project_id = $1 AND release <> '' \
+             GROUP BY release ORDER BY MAX(ingested_at) DESC LIMIT 100",
+        )
+        .bind(project_id)
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|(release,)| release).collect())
     }
 
     /// Aggregates for a whole page of the project list, in two queries total.
@@ -386,6 +408,7 @@ async fn query_event_timeseries(
     project_id: i32,
     period_hours: Option<i64>,
     interval_secs: i64,
+    scope: Scope<'_>,
 ) -> AppResult<Vec<EventTimeseriesPoint>> {
     let [fatal, error, warning] = NAMED_LEVELS;
 
@@ -414,6 +437,8 @@ async fn query_event_timeseries(
             FROM events
             WHERE project_id = $1
               AND event_type = 'error'
+              AND ($2::text IS NULL OR environment = $2)
+              AND ($3::text IS NULL OR release = $3)
               {time_filter}
             GROUP BY 1
             ORDER BY 1 ASC
@@ -423,6 +448,8 @@ async fn query_event_timeseries(
         let rows: Vec<(DateTime<Utc>, i64, i64, i64, i64, i64)> =
             sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
                 .bind(project_id)
+                .bind(scope.environment)
+                .bind(scope.release)
                 .fetch_all(pool)
                 .await?;
 
@@ -467,6 +494,8 @@ async fn query_event_timeseries(
             FROM events
             WHERE project_id = ?1
               AND event_type = 'error'
+              AND (?2 IS NULL OR environment = ?2)
+              AND (?3 IS NULL OR release = ?3)
               {time_filter}
             GROUP BY 1
             ORDER BY 1 ASC
@@ -476,6 +505,8 @@ async fn query_event_timeseries(
         let rows: Vec<(String, i64, i64, i64, i64, i64)> =
             sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
                 .bind(project_id)
+                .bind(scope.environment)
+                .bind(scope.release)
                 .fetch_all(pool)
                 .await?;
 
@@ -498,21 +529,45 @@ async fn query_event_timeseries(
 /// Window bounds as `(previous_start, current_start)`, or `None` for all time.
 type Bounds = Option<(DateTime<Utc>, DateTime<Utc>)>;
 
-async fn count_events(pool: &DbPool, project_id: i32, bounds: Bounds) -> AppResult<MetricDelta> {
+/// Narrows `issues` to the ones seen in the scope's environment (bound as
+/// `$2`) and release (`$3`); either one `NULL` narrows nothing.
+#[cfg(feature = "postgres")]
+const ISSUE_IN_SCOPE: &str = "($2::text IS NULL OR id IN (
+        SELECT issue_id FROM issue_environments WHERE project_id = $1 AND environment = $2))
+    AND ($3::text IS NULL OR id IN (
+        SELECT issue_id FROM events WHERE project_id = $1 AND release = $3))";
+#[cfg(not(feature = "postgres"))]
+const ISSUE_IN_SCOPE: &str = "(?2 IS NULL OR id IN (
+        SELECT issue_id FROM issue_environments WHERE project_id = ?1 AND environment = ?2))
+    AND (?3 IS NULL OR id IN (
+        SELECT issue_id FROM events WHERE project_id = ?1 AND release = ?3))";
+
+async fn count_events(
+    pool: &DbPool,
+    project_id: i32,
+    bounds: Bounds,
+    scope: Scope<'_>,
+) -> AppResult<MetricDelta> {
     let Some((previous_start, current_start)) = bounds else {
         #[cfg(feature = "postgres")]
         let (total,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*)::bigint FROM events WHERE project_id = $1 AND event_type = 'error'",
+            "SELECT COUNT(*)::bigint FROM events WHERE project_id = $1 AND event_type = 'error' \
+             AND ($2::text IS NULL OR environment = $2) AND ($3::text IS NULL OR release = $3)",
         )
         .bind(project_id)
+        .bind(scope.environment)
+        .bind(scope.release)
         .fetch_one(pool)
         .await?;
 
         #[cfg(not(feature = "postgres"))]
         let (total,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM events WHERE project_id = ?1 AND event_type = 'error'",
+            "SELECT COUNT(*) FROM events WHERE project_id = ?1 AND event_type = 'error' \
+             AND (?2 IS NULL OR environment = ?2) AND (?3 IS NULL OR release = ?3)",
         )
         .bind(project_id)
+        .bind(scope.environment)
+        .bind(scope.release)
         .fetch_one(pool)
         .await?;
 
@@ -523,15 +578,19 @@ async fn count_events(pool: &DbPool, project_id: i32, bounds: Bounds) -> AppResu
     let (current, previous): (i64, i64) = sqlx::query_as(
         r#"
         SELECT
-            COALESCE(SUM(CASE WHEN ingested_at >= $2 THEN 1 ELSE 0 END), 0)::bigint,
-            COALESCE(SUM(CASE WHEN ingested_at <  $2 THEN 1 ELSE 0 END), 0)::bigint
+            COALESCE(SUM(CASE WHEN ingested_at >= $4 THEN 1 ELSE 0 END), 0)::bigint,
+            COALESCE(SUM(CASE WHEN ingested_at <  $4 THEN 1 ELSE 0 END), 0)::bigint
         FROM events
         WHERE project_id = $1
+          AND ($2::text IS NULL OR environment = $2)
+          AND ($3::text IS NULL OR release = $3)
           AND event_type = 'error'
-          AND ingested_at >= $3
+          AND ingested_at >= $5
         "#,
     )
     .bind(project_id)
+    .bind(scope.environment)
+    .bind(scope.release)
     .bind(current_start)
     .bind(previous_start)
     .fetch_one(pool)
@@ -541,15 +600,19 @@ async fn count_events(pool: &DbPool, project_id: i32, bounds: Bounds) -> AppResu
     let (current, previous): (i64, i64) = sqlx::query_as(
         r#"
         SELECT
-            COALESCE(SUM(CASE WHEN datetime(ingested_at) >= datetime(?2) THEN 1 ELSE 0 END), 0),
-            COALESCE(SUM(CASE WHEN datetime(ingested_at) <  datetime(?2) THEN 1 ELSE 0 END), 0)
+            COALESCE(SUM(CASE WHEN datetime(ingested_at) >= datetime(?4) THEN 1 ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN datetime(ingested_at) <  datetime(?4) THEN 1 ELSE 0 END), 0)
         FROM events
         WHERE project_id = ?1
+          AND (?2 IS NULL OR environment = ?2)
+          AND (?3 IS NULL OR release = ?3)
           AND event_type = 'error'
-          AND datetime(ingested_at) >= datetime(?3)
+          AND datetime(ingested_at) >= datetime(?5)
         "#,
     )
     .bind(project_id)
+    .bind(scope.environment)
+    .bind(scope.release)
     .bind(current_start.naive_utc())
     .bind(previous_start.naive_utc())
     .fetch_one(pool)
@@ -562,83 +625,101 @@ async fn count_new_issues(
     pool: &DbPool,
     project_id: i32,
     bounds: Bounds,
+    scope: Scope<'_>,
 ) -> AppResult<MetricDelta> {
     let Some((previous_start, current_start)) = bounds else {
         #[cfg(feature = "postgres")]
-        let (total,): (i64,) =
-            sqlx::query_as("SELECT COUNT(*)::bigint FROM issues WHERE project_id = $1 AND issue_category = 'error'")
-                .bind(project_id)
-                .fetch_one(pool)
-                .await?;
-
+        let sql = format!(
+            "SELECT COUNT(*)::bigint FROM issues WHERE project_id = $1 \
+             AND issue_category = 'error' AND {ISSUE_IN_SCOPE}"
+        );
         #[cfg(not(feature = "postgres"))]
-        let (total,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM issues WHERE project_id = ?1 AND issue_category = 'error'",
-        )
-        .bind(project_id)
-        .fetch_one(pool)
-        .await?;
+        let sql = format!(
+            "SELECT COUNT(*) FROM issues WHERE project_id = ?1 \
+             AND issue_category = 'error' AND {ISSUE_IN_SCOPE}"
+        );
+
+        let (total,): (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+            .bind(project_id)
+            .bind(scope.environment)
+            .bind(scope.release)
+            .fetch_one(pool)
+            .await?;
 
         return Ok(MetricDelta::new(total, None));
     };
 
     #[cfg(feature = "postgres")]
-    let (current, previous): (i64, i64) = sqlx::query_as(
-        r#"
-        SELECT
-            COALESCE(SUM(CASE WHEN first_seen >= $2 THEN 1 ELSE 0 END), 0)::bigint,
-            COALESCE(SUM(CASE WHEN first_seen <  $2 THEN 1 ELSE 0 END), 0)::bigint
-        FROM issues
-        WHERE project_id = $1
-          AND issue_category = 'error'
-          AND first_seen >= $3
-        "#,
-    )
-    .bind(project_id)
-    .bind(current_start)
-    .bind(previous_start)
-    .fetch_one(pool)
-    .await?;
+    let (current, previous): (i64, i64) = {
+        let sql = format!(
+            r#"
+            SELECT
+                COALESCE(SUM(CASE WHEN first_seen >= $4 THEN 1 ELSE 0 END), 0)::bigint,
+                COALESCE(SUM(CASE WHEN first_seen <  $4 THEN 1 ELSE 0 END), 0)::bigint
+            FROM issues
+            WHERE project_id = $1
+              AND issue_category = 'error'
+              AND first_seen >= $5
+              AND {ISSUE_IN_SCOPE}
+            "#
+        );
+        sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+            .bind(project_id)
+            .bind(scope.environment)
+            .bind(scope.release)
+            .bind(current_start)
+            .bind(previous_start)
+            .fetch_one(pool)
+            .await?
+    };
 
     #[cfg(not(feature = "postgres"))]
-    let (current, previous): (i64, i64) = sqlx::query_as(
-        r#"
-        SELECT
-            COALESCE(SUM(CASE WHEN datetime(first_seen) >= datetime(?2) THEN 1 ELSE 0 END), 0),
-            COALESCE(SUM(CASE WHEN datetime(first_seen) <  datetime(?2) THEN 1 ELSE 0 END), 0)
-        FROM issues
-        WHERE project_id = ?1
-          AND issue_category = 'error'
-          AND datetime(first_seen) >= datetime(?3)
-        "#,
-    )
-    .bind(project_id)
-    .bind(current_start.naive_utc())
-    .bind(previous_start.naive_utc())
-    .fetch_one(pool)
-    .await?;
+    let (current, previous): (i64, i64) = {
+        let sql = format!(
+            r#"
+            SELECT
+                COALESCE(SUM(CASE WHEN datetime(first_seen) >= datetime(?4) THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN datetime(first_seen) <  datetime(?4) THEN 1 ELSE 0 END), 0)
+            FROM issues
+            WHERE project_id = ?1
+              AND issue_category = 'error'
+              AND datetime(first_seen) >= datetime(?5)
+              AND {ISSUE_IN_SCOPE}
+            "#
+        );
+        sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+            .bind(project_id)
+            .bind(scope.environment)
+            .bind(scope.release)
+            .bind(current_start.naive_utc())
+            .bind(previous_start.naive_utc())
+            .fetch_one(pool)
+            .await?
+    };
 
     Ok(MetricDelta::new(current, Some(previous)))
 }
 
 /// Issues currently unresolved. A backlog size, not a windowed rate, so it has
 /// no previous-period counterpart.
-async fn count_open_issues(pool: &DbPool, project_id: i32) -> AppResult<i64> {
+async fn count_open_issues(pool: &DbPool, project_id: i32, scope: Scope<'_>) -> AppResult<i64> {
     #[cfg(feature = "postgres")]
-    let (total,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*)::bigint FROM issues WHERE project_id = $1 AND status = 'unresolved' AND issue_category = 'error'",
-    )
-    .bind(project_id)
-    .fetch_one(pool)
-    .await?;
-
+    let sql = format!(
+        "SELECT COUNT(*)::bigint FROM issues WHERE project_id = $1 AND status = 'unresolved' \
+         AND issue_category = 'error' AND {ISSUE_IN_SCOPE}"
+    );
     #[cfg(not(feature = "postgres"))]
-    let (total,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM issues WHERE project_id = ?1 AND status = 'unresolved' AND issue_category = 'error'",
-    )
-    .bind(project_id)
-    .fetch_one(pool)
-    .await?;
+    let sql = format!(
+        "SELECT COUNT(*) FROM issues WHERE project_id = ?1 AND status = 'unresolved' \
+         AND issue_category = 'error' AND {ISSUE_IN_SCOPE}"
+    );
+
+    let (total,): (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+        .bind(project_id)
+        .bind(scope.environment)
+        .bind(scope.release)
+        .fetch_one(pool)
+        .await?;
 
     Ok(total)
 }

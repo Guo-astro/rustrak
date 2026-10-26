@@ -122,7 +122,13 @@ const button = tv({
     {
       variant: ['secondary', 'ghost'],
       selected: true,
-      class: 'border-border-brand bg-surface text-fg font-semibold',
+      // The hover states are restated, not inherited: the variant's own
+      // `hover:` would otherwise swap the brand border back to the plain one,
+      // and a switched-on button under the pointer would look switched off.
+      class: [
+        'border-border-brand bg-surface-selected text-fg font-semibold',
+        'hover:border-border-brand hover:bg-surface-active hover:text-fg',
+      ],
     },
   ],
   defaultVariants: { variant: 'secondary', size: 'md' },

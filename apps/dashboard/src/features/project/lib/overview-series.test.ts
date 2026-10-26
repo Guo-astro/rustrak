@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+import { periodHours, withPreviousPeriod } from './overview-series';
+
+describe('periodHours', () => {
+  it('reads hours and days', () => {
+    expect(periodHours('24h')).toBe(24);
+    expect(periodHours('7d')).toBe(168);
+    expect(periodHours('30d')).toBe(720);
+  });
+});
+
+describe('withPreviousPeriod', () => {
+  // A doubled window, zero-filled: 2P/interval + 1 buckets, oldest first.
+  const point = (total: number) => ({ total });
+
+  it('keeps the newest half and pairs each bucket with the one a period before', () => {
+    const doubled = [1, 2, 3, 10, 20, 30, 40].map(point);
+    expect(withPreviousPeriod(doubled)).toEqual([
+      { total: 10, previous: 1 },
+      { total: 20, previous: 2 },
+      { total: 30, previous: 3 },
+      { total: 40, previous: 10 },
+    ]);
+  });
+
+  it('is empty for an empty series', () => {
+    expect(withPreviousPeriod([])).toEqual([]);
+  });
+});
