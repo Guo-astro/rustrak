@@ -59,7 +59,7 @@ const toast = tv({
      */
     root: [
       'group/toast absolute right-0 bottom-0 w-full origin-bottom',
-      'overflow-hidden rounded-lg border bg-surface-floating shadow-overlay',
+      'overflow-hidden rounded-2xl border bg-surface-floating shadow-overlay',
       focusRing,
       // The front one covers the ones behind.
       '[z-index:calc(1000-var(--toast-index))]',

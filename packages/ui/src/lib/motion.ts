@@ -220,3 +220,40 @@ export const swapAnimation = 'animate-swap-in motion-reduce:animate-none';
  * typing must not linger over the next keystroke.
  */
 export const dropIn = 'origin-top animate-drop-in motion-reduce:animate-none';
+
+/**
+ * A row of a list that changes scope -- the sidebar going into a project and
+ * back -- arriving in its turn.
+ *
+ * The list sets `data-direction` (`forward`, `back` or `swap`) and the class
+ * `group/scope`; each row slides in from that side, delayed by its place among
+ * its siblings, plus its group's place among the groups. `sibling-index()` is
+ * what keeps the order out of JavaScript; a browser without it computes no
+ * delay and the rows arrive together, which is still a correct entrance.
+ * With no `data-direction` -- the first paint -- nothing moves at all.
+ */
+export const scopeEnter = [
+  'group-data-[direction=forward]/scope:animate-enter-forward',
+  'group-data-[direction=back]/scope:animate-enter-back',
+  'group-data-[direction=swap]/scope:animate-swap-in',
+  // The delay rides inside the animation shorthand (see the tokens): a
+  // separate `animation-delay` loses to the shorthand, which resets it.
+  '[--stagger-delay:calc(var(--stagger-base,0ms)+(sibling-index()-1)*var(--stagger-step))]',
+  'motion-reduce:animate-none',
+].join(' ');
+
+/** What a group puts on itself so its rows start after the group above. */
+export const scopeGroup =
+  '[--stagger-base:calc((sibling-index()-1)*var(--stagger-group))]';
+
+/**
+ * A label leaving as the sidebar narrows, and coming back once it has room.
+ *
+ * Going away it fades at once, so nothing is caught half-clipped by the
+ * shrinking column; coming back it waits for the width to open first, so the
+ * text never appears squeezed against the edge.
+ */
+export const collapseFade = [
+  'transition-opacity duration-moderate ease-standard',
+  'motion-reduce:transition-none',
+].join(' ');

@@ -39,7 +39,7 @@ function EditMonitorPage() {
   const detailHref = monitorHref(projectId, monitor.data.slug);
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="shrink-0 border-b px-4 py-4 md:px-8 md:py-6">
         <nav className="mb-1 flex gap-1.5 text-xs text-muted-foreground">
           <Link

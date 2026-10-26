@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import type { IconComponent } from '../icon/icon';
 import { TooltipProvider } from '../tooltip/tooltip';
 import {
   SidebarProvider,
@@ -11,7 +12,6 @@ import {
 
 export interface AppShellProps
   extends Omit<SidebarProviderProps, 'children' | 'shortcutKey'> {
-  topbar: ReactNode;
   sidebar: ReactNode;
   children: ReactNode;
   className?: string;
@@ -20,7 +20,16 @@ export interface AppShellProps
 }
 
 /**
- * The application frame: topbar across the top, sidebar and content below it.
+ * The application frame: the sidebar on the canvas, and beside it the sheet
+ * the pages sit on -- inset by 8 px, rounded, one step lighter. The page's own
+ * `Topbar` goes at the top of the sheet, as its first child.
+ *
+ * The inset is the hierarchy. The canvas around the edge is the application;
+ * the sheet is the page. Nothing else is needed to say which is which, so the
+ * sidebar carries no border and no fill of its own.
+ *
+ * On a phone the sheet goes edge to edge: 8 px of frame on a 375 px screen is
+ * 4 % of the width spent on a border.
  *
  * It occupies exactly the window and the only thing that scrolls is the
  * content. An error tracker is a place you spend the day jumping between a list
@@ -36,7 +45,6 @@ export interface AppShellProps
  * out the full delay seven times.
  */
 export function AppShell({
-  topbar,
   sidebar,
   children,
   className,
@@ -48,20 +56,22 @@ export function AppShell({
       <SidebarProvider shortcutKey={collapseShortcut} {...sidebarState}>
         <div
           className={cn(
-            'flex h-dvh flex-col overflow-hidden bg-canvas text-fg',
+            'relative flex h-dvh overflow-hidden bg-canvas text-fg',
             className,
           )}
         >
-          {topbar}
+          {sidebar}
+          <DrawerScrim />
 
-          <div className="relative flex min-h-0 flex-1">
-            {sidebar}
-            <DrawerScrim />
-
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              {children}
-            </main>
-          </div>
+          <main
+            className={cn(
+              'flex min-w-0 flex-1 flex-col overflow-hidden bg-panel',
+              'md:my-frame md:me-frame md:rounded-3xl',
+              'md:border md:border-border-subtle',
+            )}
+          >
+            {children}
+          </main>
         </div>
       </SidebarProvider>
     </TooltipProvider>
@@ -151,67 +161,72 @@ Page.displayName = 'Page';
 
 export interface PageHeaderProps {
   title: ReactNode;
-  /** One line under the title: what it is made of, in mono. */
+  /** The route's icon, in a tile beside the title. */
+  icon?: IconComponent;
+  /** A chip after the title: `142 unresolved`, `web@4.12.0 in production`. */
   meta?: ReactNode;
-  /** Pushed to the right and aligned with the title's baseline block. */
+  /** One line under the title: what the page is. */
+  description?: ReactNode;
+  /** Pushed to the right, level with the title. */
   actions?: ReactNode;
+  /** The page's tabs, under everything, sitting on the bottom rule. */
+  tabs?: ReactNode;
   className?: string;
 }
 
-/** A page's heading row: the title, what it is made of, and its actions. */
+/**
+ * A page's heading: what it is, what it holds, and what can be done to it.
+ *
+ * It runs the width of the sheet and ends on a rule, with the tabs sitting on
+ * that rule, so the content below starts on a clean edge whatever the page
+ * puts there. The icon is the same one as the route in the sidebar: it is
+ * what ties the page you landed on to the row you clicked.
+ */
 export function PageHeader({
   title,
+  icon: Icon,
   meta,
+  description,
   actions,
+  tabs,
   className,
 }: PageHeaderProps) {
   return (
     <div
-      className={cn('flex shrink-0 items-end justify-between gap-6', className)}
+      className={cn(
+        'shrink-0 border-b border-border-divider px-page-gutter pt-5.5',
+        tabs ? null : 'pb-5',
+        className,
+      )}
     >
-      <div className="min-w-0">
-        <h1 className="truncate text-page-title text-fg">{title}</h1>
-        {meta ? <div className="mt-1.5 min-w-0">{meta}</div> : null}
+      <div className="flex items-center gap-3.5">
+        {Icon ? (
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-fg-secondary">
+            <Icon size="2xl" />
+          </span>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h1 className="truncate text-title text-fg">{title}</h1>
+            {meta ? (
+              <span className="flex h-5.5 shrink-0 items-center gap-1.5 rounded-md bg-surface-hover px-2 text-meta text-fg-tertiary">
+                {meta}
+              </span>
+            ) : null}
+          </div>
+          {description ? (
+            <p className="mt-0.5 truncate text-value text-fg-subtle">
+              {description}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        ) : null}
       </div>
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
-      ) : null}
+      {tabs ? <div className="mt-4">{tabs}</div> : null}
     </div>
   );
 }
 
 PageHeader.displayName = 'PageHeader';
-
-export interface SubHeaderProps {
-  /** Usually the breadcrumb trail. */
-  children: ReactNode;
-  /** Pushed right: record pagination, a counter. */
-  actions?: ReactNode;
-  className?: string;
-}
-
-/**
- * The 42 px strip between the topbar and the page: where you are on the left,
- * how to step through records on the right.
- *
- * It only exists on a record screen. On a list the page title already says
- * where you are, and a trail that reads "Issues / Issues" is noise.
- */
-export function SubHeader({ children, actions, className }: SubHeaderProps) {
-  return (
-    <div
-      className={cn(
-        'flex h-subheader shrink-0 items-center justify-between gap-4',
-        'border-b border-border-subtle px-page-gutter',
-        className,
-      )}
-    >
-      {children}
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
-      ) : null}
-    </div>
-  );
-}
-
-SubHeader.displayName = 'SubHeader';

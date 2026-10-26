@@ -30,16 +30,26 @@ const avatar = tv({
       circle: { root: 'rounded-pill font-sans' },
       square: { root: 'font-mono' },
     },
+    /*
+     * `brand` is the current project: the one tile in the sidebar that is
+     * lime, so the eye finds where it is before it reads a name.
+     */
+    tone: {
+      default: {},
+      brand: { root: 'bg-surface-brand text-fg-on-brand' },
+    },
     size: {
+      xs: { root: 'size-avatar-xs text-tag', fallback: 'font-semibold' },
       sm: { root: 'size-avatar text-hint', fallback: 'font-semibold' },
       md: { root: 'size-avatar-lg text-hint', fallback: 'font-semibold' },
     },
   },
   compoundVariants: [
-    { shape: 'square', size: 'sm', class: { root: 'rounded-sm' } },
-    { shape: 'square', size: 'md', class: { root: 'rounded-md' } },
+    { shape: 'square', size: 'xs', class: { root: 'rounded-sm' } },
+    { shape: 'square', size: 'sm', class: { root: 'rounded-md' } },
+    { shape: 'square', size: 'md', class: { root: 'rounded-lg' } },
   ],
-  defaultVariants: { shape: 'circle', size: 'sm' },
+  defaultVariants: { shape: 'circle', size: 'sm', tone: 'default' },
 });
 
 export type AvatarShape = NonNullable<VariantProps<typeof avatar>['shape']>;
@@ -74,9 +84,10 @@ export function Avatar({
   src,
   shape,
   size,
+  tone,
   className,
 }: AvatarProps) {
-  const styles = avatar({ shape, size });
+  const styles = avatar({ shape, size, tone });
 
   return (
     <BaseAvatar.Root aria-hidden="true" className={styles.root({ className })}>

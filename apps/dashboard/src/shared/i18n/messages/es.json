@@ -515,7 +515,12 @@
       "logs": "Logs",
       "settings": "Configuración",
       "crons": "Crons",
-      "feedback": "Feedback de usuarios"
+      "feedback": "Feedback de usuarios",
+      "groupTriage": "Triaje",
+      "groupMonitor": "Monitorización",
+      "alerts": "Alertas",
+      "docs": "Documentación",
+      "jumpTo": "Ir a"
     },
     "collapse": {
       "expand": "Expandir",
@@ -523,7 +528,10 @@
     },
     "switcher": {
       "projects": "Proyectos",
-      "fallback": "Proyecto"
+      "fallback": "Proyecto",
+      "all": "Todos los proyectos",
+      "new": "Nuevo proyecto",
+      "count": "{count, plural, one {# proyecto} other {# proyectos}}"
     },
     "copyUnavailable": "Portapapeles no disponible",
     "copyUnavailableHint": "Selecciona el contenido ({label}) y cópialo manualmente, o accede a Rustrak por HTTPS.",

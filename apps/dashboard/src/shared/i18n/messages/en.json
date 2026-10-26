@@ -515,7 +515,12 @@
       "logs": "Logs",
       "settings": "Settings",
       "crons": "Crons",
-      "feedback": "User Feedback"
+      "feedback": "User Feedback",
+      "groupTriage": "Triage",
+      "groupMonitor": "Monitor",
+      "alerts": "Alerts",
+      "docs": "Docs",
+      "jumpTo": "Jump to"
     },
     "collapse": {
       "expand": "Expand",
@@ -523,7 +528,10 @@
     },
     "switcher": {
       "projects": "Projects",
-      "fallback": "Project"
+      "fallback": "Project",
+      "all": "All projects",
+      "new": "New project",
+      "count": "{count, plural, one {# project} other {# projects}}"
     },
     "copyUnavailable": "Clipboard unavailable",
     "copyUnavailableHint": "Select the {label} and copy it manually, or access Rustrak over HTTPS.",

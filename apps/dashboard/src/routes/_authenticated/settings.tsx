@@ -30,16 +30,16 @@ function SettingsLayout() {
   return (
     <div className="w-full">
       {/* Mobile top bar */}
-      <div className="sticky top-16 z-40 bg-background flex items-center gap-3 border-b px-4 py-3 md:hidden">
+      <div className="sticky top-0 z-40 bg-background flex items-center gap-3 border-b px-4 py-3 md:hidden">
         <SettingsMobileNav isAdmin={isAdmin} />
         <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
           {t('nav.settingsTitle')}
         </span>
       </div>
 
-      <div className="flex min-h-[calc(100vh-64px)]">
+      <div className="flex min-h-full">
         {/* Desktop sidebar */}
-        <aside className="hidden md:flex md:flex-col w-64 shrink-0 border-r border-border p-6 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto">
+        <aside className="hidden md:flex md:flex-col w-64 shrink-0 border-r border-border p-6 sticky top-0 h-full overflow-y-auto">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 px-3">
             {t('nav.settingsTitle')}
           </h2>

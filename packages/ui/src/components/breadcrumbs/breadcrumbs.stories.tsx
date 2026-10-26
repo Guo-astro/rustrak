@@ -15,7 +15,7 @@ export const IssueDetail: Story = {
   args: {
     items: [
       { label: 'Issues', render: <a href="#issues" /> },
-      { label: 'CHECKOUT-API-4F2' },
+      { label: 'CHECKOUT-API-4F2', mono: true },
     ],
   },
 };
@@ -25,7 +25,7 @@ export const ThreeLevels: Story = {
     items: [
       { label: 'Releases', render: <a href="#releases" /> },
       { label: 'web@2026.8.1', render: <a href="#release" /> },
-      { label: 'a3f91c2' },
+      { label: 'a3f91c2', mono: true },
     ],
   },
 };
@@ -35,7 +35,7 @@ export const TheLastCrumbIsNotALink: Story = {
   args: {
     items: [
       { label: 'Issues', render: <a href="#issues" /> },
-      { label: 'CHECKOUT-API-4F2' },
+      { label: 'CHECKOUT-API-4F2', mono: true },
     ],
   },
   play: async ({ canvasElement }) => {
@@ -71,7 +71,7 @@ export const TheTrailIsReachableByKeyboard: Story = {
         // biome-ignore lint/a11y/useValidAnchor: see above
         render: <a href="#issues" onClick={follow} />,
       },
-      { label: 'CHECKOUT-API-4F2' },
+      { label: 'CHECKOUT-API-4F2', mono: true },
     ],
   },
   play: async ({ canvasElement }) => {
@@ -100,7 +100,7 @@ export const ACrumbWithNowhereToGoIsNotALink: Story = {
     items: [
       { label: 'Releases', render: <a href="#releases" /> },
       { label: 'web@2026.8.1' },
-      { label: 'a3f91c2' },
+      { label: 'a3f91c2', mono: true },
     ],
   },
   play: async ({ canvasElement }) => {

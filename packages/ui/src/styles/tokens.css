@@ -24,18 +24,14 @@
 
 /*
  * The theme is explicit: the attribute decides, not the operating system,
- * because the application remembers the choice.
+ * because the application remembers the choice. Dark is what you get with no
+ * attribute at all; `data-theme="light"` is the opt-out.
  *
- * Dark is what you get by default, including with no attribute at all. Rustrak
- * is a dark product and every one of its screens is dark; a consumer who
- * forgets to stamp `data-theme` should land on the design, not on a half-lit
- * page. Light is the opt-out, so the `dark:` variant is written as "anything
- * that is not light".
+ * What closes the system -- the `dark:`/`light:` variants and the reset of
+ * Tailwind's own namespaces -- is in `closed.css`, not here. This file is only
+ * additive, so an application still carrying its own utilities can import it
+ * while it moves over, without losing them.
  */
-@custom-variant dark (
-  &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *)
-);
-@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
 /* ========================================================================== */
 /* 1 · PRIMITIVES                                                             */
@@ -46,8 +42,10 @@
      The only saturated colour the product spends on something that is not an
      alarm. `500` is the dark-theme lime; `800` is the darker step the light
      theme needs to carry white text. */
-  --rk-lime-400: #d7fb4e;
-  --rk-lime-500: #c5f11e;
+  --rk-lime-400: oklch(0.94 0.15 127);
+  --rk-lime-500: oklch(0.91 0.18 127);
+  /* What sits on the dark-theme lime: near-black, pulled into its hue. */
+  --rk-lime-ink: oklch(0.2 0.02 127);
   /*
    * The light theme's lime, and it is not the one the dashboard shipped.
    *
@@ -60,36 +58,42 @@
   --rk-lime-800: oklch(0.5 0.14 127);
   --rk-lime-900: oklch(0.45 0.14 127);
 
-  /* --- Neutrals · dark · pure grey, no tint ------------------------------
-     Every step earns its place on a real screen. They are
-     numbered by lightness so inserting one later does not renumber the rest. */
-  --rk-ink-950: #0e0e0e; /* behind the canvas: the page around a shell    */
-  --rk-ink-900: #121212; /* canvas                                        */
-  --rk-ink-850: #161616; /* panel: sidebar, table body                    */
-  --rk-ink-800: #1a1a1a; /* surface: topbar, card, popup, quiet control   */
-  --rk-ink-780: #1d1d1d; /* raised on a panel: the project card           */
-  --rk-ink-760: #1e1e1e; /* the row that is being pointed at              */
-  --rk-ink-750: #202020; /* the thinnest divider there is                 */
-  --rk-ink-720: #232323; /* selected: the active nav row, the tooltip     */
-  --rk-ink-700: #242424; /* subtle border: what encloses a panel          */
-  --rk-ink-680: #262626; /* raised border, and the filter chip            */
-  --rk-ink-650: #2a2a2a; /* the border                                    */
-  --rk-ink-620: #2e2e2e; /* tooltip border                                */
-  --rk-ink-600: #333333; /* strong border                                 */
-  --rk-ink-550: #3a3a3a; /* an empty checkbox                             */
-  --rk-ink-500: #3e3e3e; /* a de-emphasised mark: the grey sparkline      */
+  /* --- Neutrals · dark · a cool grey ------------------------------------
+     Hue 265 at a chroma the eye reads as "not quite black" rather than as
+     blue. Numbered by oklch lightness, so `ink-168` is L 0.168 and inserting
+     a step never renumbers the rest.
+
+     Only the solid planes are solid: the frame, the sheet that sits in it,
+     a card, a popup. Everything that marks a state or draws a line is a veil
+     of white over whatever is underneath (below), which is what lets the
+     same hover read on the frame, on the sheet and inside a popup. */
+  --rk-ink-120: oklch(0.12 0.004 265); /* behind the frame              */
+  --rk-ink-140: oklch(0.14 0.004 265); /* canvas: the frame, the sidebar */
+  --rk-ink-168: oklch(0.168 0.004 265); /* panel: the content sheet     */
+  --rk-ink-188: oklch(0.188 0.004 265); /* surface: a card on the sheet */
+  --rk-ink-200: oklch(0.2 0.004 265); /* floating: a popup              */
+  --rk-ink-240: oklch(0.24 0.005 265); /* the tooltip chip              */
+  --rk-ink-300: oklch(0.3 0.006 265); /* a de-emphasised mark: grey bars */
+
+  /* --- Veils · white at an opacity --------------------------------------- */
+  --rk-veil-2: oklch(1 0 0 / 0.02);
+  --rk-veil-4: oklch(1 0 0 / 0.04);
+  --rk-veil-5: oklch(1 0 0 / 0.055);
+  --rk-veil-6: oklch(1 0 0 / 0.065);
+  --rk-veil-8: oklch(1 0 0 / 0.08);
+  --rk-veil-10: oklch(1 0 0 / 0.1);
+  --rk-veil-14: oklch(1 0 0 / 0.14);
+  --rk-veil-25: oklch(1 0 0 / 0.25);
 
   /* --- Neutrals · dark · type ------------------------------------------- */
-  --rk-ash-50: #fafafa;
-  --rk-ash-200: #dddddd;
-  --rk-ash-300: #cccccc;
-  --rk-ash-350: #bbbbbb;
-  --rk-ash-400: #aaaaaa;
-  --rk-ash-500: #999999;
-  --rk-ash-600: #888888;
-  --rk-ash-700: #777777;
-  --rk-ash-800: #666666;
-  --rk-ash-900: #555555;
+  --rk-ash-96: oklch(0.96 0.003 265);
+  --rk-ash-88: oklch(0.88 0.003 265);
+  --rk-ash-78: oklch(0.78 0.004 265);
+  --rk-ash-68: oklch(0.68 0.006 265);
+  --rk-ash-60: oklch(0.6 0.006 265);
+  --rk-ash-52: oklch(0.52 0.006 265);
+  --rk-ash-46: oklch(0.46 0.006 265);
+  --rk-ash-40: oklch(0.4 0.006 265);
 
   /* --- Neutrals · light -------------------------------------------------- */
   --rk-day-0: #ffffff;
@@ -163,53 +167,53 @@
      the panel is what sits on it and holds a list; the surface is what floats
      on the panel and holds a control; raised is what sits on a surface. Going
      up is always lighter, which is the only way depth reads without shadow. */
-  --surface-canvas: var(--rk-ink-900);
-  --surface-panel: var(--rk-ink-850);
-  --surface: var(--rk-ink-800);
-  --surface-raised: var(--rk-ink-780);
-  --surface-hover: var(--rk-ink-760);
-  --surface-active: var(--rk-ink-720);
-  --surface-selected: var(--rk-ink-720);
-  --surface-chip: var(--rk-ink-680);
-  --surface-disabled: var(--rk-ink-850);
-  /* A popup does not sit on the canvas, it sits over everything. In dark the
-     shadow barely separates, so it borrows the surface level and leans on its
-     border instead. */
-  --surface-floating: var(--rk-ink-800);
-  --surface-tooltip: var(--rk-ink-720);
-  --surface-inverse: var(--rk-ash-50);
+  --surface-canvas: var(--rk-ink-140);
+  --surface-panel: var(--rk-ink-168);
+  --surface: var(--rk-ink-188);
+  --surface-raised: var(--rk-veil-4);
+  --surface-hover: var(--rk-veil-4);
+  --surface-active: var(--rk-veil-8);
+  --surface-selected: var(--rk-veil-6);
+  --surface-chip: var(--rk-veil-6);
+  --surface-disabled: var(--rk-veil-2);
+  /* A popup does not sit on the canvas, it sits over everything: the lightest
+     solid plane, so it separates from the sheet before its shadow does. */
+  --surface-floating: var(--rk-ink-200);
+  --surface-tooltip: var(--rk-ink-240);
+  --surface-inverse: var(--rk-ash-96);
   --surface-brand: var(--rk-lime-500);
   --surface-brand-hover: var(--rk-lime-400);
 
-  /* --- Borders ---------------------------------------------------------- */
-  --border: var(--rk-ink-650);
-  --border-subtle: var(--rk-ink-700);
-  --border-divider: var(--rk-ink-780);
-  --border-muted: var(--rk-ink-750);
-  --border-raised: var(--rk-ink-680);
-  --border-field: var(--rk-ink-650);
-  --border-strong: var(--rk-ink-600);
-  --border-control: var(--rk-ink-550);
-  --border-tooltip: var(--rk-ink-620);
+  /* --- Borders ----------------------------------------------------------
+     All veils: a hairline is a lighter version of whatever it sits on. */
+  --border: var(--rk-veil-8);
+  --border-subtle: var(--rk-veil-6);
+  --border-divider: var(--rk-veil-5);
+  --border-muted: var(--rk-veil-4);
+  --border-raised: var(--rk-veil-8);
+  --border-field: var(--rk-veil-10);
+  --border-strong: var(--rk-veil-14);
+  --border-control: var(--rk-veil-25);
+  --border-tooltip: var(--rk-veil-10);
   --border-brand: var(--rk-lime-500);
 
   /* --- Type ---------------------------------------------------------------
      Ten steps sounds like a lot until you count a real row: it carries a
      title, an identifier, a timestamp, a count and a path, and each has to
      read as a different rank at a glance. */
-  --fg: var(--rk-ash-50);
-  --fg-secondary: var(--rk-ash-200);
-  --fg-tertiary: var(--rk-ash-350);
-  --fg-muted: var(--rk-ash-500);
-  --fg-subtle: var(--rk-ash-600);
-  --fg-meta: var(--rk-ash-700);
-  --fg-ghost: var(--rk-ash-800);
-  --fg-placeholder: var(--rk-ash-900);
-  --fg-disabled: var(--rk-ash-900);
+  --fg: var(--rk-ash-96);
+  --fg-secondary: var(--rk-ash-88);
+  --fg-tertiary: var(--rk-ash-78);
+  --fg-muted: var(--rk-ash-68);
+  --fg-subtle: var(--rk-ash-60);
+  --fg-meta: var(--rk-ash-52);
+  --fg-ghost: var(--rk-ash-46);
+  --fg-placeholder: var(--rk-ash-46);
+  --fg-disabled: var(--rk-ash-40);
   --fg-brand: var(--rk-lime-500);
   /* Lime is bright: what sits on it is near-black, never white. */
-  --fg-on-brand: var(--rk-ink-800);
-  --fg-inverse: var(--rk-ink-900);
+  --fg-on-brand: var(--rk-lime-ink);
+  --fg-inverse: var(--rk-ink-140);
   /*
    * The tooltip carries its own foreground because its surface is the one
    * thing in the system that is not the same *kind* of surface in both themes.
@@ -221,7 +225,7 @@
    * Reaching for `--fg` here is exactly the bug this token exists to stop: it
    * resolves to near-black in light, which put black text on a black chip.
    */
-  --fg-on-tooltip: var(--rk-ash-50);
+  --fg-on-tooltip: var(--rk-ash-96);
 
   /* --- Severity ---------------------------------------------------------- */
   --sev-error: var(--rk-sev-error-mark-dark);
@@ -231,8 +235,8 @@
   --sev-warning-fg: var(--rk-sev-warning-text-dark);
   --sev-warning-surface: oklch(0.67 0.143 73.2 / 0.15);
   --sev-info: var(--rk-sev-info-mark-dark);
-  --sev-info-fg: var(--rk-ash-500);
-  --sev-info-surface: var(--rk-ink-680);
+  --sev-info-fg: var(--rk-ash-68);
+  --sev-info-surface: var(--rk-veil-8);
 
   /* --- Interaction states -------------------------------------------------
      `danger` is the destructive action; `sev-error` is the datum. They point
@@ -253,7 +257,7 @@
   --chart-4: var(--rk-chart-4-dark);
   --chart-5: var(--rk-chart-5-dark);
   /* A series that is there for scale and not for reading. */
-  --chart-muted: var(--rk-ink-500);
+  --chart-muted: var(--rk-ink-300);
 
   /* --- Focus · lime ring --------------------------------------------------
      One ring for the whole application. Lime, because it is the only colour
@@ -264,11 +268,11 @@
   --scrim: oklch(0 0 0 / 0.66);
 
   /* --- Elevation ----------------------------------------------------------
-     Long and low, and darker than a light theme would need: on #121212 a
-     shadow only reads once it is nearly black. */
+     Long and low, and darker than a light theme would need: this close to
+     black a shadow only reads once it is nearly black itself. */
   --elevation-raised: 0 1px 2px oklch(0 0 0 / 0.4);
   --elevation-tooltip: 0 8px 24px oklch(0 0 0 / 0.5);
-  --elevation-overlay: 0 12px 32px oklch(0 0 0 / 0.5);
+  --elevation-overlay: 0 20px 50px oklch(0 0 0 / 0.5);
   --elevation-dialog: 0 24px 60px -18px oklch(0 0 0 / 0.7);
 }
 
@@ -367,24 +371,15 @@
   --stroke-icon: 2px;
   /* The rule under the selected tab, and the bar beside the active nav row. */
   --stroke-indicator: 2px;
+  /* How far apart the rows of a list arrive when it animates in. Short: the
+     cascade should read as one movement, not as rows queueing. */
+  --stagger-step: 14ms;
+  --stagger-group: 28ms;
 }
 
 /* ========================================================================== */
 /* 4 · PUBLISHED TO TAILWIND · what a component author actually sees          */
 /* ========================================================================== */
-
-/*
- * Closed system: Tailwind's inherited namespaces are reset so there is no
- * `bg-red-500` and no `text-sm` to smuggle a value in through. If a utility is
- * not declared here, it does not belong to the design.
- */
-@theme {
-  --color-*: initial;
-  --shadow-*: initial;
-  --font-*: initial;
-  --text-*: initial;
-  --radius-*: initial;
-}
 
 @theme inline {
   --color-transparent: transparent;
@@ -487,8 +482,14 @@
   /* value came out of the system and can be copied and pasted somewhere     */
   /* else, it is mono.                                                       */
   /* ---------------------------------------------------------------------- */
-  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* The variable faces first: that is what `@fontsource-variable` registers
+     when an application self-hosts them. */
+  --font-sans:
+    "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system,
+    sans-serif;
+  --font-mono:
+    "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo,
+    monospace;
 
   /* Page title · 20 / 600 / -.02em */
   --text-page-title: 1.25rem;
@@ -518,9 +519,9 @@
   --text-body--line-height: 1.7;
   --text-body--font-weight: 400;
 
-  /* Value · 13 / 400 · a nav row, a cell, a field */
-  --text-value: 0.8125rem;
-  --text-value--line-height: 1.35;
+  /* Value · 13.5 / 400 · a nav row, a cell, a field */
+  --text-value: 0.84375rem;
+  --text-value--line-height: 1.45;
   --text-value--font-weight: 400;
 
   /* Control · 12.5 / 500 · buttons, tabs, menu items. The workhorse. */
@@ -538,8 +539,8 @@
   --text-meta--line-height: 1.35;
   --text-meta--font-weight: 400;
 
-  /* Hint · 11 / 400 */
-  --text-hint: 0.6875rem;
+  /* Hint · 11.5 / 400 · the line under a name, a group label */
+  --text-hint: 0.71875rem;
   --text-hint--line-height: 1.4;
   --text-hint--font-weight: 400;
 
@@ -612,7 +613,6 @@
   --transition-duration-slow: 240ms; /* a panel, collapsing the sidebar */
   --transition-duration-deliberate: 400ms; /* large expansions, rare   */
 
-  --ease-*: initial;
   --ease-linear: linear;
   --ease-standard: cubic-bezier(0.2, 0, 0.38, 0.9);
   --ease-entrance: cubic-bezier(0, 0, 0.38, 0.9);
@@ -663,6 +663,36 @@
   }
 
   /*
+   * The sidebar changing scope: into a project, or back out to all of them.
+   *
+   * Direction is the meaning. Going in, the rows arrive from the right, the
+   * way a page you drilled into would; coming back they arrive from the left.
+   * `both` holds each row invisible through its stagger delay, so the list
+   * builds top to bottom instead of flashing in and then moving.
+   */
+  @keyframes enter-forward {
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes enter-back {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
    * A toast's countdown, drawn as a bar emptying left to right. The duration
    * is not here: each toast sets it inline from its own timeout, because the
    * bar's one job is to tell that toast's remaining time truthfully.
@@ -679,16 +709,18 @@
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Radii · 2 · 4 · 5 · 6 · 8 · 10 · pill                                   */
-  /* 6 is the workhorse: buttons, chips, nav rows, inputs. 8 is a popup, 10  */
-  /* a panel. Anything above 10 is not in the design.                        */
+  /* Radii · 2 · 4 · 5 · 7 · 8 · 10 · 12 · 14 · pill                        */
+  /* 7 is a menu item and a small control, 8 a nav row or a button, 10 the  */
+  /* project card, 12 a popup or a card, 14 the sheet the pages sit on.     */
   /* ---------------------------------------------------------------------- */
   --radius-2xs: 2px;
   --radius-xs: 4px;
   --radius-sm: 5px;
-  --radius-md: 6px;
+  --radius-md: 7px;
   --radius-lg: 8px;
   --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
   --radius-pill: 9999px;
 
   /* ---------------------------------------------------------------------- */
@@ -703,14 +735,15 @@
   --spacing-chip: 23px; /* a token inside a filter field          */
   --spacing-topbar: 48px;
   --spacing-wordmark: 15px; /* the mark in the topbar, cap height    */
-  --spacing-subheader: 42px; /* breadcrumb strip under the topbar      */
   --spacing-tab: 36px;
-  --spacing-sidebar: 216px;
-  --spacing-sidebar-rail: 56px;
-  --spacing-nav-item: 32px;
+  /* The gap between the frame and the sheet the pages sit on. */
+  --spacing-frame: 8px;
+  --spacing-sidebar: 244px;
+  --spacing-sidebar-rail: 64px;
+  --spacing-nav-item: 34px;
   --spacing-rail-item: 34px;
-  --spacing-rail-item-w: 36px;
-  --spacing-project-card: 52px;
+  --spacing-rail-item-w: 40px;
+  --spacing-project-card: 44px;
   --spacing-menu-item: 32px;
   --spacing-row: 48px;
   --spacing-row-head: 38px;
@@ -723,6 +756,7 @@
   --spacing-dialog-md: 480px;
   --spacing-dialog-lg: 620px;
   --spacing-dialog-xl: 1040px;
+  --spacing-avatar-xs: 18px; /* a project's tile inside a breadcrumb */
   --spacing-avatar: 26px;
   --spacing-avatar-lg: 30px;
   --spacing-badge: 20px;
@@ -733,4 +767,17 @@
   --spacing-icon-lg: 14px;
   --spacing-icon-xl: 15px;
   --spacing-icon-2xl: 16px;
+}
+
+/*
+ * The scope-change entrances, inlined into their utilities rather than read
+ * from `:root`. They carry `--stagger-delay`, which each row sets for itself;
+ * a token resolved at the root would see no row and every delay would be 0.
+ * The keyframes are with the others, in the motion section above.
+ */
+@theme inline {
+  --animate-enter-forward: enter-forward var(--transition-duration-slow)
+    var(--ease-entrance) var(--stagger-delay, 0ms) both;
+  --animate-enter-back: enter-back var(--transition-duration-slow)
+    var(--ease-entrance) var(--stagger-delay, 0ms) both;
 }

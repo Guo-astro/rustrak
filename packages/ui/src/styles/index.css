@@ -11,5 +11,6 @@
  * this package's classes live in its own bundle.
  */
 
+@import "./closed.css";
 @import "./tokens.css";
 @import "./base.css";
