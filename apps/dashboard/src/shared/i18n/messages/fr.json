@@ -949,30 +949,6 @@
       "addProvider": "Ajouter {name}",
       "more": "Plus d’actions pour {name}"
     },
-    "table": {
-      "rule": "Règle",
-      "trigger": "Déclencheur",
-      "channels": "Canaux",
-      "enabled": "Activée",
-      "actionsAria": "Actions",
-      "enableAria": "Activer {name}",
-      "editAria": "Modifier {name}",
-      "deleteAria": "Supprimer {name}"
-    },
-    "settings": {
-      "title": "Paramètres d’alerte",
-      "description": "Configurez quand envoyer des notifications pour ce projet.",
-      "addRule": "Ajouter une règle d’alerte",
-      "noIntegrationsTitle": "Aucune intégration configurée",
-      "noIntegrationsHint": "Allez dans <link>Paramètres → Intégrations</link> pour ajouter d’abord des intégrations.",
-      "noRulesTitle": "Aucune règle d’alerte pour le moment",
-      "noRulesHint": "Créez-en une pour commencer à recevoir des notifications.",
-      "updateFailed": "Échec de la mise à jour de la règle",
-      "deleteFailed": "Échec de la suppression de la règle",
-      "deleted": "Règle d’alerte supprimée",
-      "deleteRuleTitle": "Supprimer la règle d’alerte",
-      "deleteRuleDescription": "Voulez-vous vraiment supprimer « {name} » ? Cette action est irréversible."
-    },
     "providers": {
       "slack": {
         "description": "Envoie des alertes vers des canaux Slack via webhook ou token de bot."
@@ -986,22 +962,6 @@
       "customWebhook": {
         "description": "POST un corps que vous écrivez, dans la forme attendue par l'endpoint."
       }
-    },
-    "newIssue": {
-      "name": "Nouveau problème",
-      "description": "Un nouveau problème est détecté pour la première fois"
-    },
-    "regression": {
-      "name": "Régression",
-      "description": "Un problème résolu réapparaît"
-    },
-    "unmute": {
-      "name": "Réactivation",
-      "description": "Un problème en sourdine est réactivé"
-    },
-    "newFeedback": {
-      "name": "Nouveau retour",
-      "description": "Un utilisateur envoie un retour"
     },
     "page": {
       "general": "Général",
@@ -1020,6 +980,153 @@
       "deleteDescription": "Les règles d’alerte qui l’utilisent cesseront d’envoyer ici.",
       "unsaved": "Modifications non enregistrées",
       "back": "Toutes les intégrations {name}"
+    },
+    "types": {
+      "new_issue": {
+        "name": "Nouveau problème",
+        "description": "Une erreur que Rustrak n’a jamais vue apparaît."
+      },
+      "regression": {
+        "name": "Régression",
+        "description": "Un problème résolu revient."
+      },
+      "unmute": {
+        "name": "Réactivation",
+        "description": "Un problème archivé se reproduit."
+      },
+      "new_feedback": {
+        "name": "Nouveau retour",
+        "description": "Un utilisateur envoie un retour depuis votre app."
+      }
+    },
+    "sentence": {
+      "when": {
+        "new_issue": "Quand <strong>un nouveau problème</strong> apparaît",
+        "regression": "Quand <strong>un problème résolu revient</strong>",
+        "unmute": "Quand <strong>un problème archivé se réactive</strong>",
+        "new_feedback": "Quand <strong>un utilisateur envoie un retour</strong>"
+      },
+      "inEnvironments": " dans <strong>{envs}</strong>",
+      "atLevel": ", de niveau <strong>{level}</strong> ou plus",
+      "afterEvents": ", une fois à <strong>{count} événements</strong>",
+      "notify": ", prévenir <strong>{channels}</strong>",
+      "notifyNobody": ", <strong>ne prévenir personne pour l’instant</strong>",
+      "atMostOnce": {
+        "minute": ", au plus une fois toutes les <strong>{count, plural, one {minute} other {# minutes}}</strong> par problème.",
+        "hour": ", au plus une fois toutes les <strong>{count, plural, one {heure} other {# heures}}</strong> par problème.",
+        "day": ", au plus une fois tous les <strong>{count, plural, one {jour} other {# jours}}</strong> par problème."
+      },
+      "everyTime": ", à chaque fois."
+    },
+    "editor": {
+      "when": "Quand",
+      "environments": "Environnements",
+      "allEnvironments": "Tous",
+      "level": "Niveau",
+      "anyLevel": "Tout niveau",
+      "levelOrHigher": "{level} ou plus",
+      "minEvents": "Après ce nombre d’événements",
+      "minEventsHint": "Attendre qu’un nouveau problème se produise ce nombre de fois, pour ignorer les erreurs isolées.",
+      "notify": "Prévenir",
+      "notifyHint": "Les canaux sont partagés par tous les projets ; <link>gérer les canaux</link>.",
+      "noChannels": "Aucun canal pour l’instant. Ajoutez-en un dans Paramètres → Intégrations.",
+      "frequency": "Au plus",
+      "frequencyHint": "À quelle fréquence un même problème peut prévenir, pour qu’une rafale d’erreurs n’envoie qu’une alerte.",
+      "every": {
+        "minute": "{count, plural, one {Une fois par minute} other {Toutes les # minutes}}",
+        "hour": "{count, plural, one {Une fois par heure} other {Toutes les # heures}}",
+        "day": "{count, plural, one {Une fois par jour} other {Tous les # jours}}"
+      },
+      "everyTime": "À chaque fois",
+      "customMinutes": "Personnalisé, en minutes",
+      "test": "Envoyer un test",
+      "testSent": "Test envoyé à {channel}",
+      "testFailed": "Le test vers {channel} a échoué",
+      "create": "Créer l’alerte",
+      "name": "Nom",
+      "namePlaceholder": "ex. Nouveaux problèmes en production par email",
+      "environmentsHint": "Où cela doit se produire.",
+      "summary": "Résumé"
+    },
+    "list": {
+      "paused": "En pause",
+      "lastTriggered": "Dernier envoi {when}",
+      "neverTriggered": "Pas encore déclenchée",
+      "enabled": "Activer ou mettre en pause {name}",
+      "resumed": "Alerte reprise",
+      "pausedToast": "Alerte en pause"
+    },
+    "overview": {
+      "metaTitle": "Alertes | Rustrak",
+      "ruleMetaTitle": "{name} | Alertes | Rustrak",
+      "title": "Alertes",
+      "loadFailed": "Impossible de charger les alertes",
+      "activeCount": "{count, plural, =0 {Aucune alerte active} one {# alerte active} other {# alertes actives}}",
+      "channels": "{count, plural, =0 {Canaux} one {# canal} other {# canaux}}",
+      "noChannelsTitle": "Ajoutez d’abord un canal",
+      "noChannelsDescription": "Les alertes passent par des canaux : email, Slack ou un webhook. <link>Ajoutez-en un dans Paramètres → Intégrations</link>, puis choisissez-le ici.",
+      "active": "Active",
+      "delete": "Supprimer",
+      "deleted": "Alerte supprimée",
+      "deleteFailed": "Impossible de supprimer l’alerte",
+      "deleteTitle": "Supprimer {name} ?",
+      "deleteDescription": "Plus rien ne sera envoyé pour elle. Son historique d’envois est conservé.",
+      "new": "Nouvelle alerte",
+      "newSummary": "Ce qu’elle détecte, qui elle prévient, à quelle fréquence.",
+      "newMetaTitle": "Nouvelle alerte | Rustrak",
+      "edit": "Modifier",
+      "editTitle": "Modifier {name}",
+      "editMetaTitle": "Modifier {name} | Alertes | Rustrak",
+      "emptyTitle": "Aucune alerte pour l’instant",
+      "emptyDescription": "Choisissez de quoi vous voulez être prévenu pour commencer. Vous pouvez avoir autant d’alertes que vous voulez : par exemple les nouveaux problèmes de production par email et tous les nouveaux problèmes sur Slack.",
+      "failedCount": "{count, plural, one {# envoi en échec} other {# envois en échec}}",
+      "tabRules": "Alertes",
+      "tabDeliveries": "Envois"
+    },
+    "history": {
+      "title": "Envois",
+      "last14": "14 derniers jours",
+      "chart": "Envois par jour",
+      "empty": "Rien d’envoyé pour l’instant.",
+      "openIssue": "Ouvrir le problème",
+      "status": {
+        "sent": "Envoyée",
+        "failed": "Échec",
+        "pending": "En attente",
+        "skipped": "Ignorée"
+      },
+      "lastSent": "Dernier envoi",
+      "chartHint": "Envois par jour : envoyés, ignorés par la fréquence maximale et en échec",
+      "ruleHint": "Chaque envoi de cette alerte, avec la raison quand il a échoué ou a été ignoré",
+      "columns": {
+        "status": "Statut",
+        "alert": "Alerte",
+        "channel": "Canal",
+        "detail": "Problème et raison",
+        "when": "Quand"
+      },
+      "deletedAlert": "Alerte supprimée"
+    },
+    "starters": {
+      "new_issue": "Être prévenu des nouveaux problèmes",
+      "regression": "Être prévenu des régressions",
+      "unmute": "Être prévenu des problèmes réactivés",
+      "new_feedback": "Être prévenu des retours utilisateurs"
+    },
+    "table": {
+      "alert": "Alerte",
+      "when": "Quand",
+      "conditions": "Seulement si",
+      "notifies": "Prévient",
+      "frequency": "Au plus",
+      "lastSent": "Dernier envoi",
+      "active": "Active",
+      "afterEvents": "après {count} événements"
+    },
+    "detail": {
+      "created": "Créée",
+      "setup": "Configuration",
+      "channelFailing": "En échec"
     }
   },
   "events": {
@@ -1983,7 +2090,7 @@
       },
       "title": "Intégrations",
       "subtitle": "Connectez Rustrak à vos outils et services pour automatiser vos flux de travail et garder le contrôle des erreurs.",
-      "backToAlerts": "Retour aux paramètres des alertes",
+      "backToAlerts": "Retour aux alertes",
       "backToProjects": "Retour aux projets",
       "loadFailed": "Impossible de charger les intégrations",
       "githubLoadFailed": "Impossible de charger la connexion GitHub"

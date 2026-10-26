@@ -1,6 +1,5 @@
 import type { AlertIntegration } from '@rustrak/client';
 import { useFormContext } from 'react-hook-form';
-import { useTranslations } from 'use-intl';
 import { routingNeedsOf } from '@/features/alert/lib/routing';
 import type { AlertRuleFormData } from '@/features/alert/model/alert-rule-form';
 import type { ChannelRouting } from '@/features/alert/ui/hooks/use-channel-routing';
@@ -25,7 +24,6 @@ export function ChannelPicker({
   routing: ChannelRouting;
   disabled: boolean;
 }) {
-  const t = useTranslations('alerts');
   const { watch, setValue, getValues, clearErrors, formState } =
     useFormContext<AlertRuleFormData>();
   const selectedIds = watch('selected_integration_ids');
@@ -51,11 +49,8 @@ export function ChannelPicker({
   };
 
   return (
-    <div>
-      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-        {t('ruleDialog.sendTo')}
-      </p>
-      <div className="space-y-2">
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         {integrations.map((integration) => {
           const isSelected = selected.has(integration.id);
           const error = routing.errors[integration.id];
@@ -86,7 +81,7 @@ export function ChannelPicker({
                   and with no block underneath it there is nowhere for that
                   message to land. */}
               {isSelected && error && !hasRoutingFields && (
-                <p className="mx-3 text-xs text-destructive">{error}</p>
+                <p className="mx-3 text-sev-error-fg text-meta">{error}</p>
               )}
             </div>
           );
@@ -94,7 +89,7 @@ export function ChannelPicker({
       </div>
 
       {formState.errors.selected_integration_ids && (
-        <p className="text-xs text-destructive mt-1.5">
+        <p className="text-sev-error-fg text-meta">
           {formState.errors.selected_integration_ids.message}
         </p>
       )}

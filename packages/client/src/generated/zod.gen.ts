@@ -1893,6 +1893,7 @@ export const zUpdateAlertIntegration = z.object({
  * DTO for updating an alert rule
  */
 export const zUpdateAlertRule = z.object({
+    alert_type: zAlertType.nullish(),
     channels: z.array(zAlertRuleChannelInput).nullish(),
     conditions: z.record(z.string(), z.unknown()).nullish(),
     cooldown_minutes: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }).nullish(),
@@ -2723,7 +2724,8 @@ export const zAlertRulesListHistoryPath = z.object({
 });
 
 export const zAlertRulesListHistoryQuery = z.object({
-    limit: z.int().optional()
+    limit: z.int().optional(),
+    rule_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }).optional()
 });
 
 /**

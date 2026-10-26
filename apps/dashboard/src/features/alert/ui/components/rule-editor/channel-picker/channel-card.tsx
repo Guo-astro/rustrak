@@ -1,9 +1,8 @@
 import type { AlertIntegration } from '@rustrak/client';
+import { cn, Switch } from '@rustrak/ui';
 import { useTranslations } from 'use-intl';
 import { getSlackMethod } from '@/features/alert/lib/routing';
 import { ProviderIcon } from '@/features/alert/ui/components/provider-icon';
-import { cn } from '@/shared/lib/utils';
-import { Switch } from '@/shared/ui/components/shadcn/switch';
 
 /**
  * One integration, on or off.
@@ -30,37 +29,38 @@ export function ChannelCard({
     getSlackMethod(integration) === 'bot_token';
 
   return (
-    <div
+    <label
       className={cn(
-        'flex items-center justify-between rounded-lg border bg-card px-3 py-2.5 transition-colors',
-        selected ? 'border-primary/50' : 'border-border',
+        'flex cursor-pointer items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2.5 transition-colors hover:bg-surface-hover',
+        selected ? 'border-border-brand' : 'border-border',
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <div
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span
           className={cn(
-            'flex size-7 items-center justify-center rounded-md transition-colors',
+            'flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
             selected
-              ? 'bg-primary/10 text-primary'
-              : 'bg-muted text-muted-foreground',
+              ? 'bg-success-surface text-fg-brand'
+              : 'bg-surface-chip text-fg-subtle',
           )}
         >
           <ProviderIcon type={integration.provider_type} className="size-3.5" />
-        </div>
-        <div>
-          <p className="text-sm font-medium leading-none">{integration.name}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">
-            {integration.provider_type}
+        </span>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate font-medium text-body text-fg">
+            {integration.name}
+          </span>
+          <span className="truncate text-fg-subtle text-hint capitalize">
+            {integration.provider_type.replace('_', ' ')}
             {isSlackBot ? ` · ${t('channelCard.botToken')}` : ''}
-          </p>
-        </div>
-      </div>
+          </span>
+        </span>
+      </span>
       <Switch
         checked={selected}
         onCheckedChange={onSelect}
         disabled={disabled}
-        size="sm"
       />
-    </div>
+    </label>
   );
 }

@@ -2411,6 +2411,7 @@ export type UpdateAlertIntegration = {
  * DTO for updating an alert rule
  */
 export type UpdateAlertRule = {
+    alert_type?: AlertType | null;
     channels?: Array<AlertRuleChannelInput> | null;
     conditions?: {
         [key: string]: unknown;
@@ -4842,6 +4843,10 @@ export type AlertRulesListHistoryData = {
          * Max records to return (default 50, max 100)
          */
         limit?: number;
+        /**
+         * Only this alert rule's deliveries
+         */
+        rule_id?: number;
     };
     url: '/api/projects/{project_id}/alert-history';
 };

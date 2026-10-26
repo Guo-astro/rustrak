@@ -810,6 +810,7 @@ async fn test_rule_crud_service_level() {
 
     // Update rule
     let update_input = UpdateAlertRule {
+        alert_type: None,
         name: Some("Updated Alert".to_string()),
         is_enabled: Some(false),
         conditions: None,
@@ -834,56 +835,92 @@ async fn test_rule_crud_service_level() {
     assert!(result.is_err());
 }
 
+/// Rules are independent: a project can hold several for one trigger, each
+/// with its own filters and channels -- new issues in production by email,
+/// every new issue to Slack.
 #[tokio::test]
-async fn test_rule_duplicate_alert_type_fails() {
+async fn test_rules_of_one_type_fire_independently() {
     let db = TestDb::new().await;
-
     let project_id = create_test_project(&db.pool).await;
-
+    let project = ProjectService::get_by_id(&db.pool, project_id)
+        .await
+        .unwrap();
     let channel = AlertService::create_channel(
         &db.pool,
         CreateNotificationChannel {
-            name: "Channel for Rules".to_string(),
+            name: "Shared channel".to_string(),
             provider_type: ChannelType::Webhook,
-            credentials: json!({ "url": "https://example.com/webhook" }),
+            // Nothing listens there: the deliveries are recorded, then fail.
+            credentials: json!({ "url": "http://127.0.0.1:9/hook" }),
             is_enabled: true,
         },
     )
     .await
-    .expect("Failed to create channel");
-
-    // Create first rule
-    let create_input = CreateAlertRule {
-        name: "First Rule".to_string(),
+    .unwrap();
+    let rule = |name: &str, conditions| CreateAlertRule {
+        name: name.to_string(),
         alert_type: AlertType::NewIssue,
         channels: vec![AlertRuleChannelInput {
             integration_id: channel.id,
             routing_override: json!({}),
         }],
-        conditions: json!({}),
+        conditions,
         cooldown_minutes: 0,
     };
+    let everywhere =
+        AlertService::create_rule(&db.pool, project_id, rule("Every new issue", json!({})))
+            .await
+            .expect("a first new-issue rule");
+    let also = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        rule("Also every new issue", json!({})),
+    )
+    .await
+    .expect("a second rule for the same trigger");
+    let staging = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        rule("Staging only", json!({"environments": ["staging"]})),
+    )
+    .await
+    .expect("a third, filtered rule");
 
-    AlertService::create_rule(&db.pool, project_id, create_input)
+    let issue = IssueService::create(
+        &db.pool,
+        project_id,
+        Utc::now(),
+        &DenormalizedFields {
+            calculated_type: "Error".to_string(),
+            calculated_value: "independent rules".to_string(),
+            transaction: "/test".to_string(),
+            last_frame_filename: "test.rs".to_string(),
+            last_frame_module: "test".to_string(),
+            last_frame_function: "test".to_string(),
+            culprit: "test".to_string(),
+            logger: String::new(),
+            release: String::new(),
+        },
+        Some("error"),
+        Some("rust"),
+    )
+    .await
+    .unwrap();
+    AlertService::trigger_new_issue_alert(&db.pool, &project, &issue, "http://localhost:3000")
         .await
-        .expect("First rule should succeed");
+        .unwrap();
 
-    // Try to create another with same alert type
-    let duplicate_input = CreateAlertRule {
-        name: "Duplicate Rule".to_string(),
-        alert_type: AlertType::NewIssue, // Same type
-        channels: vec![AlertRuleChannelInput {
-            integration_id: channel.id,
-            routing_override: json!({}),
-        }],
-        conditions: json!({}),
-        cooldown_minutes: 0,
-    };
-
-    let result = AlertService::create_rule(&db.pool, project_id, duplicate_input).await;
-    assert!(result.is_err());
-    let err_msg = format!("{:?}", result.unwrap_err());
-    assert!(err_msg.contains("already exists"));
+    let fired: Vec<(Option<i32>,)> = sqlx::query_as(
+        "SELECT alert_rule_id FROM alert_history WHERE project_id = $1 ORDER BY alert_rule_id",
+    )
+    .bind(project_id)
+    .fetch_all(&db.pool)
+    .await
+    .unwrap();
+    // Both unfiltered rules deliver through the channel they share; the
+    // staging rule's filter keeps it quiet for an event with no environment.
+    assert_eq!(fired, vec![(Some(everywhere.id),), (Some(also.id),)]);
+    assert!(!fired.contains(&(Some(staging.id),)));
 }
 
 #[tokio::test]
@@ -968,6 +1005,7 @@ async fn test_update_rule_channels() {
         &db.pool,
         rule.id,
         UpdateAlertRule {
+            alert_type: None,
             name: None,
             is_enabled: None,
             conditions: None,
@@ -1000,6 +1038,7 @@ async fn test_update_rule_channels() {
         &db.pool,
         rule.id,
         UpdateAlertRule {
+            alert_type: None,
             name: None,
             is_enabled: None,
             conditions: None,
@@ -1074,7 +1113,7 @@ async fn test_alert_history_empty() {
 
     let project_id = create_test_project(&db.pool).await;
 
-    let history = AlertService::list_history(&db.pool, project_id, 50)
+    let history = AlertService::list_history(&db.pool, project_id, None, 50)
         .await
         .expect("Failed to list history");
 
@@ -1346,4 +1385,57 @@ async fn test_rule_conditions_are_validated() {
         .await
         .expect("valid conditions are stored");
     assert_eq!(rule.conditions["min_events"], 5);
+}
+
+/// A rule's page lists only its own deliveries.
+#[tokio::test]
+async fn test_alert_history_narrows_to_one_rule() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool).await;
+    let rule = |name: &str, alert_type| rustrak::models::CreateAlertRule {
+        name: name.to_string(),
+        alert_type,
+        conditions: json!({}),
+        cooldown_minutes: 0,
+        channels: vec![],
+    };
+    let new_issue = AlertService::create_rule(
+        &db.pool,
+        project,
+        rule("New issue", rustrak::models::AlertType::NewIssue),
+    )
+    .await
+    .unwrap();
+    let regression = AlertService::create_rule(
+        &db.pool,
+        project,
+        rule("Regression", rustrak::models::AlertType::Regression),
+    )
+    .await
+    .unwrap();
+    for (rule_id, key) in [
+        (new_issue.id, "a"),
+        (new_issue.id, "b"),
+        (regression.id, "c"),
+    ] {
+        sqlx::query(
+            "INSERT INTO alert_history (project_id, alert_rule_id, alert_type, channel_type, channel_name, status, idempotency_key) VALUES ($1, $2, 'new_issue', 'webhook', 'test', 'sent', $3)",
+        )
+        .bind(project)
+        .bind(rule_id)
+        .bind(key)
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    }
+
+    let all = AlertService::list_history(&db.pool, project, None, 50)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 3);
+    let own = AlertService::list_history(&db.pool, project, Some(new_issue.id), 50)
+        .await
+        .unwrap();
+    assert_eq!(own.len(), 2);
+    assert!(own.iter().all(|h| h.alert_rule_id == Some(new_issue.id)));
 }

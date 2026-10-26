@@ -1,4 +1,10 @@
-import { Bell, BellOff, MessageSquare, RefreshCw, Zap } from 'lucide-react';
+import {
+  FeedbackIcon,
+  IssuesIcon,
+  NotificationIcon,
+  UndoIcon,
+  UnresolveIcon,
+} from '@rustrak/ui';
 
 /**
  * The mark for an alert trigger.
@@ -15,14 +21,14 @@ export function AlertTypeIcon({
 }) {
   switch (type) {
     case 'new_issue':
-      return <Zap className={className} />;
+      return <IssuesIcon className={className} />;
     case 'regression':
-      return <RefreshCw className={className} />;
+      return <UnresolveIcon className={className} />;
     case 'unmute':
-      return <BellOff className={className} />;
+      return <UndoIcon className={className} />;
     case 'new_feedback':
-      return <MessageSquare className={className} />;
+      return <FeedbackIcon className={className} />;
     default:
-      return <Bell className={className} />;
+      return <NotificationIcon className={className} />;
   }
 }

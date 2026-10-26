@@ -949,30 +949,6 @@
       "addProvider": "添加 {name}",
       "more": "{name} 的更多操作"
     },
-    "table": {
-      "rule": "规则",
-      "trigger": "触发器",
-      "channels": "渠道",
-      "enabled": "已启用",
-      "actionsAria": "操作",
-      "enableAria": "启用 {name}",
-      "editAria": "编辑 {name}",
-      "deleteAria": "删除 {name}"
-    },
-    "settings": {
-      "title": "告警设置",
-      "description": "配置此项目何时发送通知。",
-      "addRule": "添加告警规则",
-      "noIntegrationsTitle": "尚未配置集成",
-      "noIntegrationsHint": "请先前往<link>设置 → 集成</link>添加集成。",
-      "noRulesTitle": "还没有告警规则",
-      "noRulesHint": "创建一条规则即可开始接收通知。",
-      "updateFailed": "更新规则失败",
-      "deleteFailed": "删除规则失败",
-      "deleted": "告警规则已删除",
-      "deleteRuleTitle": "删除告警规则",
-      "deleteRuleDescription": "确定要删除 “{name}” 吗？此操作无法撤销。"
-    },
     "providers": {
       "slack": {
         "description": "通过 Webhook 或 Bot token 向 Slack 频道发送告警。"
@@ -986,22 +962,6 @@
       "customWebhook": {
         "description": "发送你自己编写的消息体，格式由目标端点决定。"
       }
-    },
-    "newIssue": {
-      "name": "新问题",
-      "description": "首次检测到新问题"
-    },
-    "regression": {
-      "name": "回归",
-      "description": "已解决的问题再次出现"
-    },
-    "unmute": {
-      "name": "取消静音",
-      "description": "被静音的问题解除静音"
-    },
-    "newFeedback": {
-      "name": "新反馈",
-      "description": "用户提交了反馈"
     },
     "page": {
       "general": "常规",
@@ -1020,6 +980,153 @@
       "deleteDescription": "通过它发送的告警规则将不再投递到这里。",
       "unsaved": "有未保存的更改",
       "back": "所有 {name} 集成"
+    },
+    "types": {
+      "new_issue": {
+        "name": "新问题",
+        "description": "出现 Rustrak 从未见过的错误。"
+      },
+      "regression": {
+        "name": "回归",
+        "description": "已解决的问题再次出现。"
+      },
+      "unmute": {
+        "name": "重新激活",
+        "description": "已归档的问题再次发生。"
+      },
+      "new_feedback": {
+        "name": "新反馈",
+        "description": "用户从你的应用发送了反馈。"
+      }
+    },
+    "sentence": {
+      "when": {
+        "new_issue": "当出现<strong>新问题</strong>时",
+        "regression": "当<strong>已解决的问题回归</strong>时",
+        "unmute": "当<strong>已归档的问题重新激活</strong>时",
+        "new_feedback": "当<strong>用户发送反馈</strong>时"
+      },
+      "inEnvironments": "，在 <strong>{envs}</strong> 中",
+      "atLevel": "，级别为 <strong>{level}</strong> 或更高",
+      "afterEvents": "，达到 <strong>{count} 个事件</strong>后",
+      "notify": "，通知 <strong>{channels}</strong>",
+      "notifyNobody": "，<strong>暂不通知任何人</strong>",
+      "atMostOnce": {
+        "minute": "，每个问题最多每 <strong>{count} 分钟</strong>一次。",
+        "hour": "，每个问题最多每 <strong>{count} 小时</strong>一次。",
+        "day": "，每个问题最多每 <strong>{count} 天</strong>一次。"
+      },
+      "everyTime": "，每次都通知。"
+    },
+    "editor": {
+      "when": "何时",
+      "environments": "环境",
+      "allEnvironments": "全部",
+      "level": "级别",
+      "anyLevel": "任意级别",
+      "levelOrHigher": "{level} 或更高",
+      "minEvents": "达到此事件数后",
+      "minEventsHint": "等新问题发生到此次数后再通知，以忽略偶发错误。",
+      "notify": "通知",
+      "notifyHint": "渠道由所有项目共享；<link>管理渠道</link>。",
+      "noChannels": "还没有渠道。请先在 设置 → 集成 中添加。",
+      "frequency": "最多",
+      "frequencyHint": "同一问题多久可以通知一次，让一波错误只发送一条告警。",
+      "every": {
+        "minute": "每 {count} 分钟",
+        "hour": "每 {count} 小时",
+        "day": "每 {count} 天"
+      },
+      "everyTime": "每次",
+      "customMinutes": "自定义（分钟）",
+      "test": "发送测试",
+      "testSent": "测试已发送到 {channel}",
+      "testFailed": "发送到 {channel} 的测试失败",
+      "create": "创建告警",
+      "name": "名称",
+      "namePlaceholder": "例如：生产环境新问题发邮件",
+      "environmentsHint": "必须发生在哪里。",
+      "summary": "摘要"
+    },
+    "list": {
+      "paused": "已暂停",
+      "lastTriggered": "上次发送于 {when}",
+      "neverTriggered": "尚未触发",
+      "enabled": "启用或暂停 {name}",
+      "resumed": "告警已恢复",
+      "pausedToast": "告警已暂停"
+    },
+    "overview": {
+      "metaTitle": "告警 | Rustrak",
+      "ruleMetaTitle": "{name} | 告警 | Rustrak",
+      "title": "告警",
+      "loadFailed": "无法加载告警",
+      "activeCount": "{count, plural, =0 {没有启用的告警} other {# 个告警已启用}}",
+      "channels": "{count, plural, =0 {渠道} other {# 个渠道}}",
+      "noChannelsTitle": "请先添加渠道",
+      "noChannelsDescription": "告警通过渠道发送：邮件、Slack 或 webhook。<link>在 设置 → 集成 中添加</link>，然后在这里选择。",
+      "active": "已启用",
+      "delete": "删除",
+      "deleted": "告警已删除",
+      "deleteFailed": "无法删除告警",
+      "deleteTitle": "删除 {name}？",
+      "deleteDescription": "它将不再发送任何内容。其发送历史会保留。",
+      "new": "新建告警",
+      "newSummary": "检测什么、通知谁、多久一次。",
+      "newMetaTitle": "新建告警 | Rustrak",
+      "edit": "编辑",
+      "editTitle": "编辑 {name}",
+      "editMetaTitle": "编辑 {name} | 告警 | Rustrak",
+      "emptyTitle": "还没有告警",
+      "emptyDescription": "选择你想获知的内容开始。告警数量不限：例如生产环境的新问题发邮件，所有新问题发到 Slack。",
+      "failedCount": "{count} 次发送失败",
+      "tabRules": "告警",
+      "tabDeliveries": "发送记录"
+    },
+    "history": {
+      "title": "发送记录",
+      "last14": "最近 14 天",
+      "chart": "每日发送数",
+      "empty": "尚未发送任何内容。",
+      "openIssue": "打开问题",
+      "status": {
+        "sent": "已发送",
+        "failed": "失败",
+        "pending": "待发送",
+        "skipped": "已跳过"
+      },
+      "lastSent": "上次发送",
+      "chartHint": "每日发送：已发送、因频率限制跳过和失败",
+      "ruleHint": "此告警的每次发送，失败或跳过时附带原因",
+      "columns": {
+        "status": "状态",
+        "alert": "告警",
+        "channel": "渠道",
+        "detail": "问题与原因",
+        "when": "时间"
+      },
+      "deletedAlert": "已删除的告警"
+    },
+    "starters": {
+      "new_issue": "获知新问题",
+      "regression": "获知回归",
+      "unmute": "获知重新激活的问题",
+      "new_feedback": "获知用户反馈"
+    },
+    "table": {
+      "alert": "告警",
+      "when": "何时",
+      "conditions": "仅当",
+      "notifies": "通知",
+      "frequency": "最多",
+      "lastSent": "上次发送",
+      "active": "启用",
+      "afterEvents": "{count} 个事件后"
+    },
+    "detail": {
+      "created": "创建于",
+      "setup": "配置",
+      "channelFailing": "失败中"
     }
   },
   "events": {
@@ -1983,7 +2090,7 @@
       },
       "title": "集成",
       "subtitle": "将 Rustrak 与您的工具和服务集成，以自动化工作流并及时掌握错误动态。",
-      "backToAlerts": "返回告警设置",
+      "backToAlerts": "返回告警",
       "backToProjects": "返回项目列表",
       "loadFailed": "无法加载集成",
       "githubLoadFailed": "无法加载 GitHub 连接"

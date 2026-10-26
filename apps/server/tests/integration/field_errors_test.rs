@@ -17,9 +17,8 @@ use rustrak::config::{Config, DashboardConfig, DatabaseConfig, RateLimitConfig, 
 use rustrak::db::DbPool;
 use rustrak::error::{AppError, FieldErrorCode};
 use rustrak::models::{
-    AlertRuleChannelInput, AlertType, ChannelType, CreateAlertRule, CreateAuthToken,
-    CreateInvitation, CreateNotificationChannel, CreateProject, CreateUserRequest, ProjectRole,
-    UpdateAlertIntegration, UpdateProject, User, UserRole,
+    ChannelType, CreateAuthToken, CreateInvitation, CreateNotificationChannel, CreateProject,
+    CreateUserRequest, ProjectRole, UpdateAlertIntegration, UpdateProject, User, UserRole,
 };
 use rustrak::routes;
 use rustrak::services::{
@@ -433,8 +432,7 @@ async fn inviting_a_pending_email_blames_email() {
 }
 
 // =============================================================================
-// services/alert.rs — CreateAlertIntegration / UpdateAlertIntegration /
-// CreateAlertRule bodies
+// services/alert.rs — CreateAlertIntegration / UpdateAlertIntegration bodies
 // =============================================================================
 
 /// Creating an integration under a name already in use.
@@ -476,34 +474,6 @@ async fn renaming_an_integration_onto_a_taken_name_blames_name() {
     .await;
 
     assert_one_field(result, 409, "Conflict", "name", "already_exists").await;
-}
-
-/// A project may hold only one rule per alert type, and `alert_type` is the
-/// body key the form binds to, not `name`.
-#[actix_web::test]
-async fn a_duplicate_alert_rule_blames_alert_type() {
-    let db = TestDb::new().await;
-    let project = seed_project(&db.pool, "Rules Project", None).await;
-    let channel = seed_channel(&db.pool, "Rules Channel").await;
-
-    let rule = |name: &str| CreateAlertRule {
-        name: name.to_string(),
-        alert_type: AlertType::NewIssue,
-        channels: vec![AlertRuleChannelInput {
-            integration_id: channel.id,
-            routing_override: json!({}),
-        }],
-        conditions: json!({}),
-        cooldown_minutes: 0,
-    };
-
-    AlertService::create_rule(&db.pool, project.id, rule("First Rule"))
-        .await
-        .expect("first rule must succeed");
-
-    let result = AlertService::create_rule(&db.pool, project.id, rule("Duplicate Rule")).await;
-
-    assert_one_field(result, 409, "Conflict", "alert_type", "already_exists").await;
 }
 
 // =============================================================================

@@ -296,19 +296,7 @@ impl AlertService {
         .bind(&input.conditions)
         .bind(input.cooldown_minutes)
         .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| {
-            if let sqlx::Error::Database(ref db_err) = e {
-                if db_err.is_unique_violation() {
-                    return AppError::Conflict(format!(
-                        "Alert rule for type '{}' already exists in this project",
-                        input.alert_type
-                    ))
-                    .with_field("alert_type", FieldErrorCode::AlreadyExists);
-                }
-            }
-            AppError::Database(e)
-        })?;
+        .await?;
 
         // Dedup by integration_id to prevent PK constraint violation (ECH-4).
         let channels_to_link: Vec<AlertRuleChannelInput> = {
@@ -370,6 +358,7 @@ impl AlertService {
                 is_enabled = COALESCE($3, is_enabled),
                 conditions = COALESCE($4, conditions),
                 cooldown_minutes = COALESCE($5, cooldown_minutes),
+                alert_type = COALESCE($6, alert_type),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
             RETURNING id, project_id, name, alert_type, is_enabled, conditions,
@@ -381,6 +370,7 @@ impl AlertService {
         .bind(input.is_enabled)
         .bind(&input.conditions)
         .bind(input.cooldown_minutes)
+        .bind(input.alert_type.map(|t| t.to_string()))
         .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Alert rule {} not found", id)))?;
@@ -608,32 +598,58 @@ impl AlertService {
         stable_alert_id: Option<String>,
         facts: EventFacts<'_>,
     ) -> AppResult<()> {
-        // 1. Find enabled rule for this project and alert type
-        let rule: Option<AlertRule> = sqlx::query_as(
+        // 1. Every enabled rule for this trigger. Rules are independent: each
+        // has its own filters, cooldown and channels, and fires on its own.
+        let rules: Vec<AlertRule> = sqlx::query_as(
             r#"
             SELECT id, project_id, name, alert_type, is_enabled, conditions,
                    cooldown_minutes, last_triggered_at, created_at, updated_at
             FROM alert_rules
             WHERE project_id = $1 AND alert_type = $2 AND is_enabled = TRUE
+            ORDER BY id
             "#,
         )
         .bind(project.id)
         .bind(alert_type.to_string())
-        .fetch_optional(pool)
+        .fetch_all(pool)
         .await?;
 
-        let rule = match rule {
-            Some(r) => r,
-            None => {
-                log::debug!(
-                    "No enabled alert rule for {:?} in project {}",
-                    alert_type,
-                    project.id
-                );
-                return Ok(());
-            }
-        };
+        if rules.is_empty() {
+            log::debug!(
+                "No enabled alert rule for {:?} in project {}",
+                alert_type,
+                project.id
+            );
+        }
+        for rule in rules {
+            Self::fire_rule(
+                pool,
+                project,
+                issue,
+                alert_type,
+                rule,
+                dashboard_url,
+                stable_alert_id.clone(),
+                facts,
+            )
+            .await?;
+        }
+        Ok(())
+    }
 
+    /// One rule's share of a trigger: its filters, its cooldown, its
+    /// channels, its history rows.
+    #[allow(clippy::too_many_arguments)]
+    async fn fire_rule(
+        pool: &DbPool,
+        project: &Project,
+        issue: &Issue,
+        alert_type: AlertType,
+        rule: AlertRule,
+        dashboard_url: &str,
+        stable_alert_id: Option<String>,
+        facts: EventFacts<'_>,
+    ) -> AppResult<()> {
         // Stored conditions were validated on the way in; one that no longer
         // parses filters nothing rather than silencing the rule.
         let conditions = RuleConditions::parse(&rule.conditions).unwrap_or_default();
@@ -746,7 +762,9 @@ impl AlertService {
 
         let mut history_ids = Vec::with_capacity(channels.len());
         for (rule_channel, integration) in &channels {
-            let idempotency_key = format!("{}-{}", payload.alert_id, integration.id);
+            // The rule is in the key: two rules sharing a channel are two
+            // deliveries, while a replay of the same event is still one.
+            let idempotency_key = format!("{}-{}-{}", payload.alert_id, rule.id, integration.id);
             let issue_uuid = Uuid::parse_str(&payload.issue.id).ok();
             let history_id: Option<(i64,)> = sqlx::query_as(
                 r#"
@@ -940,9 +958,11 @@ impl AlertService {
     // =========================================================================
 
     /// Lists alert history for a project
+    /// A project's deliveries, newest first; with `rule_id`, only that rule's.
     pub async fn list_history(
         pool: &DbPool,
         project_id: i32,
+        rule_id: Option<i32>,
         limit: i64,
     ) -> AppResult<Vec<AlertHistory>> {
         let history = sqlx::query_as::<_, AlertHistory>(
@@ -952,12 +972,13 @@ impl AlertService {
                    attempt_count, next_retry_at, error_message,
                    http_status_code, idempotency_key, created_at, sent_at
             FROM alert_history
-            WHERE project_id = $1
+            WHERE project_id = $1 AND ($2 IS NULL OR alert_rule_id = $2)
             ORDER BY created_at DESC
-            LIMIT $2
+            LIMIT $3
             "#,
         )
         .bind(project_id)
+        .bind(rule_id)
         .bind(limit)
         .fetch_all(pool)
         .await?;

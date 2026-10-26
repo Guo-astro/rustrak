@@ -4385,6 +4385,16 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "rule_id",
+            "in": "query",
+            "description": "Only this alert rule's deliveries",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -19011,6 +19021,17 @@
         "type": "object",
         "description": "DTO for updating an alert rule",
         "properties": {
+          "alert_type": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AlertType",
+                "description": "What the rule fires on; rules are independent, so any trigger may change."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "channels": {
             "type": [
               "array",

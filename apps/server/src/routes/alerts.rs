@@ -754,6 +754,8 @@ pub async fn delete_rule(
 pub struct HistoryQuery {
     #[serde(default = "default_limit")]
     pub limit: i64,
+    /// Only this rule's deliveries.
+    pub rule_id: Option<i32>,
 }
 
 fn default_limit() -> i64 {
@@ -768,6 +770,7 @@ fn default_limit() -> i64 {
     params(
         ("project_id" = i32, Path, description = "Project ID"),
         ("limit" = Option<i64>, Query, description = "Max records to return (default 50, max 100)"),
+        ("rule_id" = Option<i32>, Query, description = "Only this alert rule's deliveries"),
     ),
     responses(
         (status = 200, description = "Alert history", body = Vec<crate::models::AlertHistory>),
@@ -798,7 +801,8 @@ pub async fn list_history(
     let _ = ProjectService::get_by_id(pool.get_ref(), project_id).await?;
 
     let limit = query.limit.clamp(1, 100);
-    let history = AlertService::list_history(pool.get_ref(), project_id, limit).await?;
+    let history =
+        AlertService::list_history(pool.get_ref(), project_id, query.rule_id, limit).await?;
 
     Ok(HttpResponse::Ok().json(history))
 }

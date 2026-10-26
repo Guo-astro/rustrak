@@ -345,6 +345,8 @@ fn default_empty_object() -> serde_json::Value {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpdateAlertRule {
     pub name: Option<String>,
+    /// What the rule fires on; rules are independent, so any trigger may change.
+    pub alert_type: Option<AlertType>,
     pub is_enabled: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(value_type = Option<Object>))]
     pub conditions: Option<serde_json::Value>,
