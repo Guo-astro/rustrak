@@ -21,32 +21,26 @@ import {
 } from '@/features/alert/model/message-template';
 import { useIntegrationSubmit } from '@/features/alert/ui/hooks/use-integration-submit';
 import { useTemplatePreview } from '@/features/alert/ui/hooks/use-template-preview';
-import {
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/ui/components/shadcn/dialog';
+import { SettingSection } from '@/shared/ui/components/setting-row';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
-  FormRootError,
 } from '@/shared/ui/components/shadcn/form';
 import { ConfigFooter } from '../fields/config-footer';
 import { EnabledField } from '../fields/enabled-field';
+import { DeleteSection, TestRow } from '../fields/form-chrome';
 import { HeadersField } from '../fields/headers-field';
 import { NameField } from '../fields/name-field';
 import { TextInputField } from '../fields/text-input-field';
-import type { ConfigFormProps } from '../integration-config-dialog';
+import type { ConfigFormProps } from '../provider-form';
 
 /**
  * The editor is the heaviest thing in the dashboard, and it exists for one
- * field of one provider's dialog. Loaded on demand, that weight is paid by the
- * person who opens this dialog rather than by everyone who visits the
+ * field of one provider's form. Loaded on demand, that weight is paid by the
+ * person who opens this form rather than by everyone who visits the
  * integrations page.
  */
 const JsonTemplateEditor = lazy(() =>
@@ -55,7 +49,7 @@ const JsonTemplateEditor = lazy(() =>
   ),
 );
 
-/** Same height and frame as the editor, so the dialog does not jump when the chunk lands. */
+/** Same height and frame as the editor, so the page does not jump when the chunk lands. */
 function EditorSkeleton() {
   return (
     <div className="h-[26rem] animate-pulse rounded-md border border-input bg-muted/30" />
@@ -148,115 +142,99 @@ export function CustomWebhookForm({
   };
 
   return (
-    <>
-      <DialogHeader className="shrink-0 border-b px-6 pt-6 pr-14 pb-4">
-        <DialogTitle>
-          {t(
-            existingIntegration
-              ? 'customWebhook.titleEdit'
-              : 'customWebhook.titleNew',
-          )}
-        </DialogTitle>
-        <DialogDescription>{t('customWebhook.description')}</DialogDescription>
-      </DialogHeader>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(submit)}>
+        <SettingSection title={t('page.general')}>
+          <NameField<CustomWebhookFormData>
+            placeholder={t('customWebhook.namePlaceholder')}
+            disabled={isLoading}
+          />
+          <EnabledField<CustomWebhookFormData> disabled={isLoading} />
+        </SettingSection>
 
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(submit)}
-          className="flex min-h-0 flex-1 flex-col"
+        <SettingSection
+          title={t('page.connection')}
+          description={t('customWebhook.description')}
         >
-          {/* The only part that scrolls, so the title and the actions stay
-              on screen however long the message body gets. Two columns from
-              md up: the small fields on the left, the editor taking the rest,
-              because the body is where the reader spends their time. */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            <div className="grid gap-x-8 gap-y-5 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
-              <div className="space-y-5">
-                <NameField<CustomWebhookFormData>
-                  placeholder={t('customWebhook.namePlaceholder')}
-                  disabled={isLoading}
-                />
-
-                <TextInputField<CustomWebhookFormData>
-                  name="url"
-                  label={t('customWebhook.urlLabel')}
-                  placeholder={t('customWebhook.urlPlaceholder')}
-                  description={t('customWebhook.urlDescription')}
-                  type="url"
-                  disabled={isLoading}
-                />
-
-                <TextInputField<CustomWebhookFormData>
-                  name="secret"
-                  label={t('customWebhook.secretLabel')}
-                  placeholder={t('webhook.secretPlaceholder')}
-                  description={t('customWebhook.secretDescription')}
-                  type="password"
-                  disabled={isLoading}
-                />
-
-                <HeadersField<CustomWebhookFormData> disabled={isLoading} />
-
-                <EnabledField<CustomWebhookFormData> disabled={isLoading} />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="template"
-                render={({ field }) => (
-                  <FormItem className="min-w-0">
-                    <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                      {t('customWebhook.templateLabel')}
-                    </FormLabel>
-                    <FormControl>
-                      <Suspense fallback={<EditorSkeleton />}>
-                        <JsonTemplateEditor
-                          value={field.value}
-                          onChange={setTemplate}
-                          onBlur={field.onBlur}
-                          onFormat={() =>
-                            setTemplate(formatTemplate(field.value))
-                          }
-                          onPreset={startFrom}
-                          preview={preview}
-                          disabled={isLoading}
-                          placeholder={templatePlaceholder}
-                          variables={TEMPLATE_VARIABLES}
-                          presets={TEMPLATE_PRESETS}
-                          ariaLabel={t('customWebhook.templateLabel')}
-                          helpHref={TEMPLATE_DOCS_URL}
-                        />
-                      </Suspense>
-                    </FormControl>
-                    <FormDescription>
-                      {t('customWebhook.templateDescription')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          {/* Outside the scroll area: a failure that named no field of this
-              dialog has to be visible wherever the reader has scrolled to. */}
-          <div className="shrink-0 border-t px-6 py-4">
-            <FormRootError />
-            <ConfigFooter
-              existingIntegration={existingIntegration}
-              submitLabel={
-                existingIntegration
-                  ? t('common.saveChanges')
-                  : t('customWebhook.create')
-              }
-              isLoading={isLoading}
-              onTest={onTest}
-              onDelete={onDelete}
-              onCancel={() => onOpenChange(false)}
+          <TextInputField<CustomWebhookFormData>
+            name="url"
+            label={t('customWebhook.urlLabel')}
+            placeholder={t('customWebhook.urlPlaceholder')}
+            description={t('customWebhook.urlDescription')}
+            type="url"
+            disabled={isLoading}
+          />
+          <TextInputField<CustomWebhookFormData>
+            name="secret"
+            label={t('customWebhook.secretLabel')}
+            placeholder={t('webhook.secretPlaceholder')}
+            description={t('customWebhook.secretDescription')}
+            type="password"
+            disabled={isLoading}
+          />
+          <HeadersField<CustomWebhookFormData> disabled={isLoading} />
+          {existingIntegration ? (
+            <TestRow
+              hint={t('page.testDescription')}
+              disabled={isLoading}
+              onTest={() => onTest(existingIntegration)}
             />
-          </div>
-        </form>
-      </Form>
-    </>
+          ) : null}
+        </SettingSection>
+
+        {/* The body is where the reader spends their time, so it gets the
+            page's full width rather than a column beside the small fields. */}
+        <SettingSection
+          title={t('customWebhook.templateLabel')}
+          description={t('customWebhook.templateDescription')}
+        >
+          <FormField
+            control={form.control}
+            name="template"
+            render={({ field }) => (
+              <FormItem className="min-w-0 p-5">
+                <FormControl>
+                  <Suspense fallback={<EditorSkeleton />}>
+                    <JsonTemplateEditor
+                      value={field.value}
+                      onChange={setTemplate}
+                      onBlur={field.onBlur}
+                      onFormat={() => setTemplate(formatTemplate(field.value))}
+                      onPreset={startFrom}
+                      preview={preview}
+                      disabled={isLoading}
+                      placeholder={templatePlaceholder}
+                      variables={TEMPLATE_VARIABLES}
+                      presets={TEMPLATE_PRESETS}
+                      ariaLabel={t('customWebhook.templateLabel')}
+                      helpHref={TEMPLATE_DOCS_URL}
+                    />
+                  </Suspense>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </SettingSection>
+
+        {existingIntegration ? (
+          <DeleteSection
+            integration={existingIntegration}
+            disabled={isLoading}
+            onDelete={onDelete}
+          />
+        ) : null}
+
+        <ConfigFooter
+          submitLabel={
+            existingIntegration
+              ? t('common.saveChanges')
+              : t('customWebhook.create')
+          }
+          isLoading={isLoading}
+          onCancel={() => onOpenChange(false)}
+        />
+      </form>
+    </Form>
   );
 }

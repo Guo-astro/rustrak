@@ -1,6 +1,6 @@
 import type { Result, RetentionResponse, RustrakError } from '@rustrak/client';
+import { StorageIcon } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { ShieldX } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
@@ -15,7 +15,8 @@ import {
 } from '@/features/storage/ui/components/storage-view';
 import { translator } from '@/shared/i18n/intl';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { Card, CardContent } from '@/shared/ui/components/shadcn/card';
+import { SettingsEmpty } from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { useSessionUser } from '@/shared/ui/hooks/use-session-user';
 
 export const Route = createFileRoute('/_authenticated/settings/storage')({
@@ -35,12 +36,10 @@ function PageHeader() {
   const t = useTranslations('settings');
 
   return (
-    <div className="mb-6 md:mb-8">
-      <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-        {t('storage.title')}
-      </h1>
-      <p className="text-muted-foreground mt-1">{t('storage.subtitle')}</p>
-    </div>
+    <SettingsHeader
+      title={t('storage.title')}
+      description={t('storage.subtitle')}
+    />
   );
 }
 
@@ -57,15 +56,13 @@ function StoragePage() {
     return (
       <>
         <PageHeader />
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ShieldX className="size-12 text-muted-foreground/50 mb-4" />
-            <p className="font-semibold">{t('notAuthorized')}</p>
-            <p className="text-muted-foreground mt-1 text-sm max-w-sm">
-              {t('storage.notAuthorizedDescription')}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-border-subtle bg-surface">
+          <SettingsEmpty
+            icon={<StorageIcon size="2xl" />}
+            title={t('notAuthorized')}
+            description={t('storage.notAuthorizedDescription')}
+          />
+        </div>
       </>
     );
   }

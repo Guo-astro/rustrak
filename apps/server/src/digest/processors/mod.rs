@@ -303,6 +303,9 @@ pub struct ProcessorCtx {
     pub event_id: Uuid,
     pub ingested_at: DateTime<Utc>,
     pub remote_addr: Option<String>,
+    /// False when the project has turned agents off: AI spans are then left
+    /// out wherever spans are stored, and the rest of the trace is kept.
+    pub keep_ai_spans: bool,
 }
 
 #[cfg(test)]

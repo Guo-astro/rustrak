@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { SpinnerIcon } from '@rustrak/ui';
 import { useTranslations } from 'use-intl';
 
 /**
@@ -20,11 +20,11 @@ export function ImpactLine({
   const t = useTranslations('storage');
   return (
     <p
-      className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+      className="rounded-md border border-border-subtle bg-surface px-3 py-2 text-value text-fg"
       aria-live="polite"
     >
       {state === 'failed' ? (
-        <span className="text-destructive">
+        <span className="text-danger-fg">
           {t('dialog.countFailed')}{' '}
           <button
             type="button"
@@ -35,14 +35,18 @@ export function ImpactLine({
           </button>
         </span>
       ) : state === 'counting' ? (
-        <span className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" />
+        <span className="flex items-center gap-2 text-fg-subtle">
+          <SpinnerIcon
+            size="sm"
+            aria-hidden="true"
+            className="animate-spin motion-reduce:animate-none"
+          />
           {t('dialog.counting')}
         </span>
       ) : sentence ? (
         sentence
       ) : (
-        <span className="text-muted-foreground">{nothing}</span>
+        <span className="text-fg-subtle">{nothing}</span>
       )}
     </p>
   );

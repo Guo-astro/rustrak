@@ -12,6 +12,7 @@ export function SettingRow({
   title,
   description,
   htmlFor,
+  wide,
   children,
   className,
 }: {
@@ -19,6 +20,8 @@ export function SettingRow({
   description?: string;
   /** Points the title at its control, so clicking the title focuses it. */
   htmlFor?: string;
+  /** A control that is more than one input wide: a list of headers. */
+  wide?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -28,7 +31,7 @@ export function SettingRow({
   return (
     <div
       className={cn(
-        '@container border-b border-border py-5 last:border-b-0',
+        '@container border-b border-border-divider px-5 py-4 last:border-b-0',
         className,
       )}
     >
@@ -37,49 +40,161 @@ export function SettingRow({
           {htmlFor ? (
             <label
               htmlFor={htmlFor}
-              className="text-sm font-medium cursor-pointer"
+              className="cursor-pointer text-value font-medium text-fg"
             >
               {title}
             </label>
           ) : (
-            <p className="text-sm font-medium">{title}</p>
+            <p className="text-value font-medium text-fg">{title}</p>
           )}
           {description && (
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+            <p className="mt-1 text-hint text-fg-subtle">{description}</p>
           )}
         </div>
-        <div className="shrink-0 @xl:w-72">{children}</div>
+        <div
+          className={cn(
+            'shrink-0',
+            wide ? '@xl:w-[26rem] @xl:shrink' : '@xl:w-72',
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
-/** Groups related rows under a heading, e.g. "Danger Zone". */
+/**
+ * Groups related rows under a heading, e.g. "Danger Zone": the heading above,
+ * the rows inside one card, so a page reads as a few groups rather than a
+ * long undivided list.
+ *
+ * Spacing is owned here, not by each page: a section right under the page
+ * header sits at the page's own gap, and sections after it keep a constant
+ * distance from each other.
+ */
 export function SettingSection({
   title,
   description,
   destructive,
+  actions,
   children,
 }: {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   destructive?: boolean;
+  /** Beside the heading: the section's own action, "Invite", "New key". */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-10 first:mt-0">
-      <h2
+    <section className="mt-4 first:mt-0 [.settings-header+&]:mt-0">
+      <div className="flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h2
+            className={cn(
+              'text-card-title',
+              destructive ? 'text-danger-fg' : 'text-fg',
+            )}
+          >
+            {title}
+          </h2>
+          {description && (
+            <p className="mt-1 max-w-2xl text-meta text-fg-subtle">
+              {description}
+            </p>
+          )}
+        </div>
+        {actions ? (
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        ) : null}
+      </div>
+      <div
         className={cn(
-          'text-xs font-bold uppercase tracking-widest',
-          destructive ? 'text-destructive' : 'text-muted-foreground',
+          'mt-3 overflow-hidden rounded-2xl border bg-surface',
+          destructive ? 'border-danger-surface' : 'border-border-subtle',
         )}
       >
-        {title}
-      </h2>
-      {description && (
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      )}
-      <div className="mt-2">{children}</div>
+        {children}
+      </div>
     </section>
+  );
+}
+
+/**
+ * One thing in a list inside a `SettingSection`: a member, a token, a key, a
+ * connected app. Leading mark, a name with one line under it, quiet facts on
+ * the right, and the row's own actions at the end.
+ */
+export function SettingsListItem({
+  leading,
+  title,
+  description,
+  meta,
+  actions,
+  className,
+}: {
+  leading?: React.ReactNode;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  /** Right-aligned facts: a role, a date, a count. */
+  meta?: React.ReactNode;
+  actions?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex min-h-row items-center gap-3 border-b border-border-divider px-5 py-3 last:border-b-0',
+        className,
+      )}
+    >
+      {leading ? <div className="shrink-0">{leading}</div> : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="min-w-0 truncate text-value font-medium text-fg">
+          {title}
+        </div>
+        {description ? (
+          <div className="min-w-0 truncate text-hint text-fg-subtle">
+            {description}
+          </div>
+        ) : null}
+      </div>
+      {meta ? (
+        <div className="hidden shrink-0 items-center gap-3 text-meta text-fg-meta sm:flex">
+          {meta}
+        </div>
+      ) : null}
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-1">{actions}</div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * What a section shows when it has nothing in it yet: what would be here,
+ * and the one action that puts something there.
+ */
+export function SettingsEmpty({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-6 py-12 text-center">
+      {icon ? <div className="mb-2 text-fg-ghost">{icon}</div> : null}
+      <p className="text-value font-medium text-fg">{title}</p>
+      {description ? (
+        <p className="max-w-sm text-meta text-fg-subtle">{description}</p>
+      ) : null}
+      {action ? <div className="mt-3">{action}</div> : null}
+    </div>
   );
 }

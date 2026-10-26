@@ -1,5 +1,5 @@
 import type { ProjectResponse, RateLimitsResponse } from '@rustrak/client';
-import { Loader2 } from 'lucide-react';
+import { Button, Input } from '@rustrak/ui';
 import { useId, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -7,8 +7,6 @@ import { updateProject } from '@/features/project/api/mutations';
 import { parseRateLimit } from '@/features/project/model/rate-limit';
 import { describeError } from '@/shared/lib/error-copy';
 import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { Input } from '@/shared/ui/components/shadcn/input';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
 type LimitField = 'rate_limit_per_minute' | 'rate_limit_per_hour';
@@ -47,7 +45,7 @@ export function RateLimitSettings({
         placeholder={serverLimit(serverLimits?.project_per_hour)}
       />
       <SettingRow title={t('dropped')} description={t('droppedDescription')}>
-        <p className="text-sm font-medium tabular-nums">
+        <p className="text-value font-medium text-fg tabular-nums">
           {format.number(project.rate_limited_event_count)}
         </p>
       </SettingRow>
@@ -101,11 +99,13 @@ function LimitRow({
       <div className="flex items-center gap-2">
         <Input
           id={id}
+          size="sm"
+          boxClassName="flex-1"
+          invalid={invalid}
           inputMode="numeric"
           placeholder={placeholder}
           value={raw}
           disabled={isPending}
-          aria-invalid={invalid}
           onChange={(event) => {
             setRaw(event.target.value);
             setInvalid(false);
@@ -113,15 +113,15 @@ function LimitRow({
         />
         <Button
           type="button"
-          size="sm"
           onClick={save}
-          disabled={isPending || !hasChanges}
+          loading={isPending}
+          disabled={!hasChanges}
         >
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : t('save')}
+          {t('save')}
         </Button>
       </div>
       {invalid && (
-        <p className="mt-2 text-xs text-destructive">{t('invalid')}</p>
+        <p className="mt-2 text-hint text-danger-fg">{t('invalid')}</p>
       )}
     </SettingRow>
   );

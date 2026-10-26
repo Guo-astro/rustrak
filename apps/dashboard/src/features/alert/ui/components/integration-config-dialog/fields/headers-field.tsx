@@ -1,5 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react';
-import { useId } from 'react';
+import { Button, DeleteIcon, Input, NewIcon } from '@rustrak/ui';
 import {
   type ArrayPath,
   type FieldValues,
@@ -8,7 +7,7 @@ import {
   useFormContext,
 } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
-import { Button } from '@/shared/ui/components/shadcn/button';
+import { SettingRow } from '@/shared/ui/components/setting-row';
 import {
   FormControl,
   FormField,
@@ -16,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
 
 /**
  * The extra HTTP headers a webhook request carries, as name/value rows: an
@@ -37,90 +35,83 @@ export function HeadersField<T extends FieldValues>({
     name: 'headers' as ArrayPath<T>,
   });
 
-  // One description for every row, so it belongs to the fieldset rather than
-  // to a FormItem: `FormDescription` outside one gets an `undefined-…` id
-  // that no input points to.
-  const descriptionId = useId();
-
   return (
-    <fieldset aria-describedby={descriptionId} className="space-y-2">
-      <legend className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        {t('headers.label')}
-      </legend>
+    <SettingRow
+      title={t('headers.label')}
+      description={t('headers.description')}
+      wide
+    >
+      <div className="flex flex-col gap-2">
+        {fields.map((row, index) => (
+          <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+            <FormField
+              control={control}
+              name={`headers.${index}.name` as Path<T>}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="sr-only">
+                    {t('headers.nameLabel')}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t('headers.namePlaceholder')}
+                      disabled={disabled}
+                      autoComplete="off"
+                      className="font-mono"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`headers.${index}.value` as Path<T>}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="sr-only">
+                    {t('headers.valueLabel')}
+                  </FormLabel>
+                  <FormControl>
+                    {/* Usually a token, so hidden like the signing secret. */}
+                    <Input
+                      type="password"
+                      placeholder={t('headers.valuePlaceholder')}
+                      disabled={disabled}
+                      autoComplete="new-password"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              icon={DeleteIcon}
+              onClick={() => remove(index)}
+              disabled={disabled}
+              aria-label={t('headers.remove')}
+            />
+          </div>
+        ))}
 
-      {fields.map((row, index) => (
-        <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-          <FormField
-            control={control}
-            name={`headers.${index}.name` as Path<T>}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="sr-only">
-                  {t('headers.nameLabel')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t('headers.namePlaceholder')}
-                    disabled={disabled}
-                    autoComplete="off"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={control}
-            name={`headers.${index}.value` as Path<T>}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="sr-only">
-                  {t('headers.valueLabel')}
-                </FormLabel>
-                <FormControl>
-                  {/* Usually a token, so hidden like the signing secret. */}
-                  <Input
-                    type="password"
-                    placeholder={t('headers.valuePlaceholder')}
-                    disabled={disabled}
-                    autoComplete="off"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => remove(index)}
-            disabled={disabled}
-            aria-label={t('headers.remove')}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ))}
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() =>
-          append({ name: '', value: '' } as Parameters<typeof append>[0])
-        }
-        disabled={disabled}
-      >
-        <Plus className="size-4" />
-        {t('headers.add')}
-      </Button>
-
-      <p id={descriptionId} className="text-muted-foreground text-sm">
-        {t('headers.description')}
-      </p>
-    </fieldset>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          icon={NewIcon}
+          className="self-start"
+          onClick={() =>
+            append({ name: '', value: '' } as Parameters<typeof append>[0])
+          }
+          disabled={disabled}
+        >
+          {t('headers.add')}
+        </Button>
+      </div>
+    </SettingRow>
   );
 }

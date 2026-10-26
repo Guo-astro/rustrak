@@ -56,6 +56,7 @@ mod level2 {
             event_id: Uuid::nil(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         }
     }
 

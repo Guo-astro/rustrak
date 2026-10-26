@@ -111,3 +111,28 @@
     cursor: pointer;
   }
 }
+
+/*
+ * shadcn's Card, worn as the design system's card, from outside: the same
+ * radius, hairline and flat surface as `SettingSection`, and its title in the
+ * card-title step. Unlayered on purpose, so it beats the utilities baked into
+ * the CLI output. It goes with the rest of the bridge once no screen uses Card.
+ */
+[data-slot="card"] {
+  border-radius: var(--radius-2xl);
+  border-color: var(--border-subtle);
+  background-color: var(--surface);
+  box-shadow: none;
+}
+
+[data-slot="card-title"] {
+  font-size: var(--text-card-title);
+  line-height: var(--text-card-title--line-height);
+  font-weight: var(--text-card-title--font-weight);
+  color: var(--fg);
+}
+
+[data-slot="card-description"] {
+  font-size: var(--text-meta);
+  color: var(--fg-subtle);
+}

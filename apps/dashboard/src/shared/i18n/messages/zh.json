@@ -37,7 +37,8 @@
   "theme": {
     "light": "浅色",
     "dark": "深色",
-    "system": "跟随系统"
+    "system": "跟随系统",
+    "label": "主题"
   },
   "update": {
     "srAvailable": "Rustrak {version} 有新版本可用。",
@@ -837,7 +838,8 @@
       "edit": "编辑",
       "deleteAria": "删除 {name}",
       "close": "关闭",
-      "addProvider": "添加 {name}"
+      "addProvider": "添加 {name}",
+      "more": "{name} 的更多操作"
     },
     "table": {
       "rule": "规则",
@@ -892,6 +894,24 @@
     "newFeedback": {
       "name": "新反馈",
       "description": "用户提交了反馈"
+    },
+    "page": {
+      "general": "常规",
+      "connection": "连接",
+      "server": "服务器",
+      "authentication": "身份验证",
+      "authenticationDescription": "仅当 SMTP 服务器要求登录时填写。",
+      "nameDescription": "告警规则选择发送目标时显示的名称。",
+      "methodDescription": "Webhook 只能发送到一个固定频道。Bot Token 可以发送到机器人所在的任意频道。",
+      "portDescription": "STARTTLS 通常为 587，TLS 为 465。",
+      "fromDescription": "告警邮件的发件人。",
+      "testTitle": "发送测试",
+      "testDescription": "使用已保存的设置发送一条示例告警，不包含未保存的修改。",
+      "dangerTitle": "危险操作",
+      "deleteTitle": "删除此集成",
+      "deleteDescription": "通过它发送的告警规则将不再投递到这里。",
+      "unsaved": "有未保存的更改",
+      "back": "所有 {name} 集成"
     }
   },
   "events": {
@@ -1710,11 +1730,11 @@
       "general": "常规",
       "alerts": "告警",
       "members": "成员",
-      "clientKeys": "客户端密钥",
+      "clientKeys": "SDK",
       "apiTokens": "API 令牌",
       "integrations": "集成",
-      "mcp": "AI 助手 (MCP)",
-      "team": "团队",
+      "mcp": "AI 助手",
+      "team": "成员",
       "storage": "存储",
       "account": "账户",
       "appearance": "外观",
@@ -1723,7 +1743,14 @@
       "projectSettingsTitle": "项目设置",
       "openSettingsMenu": "打开设置菜单",
       "settingsTitle": "设置",
-      "github": "GitHub"
+      "github": "仓库",
+      "products": "产品",
+      "groupAccount": "账户",
+      "groupWorkspace": "工作区",
+      "profile": "个人资料",
+      "preferences": "偏好设置",
+      "instance": "实例",
+      "data": "数据"
     },
     "loadProjectFailed": "无法加载项目",
     "loadProjectsFailed": "无法加载项目",
@@ -1739,7 +1766,7 @@
       "meta": {
         "title": "客户端密钥 | Rustrak"
       },
-      "title": "客户端密钥（DSN）",
+      "title": "SDK",
       "subtitle": "将应用连接到该项目。"
     },
     "alerts": {
@@ -1770,7 +1797,7 @@
         "title": "团队 | Rustrak",
         "description": "管理您的团队成员和邀请"
       },
-      "title": "团队",
+      "title": "成员",
       "subtitle": "管理您的团队成员和邀请",
       "notAuthorizedDescription": "只有实例管理员可以管理团队。如需访问权限，请联系管理员。",
       "loadFailed": "无法加载团队"
@@ -1792,8 +1819,8 @@
         "title": "AI 助手 | Rustrak",
         "description": "通过 MCP 将 AI 助手连接到 Rustrak"
       },
-      "title": "AI 助手 (MCP)",
-      "subtitle": "让 Claude、ChatGPT、Cursor 等 AI 助手以连接者的权限读取并处理你的错误。",
+      "title": "AI 助手",
+      "subtitle": "让 Claude、ChatGPT 或 Cursor 读取并处理你的错误。",
       "loadFailed": "无法加载 MCP 设置",
       "copy": "复制",
       "copied": "已复制",
@@ -1853,6 +1880,28 @@
         "revokeFailed": "无法断开该助手",
         "revoked": "已断开 {name}",
         "loadFailed": "无法加载已连接的助手"
+      },
+      "page": {
+        "offTitle": "MCP 服务器已关闭",
+        "offAdmin": "开启后即可连接助手。",
+        "offMember": "请让管理员开启。",
+        "enable": "开启",
+        "connect": "连接助手",
+        "webHint": "添加自定义连接器并粘贴上面的 URL。你登录 Rustrak 并批准即可。",
+        "tokenHint": "此服务器未设置 PUBLIC_URL，助手需使用 API 令牌连接。",
+        "help": "工作原理",
+        "helpTitle": "两种连接方式",
+        "helpIntro": "两种方式可同时使用：选择你的助手支持的那一种。",
+        "oauthName": "登录",
+        "tokenName": "API 令牌",
+        "oauth1": "claude.ai、ChatGPT、Claude Code、Cursor、VS Code",
+        "oauth2": "登录 Rustrak 并批准",
+        "oauth3": "无需复制或续期",
+        "token1": "脚本、CI 及无法登录的客户端",
+        "token2": "在客户端中粘贴令牌",
+        "token3": "吊销令牌即断开连接",
+        "publicUrl": "登录需要 PUBLIC_URL：访问此服务器的地址。",
+        "tokenSetup": "使用令牌配置"
       }
     },
     "storage": {
@@ -1923,6 +1972,49 @@
       "githubRepository": "GitHub 仓库",
       "reportAnIssue": "报告问题",
       "sentryDocs": "Sentry SDK 文档"
+    },
+    "products": {
+      "title": "产品",
+      "subtitle": "此项目保存哪些数据，以及侧边栏中的显示顺序。",
+      "note": "关闭某个产品会将其从侧边栏移除，并在数据到达时停止保存：SDK 仍会发送，Rustrak 会丢弃。已保存的数据会保留，重新开启后会再次显示。",
+      "alwaysOn": "始终开启",
+      "saved": "已保存",
+      "saveFailed": "无法保存产品设置",
+      "drag": "拖动以重新排序 {name}",
+      "moveUp": "上移 {name}",
+      "moveDown": "下移 {name}",
+      "items": {
+        "issues": "错误和异常，归并为问题。",
+        "feedback": "用户通过反馈组件发送的内容。",
+        "releases": "基于会话的版本健康度。",
+        "performance": "事务和 span。",
+        "logs": "来自 SDK 的结构化日志。",
+        "crons": "定时任务的签到。",
+        "agents": "AI 代理追踪：性能数据中的 gen_ai span。"
+      }
+    },
+    "profile": {
+      "title": "个人资料",
+      "subtitle": "你在此实例中的身份，以及登录方式。"
+    },
+    "preferences": {
+      "title": "偏好设置",
+      "subtitle": "Rustrak 如何向你展示：语言、时区和主题。",
+      "display": "显示",
+      "theme": "主题",
+      "themeDescription": "浅色、深色或跟随系统。"
+    },
+    "instance": {
+      "title": "实例",
+      "subtitle": "此 Rustrak 运行的版本及其限制。",
+      "version": "版本",
+      "limits": "接收限制",
+      "limitsDescription": "服务器对每个项目的限制。项目只能在其数据设置中设置更低的限制。",
+      "unlimited": "无限制"
+    },
+    "data": {
+      "title": "数据",
+      "subtitle": "此项目保存哪些数据，以及接收多少。"
     }
   },
   "github": {
@@ -2015,6 +2107,31 @@
       "description": "在 Rustrak 中分配给你的 Issue，其关联的 GitHub Issue 也会分配给你，反之亦然。",
       "saved": "已保存 GitHub 用户名",
       "saveFailed": "无法保存你的 GitHub 用户名"
+    },
+    "setup": {
+      "title": "设置 GitHub",
+      "createTitle": "创建 GitHub App",
+      "createDescription": "GitHub 会在创建前向你展示该应用，它只属于你的账户或组织。",
+      "created": "已创建为 {slug}",
+      "organization": "组织",
+      "organizationHint": "留空则使用个人账户。应用只能安装在创建它的地方。",
+      "installTitle": "选择仓库",
+      "installDescription": "安装应用并选择 Rustrak 可以读取的仓库。",
+      "linkTitle": "将每个项目关联到其仓库",
+      "linkDescription": "在每个项目的设置中，GitHub 下。",
+      "featuresTitle": "带来的功能",
+      "active": "已启用",
+      "you": "你",
+      "features": {
+        "code": "堆栈中的代码",
+        "codeDescription": "在运行它的提交中打开出错的那一行。",
+        "commits": "可疑提交",
+        "commitsDescription": "问题上显示最可能导致错误的提交。",
+        "issues": "GitHub Issues",
+        "issuesDescription": "创建或关联 Issue，并通过提交解决错误。",
+        "owners": "代码所有者",
+        "ownersDescription": "根据 CODEOWNERS 显示出错代码的负责人。"
+      }
     }
   },
   "conditions": {

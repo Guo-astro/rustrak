@@ -1,13 +1,6 @@
 import { type ReactNode, useState } from 'react';
 import { Button } from '../button/button';
 import { Field, FieldLabel } from '../field/field';
-import type { IconComponent } from '../icon/icon';
-import {
-  DeleteIcon,
-  InfoIcon,
-  OkIcon,
-  WarningIcon,
-} from '../icon/icon-catalog';
 import { Input } from '../input/input';
 import {
   DialogBody,
@@ -33,9 +26,8 @@ export interface ConfirmOptions {
   title: string;
   /** What it takes with it and what can be recovered. This is what is read. */
   description?: ReactNode;
-  /** The disc's colour and icon. Red only when something is destroyed. */
+  /** Red only when something is destroyed: it colours the action. */
   tone?: DialogTone;
-  icon?: IconComponent;
   /** The action's label, in the title's own verb: "Delete". */
   confirmLabel?: string;
   cancelLabel?: string;
@@ -49,18 +41,10 @@ export interface ConfirmOptions {
   phrase?: string;
 }
 
-const TONE_ICONS: Record<DialogTone, IconComponent> = {
-  brand: InfoIcon,
-  success: OkIcon,
-  warning: WarningIcon,
-  danger: DeleteIcon,
-};
-
 function ConfirmContent({
   title,
   description,
   tone = 'danger',
-  icon,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   details,
@@ -76,13 +60,11 @@ function ConfirmContent({
       <DialogHeader
         title={title}
         description={description}
-        icon={icon ?? TONE_ICONS[tone]}
-        tone={tone}
         dismissible={false}
       />
 
       {details || phrase ? (
-        <DialogBody inset>
+        <DialogBody>
           {details}
           {phrase ? (
             // A `Field`, which is what ties the label to the box: written by
@@ -158,8 +140,6 @@ export async function confirm(options: ConfirmOptions): Promise<boolean> {
 export interface AlertOptions {
   title: string;
   description?: ReactNode;
-  tone?: DialogTone;
-  icon?: IconComponent;
   /** The label of the only way out. */
   closeLabel?: string;
   details?: ReactNode;
@@ -169,8 +149,6 @@ const alertDialog = createDialog<AlertOptions, void>(
   function AlertContent({
     title,
     description,
-    tone = 'brand',
-    icon,
     closeLabel = 'Got it',
     details,
     close,
@@ -180,12 +158,10 @@ const alertDialog = createDialog<AlertOptions, void>(
         <DialogHeader
           title={title}
           description={description}
-          icon={icon ?? TONE_ICONS[tone]}
-          tone={tone}
           dismissible={false}
         />
 
-        {details ? <DialogBody inset>{details}</DialogBody> : null}
+        {details ? <DialogBody>{details}</DialogBody> : null}
 
         <DialogFooter>
           <Button variant="primary" shortcut="⏎" onClick={() => close()}>

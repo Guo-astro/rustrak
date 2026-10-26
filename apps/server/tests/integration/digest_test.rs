@@ -163,6 +163,7 @@ async fn test_error_processor_impl_creates_issue_and_event() {
         event_id: Uuid::parse_str(&event_id).expect("Invalid event_id"),
         ingested_at: metadata.ingested_at,
         remote_addr: None,
+        keep_ai_spans: true,
     };
 
     processor

@@ -4,6 +4,7 @@ import { getProject } from '@/features/project/api/queries';
 import { ClientKeysSettings } from '@/features/project/ui/components/client-keys-settings';
 import { translator } from '@/shared/i18n/intl';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/settings/client-keys',
@@ -25,12 +26,10 @@ function ClientKeysPage() {
 
   return (
     <>
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">
-          {t('clientKeys.title')}
-        </h1>
-        <p className="mt-1 text-muted-foreground">{t('clientKeys.subtitle')}</p>
-      </div>
+      <SettingsHeader
+        title={t('clientKeys.title')}
+        description={t('clientKeys.subtitle')}
+      />
 
       <ClientKeysSettings project={project.data} />
     </>

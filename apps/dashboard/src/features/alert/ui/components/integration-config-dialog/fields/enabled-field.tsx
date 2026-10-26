@@ -1,13 +1,12 @@
+import { Switch } from '@rustrak/ui';
 import { type FieldValues, type Path, useFormContext } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
-  FormLabel,
 } from '@/shared/ui/components/shadcn/form';
-import { Switch } from '@/shared/ui/components/shadcn/switch';
+import { FieldRow } from './form-chrome';
 
 /** Whether alerts go out on this integration. Identical for every provider. */
 export function EnabledField<T extends FieldValues & { is_enabled: boolean }>({
@@ -23,22 +22,19 @@ export function EnabledField<T extends FieldValues & { is_enabled: boolean }>({
       control={control}
       name={'is_enabled' as Path<T>}
       render={({ field }) => (
-        <FormItem className="flex items-center justify-between rounded-lg border p-3">
-          <div className="space-y-0.5">
-            <FormLabel className="text-sm font-medium">
-              {t('integrationDialog.enabled')}
-            </FormLabel>
-            <FormDescription className="text-xs">
-              {t('integrationDialog.enabledDescription')}
-            </FormDescription>
-          </div>
-          <FormControl>
-            <Switch
-              checked={field.value}
-              onCheckedChange={field.onChange}
-              disabled={disabled}
-            />
-          </FormControl>
+        <FormItem>
+          <FieldRow
+            title={t('integrationDialog.enabled')}
+            description={t('integrationDialog.enabledDescription')}
+          >
+            <FormControl>
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            </FormControl>
+          </FieldRow>
         </FormItem>
       )}
     />

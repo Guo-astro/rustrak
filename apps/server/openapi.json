@@ -2672,7 +2672,9 @@
                           "rate_limit_per_hour",
                           "created_at",
                           "updated_at",
-                          "platform"
+                          "platform",
+                          "disabled_products",
+                          "product_order"
                         ],
                         "properties": {
                           "created_at": {
@@ -2682,6 +2684,13 @@
                           "digested_event_count": {
                             "type": "integer",
                             "format": "int32"
+                          },
+                          "disabled_products": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/Product"
+                            },
+                            "description": "Products whose data this project drops at ingest."
                           },
                           "dsn": {
                             "type": "string"
@@ -2698,6 +2707,13 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "product_order": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/Product"
+                            },
+                            "description": "The order its sidebar lists the products in; the ones missing follow\nin their default order."
                           },
                           "rate_limit_per_hour": {
                             "type": [
@@ -15106,6 +15122,19 @@
           }
         }
       },
+      "Product": {
+        "type": "string",
+        "description": "A kind of data a project can keep, and a route in its sidebar.\n\nTurning one off is not a view setting: its items are dropped at ingest,\nwith a 200 as Relay drops filtered data, so nothing new is stored and the\nSDK does not retry. What was already stored stays.",
+        "enum": [
+          "issues",
+          "feedback",
+          "releases",
+          "performance",
+          "agents",
+          "logs",
+          "crons"
+        ]
+      },
       "ProjectAge": {
         "type": "object",
         "required": [
@@ -15305,7 +15334,9 @@
           "rate_limit_per_hour",
           "created_at",
           "updated_at",
-          "platform"
+          "platform",
+          "disabled_products",
+          "product_order"
         ],
         "properties": {
           "created_at": {
@@ -15315,6 +15346,13 @@
           "digested_event_count": {
             "type": "integer",
             "format": "int32"
+          },
+          "disabled_products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "Products whose data this project drops at ingest."
           },
           "dsn": {
             "type": "string"
@@ -15331,6 +15369,13 @@
               "string",
               "null"
             ]
+          },
+          "product_order": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "The order its sidebar lists the products in; the ones missing follow\nin their default order."
           },
           "rate_limit_per_hour": {
             "type": [
@@ -17427,6 +17472,16 @@
         "type": "object",
         "description": "DTO for updating a project",
         "properties": {
+          "disabled_products": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "The products to stop storing, replacing the current list. `issues`\ncannot be one of them (400). Data already stored is kept."
+          },
           "name": {
             "type": [
               "string",
@@ -17439,6 +17494,16 @@
               "null"
             ],
             "description": "Manual override of the project's platform, such as `python-django` or\n`javascript-nextjs`. Rejected with a 400 if it is not one of the\nsupported values.\n\nThe supported set is wider than the platforms an event may declare, so\nframework-specific identifiers are accepted here. An update overwrites\nany auto-assigned value, which is how a wrong detection is corrected.\nSending `null` leaves the current value untouched rather than clearing\nit."
+          },
+          "product_order": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "The sidebar's order of products, replacing the current one."
           },
           "rate_limit_per_hour": {
             "type": [

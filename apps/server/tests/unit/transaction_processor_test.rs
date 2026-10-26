@@ -154,6 +154,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         TransactionProcessor
@@ -234,6 +235,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         TransactionProcessor
@@ -298,6 +300,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -345,6 +348,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -406,6 +410,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -477,6 +482,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         // Binary garbage some misconfigured SDKs send — not valid JSON.
@@ -523,6 +529,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: ts,
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": "/x",
@@ -581,6 +588,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         TransactionProcessor
@@ -645,6 +653,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         // Drive the trait into existence: dispatch through the Processor contract.
@@ -709,6 +718,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         #[cfg(feature = "postgres")]
@@ -841,6 +851,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: Utc::now(),
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": "/x", "timestamp": 2.0,
@@ -893,6 +904,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: Utc::now(),
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": name, "timestamp": 2.0,
@@ -939,6 +951,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         let payload = serde_json::to_vec(&json!({
             "type": "transaction", "transaction": "/api/x",
@@ -1008,6 +1021,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: Utc::now(),
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": name,
@@ -1064,6 +1078,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: Utc::now(),
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": format!("/g{i}"),
@@ -1137,6 +1152,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: Utc::now(),
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": name,
@@ -1190,6 +1206,7 @@ mod level2 {
                 event_id: Uuid::new_v4(),
                 ingested_at: Utc::now(),
                 remote_addr: None,
+                keep_ai_spans: true,
             };
             let payload = serde_json::to_vec(&json!({
                 "type": "transaction", "transaction": "/x",
@@ -1244,6 +1261,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         TransactionProcessor
@@ -1309,6 +1327,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1389,6 +1408,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1487,6 +1507,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1550,6 +1571,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1619,6 +1641,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1669,6 +1692,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1743,6 +1767,7 @@ mod level2 {
             event_id: Uuid::nil(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -1812,6 +1837,7 @@ mod level2 {
             event_id: Uuid::nil(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         TransactionProcessor
             .process(bytes::Bytes::from(payload), &ctx)

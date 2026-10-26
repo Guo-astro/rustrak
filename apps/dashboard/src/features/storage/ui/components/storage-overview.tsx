@@ -1,5 +1,5 @@
 import type { CleanupStatus, RetentionResponse } from '@rustrak/client';
-import { Loader2 } from 'lucide-react';
+import { cn, SpinnerIcon } from '@rustrak/ui';
 import { useFormatter, useTranslations } from 'use-intl';
 import {
   deletesAnything,
@@ -8,7 +8,6 @@ import {
   type Summary,
 } from '@/features/storage/model/retention';
 import { formatBytes } from '@/shared/lib/utils';
-import { Card, CardContent } from '@/shared/ui/components/shadcn/card';
 
 /** Fixed categorical slots, in order: the colour follows the kind. */
 const SEGMENTS = [
@@ -19,18 +18,11 @@ const SEGMENTS = [
 ] as const;
 
 /**
- * How much the instance holds and of what, as one meter, and what the
- * cleanup does next. Each figure appears here and nowhere else.
+ * How much the instance holds and of what, as one meter. What the cleanup
+ * does next is `CleanupLine`, in the retention section. Each figure appears
+ * here and nowhere else.
  */
-export function StorageOverview({
-  summary,
-  retention,
-  job,
-}: {
-  summary: Summary;
-  retention: RetentionResponse;
-  job: CleanupStatus | null;
-}) {
+export function StorageOverview({ summary }: { summary: Summary }) {
   const t = useTranslations('storage');
   const format = useFormatter();
   const total = Math.max(summary.bytes, 1);
@@ -45,64 +37,53 @@ export function StorageOverview({
         });
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            {t('overview.title')}
-          </p>
-          <p className="mt-1 text-3xl font-bold">
-            {formatBytes(summary.bytes)}
-          </p>
-        </div>
-        <div
-          className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-muted"
-          role="img"
-          aria-label={SEGMENTS.map(
-            (s) => `${t(`kind.${s.key}`)} ${formatBytes(bytesOf(s.key))}`,
-          ).join(', ')}
-        >
-          {SEGMENTS.map((s) =>
-            bytesOf(s.key) > 0 ? (
-              <div
-                key={s.key}
-                className={s.color}
-                style={{ width: `${(bytesOf(s.key) / total) * 100}%` }}
-              />
-            ) : null,
-          )}
-        </div>
-        <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {SEGMENTS.map((s) => (
-            <div key={s.key} className="flex gap-2">
-              <span
-                aria-hidden
-                className={`mt-1.5 size-2.5 shrink-0 rounded-sm ${s.color}`}
-              />
-              <div>
-                <dt className="text-sm text-muted-foreground">
-                  {t(`kind.${s.key}`)}
-                </dt>
-                <dd className="text-base font-semibold tabular-nums">
-                  {formatBytes(bytesOf(s.key))}
-                </dd>
-                <dd className="text-xs text-muted-foreground">
-                  {detailOf(s.key)}
-                </dd>
-              </div>
+    <div className="space-y-4 px-5 py-4">
+      <p className="text-numeric-lg tabular-nums text-fg">
+        {formatBytes(summary.bytes)}
+      </p>
+      <div
+        className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-surface-chip"
+        role="img"
+        aria-label={SEGMENTS.map(
+          (s) => `${t(`kind.${s.key}`)} ${formatBytes(bytesOf(s.key))}`,
+        ).join(', ')}
+      >
+        {SEGMENTS.map((s) =>
+          bytesOf(s.key) > 0 ? (
+            <div
+              key={s.key}
+              className={s.color}
+              style={{ width: `${(bytesOf(s.key) / total) * 100}%` }}
+            />
+          ) : null,
+        )}
+      </div>
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {SEGMENTS.map((s) => (
+          <div key={s.key} className="flex gap-2">
+            <span
+              aria-hidden
+              className={cn('mt-1.5 size-2.5 shrink-0 rounded-xs', s.color)}
+            />
+            <div>
+              <dt className="text-meta text-fg-subtle">{t(`kind.${s.key}`)}</dt>
+              <dd className="text-numeric tabular-nums text-fg">
+                {formatBytes(bytesOf(s.key))}
+              </dd>
+              <dd className="text-hint text-fg-meta">{detailOf(s.key)}</dd>
             </div>
-          ))}
-        </dl>
-        <div className="border-t pt-3">
-          <CleanupLine summary={summary} retention={retention} job={job} />
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
+/** A row inside a `SettingSection`, the same padding and rule as `SettingRow`. */
+const ROW = 'border-b border-border-divider px-5 py-4 last:border-b-0';
+
 /** One sentence: what the cleanup does next, or is doing now. */
-function CleanupLine({
+export function CleanupLine({
   summary,
   retention,
   job,
@@ -116,8 +97,12 @@ function CleanupLine({
 
   if (job?.state === 'running' && job.kind === 'compaction') {
     return (
-      <p className="flex items-center gap-2 text-sm">
-        <Loader2 className="size-3.5 animate-spin" />
+      <p className={cn(ROW, 'flex items-center gap-2 text-value text-fg')}>
+        <SpinnerIcon
+          size="sm"
+          aria-hidden="true"
+          className="animate-spin motion-reduce:animate-none"
+        />
         {t('overview.compacting')}
       </p>
     );
@@ -126,8 +111,12 @@ function CleanupLine({
   if (job?.state === 'running' || retention.last_run?.status === 'running') {
     const parts = job?.state === 'running' ? removedParts(job.removed, t) : [];
     return (
-      <p className="flex items-center gap-2 text-sm">
-        <Loader2 className="size-3.5 animate-spin" />
+      <p className={cn(ROW, 'flex items-center gap-2 text-value text-fg')}>
+        <SpinnerIcon
+          size="sm"
+          aria-hidden="true"
+          className="animate-spin motion-reduce:animate-none"
+        />
         {t('overview.cleaning', {
           parts: parts.length ? parts.join(', ') : t('overview.starting'),
         })}
@@ -135,12 +124,16 @@ function CleanupLine({
     );
   }
   if (!deletesAnything(retention.settings)) {
-    return <p className="text-sm text-muted-foreground">{t('overview.off')}</p>;
+    return (
+      <p className={cn(ROW, 'text-value text-fg-subtle')}>
+        {t('overview.off')}
+      </p>
+    );
   }
   const { last } = runStatus(retention, t);
   const failed = last?.key === 'status.lastRunFailed';
   return (
-    <div className="space-y-0.5 text-sm">
+    <div className={cn(ROW, 'space-y-0.5 text-value text-fg')}>
       <p>
         {retention.next_run_at
           ? t('overview.next', {
@@ -150,7 +143,7 @@ function CleanupLine({
           : t('overview.scheduling')}
       </p>
       {failed && last && (
-        <p className="text-destructive">
+        <p className="text-meta text-danger-fg">
           {t(last.key, {
             ...last.values,
             when: format.relativeTime(new Date(last.at ?? Date.now())),

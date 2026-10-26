@@ -1323,6 +1323,15 @@ export type PreviewTemplateResponse = {
     rendered?: string | null;
 };
 
+/**
+ * A kind of data a project can keep, and a route in its sidebar.
+ *
+ * Turning one off is not a view setting: its items are dropped at ingest,
+ * with a 200 as Relay drops filtered data, so nothing new is stored and the
+ * SDK does not retry. What was already stored stays.
+ */
+export type Product = 'issues' | 'feedback' | 'releases' | 'performance' | 'agents' | 'logs' | 'crons';
+
 export type ProjectAge = {
     events: KindAge;
     logs: KindAge;
@@ -1422,10 +1431,19 @@ export type ProjectRepository = {
 export type ProjectResponse = {
     created_at: string;
     digested_event_count: number;
+    /**
+     * Products whose data this project drops at ingest.
+     */
+    disabled_products: Array<Product>;
     dsn: string;
     id: number;
     name: string;
     platform: string | null;
+    /**
+     * The order its sidebar lists the products in; the ones missing follow
+     * in their default order.
+     */
+    product_order: Array<Product>;
     rate_limit_per_hour: number | null;
     /**
      * The project's own limits, or `null` when it follows the operator's.
@@ -2291,6 +2309,11 @@ export type UpdatePreferencesRequest = {
  * DTO for updating a project
  */
 export type UpdateProject = {
+    /**
+     * The products to stop storing, replacing the current list. `issues`
+     * cannot be one of them (400). Data already stored is kept.
+     */
+    disabled_products?: Array<Product> | null;
     name?: string | null;
     /**
      * Manual override of the project's platform, such as `python-django` or
@@ -2304,6 +2327,10 @@ export type UpdateProject = {
      * it.
      */
     platform?: string | null;
+    /**
+     * The sidebar's order of products, replacing the current one.
+     */
+    product_order?: Array<Product> | null;
     /**
      * The same for the hour, against `MAX_EVENTS_PER_PROJECT_PER_HOUR`.
      */
@@ -3852,10 +3879,19 @@ export type ProjectsListResponses = {
         items: Array<{
             created_at: string;
             digested_event_count: number;
+            /**
+             * Products whose data this project drops at ingest.
+             */
+            disabled_products: Array<Product>;
             dsn: string;
             id: number;
             name: string;
             platform: string | null;
+            /**
+             * The order its sidebar lists the products in; the ones missing follow
+             * in their default order.
+             */
+            product_order: Array<Product>;
             rate_limit_per_hour: number | null;
             /**
              * The project's own limits, or `null` when it follows the operator's.

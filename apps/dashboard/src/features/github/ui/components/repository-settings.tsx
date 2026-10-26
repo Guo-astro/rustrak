@@ -6,7 +6,15 @@ import type {
   Result,
   RustrakError,
 } from '@rustrak/client';
-import { ArrowUpRight, Plus, RefreshCw, X } from 'lucide-react';
+import {
+  Button,
+  CloseIcon,
+  ExternalLinkIcon,
+  Input,
+  NewIcon,
+  RefreshIcon,
+  Switch,
+} from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -21,10 +29,13 @@ import {
   formFromConditions,
 } from '@/shared/lib/rule-conditions';
 import { ConditionFilters } from '@/shared/ui/components/condition-filters';
+import { GitHubMark } from '@/shared/ui/components/github-mark';
 import { Link } from '@/shared/ui/components/link';
-import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { Input } from '@/shared/ui/components/shadcn/input';
+import {
+  SettingRow,
+  SettingSection,
+  SettingsListItem,
+} from '@/shared/ui/components/setting-row';
 import {
   Select,
   SelectContent,
@@ -32,7 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/components/shadcn/select';
-import { Switch } from '@/shared/ui/components/shadcn/switch';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface RepositorySettingsProps {
@@ -97,88 +107,115 @@ export function RepositorySettings({
   // GitHub being unreachable for a moment must not hide its settings.
   const choices = repositories.success ? repositories.data : [];
   const unavailable = !repositories.success && (
-    <div className="mb-6 rounded-lg border border-dashed p-4 text-sm space-y-1.5">
-      <p className="font-medium">{t('repository.unavailable')}</p>
-      <p className="text-muted-foreground">
+    <div className="mb-4 flex flex-col gap-1.5 rounded-2xl border border-dashed border-border-subtle bg-surface px-5 py-4">
+      <p className="text-value font-medium text-fg">
+        {t('repository.unavailable')}
+      </p>
+      <p className="text-meta text-fg-subtle">
         {repositories.success ? null : repositories.error.message}
       </p>
       <Link
         href="/settings/integrations"
-        className="inline-flex items-center gap-1 text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-meta text-fg-brand hover:underline"
       >
         {t('repository.goToIntegrations')}
-        <ArrowUpRight className="size-3.5" />
+        <ExternalLinkIcon size="sm" />
       </Link>
     </div>
   );
   if (unavailable && !repository) return unavailable;
 
+  // Changes the linked repository, or picks the first one.
+  const picker = (
+    <Select
+      value={repository?.repo_full_name ?? ''}
+      onValueChange={(value) => {
+        const repo = choices.find((r) => r.full_name === value);
+        if (repo) save({ repo });
+      }}
+      disabled={isPending || choices.length === 0}
+    >
+      <SelectTrigger
+        id="github-repository"
+        aria-label={t('repository.repository')}
+        className="w-full"
+      >
+        <SelectValue
+          placeholder={
+            choices.length === 0
+              ? t('repository.noRepositories')
+              : t('repository.choose')
+          }
+        />
+      </SelectTrigger>
+      <SelectContent>
+        {choices.map((repo) => (
+          <SelectItem key={repo.full_name} value={repo.full_name}>
+            {repo.full_name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <>
       {unavailable}
       <SettingSection title={t('repository.section')}>
-        <SettingRow
-          title={t('repository.repository')}
-          description={t('repository.repositoryDescription')}
-          htmlFor="github-repository"
-        >
-          <Select
-            value={repository?.repo_full_name ?? ''}
-            onValueChange={(value) => {
-              const repo = choices.find((r) => r.full_name === value);
-              if (repo) save({ repo });
-            }}
-            disabled={isPending || choices.length === 0}
+        {/* The linked repository as a row of its own, the picker beside it
+            to change it; before one is chosen, the picker is the row. */}
+        {repository ? (
+          <SettingsListItem
+            leading={
+              <span className="flex size-8 items-center justify-center rounded-lg border border-border-subtle text-fg-secondary">
+                <GitHubMark className="size-4" />
+              </span>
+            }
+            title={
+              <span className="font-mono text-mono">
+                {repository.repo_full_name}
+              </span>
+            }
+            description={
+              <a
+                href={repository.html_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 hover:text-fg"
+              >
+                {t('repository.openOnGitHub', {
+                  branch: repository.default_branch,
+                })}
+                <ExternalLinkIcon size="sm" />
+              </a>
+            }
+            actions={<div className="w-56">{picker}</div>}
+          />
+        ) : (
+          <SettingRow
+            title={t('repository.repository')}
+            description={t('repository.repositoryDescription')}
+            htmlFor="github-repository"
           >
-            <SelectTrigger id="github-repository" className="w-full">
-              <SelectValue
-                placeholder={
-                  choices.length === 0
-                    ? t('repository.noRepositories')
-                    : t('repository.choose')
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {choices.map((repo) => (
-                <SelectItem key={repo.full_name} value={repo.full_name}>
-                  {repo.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {repository && (
-            <a
-              href={repository.html_url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              {t('repository.openOnGitHub', {
-                branch: repository.default_branch,
-              })}
-              <ArrowUpRight className="size-3" />
-            </a>
-          )}
-        </SettingRow>
+            {picker}
+          </SettingRow>
+        )}
       </SettingSection>
 
       {repository && (
         <>
-          <SettingSection title={t('repository.stackTraces')}>
-            <SettingRow
-              title={t('repository.mappings')}
-              description={t('repository.mappingsDescription')}
-            >
-              <PathMappings
-                // A new key per saved value starts the draft again from it,
-                // so what the server kept (empty rows dropped) is what shows.
-                key={JSON.stringify(repository.code_mappings)}
-                saved={repository.code_mappings}
-                disabled={isPending}
-                onSave={(code_mappings) => save({ code_mappings })}
-              />
-            </SettingRow>
+          <SettingSection
+            title={t('repository.mappings')}
+            description={t('repository.mappingsDescription')}
+          >
+            <PathMappings
+              // A new key per saved value starts the draft again from it,
+              // so what the server kept (empty rows dropped) is what shows.
+              key={JSON.stringify(repository.code_mappings)}
+              saved={repository.code_mappings}
+              disabled={isPending}
+              onSave={(code_mappings) => save({ code_mappings })}
+            />
           </SettingSection>
 
           <SettingSection title={t('repository.issues')}>
@@ -214,7 +251,7 @@ export function RepositorySettings({
               title={t('repository.fixes')}
               description={t('repository.fixesDescription')}
             >
-              <code className="rounded bg-muted px-2 py-1 font-mono text-xs">
+              <code className="rounded-md bg-surface-chip px-2 py-1 font-mono text-mono text-fg">
                 Fixes {projectSlug.toUpperCase()}-123
               </code>
             </SettingRow>
@@ -224,8 +261,8 @@ export function RepositorySettings({
             >
               <div className="flex items-center gap-3">
                 <Button
-                  variant="outline"
                   size="sm"
+                  icon={RefreshIcon}
                   disabled={isPending}
                   onClick={() =>
                     run(t('repository.codeownersFailed'), () =>
@@ -233,10 +270,9 @@ export function RepositorySettings({
                     )
                   }
                 >
-                  <RefreshCw />
                   {t('repository.codeownersSync')}
                 </Button>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-hint text-fg-meta">
                   {repository.codeowners_synced_at
                     ? t('repository.codeownersStatus', {
                         count: repository.codeowners_rules ?? 0,
@@ -256,8 +292,7 @@ export function RepositorySettings({
               description={t('repository.disconnectDescription')}
             >
               <Button
-                variant="destructive"
-                size="sm"
+                variant="danger"
                 disabled={isPending}
                 onClick={() =>
                   run(t('repository.saveFailed'), () =>
@@ -297,54 +332,63 @@ function PathMappings({
     );
 
   return (
-    <div className="space-y-2">
+    <>
       {mappings.map((mapping, index) => (
         // Rows are controlled inputs with no identity of their own; the
         // position is the row, and removing one re-renders from state.
         // react-doctor-disable-next-line react-doctor/no-array-index-as-key
-        <div key={index} className="flex items-center gap-1.5">
+        <div
+          key={index}
+          className="flex items-center gap-2 border-b border-border-divider px-5 py-3"
+        >
           <Input
+            size="sm"
             value={mapping.stack_root}
             placeholder="/app/"
             aria-label={t('repository.stackRoot')}
-            className="font-mono text-xs"
+            className="font-mono text-mono"
+            boxClassName="flex-1"
             disabled={disabled}
             onChange={(e) => update(index, { stack_root: e.target.value })}
           />
-          <span className="text-muted-foreground">→</span>
+          <span aria-hidden="true" className="text-fg-meta">
+            →
+          </span>
           <Input
+            size="sm"
             value={mapping.source_root}
             placeholder="src/"
             aria-label={t('repository.sourceRoot')}
-            className="font-mono text-xs"
+            className="font-mono text-mono"
+            boxClassName="flex-1"
             disabled={disabled}
             onChange={(e) => update(index, { source_root: e.target.value })}
           />
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="sm"
+            icon={CloseIcon}
             aria-label={t('repository.removeMapping')}
             disabled={disabled}
             onClick={() => setMappings(mappings.filter((_, i) => i !== index))}
-          >
-            <X />
-          </Button>
+          />
         </div>
       ))}
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between gap-2 px-5 py-3">
         <Button
           variant="ghost"
           size="sm"
+          icon={NewIcon}
           disabled={disabled}
           onClick={() =>
             setMappings([...mappings, { stack_root: '', source_root: '' }])
           }
         >
-          <Plus />
           {t('repository.addMapping')}
         </Button>
         {changed && (
           <Button
+            variant="primary"
             size="sm"
             disabled={disabled}
             onClick={() => onSave(savableMappings(mappings))}
@@ -353,7 +397,7 @@ function PathMappings({
           </Button>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -383,7 +427,7 @@ function AutoCreateFilters({
     );
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <ConditionFilters
         value={filters}
         onChange={setFilters}
@@ -393,6 +437,7 @@ function AutoCreateFilters({
       {changed && (
         <div className="flex justify-end">
           <Button
+            variant="primary"
             size="sm"
             disabled={disabled}
             onClick={() => onSave(conditions)}

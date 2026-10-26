@@ -474,6 +474,7 @@ async fn scoped_event_file_is_deleted_after_the_durability_checkpoint() {
             event_id: Uuid::parse_str(&metadata.event_id).unwrap(),
             ingested_at: metadata.ingested_at,
             remote_addr: None,
+            keep_ai_spans: true,
         };
         processors
             .errors
@@ -652,6 +653,7 @@ async fn new_issue_alert_links_to_the_dashboard_the_processors_were_given() {
         event_id: Uuid::parse_str(&metadata.event_id).unwrap(),
         ingested_at: metadata.ingested_at,
         remote_addr: None,
+        keep_ai_spans: true,
     };
     processors
         .errors

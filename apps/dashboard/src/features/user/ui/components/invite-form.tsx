@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { UserRole } from '@rustrak/client';
-import { UserPlus } from 'lucide-react';
-import { useTransition } from 'react';
+import { Button, Input, NewIcon } from '@rustrak/ui';
+import { useId, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -9,14 +9,7 @@ import { z } from 'zod';
 import { createInvitation } from '@/features/user/api/mutations';
 import { copyToClipboard } from '@/shared/lib/clipboard';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/shadcn/card';
+import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
 import {
   Form,
   FormControl,
@@ -26,7 +19,6 @@ import {
   FormMessage,
   FormRootError,
 } from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
 import {
   Select,
   SelectContent,
@@ -43,9 +35,15 @@ const inviteSchema = z.object({
 
 type InviteFormData = z.infer<typeof inviteSchema>;
 
+/**
+ * A section of two rows, with the submit button beside its heading. The
+ * button sits outside the `<form>` and joins it through the `form`
+ * attribute, so Enter in the email field still submits.
+ */
 export function InviteForm() {
   const router = useRouter();
   const t = useTranslations('user');
+  const formId = useId();
 
   const globalT = useTranslations();
   const [isPending, startTransition] = useTransition();
@@ -105,23 +103,30 @@ export function InviteForm() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('invite.title')}</CardTitle>
-        <CardDescription>{t('invite.description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col gap-4 sm:flex-row sm:items-start"
-          >
+    <SettingSection
+      title={t('invite.title')}
+      description={t('invite.description')}
+      actions={
+        <Button
+          type="submit"
+          form={formId}
+          variant="primary"
+          icon={NewIcon}
+          loading={isPending}
+        >
+          {isPending ? t('invite.inviting') : t('invite.submit')}
+        </Button>
+      }
+    >
+      <Form {...form}>
+        <form id={formId} onSubmit={form.handleSubmit(onSubmit)}>
+          <SettingRow title={t('invite.emailLabel')}>
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <FormItem>
+                  <FormLabel className="sr-only">
                     {t('invite.emailLabel')}
                   </FormLabel>
                   <FormControl>
@@ -137,15 +142,14 @@ export function InviteForm() {
                 </FormItem>
               )}
             />
+          </SettingRow>
 
+          <SettingRow title={t('invite.roleLabel')}>
             <FormField
               control={form.control}
               name="role"
               render={({ field }) => (
-                <FormItem className="sm:w-40">
-                  <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {t('invite.roleLabel')}
-                  </FormLabel>
+                <FormItem>
                   <Select
                     value={field.value}
                     onValueChange={(value) => {
@@ -180,20 +184,11 @@ export function InviteForm() {
                 </FormItem>
               )}
             />
-
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="sm:mt-[26px] font-bold uppercase tracking-wider"
-            >
-              <UserPlus className="mr-2 size-4" />
-              {isPending ? t('invite.inviting') : t('invite.submit')}
-            </Button>
-          </form>
-          {/* Where a failure that named no field of this form lands. */}
-          <FormRootError />
-        </Form>
-      </CardContent>
-    </Card>
+          </SettingRow>
+        </form>
+        {/* Where a failure that named no field of this form lands. */}
+        <FormRootError className="px-5 pb-4" />
+      </Form>
+    </SettingSection>
   );
 }

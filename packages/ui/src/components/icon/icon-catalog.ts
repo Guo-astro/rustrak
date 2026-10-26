@@ -20,6 +20,7 @@ import {
   ChevronUp,
   CircleAlert,
   CircleCheck,
+  CircleHelp,
   CircleX,
   Clock,
   Columns3,
@@ -32,6 +33,7 @@ import {
   GitBranch,
   GitCommitHorizontal,
   GitMerge,
+  GripVertical,
   HardDrive,
   House,
   Inbox,
@@ -44,9 +46,11 @@ import {
   Menu,
   MessageSquare,
   Minus,
+  Palette,
   PanelLeft,
   PanelRight,
   Pencil,
+  Play,
   Plug,
   Plus,
   RefreshCw,
@@ -131,6 +135,8 @@ export const NewIcon = fromLucide('NewIcon', Plus);
 export const RemoveIcon = fromLucide('RemoveIcon', Minus);
 export const CloseIcon = fromLucide('CloseIcon', X);
 export const CopyIcon = fromLucide('CopyIcon', Copy);
+/** Send a test: an alert channel's "try it". */
+export const TestIcon = fromLucide('TestIcon', Play);
 /** Take a value over by hand: a slug that stops following its name. */
 export const EditIcon = fromLucide('EditIcon', Pencil);
 export const ExportIcon = fromLucide('ExportIcon', Download);
@@ -140,6 +146,9 @@ export const OverflowIcon = fromLucide('OverflowIcon', EllipsisVertical);
 /** The horizontal ellipsis, for a row's inline menu. */
 export const MoreIcon = fromLucide('MoreIcon', Ellipsis);
 export const MenuIcon = fromLucide('MenuIcon', Menu);
+/** The handle a row is dragged by to reorder it. */
+export const DragIcon = fromLucide('DragIcon', GripVertical);
+export const AppearanceIcon = fromLucide('AppearanceIcon', Palette);
 export const ExternalLinkIcon = fromLucide('ExternalLinkIcon', ExternalLink);
 export const LinkIcon = fromLucide('LinkIcon', Link);
 export const AssignIcon = fromLucide('AssignIcon', Users);
@@ -172,6 +181,8 @@ export const ErrorIcon = fromLucide('ErrorIcon', CircleX);
 export const WarningIcon = fromLucide('WarningIcon', TriangleAlert);
 export const OkIcon = fromLucide('OkIcon', CircleCheck);
 export const InfoIcon = fromLucide('InfoIcon', CircleAlert);
+/** "How does this work?": opens an explanation, never a setting. */
+export const HelpIcon = fromLucide('HelpIcon', CircleHelp);
 export const SpinnerIcon = fromLucide('SpinnerIcon', LoaderCircle);
 export const NotificationIcon = fromLucide('NotificationIcon', Bell);
 export const TimeIcon = fromLucide('TimeIcon', Clock);
@@ -232,6 +243,7 @@ export const icons = {
   remove: RemoveIcon,
   close: CloseIcon,
   copy: CopyIcon,
+  test: TestIcon,
   edit: EditIcon,
   export: ExportIcon,
   refresh: RefreshIcon,
@@ -239,6 +251,8 @@ export const icons = {
   overflow: OverflowIcon,
   more: MoreIcon,
   menu: MenuIcon,
+  drag: DragIcon,
+  appearance: AppearanceIcon,
   externalLink: ExternalLinkIcon,
   link: LinkIcon,
   assign: AssignIcon,
@@ -255,6 +269,7 @@ export const icons = {
   warning: WarningIcon,
   ok: OkIcon,
   info: InfoIcon,
+  help: HelpIcon,
   spinner: SpinnerIcon,
   notification: NotificationIcon,
   time: TimeIcon,

@@ -88,6 +88,7 @@ async fn store_sample_spans(pool: &rustrak::db::DbPool, project_id: i32) {
             event_id: Uuid::nil(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         SpanProcessor
             .process(bytes::Bytes::from(payload), &ctx)
@@ -351,6 +352,7 @@ async fn store_v2_ai_span(pool: &rustrak::db::DbPool, project_id: i32) -> Uuid {
         event_id: Uuid::nil(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
     SpanV2Processor
         .process(
@@ -439,6 +441,7 @@ async fn store_legacy_ai_span(pool: &rustrak::db::DbPool, project_id: i32) -> Uu
         event_id: Uuid::nil(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
     SpanProcessor
         .process(bytes::Bytes::from(payload), &ctx)

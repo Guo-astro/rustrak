@@ -25,3 +25,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 /.idea/
+
+# TanStack Router plugin scratch files
+/.tanstack

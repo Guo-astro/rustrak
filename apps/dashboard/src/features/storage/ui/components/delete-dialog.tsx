@@ -5,7 +5,7 @@ import type {
   ProjectStorage,
   SourceMapGcResult,
 } from '@rustrak/client';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@rustrak/ui';
 import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -32,7 +32,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import { Checkbox } from '@/shared/ui/components/shadcn/checkbox';
 import {
   Select,
@@ -138,7 +137,7 @@ function Editor({
       </AlertDialogHeader>
 
       <fieldset className="m-0 min-w-0 space-y-1 border-0 p-0">
-        <legend className="mb-1.5 text-sm font-medium">
+        <legend className="mb-1.5 text-value font-medium text-fg">
           {t('delete.what')}
         </legend>
         {KINDS.map((kind) => (
@@ -189,13 +188,11 @@ function Editor({
           {t('cancel')}
         </AlertDialogCancel>
         <Button
-          variant="destructive"
+          variant="danger-primary"
           onClick={run}
-          disabled={
-            isPending || state !== 'ready' || (rows === 0 && maps === 0)
-          }
+          loading={isPending}
+          disabled={state !== 'ready' || (rows === 0 && maps === 0)}
         >
-          {isPending && <Loader2 className="animate-spin" />}
           {rows > 0 || maps > 0
             ? t('delete.action', { size })
             : t('delete.actionIdle')}
@@ -228,8 +225,8 @@ function Choice({
         disabled={disabled}
       />
       <span>
-        <span className="block text-sm">{title}</span>
-        <span className="block text-xs text-muted-foreground">{hint}</span>
+        <span className="block text-value">{title}</span>
+        <span className="block text-hint text-fg-subtle">{hint}</span>
       </span>
     </label>
   );
@@ -288,7 +285,7 @@ function Scope({
   );
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <label className="space-y-1.5 text-sm">
+      <label className="space-y-1.5 text-value">
         <span className="font-medium">{t('delete.olderThan')}</span>
         <Select
           value={String(days)}
@@ -309,7 +306,7 @@ function Scope({
           </SelectContent>
         </Select>
       </label>
-      <label className="space-y-1.5 text-sm">
+      <label className="space-y-1.5 text-value">
         <span className="font-medium">{t('delete.in')}</span>
         <Select
           value={project}

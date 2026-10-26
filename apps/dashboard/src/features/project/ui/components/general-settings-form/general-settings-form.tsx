@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { ProjectResponse, RateLimitsResponse } from '@rustrak/client';
+import type { ProjectResponse } from '@rustrak/client';
 import { useMemo, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -21,7 +21,6 @@ import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
 import { Form, FormRootError } from '@/shared/ui/components/shadcn/form';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 import { DangerZone } from './danger-zone';
-import { RateLimitSettings } from './rate-limit-settings';
 import { SavableRow } from './savable-row';
 
 /**
@@ -44,13 +43,9 @@ export type GeneralSettingsFormData = z.infer<
 
 interface GeneralSettingsFormProps {
   project: ProjectResponse;
-  serverLimits: RateLimitsResponse | null;
 }
 
-export function GeneralSettingsForm({
-  project,
-  serverLimits,
-}: GeneralSettingsFormProps) {
+export function GeneralSettingsForm({ project }: GeneralSettingsFormProps) {
   const t = useTranslations('projects');
   const formT = useTranslations();
   const router = useRouter();
@@ -205,7 +200,7 @@ export function GeneralSettingsForm({
   }
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <Form {...form}>
         <SettingSection title={t('projectDetails')}>
           <SavableRow
@@ -248,8 +243,6 @@ export function GeneralSettingsForm({
           <FormRootError />
         </SettingSection>
       </Form>
-
-      <RateLimitSettings project={project} serverLimits={serverLimits} />
 
       <DangerZone project={project} onRemove={handleRemoveProject} />
     </div>

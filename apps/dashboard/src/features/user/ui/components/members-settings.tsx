@@ -3,7 +3,16 @@ import type {
   ProjectRole,
   TeamMemberResponse,
 } from '@rustrak/client';
-import { Loader2, UserPlus, Users } from 'lucide-react';
+import {
+  Avatar,
+  Button,
+  DeleteIcon,
+  Menu,
+  MoreIcon,
+  NewIcon,
+  Tag,
+  TeamIcon,
+} from '@rustrak/ui';
 import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -13,7 +22,12 @@ import {
   upsertProjectMember,
 } from '@/features/user/api/mutations';
 import { PROJECT_ROLES, roleLabel } from '@/features/user/model/roles';
-import { ProjectMembersTable } from '@/features/user/ui/components/project-members-table';
+import {
+  SettingSection,
+  SettingsEmpty,
+  SettingsListItem,
+} from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +38,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   Dialog,
   DialogContent,
@@ -120,7 +133,7 @@ export function MembersSettings({
         router.refresh();
       } else {
         // `error.message` rather than copy built from `error.fields`: the
-        // server names `role`, but these are table row selects, not a
+        // server names `role`, but these are row menu actions, not a
         // react-hook-form, and the server's own sentence ("Cannot downgrade
         // the last project admin") says far more than the generic field copy.
         toast.error(t('toast.updateFailed'), {
@@ -151,40 +164,101 @@ export function MembersSettings({
 
   return (
     <>
-      <div className="mb-6 flex items-start justify-between gap-4 md:mb-8">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">
-            {t('members.title')}
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            {canManage
-              ? t('members.manageDescription')
-              : t('members.readOnlyDescription')}
-          </p>
-        </div>
-        {canManage && (
-          <Button onClick={() => setShowAddDialog(true)} className="shrink-0">
-            <UserPlus className="mr-2 size-4" />
-            {t('members.addMember')}
-          </Button>
-        )}
-      </div>
+      <SettingsHeader
+        title={t('members.title')}
+        description={
+          canManage
+            ? t('members.manageDescription')
+            : t('members.readOnlyDescription')
+        }
+        actions={
+          canManage ? (
+            <Button
+              variant="primary"
+              icon={NewIcon}
+              onClick={() => setShowAddDialog(true)}
+            >
+              {t('members.addMember')}
+            </Button>
+          ) : null
+        }
+      />
 
-      {members.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-16 text-center">
-          <Users className="mx-auto mb-3 size-10 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">{t('members.empty')}</p>
-        </div>
-      ) : (
-        <ProjectMembersTable
-          members={members}
-          currentUserId={currentUserId}
-          canManage={canManage}
-          disabled={isPending}
-          onRoleChange={handleRoleChange}
-          onRemove={setRemovingMember}
-        />
-      )}
+      <SettingSection title={t('membersList.title')}>
+        {members.length === 0 ? (
+          <SettingsEmpty
+            icon={<TeamIcon size="2xl" />}
+            title={t('members.empty')}
+          />
+        ) : (
+          // The ⋯ menu exists only when the reader can manage members: a
+          // menu that is absent rather than one full of disabled actions.
+          members.map((member) => (
+            <SettingsListItem
+              key={member.user_id}
+              leading={<Avatar name={member.email} />}
+              // The role sits beside the name rather than in `meta`, which
+              // hides below `sm`: on a phone it is the row's one fact.
+              title={
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">
+                    {member.email}
+                    {member.user_id === currentUserId && (
+                      <span className="font-normal text-fg-subtle">
+                        {' '}
+                        {t('table.you')}
+                      </span>
+                    )}
+                  </span>
+                  <Tag
+                    variant="soft"
+                    tone={member.role === 'admin' ? 'brand' : 'neutral'}
+                  >
+                    {t(roleLabel(member.role))}
+                  </Tag>
+                </span>
+              }
+              actions={
+                canManage ? (
+                  <Menu
+                    align="end"
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={MoreIcon}
+                        aria-label={t('table.actionsAria')}
+                      />
+                    }
+                    actions={[
+                      {
+                        id: 'role',
+                        label: t('table.changeRole'),
+                        disabled: isPending,
+                        items: PROJECT_ROLES.map((entry) => ({
+                          id: entry.value,
+                          label: t(entry.labelKey),
+                          selected: member.role === entry.value,
+                          onSelect: () => handleRoleChange(member, entry.value),
+                        })),
+                      },
+                      {
+                        id: 'remove',
+                        label: t('remove.confirm'),
+                        icon: DeleteIcon,
+                        tone: 'danger',
+                        separated: true,
+                        disabled: isPending,
+                        onSelect: () => setRemovingMember(member),
+                      },
+                    ]}
+                  />
+                ) : null
+              }
+            />
+          ))
+        )}
+      </SettingSection>
 
       <AddMemberDialog
         open={showAddDialog}
@@ -307,10 +381,7 @@ function AddMemberForm({
 
       <div className="space-y-4 py-1">
         <div className="space-y-1.5">
-          <label
-            htmlFor="add-member-user"
-            className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
-          >
+          <label htmlFor="add-member-user" className="text-label text-fg-muted">
             {t('addMember.userLabel')}
           </label>
           <Select
@@ -349,10 +420,7 @@ function AddMemberForm({
         </div>
 
         <div className="space-y-1.5">
-          <label
-            htmlFor="add-member-role"
-            className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
-          >
+          <label htmlFor="add-member-role" className="text-label text-fg-muted">
             {t('addMember.roleLabel')}
           </label>
           <Select
@@ -383,23 +451,17 @@ function AddMemberForm({
       </div>
 
       <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          disabled={isPending}
-        >
+        <Button onClick={() => onOpenChange(false)} disabled={isPending}>
           {t('cancel')}
         </Button>
-        <Button onClick={handleAdd} disabled={isPending || !userId}>
-          {isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <>
-              <UserPlus className="mr-2 size-4" />
-              {t('addMember.submit')}
-            </>
-          )}
+        <Button
+          variant="primary"
+          icon={NewIcon}
+          loading={isPending}
+          onClick={handleAdd}
+          disabled={!userId}
+        >
+          {t('addMember.submit')}
         </Button>
       </DialogFooter>
     </>

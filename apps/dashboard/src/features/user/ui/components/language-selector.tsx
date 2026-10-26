@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'use-intl';
 import { updatePreferences } from '@/features/user/api/mutations';
 import { isLocale, LOCALES } from '@/shared/i18n/routing';
-import { Label } from '@/shared/ui/components/shadcn/label';
+import { SettingRow } from '@/shared/ui/components/setting-row';
 import {
   Select,
   SelectContent,
@@ -53,8 +53,11 @@ export function LanguageSelector() {
   };
 
   return (
-    <div className="flex flex-col gap-2 sm:max-w-xs">
-      <Label htmlFor={fieldId}>{t('label')}</Label>
+    <SettingRow
+      title={t('label')}
+      description={t('storedOnAccount')}
+      htmlFor={fieldId}
+    >
       <Select
         value={locale}
         onValueChange={switchTo}
@@ -73,7 +76,6 @@ export function LanguageSelector() {
           ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-muted-foreground">{t('storedOnAccount')}</p>
-    </div>
+    </SettingRow>
   );
 }

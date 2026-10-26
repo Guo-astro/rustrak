@@ -73,6 +73,7 @@ async fn store_agent_run_with_llm_call(pool: &rustrak::db::DbPool, project_id: i
         event_id: Uuid::nil(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
     let agent = serde_json::to_vec(&json!({
         "span_id": "1111111111111111", "trace_id": "agent-trace",
@@ -351,6 +352,7 @@ async fn store_failing_staging_trace(pool: &rustrak::db::DbPool, project_id: i32
         event_id: Uuid::nil(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
 
     let agent = serde_json::to_vec(&json!({

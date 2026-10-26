@@ -15,6 +15,7 @@ import { AlertRuleFormDialog } from '@/features/alert/ui/components/alert-rule-d
 import { AlertRulesTable } from '@/features/alert/ui/components/alert-rules-table';
 import { ConfirmDeleteDialog } from '@/features/alert/ui/components/confirm-delete-dialog';
 import { Link } from '@/shared/ui/components/link';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { Button } from '@/shared/ui/components/shadcn/button';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
@@ -83,22 +84,18 @@ export function AlertsSettings({
 
   return (
     <>
-      <div className="mb-6 flex items-start justify-between gap-4 md:mb-8">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">
-            {t('settings.title')}
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            {t('settings.description')}
-          </p>
-        </div>
-        {enabledIntegrations.length > 0 && (
-          <Button onClick={() => setShowAddForm(true)} className="shrink-0">
-            <Plus className="mr-2 size-4" />
-            {t('settings.addRule')}
-          </Button>
-        )}
-      </div>
+      <SettingsHeader
+        title={t('settings.title')}
+        description={t('settings.description')}
+        actions={
+          enabledIntegrations.length > 0 ? (
+            <Button onClick={() => setShowAddForm(true)} className="shrink-0">
+              <Plus className="mr-2 size-4" />
+              {t('settings.addRule')}
+            </Button>
+          ) : null
+        }
+      />
 
       {enabledIntegrations.length === 0 ? (
         <div className="rounded-lg border border-dashed py-16 text-center">

@@ -1,7 +1,20 @@
 import type { McpStatus } from '@rustrak/client';
-import { Check, Copy, KeyRound, LogIn, TriangleAlert } from 'lucide-react';
+import {
+  AgentsIcon,
+  Button,
+  CopyIcon,
+  Dialog,
+  DialogBody,
+  DialogHeader,
+  HelpIcon,
+  SegmentedControl,
+  SegmentedItem,
+  SelectedIcon,
+  Switch,
+  Tag,
+} from '@rustrak/ui';
 import { useTheme } from 'next-themes';
-import { useState, useTransition } from 'react';
+import { type ReactNode, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { updateMcpSettings } from '@/features/mcp/api/mutations';
@@ -12,47 +25,46 @@ import {
 } from '@/features/mcp/lib/snippets';
 import { CodeBlock } from '@/shared/ui/components/code-block';
 import { Link } from '@/shared/ui/components/link';
-import { Badge } from '@/shared/ui/components/shadcn/badge';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/shadcn/card';
-import { Switch } from '@/shared/ui/components/shadcn/switch';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@/shared/ui/components/shadcn/tabs';
+  SettingRow,
+  SettingSection,
+  SettingsEmpty,
+} from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { type CopyFlags, useCopyFlags } from '@/shared/ui/hooks/use-copy-flags';
 import { useSyntaxHighlighter } from '@/shared/ui/hooks/use-syntax-highlighter';
 
 interface McpSettingsProps {
   initial: McpStatus;
   isAdmin: boolean;
+  /** The reader's connected assistants, shown while the server is on. */
+  connected: ReactNode;
 }
 
+type Client = SnippetClient | 'web';
+
+/** The clients, in the order people reach for them. The web apps need no snippet. */
+const CLIENTS: readonly Client[] = ['web', 'claudeCode', 'json', 'vscode'];
+
 /**
- * The switch that opens `/mcp`, and the two ways to connect to it.
+ * The MCP page, whole: an on/off in the header, and -- while on -- the one
+ * URL to give an assistant, what to paste into the client you use, and who is
+ * connected.
  *
- * The URL comes from the server, not this page's origin: OAuth checks the
- * resource against the configured `PUBLIC_URL`, which a dashboard on its own
- * host, or one opened by another name, does not share. Without `PUBLIC_URL`
- * there is no signing in, and tokens work against this page's origin.
+ * Signing in is the way in whenever the server can offer it, so it is the
+ * only one shown; the API token appears only on a server without
+ * `PUBLIC_URL`, where signing in cannot work.
  */
-export function McpSettings({ initial, isAdmin }: McpSettingsProps) {
+export function McpSettings({ initial, isAdmin, connected }: McpSettingsProps) {
   const t = useTranslations('settings');
   const [enabled, setEnabled] = useState(initial.enabled);
   const [isPending, startTransition] = useTransition();
+  const [helpOpen, setHelpOpen] = useState(false);
   const copyFlags = useCopyFlags({
     unavailable: t('mcp.copyUnavailable'),
     hint: (label) => t('mcp.copyUnavailableHint', { label }),
   });
-  const signIn = initial.url !== null;
+  const signInAvailable = initial.url !== null;
   const url = initial.url ?? `${window.location.origin}/mcp`;
 
   const toggle = (next: boolean) => {
@@ -69,139 +81,162 @@ export function McpSettings({ initial, isAdmin }: McpSettingsProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {t('mcp.server.title')}
-            <Badge variant={enabled ? 'default' : 'outline'}>
-              {enabled ? t('mcp.server.on') : t('mcp.server.off')}
-            </Badge>
-          </CardTitle>
-          <CardDescription>
-            {isAdmin ? t('mcp.server.description') : t('mcp.server.adminOnly')}
-          </CardDescription>
-          {isAdmin && (
-            <CardAction>
+    <>
+      <SettingsHeader
+        title={t('mcp.title')}
+        description={t('mcp.subtitle')}
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              icon={HelpIcon}
+              aria-label={t('mcp.page.help')}
+              onClick={() => setHelpOpen(true)}
+            />
+            {isAdmin ? (
               <Switch
                 checked={enabled}
                 onCheckedChange={toggle}
                 disabled={isPending}
                 aria-label={t('mcp.server.toggleLabel')}
               />
-            </CardAction>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm font-medium">{t('mcp.server.endpoint')}</p>
-          <div className="flex items-center gap-2 rounded-lg border bg-muted p-3">
-            <code className="flex-1 truncate font-mono text-xs">{url}</code>
-            <CopyButton
-              flags={copyFlags}
-              target="url"
-              value={url}
-              label={t('mcp.server.endpoint')}
+            ) : null}
+          </>
+        }
+      />
+
+      {enabled ? (
+        <>
+          <SettingSection title={t('mcp.page.connect')}>
+            <SettingRow title={t('mcp.server.endpoint')}>
+              <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised py-1 ps-3 pe-1">
+                <code className="min-w-0 flex-1 truncate font-mono text-mono text-fg">
+                  {url}
+                </code>
+                <CopyButton
+                  flags={copyFlags}
+                  target="url"
+                  value={url}
+                  label={t('mcp.server.endpoint')}
+                />
+              </div>
+            </SettingRow>
+            {/* The main way in only; the other one, and why there are two,
+                live behind the help button. */}
+            <ClientGuide
+              method={signInAvailable ? 'oauth' : 'token'}
+              url={url}
+              copyFlags={copyFlags}
+            />
+          </SettingSection>
+
+          {connected}
+        </>
+      ) : (
+        <SettingSection title={t('mcp.page.connect')}>
+          <SettingsEmpty
+            icon={<AgentsIcon size="2xl" />}
+            title={t('mcp.page.offTitle')}
+            description={
+              isAdmin ? t('mcp.page.offAdmin') : t('mcp.page.offMember')
+            }
+            action={
+              isAdmin ? (
+                <Button
+                  variant="primary"
+                  loading={isPending}
+                  onClick={() => toggle(true)}
+                >
+                  {t('mcp.page.enable')}
+                </Button>
+              ) : null
+            }
+          />
+        </SettingSection>
+      )}
+
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen} size="lg">
+        <DialogHeader
+          title={t('mcp.page.helpTitle')}
+          description={t('mcp.page.helpIntro')}
+        />
+        <DialogBody className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <WayIn
+              name={t('mcp.page.oauthName')}
+              badge={signInAvailable ? t('mcp.oauth.recommended') : undefined}
+              points={[
+                t('mcp.page.oauth1'),
+                t('mcp.page.oauth2'),
+                t('mcp.page.oauth3'),
+              ]}
+              note={signInAvailable ? undefined : t('mcp.page.publicUrl')}
+            />
+            <WayIn
+              name={t('mcp.page.tokenName')}
+              points={[
+                t('mcp.page.token1'),
+                t('mcp.page.token2'),
+                t('mcp.page.token3'),
+              ]}
             />
           </div>
-          {!enabled && (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <TriangleAlert className="size-3.5 shrink-0" />
-              {t('mcp.server.offNotice')}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          {signInAvailable ? (
+            <div className="flex flex-col gap-1">
+              <p className="text-label text-fg-muted">
+                {t('mcp.page.tokenSetup')}
+              </p>
+              <div className="-mx-5">
+                <ClientGuide method="token" url={url} copyFlags={copyFlags} />
+              </div>
+            </div>
+          ) : null}
+        </DialogBody>
+      </Dialog>
+    </>
+  );
+}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <MethodCard
-          method="oauth"
-          url={url}
-          copyFlags={copyFlags}
-          unavailable={!signIn}
-        />
-        <MethodCard method="token" url={url} copyFlags={copyFlags} />
+/** One way to connect, as three short facts. */
+function WayIn({
+  name,
+  badge,
+  points,
+  note,
+}: {
+  name: string;
+  badge?: string;
+  points: string[];
+  /** Why it is not available here, when it is not. */
+  note?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border-subtle p-4">
+      <div className="flex items-center gap-2">
+        <span className="text-card-title text-fg">{name}</span>
+        {badge ? (
+          <Tag variant="soft" tone="brand">
+            {badge}
+          </Tag>
+        ) : null}
       </div>
+      <ul className="flex flex-col gap-1.5">
+        {points.map((point) => (
+          <li key={point} className="flex gap-2 text-meta text-fg-subtle">
+            <SelectedIcon size="sm" className="mt-0.5 shrink-0 text-fg-meta" />
+            {point}
+          </li>
+        ))}
+      </ul>
+      {note ? <p className="text-hint text-sev-warning-fg">{note}</p> : null}
     </div>
   );
 }
 
-/** The tabs each way in offers: signing in also covers the web apps. */
-const TABS: Record<ConnectMethod, readonly (SnippetClient | 'web')[]> = {
-  oauth: ['web', 'claudeCode', 'json', 'vscode'],
-  token: ['claudeCode', 'json', 'vscode'],
-};
-
-function MethodCard({
-  method,
-  url,
-  copyFlags,
-  unavailable = false,
-}: {
-  method: ConnectMethod;
-  url: string;
-  copyFlags: CopyFlags;
-  /** Signing in needs `PUBLIC_URL`, which this server lacks. */
-  unavailable?: boolean;
-}) {
-  const t = useTranslations('settings');
-  const Icon = method === 'oauth' ? LogIn : KeyRound;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon className="size-4 text-muted-foreground" />
-          {t(`mcp.${method}.title`)}
-          {method === 'oauth' && (
-            <Badge variant="secondary">{t('mcp.oauth.recommended')}</Badge>
-          )}
-        </CardTitle>
-        <CardDescription>{t(`mcp.${method}.description`)}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {unavailable && (
-          <p className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />
-            {t('mcp.oauth.needsPublicUrl')}
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {t(`mcp.${method}.clients`)}
-        </p>
-        <ol className="space-y-2 text-sm">
-          {(['step1', 'step2', 'step3'] as const).map((step, i) => (
-            <li key={step} className="flex gap-3">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                {i + 1}
-              </span>
-              <span>
-                {method === 'token' && step === 'step1' ? (
-                  <>
-                    {t('mcp.token.step1')}{' '}
-                    <Link
-                      href="/settings/tokens"
-                      className="text-primary hover:underline"
-                    >
-                      {t('mcp.token.createToken')}
-                    </Link>
-                  </>
-                ) : (
-                  t(`mcp.${method}.${step}`)
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
-        <ClientGuide method={method} url={url} copyFlags={copyFlags} />
-        <p className="text-xs text-muted-foreground">
-          {t(`mcp.${method}.note`)}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** One tab per client: the web apps get steps, the rest a snippet to paste. */
+/**
+ * One way in, for the client you use: pick it, see the one thing to do in it.
+ * The web apps only take a URL, so they appear under signing in alone.
+ */
 function ClientGuide({
   method,
   url,
@@ -214,37 +249,40 @@ function ClientGuide({
   const t = useTranslations('settings');
   const { resolvedTheme } = useTheme();
   const highlighter = useSyntaxHighlighter(resolvedTheme === 'dark');
-  const tabs = TABS[method];
-  const [tab, setTab] = useState(tabs[0]);
-  const snippet = tab === 'web' ? null : mcpSnippet(method, tab, url);
+  const clients =
+    method === 'oauth' ? CLIENTS : CLIENTS.filter((c) => c !== 'web');
+  const [client, setClient] = useState<Client>(clients[0] ?? 'claudeCode');
+  const snippet = client === 'web' ? null : mcpSnippet(method, client, url);
 
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-2 py-1.5">
-        <Tabs
-          value={tab}
-          onValueChange={(value) => setTab(value as typeof tab)}
+    <div className="flex flex-col gap-3 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SegmentedControl
+          aria-label={
+            method === 'oauth' ? t('mcp.oauth.title') : t('mcp.token.title')
+          }
+          value={client}
+          onValueChange={(value) => setClient(value as Client)}
         >
-          <TabsList className="h-8 bg-transparent">
-            {tabs.map((id) => (
-              <TabsTrigger key={id} value={id} className="h-7 px-2.5 text-xs">
-                {t(`mcp.clients.${id}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        {snippet && (
+          {clients.map((id) => (
+            <SegmentedItem key={id} value={id}>
+              {t(`mcp.clients.${id}`)}
+            </SegmentedItem>
+          ))}
+        </SegmentedControl>
+        {snippet ? (
           <CopyButton
             flags={copyFlags}
-            target={`${method}-${tab}`}
+            target={`${method}-${client}`}
             value={snippet.code}
-            label={t(`mcp.clients.${tab}`)}
+            label={t(`mcp.clients.${client}`)}
             withText
           />
-        )}
+        ) : null}
       </div>
+
       {snippet ? (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-border-subtle">
           <CodeBlock
             code={snippet.code}
             language={snippet.language}
@@ -252,10 +290,20 @@ function ClientGuide({
           />
         </div>
       ) : (
-        <p className="p-4 text-sm text-muted-foreground">
-          {t('mcp.clients.webSteps')}
-        </p>
+        <p className="text-meta text-fg-subtle">{t('mcp.page.webHint')}</p>
       )}
+
+      {method === 'token' ? (
+        <p className="text-meta text-fg-subtle">
+          {t('mcp.token.step3')}{' '}
+          <Link
+            href="/settings/tokens"
+            className="text-fg-brand hover:underline"
+          >
+            {t('mcp.token.createToken')}
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -279,12 +327,12 @@ function CopyButton({
   return (
     <Button
       variant="ghost"
-      size="xs"
+      size="sm"
+      icon={copied ? SelectedIcon : CopyIcon}
       onClick={() => flags.copy(target, value, label)}
       aria-label={t('mcp.copyLabel', { label })}
     >
-      {copied ? <Check className="text-primary" /> : <Copy />}
-      {withText && (copied ? t('mcp.copied') : t('mcp.copy'))}
+      {withText ? (copied ? t('mcp.copied') : t('mcp.copy')) : undefined}
     </Button>
   );
 }
