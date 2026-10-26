@@ -204,3 +204,177 @@ async fn test_list_logs_returns_401_without_token() {
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 401);
 }
+
+async fn store_logs(pool: &rustrak::db::DbPool, project_id: i32, items: Value) {
+    let ctx = ProcessorCtx {
+        pool: pool.clone(),
+        project_id,
+        event_id: Uuid::new_v4(),
+        ingested_at: Utc::now(),
+        remote_addr: None,
+        keep_ai_spans: true,
+    };
+    let body = serde_json::to_vec(&serde_json::json!({ "items": items })).unwrap();
+    LogsProcessor
+        .process(bytes::Bytes::from(body), &ctx)
+        .await
+        .unwrap();
+}
+
+/// A project holding two logs from 2024 and three from the last hour.
+async fn recent_and_old_logs() -> (TestDb, i32, String) {
+    let db = TestDb::new().await;
+    let token = create_test_token(&db.pool).await;
+    let project = ProjectService::create(
+        &db.pool,
+        CreateProject {
+            name: "Logs Window Test".to_string(),
+            slug: None,
+            platform: None,
+        },
+    )
+    .await
+    .unwrap();
+    store_sample_logs(&db.pool, project.id).await;
+    let now = Utc::now().timestamp() as f64;
+    store_logs(
+        &db.pool,
+        project.id,
+        serde_json::json!([
+            {"timestamp": now - 60.0, "level": "error", "body": "Payment FAILED for order 7"},
+            {"timestamp": now - 30.0, "level": "warn", "body": "retrying payment"},
+            {"timestamp": now - 10.0, "level": "info", "body": "100% done_ok"},
+        ]),
+    )
+    .await;
+    (db, project.id, token)
+}
+
+async fn get_json(pool: &rustrak::db::DbPool, uri: &str, token: &str) -> Value {
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(create_test_config()))
+            .configure(routes::logs::configure),
+    )
+    .await;
+    let req = test::TestRequest::get()
+        .uri(uri)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 200);
+    test::read_body_json(resp).await
+}
+
+#[actix_web::test]
+async fn test_list_logs_searches_the_message_ignoring_case() {
+    let (db, project, token) = recent_and_old_logs().await;
+
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs?query=payment"),
+        &token,
+    )
+    .await;
+    assert_eq!(body["total_count"], 2);
+
+    // `%` and `_` are taken literally, not as LIKE wildcards.
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs?query=0%25%20done_"),
+        &token,
+    )
+    .await;
+    assert_eq!(body["total_count"], 1);
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs?query=_"),
+        &token,
+    )
+    .await;
+    assert_eq!(body["total_count"], 1);
+}
+
+#[actix_web::test]
+async fn test_list_logs_keeps_the_window() {
+    let (db, project, token) = recent_and_old_logs().await;
+
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs?period=24h"),
+        &token,
+    )
+    .await;
+    assert_eq!(body["total_count"], 3);
+    assert_eq!(body["items"][0]["body"], "100% done_ok");
+}
+
+#[actix_web::test]
+async fn test_log_volume_counts_each_level_per_bucket() {
+    let (db, project, token) = recent_and_old_logs().await;
+
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs/volume?period=24h"),
+        &token,
+    )
+    .await;
+    let points = body.as_array().expect("points is array");
+    // Hourly over a day, with no gaps: the empty hours are there as zeros.
+    assert!(points.len() >= 24, "{} buckets", points.len());
+    let sum = |level: &str| -> i64 { points.iter().map(|p| p[level].as_i64().unwrap()).sum() };
+    assert_eq!(sum("error"), 1);
+    assert_eq!(sum("warn"), 1);
+    assert_eq!(sum("info"), 1);
+    assert_eq!(sum("debug"), 0);
+
+    // The same filters as the list.
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs/volume?period=24h&query=payment&level=error"),
+        &token,
+    )
+    .await;
+    let total: i64 = body
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            ["trace", "debug", "info", "warn", "error", "fatal"]
+                .iter()
+                .map(|l| p[*l].as_i64().unwrap())
+                .sum::<i64>()
+        })
+        .sum();
+    assert_eq!(total, 1);
+}
+
+#[actix_web::test]
+async fn test_log_volume_without_a_window_starts_at_the_oldest_log() {
+    let (db, project, token) = recent_and_old_logs().await;
+
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs/volume"),
+        &token,
+    )
+    .await;
+    let points = body.as_array().unwrap();
+    // Back to January 2024 in about sixty whole-day buckets, all five logs in them.
+    assert!(
+        (50..=62).contains(&points.len()),
+        "{} buckets",
+        points.len()
+    );
+    let total: i64 = points
+        .iter()
+        .map(|p| {
+            ["trace", "debug", "info", "warn", "error", "fatal"]
+                .iter()
+                .map(|l| p[*l].as_i64().unwrap())
+                .sum::<i64>()
+        })
+        .sum();
+    assert_eq!(total, 5);
+}

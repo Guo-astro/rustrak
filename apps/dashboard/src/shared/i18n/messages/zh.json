@@ -226,18 +226,33 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "级别",
-      "message": "消息",
-      "trace": "追踪",
-      "time": "时间"
-    },
     "emptyValue": "（空）",
     "attributes": "属性",
-    "allLevels": "全部",
     "empty": {
-      "title": "没有符合筛选条件的日志",
-      "hint": "尝试其他级别，或清除筛选条件。"
+      "title": "此时间范围内没有符合搜索条件的日志"
+    },
+    "lines": "日志行",
+    "pageOf": "第 {page} 页，共 {total} 页",
+    "newer": "较新的日志",
+    "older": "较早的日志",
+    "back": "返回日志",
+    "close": "关闭",
+    "time": "时间",
+    "severity": "严重程度",
+    "trace": "追踪",
+    "span": "Span",
+    "sameTrace": "此追踪的日志",
+    "level": "级别",
+    "search": "搜索消息，或按 level: 或 trace: 筛选",
+    "volume": "按级别统计的日志数量",
+    "count": "{count} 条日志",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "警告",
+      "error": "错误",
+      "fatal": "致命"
     }
   },
   "issues": {
@@ -1688,7 +1703,6 @@
         "description": "{project} 的结构化日志"
       },
       "title": "日志",
-      "subtitle": "{project} 的结构化日志，最新优先",
       "loadFailed": "无法加载日志",
       "emptyTitle": "暂无日志",
       "emptyDescription": "使用您的 SDK 发送结构化日志（例如 <code>Sentry.logger.info(...)</code>），即可在此开始收集。"

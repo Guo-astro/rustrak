@@ -226,18 +226,33 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "Nivel",
-      "message": "Mesaj",
-      "trace": "Trace",
-      "time": "Ora"
-    },
     "emptyValue": "(gol)",
     "attributes": "Atribute",
-    "allLevels": "Toate",
     "empty": {
-      "title": "Niciun jurnal nu corespunde acestui filtru",
-      "hint": "Încearcă un alt nivel sau șterge filtrul."
+      "title": "Niciun jurnal nu corespunde acestei căutări în această perioadă"
+    },
+    "lines": "Linii de jurnal",
+    "pageOf": "Pagina {page} din {total}",
+    "newer": "Jurnale mai noi",
+    "older": "Jurnale mai vechi",
+    "back": "Înapoi la jurnale",
+    "close": "Închide",
+    "time": "Ora",
+    "severity": "Severitate",
+    "trace": "Trace",
+    "span": "Span",
+    "sameTrace": "Jurnalele acestui trace",
+    "level": "Nivel",
+    "search": "Caută în mesaje sau filtrează după level: sau trace:",
+    "volume": "Jurnale în timp, pe niveluri",
+    "count": "{count, plural, one {# jurnal} few {# jurnale} other {# de jurnale}}",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Avertisment",
+      "error": "Eroare",
+      "fatal": "Fatal"
     }
   },
   "issues": {
@@ -1688,7 +1703,6 @@
         "description": "Jurnale structurate pentru {project}"
       },
       "title": "Jurnale",
-      "subtitle": "Jurnale structurate pentru {project}, cele mai noi întâi",
       "loadFailed": "Jurnalele nu au putut fi încărcate",
       "emptyTitle": "Încă nu există jurnale",
       "emptyDescription": "Trimite jurnale structurate din SDK-ul tău (de ex. <code>Sentry.logger.info(...)</code>) pentru a începe colectarea lor aici."

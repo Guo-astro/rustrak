@@ -91,3 +91,45 @@ pub struct LogResponse {
     pub timestamp: DateTime<Utc>,
     pub ingested_at: DateTime<Utc>,
 }
+
+/// One bucket of the log volume: how many logs of each level it holds.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LogVolumePoint {
+    /// Where the bucket starts.
+    pub bucket: DateTime<Utc>,
+    pub trace: i64,
+    pub debug: i64,
+    pub info: i64,
+    pub warn: i64,
+    pub error: i64,
+    pub fatal: i64,
+}
+
+impl LogVolumePoint {
+    pub fn empty(at: i64) -> Self {
+        Self {
+            bucket: DateTime::from_timestamp(at, 0).unwrap_or_default(),
+            trace: 0,
+            debug: 0,
+            info: 0,
+            warn: 0,
+            error: 0,
+            fatal: 0,
+        }
+    }
+
+    /// Counts `count` logs of `level`; a level outside the six is left out.
+    pub fn add(&mut self, level: &str, count: i64) {
+        let slot = match level {
+            "trace" => &mut self.trace,
+            "debug" => &mut self.debug,
+            "info" => &mut self.info,
+            "warn" => &mut self.warn,
+            "error" => &mut self.error,
+            "fatal" => &mut self.fatal,
+            _ => return,
+        };
+        *slot += count;
+    }
+}

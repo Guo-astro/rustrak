@@ -42,3 +42,29 @@ pub(crate) fn since_day(column: &str, hours: Option<i64>) -> String {
     #[cfg(not(feature = "postgres"))]
     return format!("{column} >= date('now', '-{hours} hours')");
 }
+
+/// Bucket width for a window, in hours: about 24 to 60 buckets for any of
+/// the dashboard's windows.
+pub(crate) fn bucket_hours(period_hours: i64) -> i64 {
+    match period_hours {
+        ..=24 => 1,
+        25..=168 => 3,
+        169..=336 => 6,
+        337..=720 => 12,
+        _ => 24,
+    }
+}
+
+/// A search as a case-insensitive `LIKE ... ESCAPE '\'` pattern, its own
+/// `%`, `_` and `\` taken literally. `None` for a blank search.
+pub(crate) fn like_pattern(query: Option<&str>) -> Option<String> {
+    let query = query?.trim().to_lowercase();
+    if query.is_empty() {
+        return None;
+    }
+    let escaped = query
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    Some(format!("%{escaped}%"))
+}

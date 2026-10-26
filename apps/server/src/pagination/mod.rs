@@ -343,6 +343,51 @@ pub struct ListLogsQuery {
 
     /// Filter by trace id.
     pub trace_id: Option<String>,
+
+    /// Only the logs whose message contains this, ignoring case.
+    pub query: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+}
+
+impl ListLogsQuery {
+    pub fn filters(&self) -> crate::services::log::LogFilters {
+        crate::services::log::LogFilters {
+            level: self.level.clone().filter(|l| !l.is_empty()),
+            trace_id: self.trace_id.clone().filter(|t| !t.is_empty()),
+            query: self.query.clone(),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+        }
+    }
+}
+
+/// Query parameters for the log volume: the list's filters, no page.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+pub struct LogVolumeQuery {
+    /// Filter by log level (trace/debug/info/warn/error/fatal).
+    pub level: Option<String>,
+
+    /// Filter by trace id.
+    pub trace_id: Option<String>,
+
+    /// Only the logs whose message contains this, ignoring case.
+    pub query: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); since the oldest log if absent.
+    pub period: Option<String>,
+}
+
+impl LogVolumeQuery {
+    pub fn filters(&self) -> crate::services::log::LogFilters {
+        crate::services::log::LogFilters {
+            level: self.level.clone().filter(|l| !l.is_empty()),
+            trace_id: self.trace_id.clone().filter(|t| !t.is_empty()),
+            query: self.query.clone(),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+        }
+    }
 }
 
 /// Query parameters for listing spans (offset-based)

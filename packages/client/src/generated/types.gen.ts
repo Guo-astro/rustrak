@@ -1152,6 +1152,22 @@ export type LogResponse = {
     trace_id: string | null;
 };
 
+/**
+ * One bucket of the log volume: how many logs of each level it holds.
+ */
+export type LogVolumePoint = {
+    /**
+     * Where the bucket starts.
+     */
+    bucket: string;
+    debug: number;
+    error: number;
+    fatal: number;
+    info: number;
+    trace: number;
+    warn: number;
+};
+
 export type LoginRequest = {
     email: string;
     password: string;
@@ -6310,6 +6326,14 @@ export type LogsListData = {
          * Filter by trace id.
          */
         trace_id?: string | null;
+        /**
+         * Only the logs whose message contains this, ignoring case.
+         */
+        query?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
     };
     url: '/api/projects/{project_id}/logs';
 };
@@ -6359,6 +6383,57 @@ export type LogsListResponses = {
 };
 
 export type LogsListResponse = LogsListResponses[keyof LogsListResponses];
+
+export type LogsVolumeData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Filter by log level (trace/debug/info/warn/error/fatal).
+         */
+        level?: string | null;
+        /**
+         * Filter by trace id.
+         */
+        trace_id?: string | null;
+        /**
+         * Only the logs whose message contains this, ignoring case.
+         */
+        query?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); since the oldest log if absent.
+         */
+        period?: string | null;
+    };
+    url: '/api/projects/{project_id}/logs/volume';
+};
+
+export type LogsVolumeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type LogsVolumeError = LogsVolumeErrors[keyof LogsVolumeErrors];
+
+export type LogsVolumeResponses = {
+    /**
+     * Log counts per level, bucket by bucket
+     */
+    200: Array<LogVolumePoint>;
+};
+
+export type LogsVolumeResponse = LogsVolumeResponses[keyof LogsVolumeResponses];
 
 export type MembersListData = {
     body?: never;

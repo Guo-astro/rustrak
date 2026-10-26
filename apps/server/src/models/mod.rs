@@ -129,7 +129,7 @@ pub use issue::{
     substatus_valid_for_status, BulkDeleteIssues, BulkUpdateIssues, FeedbackResponse, Issue,
     IssueResponse, UpdateIssueState, STATUS_IGNORED, STATUS_RESOLVED, STATUS_UNRESOLVED,
 };
-pub use log::LogResponse;
+pub use log::{LogResponse, LogVolumePoint};
 pub use project::{
     CreateProject, Product, Project, ProjectResponse, UpdateProject, SELECTABLE_PLATFORMS,
     VALID_PLATFORMS,

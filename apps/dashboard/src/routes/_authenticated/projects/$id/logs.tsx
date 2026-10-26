@@ -1,43 +1,86 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ScrollText } from 'lucide-react';
+import { cn, EmptyIcon, Page, PageHeader, Text } from '@rustrak/ui';
+import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { listLogs } from '@/features/log/api/queries';
-import { LogsList } from '@/features/log/ui/components/logs-list';
+import { useShortcuts } from '@/features/issue/ui/components/issue-actions';
+import { getLogVolume, listLogs } from '@/features/log/api/queries';
+import { LOG_LEVELS } from '@/features/log/model/log-view';
+import { LogDetail } from '@/features/log/ui/components/log-detail';
+import { LogList } from '@/features/log/ui/components/log-list';
+import {
+  LogSearch,
+  type LogSearchValue,
+} from '@/features/log/ui/components/log-search';
+import { LogVolume } from '@/features/log/ui/components/log-volume';
 import { getProject } from '@/features/project/api/queries';
+import {
+  DEFAULT_PERIOD,
+  PERIOD_CHOICES,
+  type PeriodChoice,
+} from '@/features/release/model/session-health';
+import { PeriodFilter } from '@/features/release/ui/components/period-filter';
 import { translator } from '@/shared/i18n/intl';
-import { searchPage, searchString } from '@/shared/lib/search-params';
+import { loadAll } from '@/shared/lib/results';
+import {
+  searchOneOf,
+  searchPage,
+  searchString,
+} from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 
+const PAGE_SIZE = 50;
+
+/**
+ * Logs: the lines the SDKs send, newest first.
+ *
+ * What every log explorer converged on, at the size of this one: a search
+ * bar that takes free text for the message and `level:` and `trace:` keys,
+ * the window beside it, the volume stacked by level above the lines, and a
+ * line opened in a pane beside the list -- j and k to move, Esc to close.
+ * Everything is in the URL, so a line can be linked to.
+ */
 export const Route = createFileRoute('/_authenticated/projects/$id/logs')({
   validateSearch: (search: Record<string, unknown>) => ({
+    q: searchString(search.q),
+    level: searchOneOf(search.level, LOG_LEVELS),
+    trace: searchString(search.trace),
+    period: searchOneOf(search.period, PERIOD_CHOICES),
     page: searchPage(search.page),
-    level: searchString(search.level),
+    selected: searchString(search.selected),
   }),
-  loaderDeps: ({ search }) => ({ page: search.page ?? 1, level: search.level }),
-  loader: async ({ params, deps }) => {
+  loaderDeps: ({ search }) => ({
+    q: search.q,
+    level: search.level,
+    trace: search.trace,
+    period: search.period,
+    page: search.page,
+  }),
+  loader: ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const project = await getProject(projectId);
-
-    if (!project.success) return { project, logs: null };
-
-    // Nothing is swallowed: a fetch/auth failure renders an outage surface
-    // rather than the "no logs yet" onboarding state.
-    const logs = await listLogs(projectId, {
-      page: deps.page,
-      per_page: 50,
+    const period = deps.period ?? DEFAULT_PERIOD;
+    const filters = {
+      query: deps.q,
       level: deps.level,
-    });
-
-    return { project, logs };
+      trace_id: deps.trace,
+      period: period === 'all' ? undefined : period,
+    };
+    return loadAll([
+      getProject(projectId),
+      listLogs(projectId, {
+        ...filters,
+        page: deps.page ?? 1,
+        per_page: PAGE_SIZE,
+      }),
+      getLogVolume(projectId, filters),
+    ]);
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.project.success) {
+    if (!loaderData?.success) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const project = loaderData.project.data;
+    const [project] = loaderData.data;
     return {
       meta: [
         { title: t('logs.meta.title', { project: project.name }) },
@@ -53,68 +96,140 @@ export const Route = createFileRoute('/_authenticated/projects/$id/logs')({
 
 function LogsPage() {
   const t = useTranslations('projectPages');
-  const { id } = Route.useParams();
-  const { page, level } = Route.useSearch({
-    select: (search) => ({ page: search.page ?? 1, level: search.level }),
+  const tLogs = useTranslations('logs');
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const isPending = useRouterState({ select: (s) => s.status === 'pending' });
+  const loaded = Route.useLoaderData();
+  const period = search.period ?? DEFAULT_PERIOD;
+  const page = search.page ?? 1;
+
+  const items = loaded.success ? loaded.data[1].items : [];
+  const current = items.find((log) => log.id === search.selected);
+
+  const select = (selected: string | undefined) =>
+    navigate({ search: (prev) => ({ ...prev, selected }), replace: true });
+
+  // A new search starts over at the newest line, with nothing open.
+  const narrow = (next: LogSearchValue & { period?: PeriodChoice }) =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        ...next,
+        page: undefined,
+        selected: undefined,
+      }),
+    });
+
+  const step = (by: number) => {
+    const at = current ? items.indexOf(current) + by : 0;
+    const next = items[at];
+    if (next) select(next.id);
+  };
+
+  useShortcuts({
+    j: () => step(1),
+    k: () => step(-1),
+    Escape: () => select(undefined),
   });
-  const { project: projectResult, logs: logsResult } = Route.useLoaderData();
-  const projectId = Number.parseInt(id, 10);
 
-  if (!projectResult.success) {
-    return (
-      <LoadFailure error={projectResult.error} title={t('loadProjectFailed')} />
-    );
+  if (!loaded.success) {
+    return <LoadFailure error={loaded.error} title={t('logs.loadFailed')} />;
   }
 
-  const project = projectResult.data;
-
-  // `null` only where the project read already failed, and that branch
-  // returned above — so this one is a real failure of its own request.
-  if (logsResult === null) return null;
-
-  if (!logsResult.success) {
-    return (
-      <LoadFailure
-        error={logsResult.error}
-        title={t('logs.loadFailed')}
-        notFoundOnMissing={false}
-      />
-    );
-  }
-
-  const logs = logsResult.data;
+  const [project, logs, volume] = loaded.data;
+  const filtered = Boolean(search.q || search.level || search.trace);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="shrink-0 w-full px-4 md:px-8 py-4 md:py-6 border-b">
-        <h1 className="text-lg font-semibold">{t('logs.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {t('logs.subtitle', { project: project.name })}
-        </p>
-      </div>
+    <div className="flex h-full flex-col">
+      <PageHeader
+        title={t('logs.title')}
+        summary={[project.name, tLogs('count', { count: logs.total_count })]}
+      />
 
-      <div className="flex-1 overflow-hidden w-full px-4 md:px-8 py-4 md:py-6">
-        {logs.total_count === 0 && !level ? (
-          <div className="flex flex-col items-center justify-center min-h-full text-center">
-            <ScrollText className="size-12 text-muted-foreground/30 mb-4" />
-            <h2 className="text-lg font-semibold mb-1">
-              {t('logs.emptyTitle')}
-            </h2>
-            <p className="text-sm text-muted-foreground max-w-md">
-              {t.rich('logs.emptyDescription', {
-                code: (chunks) => <code>{chunks}</code>,
-              })}
-            </p>
+      {logs.total_count === 0 && !filtered && period === 'all' ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-page-gutter py-16 text-center">
+          <EmptyIcon size="xl" className="mb-2 text-fg-ghost" />
+          <Text variant="body">{t('logs.emptyTitle')}</Text>
+          <Text variant="meta" tone="subtle" className="max-w-md">
+            {t.rich('logs.emptyDescription', {
+              code: (chunks) => <code className="font-mono">{chunks}</code>,
+            })}
+          </Text>
+        </div>
+      ) : (
+        <Page scroll={false}>
+          {/* Narrow, the bar takes a row and the window the next; with a
+              line open, the pane takes the whole page. */}
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-2',
+              current && 'max-lg:hidden',
+            )}
+          >
+            <LogSearch
+              value={{ q: search.q, level: search.level, trace: search.trace }}
+              onChange={narrow}
+            />
+            <PeriodFilter
+              period={period}
+              onChange={(next) =>
+                narrow({ period: next === DEFAULT_PERIOD ? undefined : next })
+              }
+            />
           </div>
-        ) : (
-          <LogsList
-            projectId={projectId}
-            initialLogs={logs}
-            currentPage={page}
-            activeLevel={level}
-          />
-        )}
-      </div>
+
+          {/* On a phone the lines need the height more than the chart does. */}
+          {volume.length > 0 ? (
+            <div
+              className={cn(
+                'shrink-0 rounded-lg border border-border bg-panel px-2 pt-3 pb-1 max-sm:hidden',
+                current && 'max-lg:hidden',
+              )}
+            >
+              <LogVolume points={volume} />
+            </div>
+          ) : null}
+
+          <div className="flex min-h-0 flex-1 gap-4">
+            {/* Narrow, the pane replaces the list once a line is open. */}
+            <div
+              className={cn(
+                'min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-panel lg:flex',
+                current ? 'hidden' : 'flex',
+              )}
+            >
+              <LogList
+                logs={logs}
+                search={search.q ?? ''}
+                selectedId={current?.id}
+                page={page}
+                isPending={isPending}
+                onSelect={(id) => select(id === current?.id ? undefined : id)}
+                onPageChange={(next) =>
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      page: next === 1 ? undefined : next,
+                      selected: undefined,
+                    }),
+                  })
+                }
+              />
+            </div>
+            {current ? (
+              <div className="flex min-h-0 w-full flex-col overflow-hidden lg:w-[28rem] lg:flex-none lg:rounded-lg lg:border lg:border-border lg:bg-panel xl:w-[34rem]">
+                <LogDetail
+                  key={current.id}
+                  log={current}
+                  onTrace={(trace) => narrow({ trace })}
+                  onClose={() => select(undefined)}
+                />
+              </div>
+            ) : null}
+          </div>
+        </Page>
+      )}
     </div>
   );
 }
