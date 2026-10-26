@@ -569,6 +569,19 @@
       "invalid": "Enter a whole number of at least 1, or leave it empty.",
       "dropped": "Dropped by the limit",
       "droppedDescription": "Events that were accepted but not stored because a limit was already reached."
+    },
+    "card": {
+      "newIssues": "New issues",
+      "openIssues": "Open issues",
+      "stored": "Stored",
+      "rising": "Issues rising",
+      "waiting": "Waiting for the first event",
+      "actions": "Actions for {name}",
+      "lastDay": "Last 24 hours"
+    },
+    "summary": {
+      "withFatal": "{count, plural, one {# with fatal errors} other {# with fatal errors}}",
+      "events24h": "{count} events in 24 h"
     }
   },
   "alerts": {

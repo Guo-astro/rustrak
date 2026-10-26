@@ -569,6 +569,19 @@
       "invalid": "Escribe un número entero de al menos 1, o déjalo vacío.",
       "dropped": "Descartados por el límite",
       "droppedDescription": "Eventos que se aceptaron pero no se guardaron porque ya se había alcanzado un límite."
+    },
+    "card": {
+      "newIssues": "Issues nuevas",
+      "openIssues": "Issues abiertas",
+      "stored": "Almacenados",
+      "rising": "Issues al alza",
+      "waiting": "Esperando el primer evento",
+      "actions": "Acciones de {name}",
+      "lastDay": "Últimas 24 horas"
+    },
+    "summary": {
+      "withFatal": "{count, plural, one {# con errores fatales} other {# con errores fatales}}",
+      "events24h": "{count} eventos en 24 h"
     }
   },
   "alerts": {

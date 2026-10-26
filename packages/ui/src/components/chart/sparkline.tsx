@@ -81,7 +81,10 @@ export function Sparkline({
             y={VIEW_H - h}
             width={step * 0.62}
             height={h}
-            className={styles.bar()}
+            // A quiet bucket stays neutral whatever the tone: the colour is
+            // for the buckets that carry the alarm, and a row of red hairs
+            // along the baseline reads as alarm everywhere.
+            className={value === 0 ? 'fill-border' : styles.bar()}
           />
         );
       })}
