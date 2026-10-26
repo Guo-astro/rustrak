@@ -163,33 +163,34 @@ function LogsPage() {
               line open, the pane takes the whole page. */}
           <div
             className={cn(
-              'flex flex-wrap items-center gap-2',
+              'flex shrink-0 flex-col gap-4',
               current && 'max-lg:hidden',
             )}
           >
-            <LogSearch
-              value={{ q: search.q, level: search.level, trace: search.trace }}
-              onChange={narrow}
-            />
-            <PeriodFilter
-              period={period}
-              onChange={(next) =>
-                narrow({ period: next === DEFAULT_PERIOD ? undefined : next })
-              }
-            />
-          </div>
-
-          {/* On a phone the lines need the height more than the chart does. */}
-          {volume.length > 0 ? (
-            <div
-              className={cn(
-                'shrink-0 rounded-lg border border-border bg-panel px-2 pt-3 pb-1 max-sm:hidden',
-                current && 'max-lg:hidden',
-              )}
-            >
-              <LogVolume points={volume} />
+            <div className="flex flex-wrap items-center gap-2">
+              <LogSearch
+                value={{
+                  q: search.q,
+                  level: search.level,
+                  trace: search.trace,
+                }}
+                onChange={narrow}
+              />
+              <PeriodFilter
+                period={period}
+                onChange={(next) =>
+                  narrow({ period: next === DEFAULT_PERIOD ? undefined : next })
+                }
+              />
             </div>
-          ) : null}
+
+            {/* On a phone the lines need the height more than the chart does. */}
+            {volume.length > 0 ? (
+              <div className="rounded-lg border border-border bg-panel px-2 pt-3 pb-1 max-sm:hidden">
+                <LogVolume points={volume} />
+              </div>
+            ) : null}
+          </div>
 
           <div className="flex min-h-0 flex-1 gap-4">
             {/* Narrow, the pane replaces the list once a line is open. */}

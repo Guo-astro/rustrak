@@ -2291,7 +2291,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "Sachez quand une tâche planifiée ne s’exécute pas, échoue ou dure trop longtemps",
     "newMonitor": "Nouveau moniteur",
     "loadFailed": "Impossible de charger les moniteurs",
     "loadMonitorFailed": "Impossible de charger ce moniteur",
@@ -2299,7 +2298,6 @@
     "columns": {
       "monitor": "Moniteur",
       "schedule": "Planification",
-      "recent": "Dernières exécutions",
       "lastCheckIn": "Dernier check-in",
       "nextCheckIn": "Prochain attendu"
     },
@@ -2323,8 +2321,9 @@
       "active": "En attente d’une exécution réussie"
     },
     "timeline": {
-      "label": "Derniers check-ins, du plus ancien au plus récent",
-      "took": "Durée : {duration}"
+      "noRuns": "aucune exécution",
+      "avg": "moy. {duration}",
+      "now": "maintenant"
     },
     "empty": {
       "title": "Surveillez vos tâches planifiées",
@@ -2367,7 +2366,20 @@
       "nextCheckIn": "Prochain attendu",
       "minutes": "{count, plural, one {# minute} other {# minutes}}",
       "failures": "{count, plural, one {# check-in en échec} other {# check-ins en échec d’affilée}}",
-      "successes": "{count, plural, one {# check-in réussi} other {# check-ins réussis d’affilée}}"
+      "successes": "{count, plural, one {# check-in réussi} other {# check-ins réussis d’affilée}}",
+      "took": "a pris {duration}",
+      "late": "En retard",
+      "successRate": "Taux de réussite",
+      "inWindow": "Des exécutions de cette période",
+      "avgDuration": "Durée moyenne",
+      "ofMax": "Durée max. {duration}",
+      "duration": "Durée",
+      "durationHint": "Durée moyenne des exécutions, par environnement",
+      "created": "Créé",
+      "timeline": "Chronologie",
+      "timelineHint": "Chaque trait est la pire exécution de son créneau, sur le même axe pour chaque environnement",
+      "checkInsHint": "Toutes les exécutions, de la plus récente à la plus ancienne",
+      "instrumentHint": "Faites un check-in depuis votre tâche avec l’un de ceux-ci"
     },
     "checkInColumns": {
       "status": "Statut",
@@ -2436,6 +2448,24 @@
       "numberRange": "Entre {min} et {max}",
       "tooLong": "{max} caractères au maximum",
       "timezoneRequired": "Choisissez un fuseau horaire"
+    },
+    "noMatch": "Aucun moniteur ne correspond à cette recherche",
+    "late": "En retard",
+    "state": "État",
+    "search": "Rechercher des moniteurs, ou filtrer par state:",
+    "count": "{count, plural, one {# moniteur} other {# moniteurs}}",
+    "failingCount": "{count} en échec",
+    "pageOf": "Page {page} sur {total}",
+    "newer": "Check-ins plus récents",
+    "older": "Check-ins plus anciens",
+    "periods": {
+      "24h": "Dernières 24 heures",
+      "7d": "7 derniers jours",
+      "30d": "30 derniers jours"
+    },
+    "legend": {
+      "timeout": "Délai dépassé (plus de {count} min)",
+      "missed": "Manqué (aucun check-in en {count} min)"
     }
   },
   "schedule": {

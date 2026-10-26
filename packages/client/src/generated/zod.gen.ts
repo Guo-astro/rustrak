@@ -971,6 +971,30 @@ export const zMonitorEnvironmentResponse = z.object({
 });
 
 /**
+ * The check-ins of one bucket, counted by status.
+ */
+export const zMonitorStatsBucket = z.object({
+    avg_duration_ms: z.number().nullable(),
+    bucket: z.iso.datetime({ offset: true }),
+    error: z.int(),
+    in_progress: z.int(),
+    missed: z.int(),
+    ok: z.int(),
+    timeout: z.int()
+});
+
+/**
+ * One environment of a monitor over a window, bucket by bucket: what
+ * `GET /monitor-stats` returns, Sentry's `monitors-stats`.
+ */
+export const zMonitorEnvironmentStats = z.object({
+    buckets: z.array(zMonitorStatsBucket),
+    environment: z.string(),
+    monitor_environment_id: z.uuid(),
+    monitor_slug: z.string()
+});
+
+/**
  * A connected client, as its user sees it.
  */
 export const zOAuthGrant = z.object({
@@ -3230,6 +3254,20 @@ export const zMembersRemovePath = z.object({
  * Member removed
  */
 export const zMembersRemoveResponse = z.void();
+
+export const zMonitorsStatsPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zMonitorsStatsQuery = z.object({
+    period: z.string().nullish(),
+    slug: z.string().nullish()
+});
+
+/**
+ * Each monitor environment's check-ins by status, in sixty buckets on one axis
+ */
+export const zMonitorsStatsResponse = z.array(zMonitorEnvironmentStats);
 
 export const zMonitorsListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })

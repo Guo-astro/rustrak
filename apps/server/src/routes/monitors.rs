@@ -5,7 +5,7 @@ use crate::auth::ApiActor;
 use crate::db::DbPool;
 use crate::error::AppResult;
 #[cfg(feature = "openapi")]
-use crate::models::monitor::{CheckInResponse, MonitorResponse};
+use crate::models::monitor::{CheckInResponse, MonitorEnvironmentStats, MonitorResponse};
 use crate::models::monitor::{CreateMonitor, UpdateMonitor};
 use crate::pagination::OffsetPaginatedResponse;
 use crate::services::access::{self, Action};
@@ -26,6 +26,16 @@ pub struct ListCheckInsQuery {
     pub per_page: i64,
     /// Only check-ins from this environment.
     pub environment: Option<String>,
+}
+
+/// Query parameters for a project's monitor stats.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+pub struct MonitorStatsQuery {
+    /// The window (`24h`, `7d`, `30d`...); the last day if absent.
+    pub period: Option<String>,
+    /// Only this monitor.
+    pub slug: Option<String>,
 }
 
 fn default_page() -> i64 {
@@ -68,6 +78,41 @@ pub async fn list_monitors(
     require(&pool, &actor, project_id, Action::ViewProject).await?;
     let monitors = MonitorService::list(&pool, project_id).await?;
     Ok(HttpResponse::Ok().json(monitors))
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/monitor-stats",
+    operation_id = "monitors.stats",
+    tag = "Monitors",
+    params(("project_id" = i32, Path, description = "Project ID"), MonitorStatsQuery),
+    responses(
+        (status = 200, description = "Each monitor environment's check-ins by status, in sixty buckets on one axis", body = Vec<MonitorEnvironmentStats>),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// GET /api/projects/{project_id}/monitor-stats
+/// Counts the check-ins of a project's monitors by status over a window, bucket by bucket.
+pub async fn get_monitor_stats(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    query: web::Query<MonitorStatsQuery>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+    require(&pool, &actor, project_id, Action::ViewProject).await?;
+    let period_hours =
+        crate::routes::period::parse_period_hours(query.period.as_deref()).unwrap_or(24);
+    let stats = MonitorService::stats(
+        &pool,
+        project_id,
+        query.slug.as_deref().filter(|s| !s.is_empty()),
+        period_hours,
+    )
+    .await?;
+    Ok(HttpResponse::Ok().json(stats))
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(
@@ -233,7 +278,8 @@ pub async fn list_checkins(
     get_monitor,
     update_monitor,
     delete_monitor,
-    list_checkins
+    list_checkins,
+    get_monitor_stats
 ))]
 pub struct MonitorsApi;
 
@@ -247,5 +293,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/{slug}", web::put().to(update_monitor))
             .route("/{slug}", web::delete().to(delete_monitor))
             .route("/{slug}/checkins", web::get().to(list_checkins)),
+    )
+    .route(
+        "/api/projects/{project_id}/monitor-stats",
+        web::get().to(get_monitor_stats),
     );
 }

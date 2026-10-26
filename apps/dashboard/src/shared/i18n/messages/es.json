@@ -2291,7 +2291,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "Entérate cuando una tarea programada no se ejecuta, falla o tarda demasiado",
     "newMonitor": "Nuevo monitor",
     "loadFailed": "No se pudieron cargar los monitores",
     "loadMonitorFailed": "No se pudo cargar este monitor",
@@ -2299,7 +2298,6 @@
     "columns": {
       "monitor": "Monitor",
       "schedule": "Programación",
-      "recent": "Últimas ejecuciones",
       "lastCheckIn": "Último check-in",
       "nextCheckIn": "Próximo esperado"
     },
@@ -2323,8 +2321,9 @@
       "active": "Esperando una ejecución correcta"
     },
     "timeline": {
-      "label": "Últimos check-ins, del más antiguo al más reciente",
-      "took": "Duró {duration}"
+      "noRuns": "sin ejecuciones",
+      "avg": "media {duration}",
+      "now": "ahora"
     },
     "empty": {
       "title": "Monitoriza tus tareas programadas",
@@ -2367,7 +2366,20 @@
       "nextCheckIn": "Próximo esperado",
       "minutes": "{count, plural, one {# minuto} other {# minutos}}",
       "failures": "{count, plural, one {# check-in fallido} other {# check-ins fallidos seguidos}}",
-      "successes": "{count, plural, one {# check-in correcto} other {# check-ins correctos seguidos}}"
+      "successes": "{count, plural, one {# check-in correcto} other {# check-ins correctos seguidos}}",
+      "took": "tardó {duration}",
+      "late": "Con retraso",
+      "successRate": "Tasa de éxito",
+      "inWindow": "De las ejecuciones de este periodo",
+      "avgDuration": "Duración media",
+      "ofMax": "Duración máxima {duration}",
+      "duration": "Duración",
+      "durationHint": "Cuánto tardaron las ejecuciones de media, por entorno",
+      "created": "Creado",
+      "timeline": "Línea de tiempo",
+      "timelineHint": "Cada marca es la peor ejecución de su franja, en el mismo eje para cada entorno",
+      "checkInsHint": "Todas las ejecuciones, de la más reciente a la más antigua",
+      "instrumentHint": "Haz check-in desde tu tarea con uno de estos"
     },
     "checkInColumns": {
       "status": "Estado",
@@ -2436,6 +2448,24 @@
       "numberRange": "Entre {min} y {max}",
       "tooLong": "Como máximo {max} caracteres",
       "timezoneRequired": "Elige una zona horaria"
+    },
+    "noMatch": "Ningún monitor coincide con esta búsqueda",
+    "late": "Con retraso",
+    "state": "Estado",
+    "search": "Busca monitores o filtra por state:",
+    "count": "{count, plural, one {# monitor} other {# monitores}}",
+    "failingCount": "{count} fallando",
+    "pageOf": "Página {page} de {total}",
+    "newer": "Check-ins más recientes",
+    "older": "Check-ins más antiguos",
+    "periods": {
+      "24h": "Últimas 24 horas",
+      "7d": "Últimos 7 días",
+      "30d": "Últimos 30 días"
+    },
+    "legend": {
+      "timeout": "Tiempo agotado (más de {count} min)",
+      "missed": "Omitido (sin check-in en {count} min)"
     }
   },
   "schedule": {

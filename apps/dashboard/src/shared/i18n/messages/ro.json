@@ -2291,7 +2291,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "Află când o sarcină programată nu rulează, eșuează sau durează prea mult",
     "newMonitor": "Monitor nou",
     "loadFailed": "Monitoarele nu au putut fi încărcate",
     "loadMonitorFailed": "Acest monitor nu a putut fi încărcat",
@@ -2299,7 +2298,6 @@
     "columns": {
       "monitor": "Monitor",
       "schedule": "Programare",
-      "recent": "Rulări recente",
       "lastCheckIn": "Ultimul check-in",
       "nextCheckIn": "Următorul așteptat"
     },
@@ -2323,8 +2321,9 @@
       "active": "Se așteaptă o rulare reușită"
     },
     "timeline": {
-      "label": "Check-in-uri recente, de la cel mai vechi",
-      "took": "A durat {duration}"
+      "noRuns": "nicio rulare",
+      "avg": "medie {duration}",
+      "now": "acum"
     },
     "empty": {
       "title": "Monitorizează-ți sarcinile programate",
@@ -2367,7 +2366,20 @@
       "nextCheckIn": "Următorul așteptat",
       "minutes": "{count, plural, one {# minut} few {# minute} other {# de minute}}",
       "failures": "{count, plural, one {# check-in eșuat} few {# check-in-uri eșuate la rând} other {# de check-in-uri eșuate la rând}}",
-      "successes": "{count, plural, one {# check-in reușit} few {# check-in-uri reușite la rând} other {# de check-in-uri reușite la rând}}"
+      "successes": "{count, plural, one {# check-in reușit} few {# check-in-uri reușite la rând} other {# de check-in-uri reușite la rând}}",
+      "took": "a durat {duration}",
+      "late": "Întârziat",
+      "successRate": "Rată de succes",
+      "inWindow": "Din rulările acestei perioade",
+      "avgDuration": "Durată medie",
+      "ofMax": "Durată maximă {duration}",
+      "duration": "Durată",
+      "durationHint": "Cât au durat rulările în medie, pe mediu",
+      "created": "Creat",
+      "timeline": "Cronologie",
+      "timelineHint": "Fiecare marcaj este cea mai proastă rulare din intervalul său, pe aceeași axă pentru fiecare mediu",
+      "checkInsHint": "Toate rulările, cele mai noi întâi",
+      "instrumentHint": "Fă check-in din job cu unul dintre acestea"
     },
     "checkInColumns": {
       "status": "Stare",
@@ -2436,6 +2448,24 @@
       "numberRange": "Între {min} și {max}",
       "tooLong": "Cel mult {max} caractere",
       "timezoneRequired": "Alege un fus orar"
+    },
+    "noMatch": "Niciun monitor nu corespunde căutării",
+    "late": "Întârziat",
+    "state": "Stare",
+    "search": "Caută monitoare sau filtrează după state:",
+    "count": "{count, plural, one {# monitor} few {# monitoare} other {# de monitoare}}",
+    "failingCount": "{count} cu erori",
+    "pageOf": "Pagina {page} din {total}",
+    "newer": "Check-in-uri mai noi",
+    "older": "Check-in-uri mai vechi",
+    "periods": {
+      "24h": "Ultimele 24 de ore",
+      "7d": "Ultimele 7 zile",
+      "30d": "Ultimele 30 de zile"
+    },
+    "legend": {
+      "timeout": "Expirat (peste {count} min)",
+      "missed": "Ratat (niciun check-in în {count} min)"
     }
   },
   "schedule": {

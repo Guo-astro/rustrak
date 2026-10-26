@@ -1,10 +1,19 @@
 import type { MonitorsListCheckinsResponse } from '@rustrak/client';
+import {
+  Button,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  cn,
+  Text,
+} from '@rustrak/ui';
 import { useFormatter, useTranslations } from 'use-intl';
 import { formatRunDuration } from '@/features/monitor/lib/duration';
-import { TablePagination } from '@/shared/ui/components/table-pagination';
 import { CheckInStatusLabel } from './check-in-status';
 
-/** One monitor's check-ins, newest first, a page at a time. */
+/**
+ * One monitor's check-ins, newest first, a page at a time: how each run
+ * ended, when it started against when it was due, and how long it took.
+ */
 export function CheckInsTable({
   page,
   currentPage,
@@ -24,57 +33,74 @@ export function CheckInsTable({
 
   if (page.total_count === 0) {
     return (
-      <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+      <Text variant="meta" tone="subtle" className="px-5 py-6">
         {t('detail.noCheckIns')}
-      </p>
+      </Text>
     );
   }
 
+  const cell = 'px-5 py-2 whitespace-nowrap';
+
   return (
-    <div>
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+    <div className={cn('flex flex-col', pending && 'opacity-60')}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-body">
           <thead>
-            <tr className="border-b bg-muted/50 text-left text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
-              <th className="px-4 py-3 font-bold">
+            <tr className="border-border-divider border-y text-left font-mono text-column text-fg-meta uppercase">
+              <th className={cn(cell, 'font-normal')}>
                 {t('checkInColumns.status')}
               </th>
-              {showEnvironment && (
-                <th className="px-4 py-3 font-bold">
+              {showEnvironment ? (
+                <th className={cn(cell, 'font-normal')}>
                   {t('checkInColumns.environment')}
                 </th>
-              )}
-              <th className="px-4 py-3 font-bold">
+              ) : null}
+              <th className={cn(cell, 'font-normal')}>
                 {t('checkInColumns.started')}
               </th>
-              <th className="px-4 py-3 text-right font-bold">
+              <th className={cn(cell, 'text-right font-normal')}>
                 {t('checkInColumns.duration')}
               </th>
-              <th className="hidden px-4 py-3 font-bold md:table-cell">
+              <th className={cn(cell, 'hidden font-normal md:table-cell')}>
                 {t('checkInColumns.expected')}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-border-divider">
             {page.items.map((checkIn) => (
-              <tr key={checkIn.id} className="hover:bg-muted/30">
-                <td className="px-4 py-2.5 whitespace-nowrap">
+              <tr key={checkIn.id}>
+                <td className={cn(cell, 'text-fg')}>
                   <CheckInStatusLabel status={checkIn.status} />
                 </td>
-                {showEnvironment && (
-                  <td className="px-4 py-2.5 text-muted-foreground">
+                {showEnvironment ? (
+                  <td
+                    className={cn(
+                      cell,
+                      'font-mono text-fg-secondary text-mono-sm',
+                    )}
+                  >
                     {checkIn.environment}
                   </td>
-                )}
-                <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
+                ) : null}
+                <td className={cn(cell, 'text-fg-secondary tabular-nums')}>
                   {format.dateTime(new Date(checkIn.date_added), 'precise')}
                 </td>
-                <td className="px-4 py-2.5 text-right font-mono tabular-nums text-muted-foreground">
+                <td
+                  className={cn(
+                    cell,
+                    'text-right font-mono text-fg-secondary text-mono-sm tabular-nums',
+                  )}
+                >
                   {checkIn.duration_ms == null
                     ? '—'
                     : formatRunDuration(checkIn.duration_ms)}
                 </td>
-                <td className="hidden px-4 py-2.5 whitespace-nowrap tabular-nums text-muted-foreground md:table-cell">
+                <td
+                  className={cn(
+                    cell,
+                    'hidden text-fg-subtle tabular-nums md:table-cell',
+                  )}
+                >
                   {checkIn.expected_time
                     ? format.dateTime(
                         new Date(checkIn.expected_time),
@@ -87,14 +113,31 @@ export function CheckInsTable({
           </tbody>
         </table>
       </div>
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={page.total_pages}
-        totalCount={page.total_count}
-        perPage={page.per_page}
-        disabled={pending}
-        onPageChange={onPageChange}
-      />
+      {page.total_pages > 1 ? (
+        <div className="flex items-center justify-between gap-2 border-border-divider border-t px-5 pt-3">
+          <Text variant="meta" tone="subtle">
+            {t('pageOf', { page: currentPage, total: page.total_pages })}
+          </Text>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={ChevronLeftIcon}
+              aria-label={t('newer')}
+              disabled={pending || currentPage <= 1}
+              onClick={() => onPageChange(currentPage - 1)}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={ChevronRightIcon}
+              aria-label={t('older')}
+              disabled={pending || currentPage >= page.total_pages}
+              onClick={() => onPageChange(currentPage + 1)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

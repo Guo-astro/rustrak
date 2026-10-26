@@ -378,6 +378,7 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 | `monitors.get({ path })` | `GET /api/projects/{project_id}/monitors/{slug}` |  |
 | `monitors.list({ path })` | `GET /api/projects/{project_id}/monitors` |  |
 | `monitors.listCheckins({ path, query? })` | `GET /api/projects/{project_id}/monitors/{slug}/checkins` |  |
+| `monitors.stats({ path, query? })` | `GET /api/projects/{project_id}/monitor-stats` | Counts the check-ins of a project's monitors by status over a window, bucket by bucket. |
 | `monitors.update({ path, body })` | `PUT /api/projects/{project_id}/monitors/{slug}` |  |
 
 ### OAuth

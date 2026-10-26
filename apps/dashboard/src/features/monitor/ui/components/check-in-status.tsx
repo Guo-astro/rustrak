@@ -10,7 +10,7 @@ export function CheckInStatusLabel({ status }: { status: CheckInStatus }) {
     <span className="inline-flex items-center gap-2">
       <span
         aria-hidden="true"
-        className={cn('size-2.5 shrink-0 rounded-full', checkInFill(status))}
+        className={cn('size-2 shrink-0 rounded-full', checkInFill(status))}
       />
       {t(`status.${status}`)}
     </span>

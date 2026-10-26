@@ -1,5 +1,12 @@
 import type { Schedule } from '@rustrak/client';
-import { Check, Copy } from 'lucide-react';
+import {
+  Button,
+  CopyIcon,
+  SelectedIcon,
+  Tab,
+  TabList,
+  Tabs,
+} from '@rustrak/ui';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
@@ -9,12 +16,6 @@ import {
   cronGuide,
 } from '@/features/monitor/lib/setup';
 import { CodeBlock } from '@/shared/ui/components/code-block';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@/shared/ui/components/shadcn/tabs';
 import { useCopyFlags } from '@/shared/ui/hooks/use-copy-flags';
 import { useSyntaxHighlighter } from '@/shared/ui/hooks/use-syntax-highlighter';
 
@@ -43,36 +44,27 @@ export function CronSetupGuide({
   const { code, language } = cronGuide(tab, { dsn, slug, schedule });
 
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-2 py-1.5">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="flex items-center justify-between gap-2 border-border-divider border-b ps-3 pe-2">
         <Tabs
           value={tab}
           onValueChange={(value) => setTab(value as CronGuideId)}
         >
-          <TabsList className="h-8 bg-transparent">
+          <TabList className="border-b-0">
             {CRON_GUIDES.map((id) => (
-              <TabsTrigger key={id} value={id} className="h-7 px-2.5 text-xs">
+              <Tab key={id} value={id}>
                 {t(`guides.${id}`)}
-              </TabsTrigger>
+              </Tab>
             ))}
-          </TabsList>
+          </TabList>
         </Tabs>
         <Button
           variant="ghost"
-          size="xs"
+          size="sm"
+          icon={isCopied(tab) ? SelectedIcon : CopyIcon}
           onClick={() => copy(tab, code, t(`guides.${tab}`))}
         >
-          {isCopied(tab) ? (
-            <>
-              <Check className="text-primary" />
-              {t('setup.copied')}
-            </>
-          ) : (
-            <>
-              <Copy />
-              {t('setup.copy')}
-            </>
-          )}
+          {t(isCopied(tab) ? 'setup.copied' : 'setup.copy')}
         </Button>
       </div>
       <div className="overflow-x-auto">

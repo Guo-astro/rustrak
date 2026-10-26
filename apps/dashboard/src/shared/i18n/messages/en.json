@@ -2291,7 +2291,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "Know when a scheduled job doesn't run, fails or runs too long",
     "newMonitor": "New monitor",
     "loadFailed": "Could not load monitors",
     "loadMonitorFailed": "Could not load this monitor",
@@ -2299,7 +2298,6 @@
     "columns": {
       "monitor": "Monitor",
       "schedule": "Schedule",
-      "recent": "Recent runs",
       "lastCheckIn": "Last check-in",
       "nextCheckIn": "Next expected"
     },
@@ -2323,8 +2321,9 @@
       "active": "Waiting for a successful run"
     },
     "timeline": {
-      "label": "Recent check-ins, oldest first",
-      "took": "Took {duration}"
+      "noRuns": "no runs",
+      "avg": "avg {duration}",
+      "now": "now"
     },
     "empty": {
       "title": "Monitor your scheduled jobs",
@@ -2367,7 +2366,20 @@
       "nextCheckIn": "Next expected",
       "minutes": "{count, plural, one {# minute} other {# minutes}}",
       "failures": "{count, plural, one {# failed check-in} other {# failed check-ins in a row}}",
-      "successes": "{count, plural, one {# successful check-in} other {# successful check-ins in a row}}"
+      "successes": "{count, plural, one {# successful check-in} other {# successful check-ins in a row}}",
+      "took": "took {duration}",
+      "late": "Late",
+      "successRate": "Success rate",
+      "inWindow": "Of the runs in this window",
+      "avgDuration": "Average duration",
+      "ofMax": "Max runtime {duration}",
+      "duration": "Duration",
+      "durationHint": "How long the runs took on average, by environment",
+      "created": "Created",
+      "timeline": "Timeline",
+      "timelineHint": "Each tick is the worst run of its slot, on the same axis for every environment",
+      "checkInsHint": "Every run, newest first",
+      "instrumentHint": "Check in from your job with one of these"
     },
     "checkInColumns": {
       "status": "Status",
@@ -2436,6 +2448,24 @@
       "numberRange": "Between {min} and {max}",
       "tooLong": "At most {max} characters",
       "timezoneRequired": "Choose a timezone"
+    },
+    "noMatch": "No monitor matches this search",
+    "late": "Late",
+    "state": "State",
+    "search": "Search monitors, or filter by state:",
+    "count": "{count, plural, one {# monitor} other {# monitors}}",
+    "failingCount": "{count} failing",
+    "pageOf": "Page {page} of {total}",
+    "newer": "Newer check-ins",
+    "older": "Older check-ins",
+    "periods": {
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days"
+    },
+    "legend": {
+      "timeout": "Timed out (over {count, plural, one {# min} other {# min}})",
+      "missed": "Missed (no check-in within {count, plural, one {# min} other {# min}})"
     }
   },
   "schedule": {

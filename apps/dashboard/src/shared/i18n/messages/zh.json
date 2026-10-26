@@ -2291,7 +2291,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "在定时任务未运行、失败或运行过久时及时知晓",
     "newMonitor": "新建监控",
     "loadFailed": "无法加载监控",
     "loadMonitorFailed": "无法加载此监控",
@@ -2299,7 +2298,6 @@
     "columns": {
       "monitor": "监控",
       "schedule": "计划",
-      "recent": "最近运行",
       "lastCheckIn": "上次签到",
       "nextCheckIn": "下次预期"
     },
@@ -2323,8 +2321,9 @@
       "active": "等待一次成功运行"
     },
     "timeline": {
-      "label": "最近的签到，按时间先后排列",
-      "took": "耗时 {duration}"
+      "noRuns": "无运行",
+      "avg": "平均 {duration}",
+      "now": "现在"
     },
     "empty": {
       "title": "监控你的定时任务",
@@ -2367,7 +2366,20 @@
       "nextCheckIn": "下次预期",
       "minutes": "{count, plural, other {# 分钟}}",
       "failures": "{count, plural, other {连续 # 次签到失败}}",
-      "successes": "{count, plural, other {连续 # 次签到成功}}"
+      "successes": "{count, plural, other {连续 # 次签到成功}}",
+      "took": "耗时 {duration}",
+      "late": "已延迟",
+      "successRate": "成功率",
+      "inWindow": "此时间范围内的运行",
+      "avgDuration": "平均耗时",
+      "ofMax": "最长运行时间 {duration}",
+      "duration": "耗时",
+      "durationHint": "各环境运行的平均耗时",
+      "created": "创建于",
+      "timeline": "时间线",
+      "timelineHint": "每个刻度是该时段内最差的一次运行，所有环境共用同一时间轴",
+      "checkInsHint": "所有运行，最新在前",
+      "instrumentHint": "在任务中使用以下任一方式签到"
     },
     "checkInColumns": {
       "status": "状态",
@@ -2436,6 +2448,24 @@
       "numberRange": "介于 {min} 和 {max} 之间",
       "tooLong": "最多 {max} 个字符",
       "timezoneRequired": "请选择时区"
+    },
+    "noMatch": "没有符合搜索条件的监控",
+    "late": "已延迟",
+    "state": "状态",
+    "search": "搜索监控，或按 state: 筛选",
+    "count": "{count} 个监控",
+    "failingCount": "{count} 个失败",
+    "pageOf": "第 {page} 页，共 {total} 页",
+    "newer": "较新的签到",
+    "older": "较早的签到",
+    "periods": {
+      "24h": "最近 24 小时",
+      "7d": "最近 7 天",
+      "30d": "最近 30 天"
+    },
+    "legend": {
+      "timeout": "超时（超过 {count} 分钟）",
+      "missed": "错过（{count} 分钟内无签到）"
     }
   },
   "schedule": {
