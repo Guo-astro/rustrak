@@ -92,13 +92,19 @@ impl StatsService {
         })
     }
 
-    /// The releases a project's events arrived in, newest first, for the
-    /// overview's release filter. An event sent without one is in none.
+    /// The releases a project's events or sessions arrived in, newest first,
+    /// for the overview's release filter: a healthy release has sessions and
+    /// not one error. An event sent without one is in none.
     pub async fn releases(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
         // ponytail: the latest 100; a search box when a project has more.
         let rows: Vec<(String,)> = sqlx::query_as(
-            "SELECT release FROM events WHERE project_id = $1 AND release <> '' \
-             GROUP BY release ORDER BY MAX(ingested_at) DESC LIMIT 100",
+            "SELECT release FROM ( \
+                 SELECT release, MAX(ingested_at) AS seen FROM events \
+                 WHERE project_id = $1 AND release <> '' GROUP BY release \
+                 UNION ALL \
+                 SELECT release, MAX(bucket) AS seen FROM session_counts \
+                 WHERE project_id = $1 AND release <> '' GROUP BY release \
+             ) AS seen_in GROUP BY release ORDER BY MAX(seen) DESC LIMIT 100",
         )
         .bind(project_id)
         .fetch_all(pool)
@@ -530,17 +536,20 @@ async fn query_event_timeseries(
 type Bounds = Option<(DateTime<Utc>, DateTime<Utc>)>;
 
 /// Narrows `issues` to the ones seen in the scope's environment (bound as
-/// `$2`) and release (`$3`); either one `NULL` narrows nothing.
+/// `$2`) and release (`$3`); either one `NULL` narrows nothing. With both, one
+/// event has to be in both, as `IssueService::list` reads them.
 #[cfg(feature = "postgres")]
 const ISSUE_IN_SCOPE: &str = "($2::text IS NULL OR id IN (
         SELECT issue_id FROM issue_environments WHERE project_id = $1 AND environment = $2))
     AND ($3::text IS NULL OR id IN (
-        SELECT issue_id FROM events WHERE project_id = $1 AND release = $3))";
+        SELECT issue_id FROM events WHERE project_id = $1 AND release = $3
+        AND ($2::text IS NULL OR environment = $2)))";
 #[cfg(not(feature = "postgres"))]
 const ISSUE_IN_SCOPE: &str = "(?2 IS NULL OR id IN (
         SELECT issue_id FROM issue_environments WHERE project_id = ?1 AND environment = ?2))
     AND (?3 IS NULL OR id IN (
-        SELECT issue_id FROM events WHERE project_id = ?1 AND release = ?3))";
+        SELECT issue_id FROM events WHERE project_id = ?1 AND release = ?3
+        AND (?2 IS NULL OR environment = ?2)))";
 
 async fn count_events(
     pool: &DbPool,

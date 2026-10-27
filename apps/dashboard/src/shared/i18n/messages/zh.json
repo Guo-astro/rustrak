@@ -1546,7 +1546,7 @@
       "levelWarning": "警告",
       "levelInfo": "信息",
       "issues": "未解决问题",
-      "issuesDescription": "优先查看",
+      "issuesDescription": "优先查看（全部时间）",
       "issuesRecent": "最近",
       "issuesNew": "新增",
       "issuesFrequent": "事件最多",

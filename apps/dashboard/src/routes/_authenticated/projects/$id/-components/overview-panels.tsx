@@ -94,16 +94,25 @@ export function useOverviewData(
   const interval = overviewInterval(period);
 
   const events = useAsync(async () => {
-    // Comparing asks for twice the window in one request and splits it.
-    const window = compare && period ? `${periodHours(period) * 2}h` : period;
-    const result = await getProjectEventTimeseries(
-      projectId,
-      window,
-      interval,
-      scope,
-    );
-    if (!result.success || !compare) return result;
-    return { ...result, data: withPreviousPeriod(result.data) };
+    // The current series is always its own request, so turning comparison
+    // on never changes it; the window before comes from twice the window.
+    const [current, doubled] = await Promise.all([
+      getProjectEventTimeseries(projectId, period, interval, scope),
+      compare && period
+        ? getProjectEventTimeseries(
+            projectId,
+            `${periodHours(period) * 2}h`,
+            interval,
+            scope,
+          )
+        : null,
+    ]);
+    // A failed comparison costs the dashed line, not the chart.
+    if (!current.success || !doubled?.success) return current;
+    return {
+      ...current,
+      data: withPreviousPeriod(current.data, doubled.data),
+    };
   }, [projectId, period, environment, release, compare]);
 
   const summary = useSummary(filters);

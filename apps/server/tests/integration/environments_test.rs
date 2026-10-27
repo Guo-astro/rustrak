@@ -291,3 +291,70 @@ async fn issue_events_filter_by_environment() {
     let lanza = get(&db.pool, &token, &format!("{uri}?environment=lanza")).await;
     assert_eq!(lanza["items"].as_array().unwrap().len(), 2);
 }
+
+#[actix_web::test]
+async fn environment_and_release_need_one_event_in_both() {
+    let (db, project_id, token) = setup().await;
+    let now = Utc::now();
+    // One issue, seen in production on 1.0 and in staging on 2.0.
+    ingest(&db.pool, project_id, "Mixed", Some("production"), "u", now).await;
+    ingest(&db.pool, project_id, "Mixed", Some("staging"), "u", now).await;
+    sqlx::query(
+        "UPDATE events SET release = CASE environment \
+         WHEN 'production' THEN '1.0' ELSE '2.0' END WHERE project_id = $1",
+    )
+    .bind(project_id)
+    .execute(&db.pool)
+    .await
+    .unwrap();
+
+    let body = get(
+        &db.pool,
+        &token,
+        &format!("/api/projects/{project_id}/issues?environment=production&release=2.0"),
+    )
+    .await;
+    assert_eq!(body["total_count"], 0, "no event is in production on 2.0");
+
+    let scope = rustrak::services::scope::Scope {
+        environment: Some("production"),
+        release: Some("2.0"),
+    };
+    let summary =
+        rustrak::services::stats::StatsService::project_summary(&db.pool, project_id, None, scope)
+            .await
+            .unwrap();
+    assert_eq!(summary.open_issues, 0);
+}
+
+#[actix_web::test]
+async fn environments_include_the_ones_only_sessions_arrived_in() {
+    let (db, project_id, token) = setup().await;
+    ingest(
+        &db.pool,
+        project_id,
+        "Seen",
+        Some("production"),
+        "u",
+        Utc::now(),
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO session_counts \
+         (project_id, release, environment, bucket, total, errored, crashed, abnormal) \
+         VALUES ($1, '1.0', 'canary', '2026-06-10T10:00:00Z', 1, 0, 0, 0)",
+    )
+    .bind(project_id)
+    .execute(&db.pool)
+    .await
+    .unwrap();
+
+    let body = get(
+        &db.pool,
+        &token,
+        &format!("/api/projects/{project_id}/environments"),
+    )
+    .await;
+
+    assert_eq!(body, json!(["canary", "production"]));
+}

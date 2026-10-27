@@ -591,16 +591,16 @@ impl IssueService {
         // environment's first/last seen and count (Sentry's
         // `GroupEnvironment` and `__seen_stats_impl`). The rows read as
         // `issues`, so every clause below applies unchanged.
-        let source = match scope.environment {
-            Some(env) => {
-                binds.push(env.to_string());
-                format!(
-                    "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
-                     JOIN issue_environments e ON e.issue_id = i.id \
-                     WHERE e.project_id = $1 AND e.environment = ${}) AS issues",
-                    binds.len() + 1
-                )
-            }
+        let env_param = scope.environment.map(|env| {
+            binds.push(env.to_string());
+            binds.len() + 1
+        });
+        let source = match env_param {
+            Some(n) => format!(
+                "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
+                 JOIN issue_environments e ON e.issue_id = i.id \
+                 WHERE e.project_id = $1 AND e.environment = ${n}) AS issues"
+            ),
             None => "issues".to_string(),
         };
 
@@ -634,13 +634,18 @@ impl IssueService {
             }
             None => String::new(),
         };
-        // In a release, only the issues that had an event in it.
+        // In a release, only the issues that had an event in it -- in the
+        // environment too when there is one: an issue seen in production on
+        // 1.0 and in staging on 2.0 was never in production on 2.0.
         let release_clause = match scope.release {
             Some(release) => {
                 binds.push(release.to_string());
+                let env_clause = env_param
+                    .map(|n| format!(" AND environment = ${n}"))
+                    .unwrap_or_default();
                 format!(
                     "AND id IN (SELECT issue_id FROM events \
-                     WHERE project_id = $1 AND release = ${})",
+                     WHERE project_id = $1 AND release = ${}{env_clause})",
                     binds.len() + 1
                 )
             }
@@ -671,11 +676,16 @@ impl IssueService {
         Ok((issues, total_count.0))
     }
 
-    /// The environments a project's issues have been seen in, by name.
+    /// The environments a project has seen, by name: its issues', and its
+    /// sessions' -- a healthy environment has sessions and no issue at all.
+    /// Sentry's environments are the project's, not its issues'.
     pub async fn environments(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
         let rows: Vec<(String,)> = sqlx::query_as(
-            "SELECT DISTINCT environment FROM issue_environments \
-             WHERE project_id = $1 ORDER BY environment",
+            "SELECT environment FROM issue_environments WHERE project_id = $1 \
+             UNION \
+             SELECT environment FROM session_counts \
+             WHERE project_id = $1 AND environment <> '' \
+             ORDER BY environment",
         )
         .bind(project_id)
         .fetch_all(pool)
