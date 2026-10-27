@@ -202,7 +202,10 @@ export function PageHeader({
   tabs,
   className,
 }: PageHeaderProps) {
-  const facts = summary?.filter(Boolean) ?? [];
+  // Not `filter(Boolean)`: a `0` is a fact worth reading.
+  const facts =
+    summary?.filter((fact) => fact != null && fact !== false && fact !== '') ??
+    [];
 
   return (
     <div className={pageHeader({ tabs: Boolean(tabs), className })}>
