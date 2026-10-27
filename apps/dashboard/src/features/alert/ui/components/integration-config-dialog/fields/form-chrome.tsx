@@ -61,7 +61,8 @@ export function TestRow({
             value={value}
             onChange={(e) => onValueChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              // The Enter that confirms an IME candidate is not a send.
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                 // Enter here sends the test, not the whole form.
                 e.preventDefault();
                 if (!disabled) onTest();

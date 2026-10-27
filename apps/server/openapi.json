@@ -17572,6 +17572,7 @@
           },
           "total_values": {
             "type": "integer",
+            "description": "The scanned events carrying the tag, whatever its value: Sentry's\n`totalValues` (`GroupTagKey.count`), so each top value's share is its\n`count` over this.",
             "minimum": 0
           }
         }

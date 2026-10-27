@@ -77,7 +77,8 @@ export function SavableRow({
                   if (hasChanges && field.value?.trim()) onSave();
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  // The Enter that confirms an IME candidate is not a save.
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                     event.preventDefault();
                     if (hasChanges && field.value?.trim()) onSave();
                   }
