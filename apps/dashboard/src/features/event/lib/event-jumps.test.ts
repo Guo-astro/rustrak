@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { type EventJumpFlags, eventJumpTargets } from './event-jumps';
+import {
+  type EventJumpFlags,
+  eventJumpTargets,
+  sectionInView,
+} from './event-jumps';
 
 const nothing: EventJumpFlags = {
   threads: false,
@@ -53,5 +57,34 @@ describe('eventJumpTargets', () => {
       'highlights',
       'tags',
     ]);
+  });
+});
+
+describe('sectionInView', () => {
+  // Tops measured from the top of the reading area, in pixels.
+  const tops = [
+    { id: 'highlights', top: -400 },
+    { id: 'stacktrace', top: -50 },
+    { id: 'breadcrumbs', top: 300 },
+  ] as const;
+
+  it('is the last section whose top has passed the line', () => {
+    expect(sectionInView([...tops], 0)).toBe('stacktrace');
+  });
+
+  it('is the first section before anything has been scrolled past', () => {
+    expect(
+      sectionInView(
+        [
+          { id: 'highlights', top: 200 },
+          { id: 'stacktrace', top: 900 },
+        ],
+        0,
+      ),
+    ).toBe('highlights');
+  });
+
+  it('is the last section once the page is scrolled to the end', () => {
+    expect(sectionInView([...tops], 0, true)).toBe('breadcrumbs');
   });
 });

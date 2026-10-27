@@ -13,14 +13,11 @@ import {
   TimeIcon,
 } from '@rustrak/ui';
 import type { useFormatter, useTranslations } from 'use-intl';
+import type { Assignable } from '@/features/issue/model/assignable';
 import { SEEN_WINDOWS } from '@/features/issue/model/issue-table';
 import { Link } from '@/shared/ui/components/link';
 
-/** Someone an issue can be assigned to. */
-export interface Assignable {
-  id: number;
-  email: string;
-}
+export type { Assignable } from '@/features/issue/model/assignable';
 
 const LEVEL_MARK: Record<string, string> = {
   fatal: 'bg-sev-error',

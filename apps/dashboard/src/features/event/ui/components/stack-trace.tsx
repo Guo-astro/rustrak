@@ -21,7 +21,7 @@ export function StackTrace({
 
   if (exceptions.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
+      <div className="py-12 text-center text-meta text-fg-subtle">
         {t('stackTrace.empty')}
       </div>
     );
@@ -40,14 +40,20 @@ export function StackTrace({
           // react-doctor-disable-next-line react-doctor/no-array-index-as-key
           <div key={i} className="space-y-4">
             {/* Exception Header */}
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-destructive">{exc.type}</h3>
-              <p className="text-sm text-muted-foreground">{exc.value}</p>
+            <div className="flex flex-col gap-1">
+              <h3 className="font-mono text-section text-sev-error-fg">
+                {exc.type}
+              </h3>
+              <p className="font-mono text-mono text-fg-secondary">
+                {exc.value}
+              </p>
             </div>
 
             {/* Frames */}
             {displayFrames.length > 0 && (
-              <div className="space-y-2">
+              // One list, not a stack of cards: frames are lines of one
+              // trace, and a rule between them is all the separation needed.
+              <div className="divide-y divide-border-divider overflow-hidden rounded-lg border border-border-subtle">
                 {displayFrames.map((frame) => {
                   const originalIdx = originalFrames.indexOf(frame);
                   return (

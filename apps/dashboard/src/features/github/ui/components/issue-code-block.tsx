@@ -27,10 +27,10 @@ export function IssueCodeBlock({
 
   if (connected === false) {
     return (
-      <div className="p-4 border-b">
+      <div>
         <Link
           href={`/projects/${projectId}/settings/github`}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-2 text-meta text-fg-subtle hover:text-fg"
         >
           <GitHubMark className="size-3.5" />
           {t('code.connect')}
@@ -47,24 +47,22 @@ export function IssueCodeBlock({
   }
 
   return (
-    <div className="p-4 space-y-3 border-b">
-      <h3 className="text-sm font-semibold">{t('code.title')}</h3>
-
+    <div className="space-y-3">
       {code.suspect_commits.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">{t('code.suspect')}</p>
+          <p className="text-xs text-fg-subtle">{t('code.suspect')}</p>
           {code.suspect_commits.map((commit) => (
             <a
               key={commit.sha}
               href={commit.url}
               target="_blank"
               rel="noreferrer"
-              className="flex gap-2 rounded-md p-1.5 -mx-1.5 hover:bg-muted/50"
+              className="flex gap-2 rounded-md p-1.5 -mx-1.5 hover:bg-surface-hover"
             >
-              <GitCommitHorizontal className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <GitCommitHorizontal className="size-4 mt-0.5 shrink-0 text-fg-subtle" />
               <div className="min-w-0 text-sm">
                 <p className="truncate">{commit.message.split('\n')[0]}</p>
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="text-xs text-fg-subtle truncate">
                   <span className="font-mono">{commit.sha.slice(0, 7)}</span>
                   {' · '}
                   {commit.author_login ?? commit.author_name}
@@ -79,7 +77,7 @@ export function IssueCodeBlock({
 
       {code.owners.length > 0 && (
         <div className="flex items-baseline justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{t('code.owners')}</span>
+          <span className="text-fg-subtle">{t('code.owners')}</span>
           <span className="font-mono text-xs text-right">
             {code.owners.join(', ')}
           </span>

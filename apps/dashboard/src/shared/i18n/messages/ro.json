@@ -249,7 +249,8 @@
       "users": "Utilizatori",
       "lastSeen": "Ultima apariție",
       "level": "Nivel",
-      "assignee": "Asignat"
+      "assignee": "Asignat",
+      "firstSeen": "Văzut prima dată"
     },
     "actionsTitle": "Acțiuni",
     "actionsFor": "Acțiuni pentru {title}",
@@ -379,6 +380,23 @@
         "muted": "Amuțite",
         "all": "Toate"
       }
+    },
+    "detail": {
+      "linkCopied": "Link copiat",
+      "copyLink": "Copiază linkul",
+      "status": "Stare",
+      "firstSeen": "Văzut prima dată {when}",
+      "lastSeen": "Văzut ultima dată {when}",
+      "activity30d": "Evenimente, ultimele 30 de zile",
+      "activity30dHint": "Fiecare eveniment grupat în acest issue, pe zi",
+      "noActivity": "Niciun eveniment în ultimele 30 de zile",
+      "eventPosition": "Evenimentul {current} din {total}",
+      "copyEventId": "Copiază ID-ul evenimentului",
+      "jumpTo": "Sari la",
+      "properties": "Proprietăți",
+      "tags": "Tag-uri",
+      "code": "Cod",
+      "activity": "Activitate"
     }
   },
   "roles": {

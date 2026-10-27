@@ -249,7 +249,8 @@
       "users": "Utilisateurs",
       "lastSeen": "Dernière apparition",
       "level": "Niveau",
-      "assignee": "Assigné"
+      "assignee": "Assigné",
+      "firstSeen": "Vu pour la première fois"
     },
     "actionsTitle": "Actions",
     "actionsFor": "Actions pour {title}",
@@ -379,6 +380,23 @@
         "muted": "En sourdine",
         "all": "Tous"
       }
+    },
+    "detail": {
+      "linkCopied": "Lien copié",
+      "copyLink": "Copier le lien",
+      "status": "Statut",
+      "firstSeen": "Vu pour la première fois {when}",
+      "lastSeen": "Vu pour la dernière fois {when}",
+      "activity30d": "Événements, 30 derniers jours",
+      "activity30dHint": "Chaque événement regroupé dans cette issue, par jour",
+      "noActivity": "Aucun événement ces 30 derniers jours",
+      "eventPosition": "Événement {current} sur {total}",
+      "copyEventId": "Copier l’ID de l’événement",
+      "jumpTo": "Aller à",
+      "properties": "Propriétés",
+      "tags": "Tags",
+      "code": "Code",
+      "activity": "Activité"
     }
   },
   "roles": {

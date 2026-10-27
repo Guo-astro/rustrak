@@ -34,21 +34,19 @@ function levelColor(level?: string): string {
   switch (level) {
     case 'fatal':
     case 'error':
-      return 'text-red-500';
+      return 'text-sev-error-fg';
     case 'warning':
-      return 'text-amber-500';
-    case 'info':
-      return 'text-sky-500';
+      return 'text-sev-warning-fg';
     default:
-      return 'text-muted-foreground';
+      return 'text-fg-subtle';
   }
 }
 
 /**
- * Renders a grouped breadcrumb list. Pure/presentational — shared between
- * `Breadcrumbs` (a Server Component) and `BreadcrumbsExpand` (a `'use client'`
- * module), which is legal in Next.js as long as neither side needs directives
- * of its own.
+ * What happened before the error, one line per crumb: its kind, what it
+ * says, when. The data a crumb carries stays folded under its line -- the
+ * trail is read as a sequence first, and only one or two crumbs are ever
+ * opened.
  */
 export function BreadcrumbTimeline({
   grouped,
@@ -59,55 +57,55 @@ export function BreadcrumbTimeline({
   const t = useTranslations('events');
 
   return (
-    <ol className="relative">
+    <ol className="divide-y divide-border-divider overflow-hidden rounded-lg border border-border-subtle">
       {grouped.map(({ crumb, count }, i) => {
         const Icon = crumbIcon(crumb);
-        const isLast = i === grouped.length - 1;
+        const hasData = !!crumb.data && Object.keys(crumb.data).length > 0;
+        const line = (
+          <>
+            <Icon
+              aria-hidden="true"
+              className={cn('size-3.5 shrink-0', levelColor(crumb.level))}
+            />
+            <span className="w-28 shrink-0 truncate font-mono text-mono-sm text-fg-meta">
+              {crumb.category || crumb.type || t('breadcrumbs.defaultCategory')}
+              {count > 1 ? (
+                <span className="ms-1 text-fg-ghost">×{count}</span>
+              ) : null}
+            </span>
+            {/* Wraps rather than truncates: a log line or a request is often
+                the whole point of the crumb, and a row without data has no
+                expanded state to show the rest in. */}
+            <span className="min-w-0 flex-1 break-words text-value text-fg-secondary">
+              {crumb.message ?? ''}
+            </span>
+            {crumb.timestamp ? (
+              <time className="shrink-0 font-mono text-mono-sm text-fg-ghost tabular-nums">
+                {format.dateTime(new Date(crumb.timestamp * 1000), 'time')}
+              </time>
+            ) : null}
+          </>
+        );
+
         return (
           // `BreadcrumbTimeline` is presentational: no state, no filtering, no
           // sort. `grouped` is built once from the event's crumbs, and two
           // crumbs can be identical in every field but their position, so the
           // index is the only thing that tells them apart.
           // react-doctor-disable-next-line react-doctor/no-array-index-as-key
-          <li key={i} className="relative flex gap-3 pb-4 last:pb-0">
-            {!isLast && (
-              <span className="absolute left-[13px] top-7 bottom-0 w-px bg-border" />
-            )}
-            <div className="relative flex size-7 shrink-0 items-center justify-center rounded-full border bg-card">
-              <Icon className={cn('size-3.5', levelColor(crumb.level))} />
-            </div>
-
-            <div className="min-w-0 flex-1 pt-0.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate">
-                  {crumb.category ||
-                    crumb.type ||
-                    t('breadcrumbs.defaultCategory')}
-                  {count > 1 && (
-                    <span className="ml-1.5 normal-case text-muted-foreground/70">
-                      ×{count}
-                    </span>
-                  )}
-                </span>
-                {crumb.timestamp && (
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground/70">
-                    {format.dateTime(new Date(crumb.timestamp * 1000), 'time')}
-                  </span>
-                )}
-              </div>
-
-              {crumb.message && (
-                <p className="mt-0.5 break-words text-sm text-foreground">
-                  {crumb.message}
-                </p>
-              )}
-
-              {crumb.data && Object.keys(crumb.data).length > 0 && (
-                <pre className="mt-1.5 overflow-x-auto rounded bg-muted/50 p-2 font-mono text-xs text-muted-foreground">
+          <li key={i} className="bg-surface">
+            {hasData ? (
+              <details className="group/crumb">
+                <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-surface-hover [&::-webkit-details-marker]:hidden">
+                  {line}
+                </summary>
+                <pre className="overflow-x-auto border-border-divider border-t bg-panel px-3 py-2 font-mono text-mono-sm text-fg-subtle">
                   {JSON.stringify(crumb.data, null, 2)}
                 </pre>
-              )}
-            </div>
+              </details>
+            ) : (
+              <div className="flex items-center gap-3 px-3 py-2">{line}</div>
+            )}
           </li>
         );
       })}

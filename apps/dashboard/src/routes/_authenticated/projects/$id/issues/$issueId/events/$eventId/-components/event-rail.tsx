@@ -1,77 +1,112 @@
 import type {
   ActivityEntry,
+  IssueAggregates,
   IssueGitHub,
   IssueResponse,
 } from '@rustrak/client';
-import { useFormatter, useTranslations } from 'use-intl';
+import type { ReactNode } from 'react';
+import { useTranslations } from 'use-intl';
 import { IssueCodeBlock } from '@/features/github/ui/components/issue-code-block';
 import { IssueActivity } from '@/features/issue/ui/components/issue-activity';
-
-interface EventRailProps {
-  projectId: number;
-  issueId: string;
-  issue: IssueResponse;
-  activity: ActivityEntry[];
-  /** What GitHub says about the issue; `null` when it could not be loaded. */
-  code: IssueGitHub | null;
-  /** Whether the project has a GitHub repository. */
-  /** `null` when the repository could not be loaded. */
-  connected: boolean | null;
-}
+import {
+  type Assignable,
+  IssueProperties,
+} from '@/features/issue/ui/components/issue-properties';
+import { TagDistribution } from '@/features/issue/ui/components/tag-distribution';
 
 /**
- * The side rail: when the issue was last and first seen, and what has
- * happened to it since.
+ * The rail: everything about the **issue**, beside the event being read.
  *
- * About the **issue**, not the event being read. That is why it sits beside
- * the page rather than in it: the event is one sample, and these are the facts
- * that put it in context.
+ * Ordered by how often it changes the reader's next move: who owns it and
+ * how urgent it is, how widely it reaches, where its code lives, and what
+ * has been said about it. A new kind of fact about an issue is a new block
+ * here; the reading column stays the event's.
  */
 export function EventRail({
   projectId,
   issueId,
   issue,
+  aggregates,
   activity,
   code,
   connected,
-}: EventRailProps) {
-  const t = useTranslations('projectPages');
-  const format = useFormatter();
+  members,
+  me,
+}: {
+  projectId: number;
+  issueId: string;
+  issue: IssueResponse;
+  aggregates: IssueAggregates | null;
+  activity: ActivityEntry[];
+  /** What GitHub says about the issue; `null` when it could not be loaded. */
+  code: IssueGitHub | null;
+  /** Whether the project has a repository; `null` when that is unknown. */
+  connected: boolean | null;
+  members: Assignable[];
+  me: number;
+}) {
+  const t = useTranslations('issues');
+  const tags = aggregates?.tags ?? [];
+  // A connected repository with nothing to say about this issue gets no
+  // block; an unconnected one gets the line that offers to connect it.
+  const showCode =
+    connected === false ||
+    (connected === true &&
+      !!code &&
+      (code.suspect_commits.length > 0 || code.owners.length > 0));
 
   return (
-    <>
-      <div className="p-4 space-y-1.5 border-b">
-        <div className="flex items-baseline justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{t('event.lastSeen')}</span>
-          <span title={format.dateTime(new Date(issue.last_seen), 'precise')}>
-            {format.relativeTime(new Date(issue.last_seen))}
-          </span>
-        </div>
-        <div className="flex items-baseline justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{t('event.firstSeen')}</span>
-          <span title={format.dateTime(new Date(issue.first_seen), 'precise')}>
-            {format.relativeTime(new Date(issue.first_seen))}
-          </span>
-        </div>
-        {issue.last_release && (
-          <p className="text-xs text-muted-foreground truncate pt-1">
-            {t.rich('event.inRelease', {
-              release: issue.last_release,
-              rel: (chunks) => <span className="font-mono">{chunks}</span>,
-            })}
-          </p>
-        )}
-      </div>
+    <div className="flex flex-col">
+      <RailBlock title={t('detail.properties')}>
+        <IssueProperties
+          issue={issue}
+          projectId={projectId}
+          members={members}
+          me={me}
+          userCount={aggregates?.user_count ?? 0}
+        />
+      </RailBlock>
 
-      <IssueCodeBlock projectId={projectId} code={code} connected={connected} />
+      {tags.length > 0 ? (
+        <RailBlock title={t('detail.tags')}>
+          <TagDistribution tags={tags.slice(0, 6)} />
+        </RailBlock>
+      ) : null}
 
-      <div className="p-4">
+      {showCode ? (
+        <RailBlock title={t('detail.code')}>
+          <IssueCodeBlock
+            projectId={projectId}
+            code={code}
+            connected={connected ?? false}
+          />
+        </RailBlock>
+      ) : null}
+
+      <RailBlock title={t('detail.activity')}>
         <IssueActivity
           projectId={projectId}
           issueId={issueId}
           activity={activity}
         />
-      </div>
-    </>
+      </RailBlock>
+    </div>
+  );
+}
+
+function RailBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-border-divider border-b px-5 py-4 last:border-b-0">
+      <h2 className="mb-2 font-mono text-column text-fg-meta uppercase">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }

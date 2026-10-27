@@ -11,6 +11,7 @@ import {
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import { useFormatter, useTranslations } from 'use-intl';
 import { listIssues } from '@/features/issue/api/queries';
+import { assignable } from '@/features/issue/model/assignable';
 import {
   ISSUE_FILTER_VARIANTS,
   ISSUE_VIEWS,
@@ -214,11 +215,10 @@ function IssuesPage() {
           onQueryChange={setQuery}
           loading={loading}
           me={me}
-          members={
-            members?.success
-              ? members.data.map((m) => ({ id: m.user_id, email: m.email }))
-              : []
-          }
+          members={assignable(
+            members?.success ? members.data : [],
+            context.state === 'authenticated' ? context.user : null,
+          )}
           environments={environments?.success ? environments.data : []}
           releases={releases?.success ? releases.data : []}
         />

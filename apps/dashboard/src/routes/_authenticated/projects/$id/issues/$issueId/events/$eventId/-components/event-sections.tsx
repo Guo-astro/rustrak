@@ -67,7 +67,7 @@ export function EventSections({
   const feedback = readFeedback(eventData);
 
   return (
-    <div className="rounded-lg border bg-card px-4">
+    <div className="overflow-hidden rounded-xl border border-border-subtle bg-surface">
       {feedback && (
         <Section id="feedback" title={t('event.sectionFeedback')}>
           <FeedbackSection

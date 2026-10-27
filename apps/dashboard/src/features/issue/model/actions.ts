@@ -1,3 +1,5 @@
+import type { IssuePriority } from '@rustrak/client';
+
 /**
  * The status changes a reader can apply to an issue from the list.
  *
@@ -17,3 +19,6 @@ export const STATUS_FOR: Record<
   unresolve: 'unresolved',
   unmute: 'unresolved',
 };
+
+/** The priorities, highest first, for the rail's picker. */
+export const PRIORITIES: IssuePriority[] = ['high', 'medium', 'low'];
