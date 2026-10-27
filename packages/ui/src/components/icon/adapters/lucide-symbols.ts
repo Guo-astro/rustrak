@@ -57,6 +57,7 @@ export {
   Minus,
   PanelLeft,
   PanelRight,
+  Pencil,
   Plug,
   Plus,
   RefreshCw,

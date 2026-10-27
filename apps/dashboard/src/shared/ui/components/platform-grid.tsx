@@ -1,4 +1,11 @@
-import { Check, Search } from 'lucide-react';
+import {
+  focusRing,
+  Input,
+  interactiveTransition,
+  pressScale,
+  SearchIcon,
+  SelectedIcon,
+} from '@rustrak/ui';
 import { PlatformIcon } from 'platformicons';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'use-intl';
@@ -9,7 +16,6 @@ import {
   searchPlatforms,
 } from '@/shared/config/platforms';
 import { cn } from '@/shared/lib/utils';
-import { Input } from '@/shared/ui/components/shadcn/input';
 
 /** Sentry's generic escape hatch, a real platform id the server accepts. */
 const OTHER_PLATFORM_ID = 'other';
@@ -55,19 +61,17 @@ export function PlatformGrid({
   const otherSelected = value === OTHER_PLATFORM_ID;
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <div className="flex flex-col gap-3 border-b p-3 sm:flex-row-reverse sm:items-center">
-        <div className="relative sm:w-56 sm:shrink-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-            aria-label={t('searchAria')}
-            disabled={disabled}
-            className="h-9 pl-9"
-          />
-        </div>
+    <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+      <div className="flex flex-col gap-3 border-b border-border-divider p-3 sm:flex-row-reverse sm:items-center">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('searchAria')}
+          disabled={disabled}
+          leading={<SearchIcon size="md" />}
+          boxClassName="sm:w-60 sm:shrink-0"
+        />
 
         <div
           className="-mx-1 flex flex-1 gap-1 overflow-x-auto px-1"
@@ -88,10 +92,13 @@ export function PlatformGrid({
                 setQuery('');
               }}
               className={cn(
-                'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50',
+                'flex h-control-sm shrink-0 items-center rounded-md px-3',
+                'text-control disabled:opacity-50',
+                interactiveTransition,
+                focusRing,
                 !isSearching && category === c.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ? 'bg-surface-selected text-fg'
+                  : 'text-fg-muted hover:bg-surface-hover hover:text-fg',
               )}
             >
               {c.name}
@@ -104,10 +111,10 @@ export function PlatformGrid({
         // user stuck, since `other` is a real, storable platform id and the
         // picker otherwise requires a choice.
         <div className="px-4 py-16 text-center">
-          <p className="text-sm font-medium">
+          <p className="text-value font-medium text-fg">
             {t('noSdkFor', { query: query.trim() })}
           </p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+          <p className="mx-auto mt-1 max-w-md text-value text-fg-subtle">
             {t.rich('tryGeneric', {
               other: (chunks) => (
                 <button
@@ -117,7 +124,7 @@ export function PlatformGrid({
                     setQuery('');
                     onValueChange(OTHER_PLATFORM_ID);
                   }}
-                  className="font-medium text-primary underline-offset-4 hover:underline disabled:opacity-50"
+                  className="rounded-xs font-medium text-fg-brand underline-offset-4 hover:underline disabled:opacity-50"
                 >
                   {chunks}
                 </button>
@@ -141,23 +148,26 @@ export function PlatformGrid({
               aria-pressed={otherSelected}
               onClick={() => onValueChange(OTHER_PLATFORM_ID)}
               className={cn(
-                'col-span-full flex items-center gap-3 rounded-lg border border-dashed p-3 text-left transition-all disabled:opacity-50',
+                'col-span-full flex items-center gap-3 rounded-xl border border-dashed p-3 text-start',
+                'disabled:opacity-50',
+                interactiveTransition,
+                focusRing,
                 otherSelected
-                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                  : 'border-muted-foreground/30 hover:bg-accent',
+                  ? 'border-border-brand bg-surface-selected'
+                  : 'border-border-strong hover:bg-surface-hover',
               )}
             >
               <PlatformIcon platform={OTHER_PLATFORM_ID} size={28} />
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">
+                <span className="block text-value font-medium text-fg">
                   {t('otherPlatform')}
                 </span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="block text-hint text-fg-subtle">
                   {t('otherPlatformDescription')}
                 </span>
               </span>
               {otherSelected && (
-                <Check className="size-4 shrink-0 text-primary" />
+                <SelectedIcon size="lg" className="shrink-0 text-fg-brand" />
               )}
             </button>
 
@@ -171,18 +181,29 @@ export function PlatformGrid({
                   aria-pressed={selected}
                   onClick={() => onValueChange(p.id)}
                   className={cn(
-                    'group relative flex items-center gap-3 rounded-lg border p-3 text-left transition-all disabled:opacity-50',
+                    'flex items-center gap-3 rounded-xl border p-3 text-start',
+                    'disabled:opacity-50',
+                    interactiveTransition,
+                    pressScale,
+                    focusRing,
                     selected
-                      ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                      : 'border-transparent bg-muted/40 hover:bg-accent',
+                      ? 'border-border-brand bg-surface-selected'
+                      : 'border-border-subtle hover:border-border-strong hover:bg-surface-hover',
                   )}
                 >
-                  <PlatformIcon platform={p.id} size={28} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  <PlatformIcon
+                    platform={p.id}
+                    size={28}
+                    className="shrink-0 rounded-md"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-value font-medium text-fg">
                     {p.name}
                   </span>
                   {selected && (
-                    <Check className="size-4 shrink-0 text-primary" />
+                    <SelectedIcon
+                      size="lg"
+                      className="shrink-0 text-fg-brand"
+                    />
                   )}
                 </button>
               );
@@ -190,12 +211,11 @@ export function PlatformGrid({
           </div>
         </div>
       )}
-      <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+      <div className="border-t border-border-divider px-4 py-2 text-hint text-fg-meta">
         {isSearching
           ? t('matchingCount', { count: platforms.length })
           : t('footerCount', { count: platforms.length })}
       </div>
-      ;
     </div>
   );
 }

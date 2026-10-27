@@ -1,4 +1,4 @@
-import { Pencil, RotateCcw } from 'lucide-react';
+import { Button, EditIcon, Input, UndoIcon } from '@rustrak/ui';
 import { useFormContext } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
 import {
@@ -7,7 +7,6 @@ import {
 } from '@/features/project/model/fields';
 import type { ProjectSlug } from '@/features/project/ui/hooks/use-project-slug';
 import { cn } from '@/shared/lib/utils';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   FormControl,
   FormField,
@@ -15,7 +14,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
 import type { CreateProjectFormData } from './create-project-form';
 
 /**
@@ -46,7 +44,7 @@ export function IdentityFields({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              <FormLabel className="text-label text-fg-muted">
                 {t('fields.name')}
               </FormLabel>
               <FormControl>
@@ -74,7 +72,7 @@ export function IdentityFields({
           name="slug"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              <FormLabel className="text-label text-fg-muted">
                 {t('fields.slug')}
               </FormLabel>
               <div className="flex items-center gap-2">
@@ -87,8 +85,9 @@ export function IdentityFields({
                     disabled={disabled}
                     className={cn(
                       'font-mono',
-                      !slug.isManual && 'bg-muted text-muted-foreground',
+                      !slug.isManual && 'text-fg-subtle',
                     )}
+                    boxClassName="flex-1"
                     {...field}
                     onChange={(e) =>
                       field.onChange(slugifyPreview(e.target.value))
@@ -98,27 +97,21 @@ export function IdentityFields({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
+                  icon={slug.isManual ? UndoIcon : EditIcon}
                   disabled={disabled}
                   aria-label={toggleLabel}
                   title={toggleLabel}
                   onClick={slug.toggle}
                   className="shrink-0"
-                >
-                  {slug.isManual ? (
-                    <RotateCcw className="size-4" />
-                  ) : (
-                    <Pencil className="size-4" />
-                  )}
-                </Button>
+                />
               </div>
               {/* One line, not two: FormMessage falls back to its children
                   when the field is valid, so the hint and the error occupy
                   the same slot and the panel never reflows. */}
               <FormMessage
                 className={cn(
-                  'mt-1.5 text-xs',
-                  !fieldState.error && 'text-muted-foreground',
+                  'mt-1.5 text-hint',
+                  !fieldState.error && 'text-fg-meta',
                 )}
               >
                 {slug.isManual ? t('slug.hintManual') : t('slug.hintAuto')}
