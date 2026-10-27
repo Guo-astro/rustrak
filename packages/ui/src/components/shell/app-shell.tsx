@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import { tv } from '../../lib/tv';
 import { TooltipProvider } from '../tooltip/tooltip';
 import {
   SidebarProvider,
@@ -158,6 +159,14 @@ export function Page({ children, className, scroll = true }: PageProps) {
 
 Page.displayName = 'Page';
 
+/** Tabs sit on the bottom rule, so only a header without them pads above it. */
+const pageHeader = tv({
+  base: 'shrink-0 border-b border-border-divider px-page-gutter pt-7',
+  variants: {
+    tabs: { true: '', false: 'pb-6' },
+  },
+});
+
 export interface PageHeaderProps {
   title: ReactNode;
   /**
@@ -196,20 +205,16 @@ export function PageHeader({
   const facts = summary?.filter(Boolean) ?? [];
 
   return (
-    <div
-      className={cn(
-        'shrink-0 border-b border-border-divider px-page-gutter pt-7',
-        tabs ? null : 'pb-6',
-        className,
-      )}
-    >
+    <div className={pageHeader({ tabs: Boolean(tabs), className })}>
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           <h1 className="truncate text-page-title text-fg">{title}</h1>
           {facts.length > 0 ? (
             <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 text-value text-fg-subtle">
               {facts.map((fact, index) => (
-                // Facts are positional: the order is the reading order.
+                // Facts are positional: the order is the reading order, and
+                // a fact is any node, so there is no identity to key on.
+                // react-doctor-disable-next-line react-doctor/no-array-index-as-key
                 <span key={index} className="flex items-center gap-2">
                   {index > 0 ? (
                     <span aria-hidden="true" className="text-fg-ghost">
