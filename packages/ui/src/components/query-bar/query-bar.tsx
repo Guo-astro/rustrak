@@ -87,7 +87,7 @@ const queryBar = tv({
       // The list is what scrolls: the keyboard footer stays put, because the
       // person scrolling a long value list is exactly who needs it.
       'flex max-h-80 flex-col overflow-hidden',
-      'rounded-lg border border-border bg-surface-floating p-1.25',
+      'rounded-2xl border border-border bg-surface-floating p-1.5',
       'shadow-overlay',
       dropIn,
     ],

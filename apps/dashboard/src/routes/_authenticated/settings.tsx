@@ -28,18 +28,20 @@ function SettingsLayout() {
   const isAdmin = user.role === 'admin';
 
   return (
-    <div className="w-full">
+    // `h-full` against the sheet's scroller, so the nav stays put and the
+    // content column is what scrolls.
+    <div className="flex h-full w-full flex-col">
       {/* Mobile top bar */}
-      <div className="sticky top-16 z-40 bg-background flex items-center gap-3 border-b px-4 py-3 md:hidden">
+      <div className="z-40 bg-background flex items-center gap-3 border-b px-4 py-3 md:hidden">
         <SettingsMobileNav isAdmin={isAdmin} />
         <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
           {t('nav.settingsTitle')}
         </span>
       </div>
 
-      <div className="flex min-h-[calc(100vh-64px)]">
+      <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
-        <aside className="hidden md:flex md:flex-col w-64 shrink-0 border-r border-border p-6 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto">
+        <aside className="hidden md:flex md:flex-col w-64 shrink-0 border-r border-border p-6 overflow-y-auto">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 px-3">
             {t('nav.settingsTitle')}
           </h2>
@@ -47,7 +49,7 @@ function SettingsLayout() {
         </aside>
 
         {/* Main content */}
-        <div className="min-w-0 flex-1 p-4 md:p-8">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
           <Outlet />
         </div>
       </div>

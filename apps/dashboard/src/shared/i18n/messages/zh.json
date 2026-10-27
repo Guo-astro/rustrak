@@ -515,7 +515,12 @@
       "logs": "日志",
       "settings": "设置",
       "crons": "Crons",
-      "feedback": "用户反馈"
+      "feedback": "用户反馈",
+      "groupTriage": "分诊",
+      "groupMonitor": "监控",
+      "alerts": "告警",
+      "docs": "文档",
+      "jumpTo": "跳转到"
     },
     "collapse": {
       "expand": "展开",
@@ -523,7 +528,10 @@
     },
     "switcher": {
       "projects": "项目",
-      "fallback": "项目"
+      "fallback": "项目",
+      "all": "所有项目",
+      "new": "新建项目",
+      "count": "{count} 个项目"
     },
     "copyUnavailable": "剪贴板不可用",
     "copyUnavailableHint": "请手动选择{label}进行复制，或通过 HTTPS 访问 Rustrak。",

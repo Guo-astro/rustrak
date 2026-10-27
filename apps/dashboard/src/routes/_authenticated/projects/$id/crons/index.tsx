@@ -74,7 +74,7 @@ function CronsPage() {
   const newHref = `/projects/${projectId}/crons/new`;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex w-full shrink-0 items-center justify-between gap-4 border-b px-4 py-4 md:px-8 md:py-6">
         <div>
           <h1 className="text-lg font-semibold">{t('title')}</h1>

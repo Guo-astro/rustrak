@@ -24,14 +24,14 @@ export const rustrakTheme = create({
   brandTarget: '_blank',
 
   // --surface-brand / --fg-accent
-  colorPrimary: '#c5f11e',
-  colorSecondary: '#c5f11e',
+  colorPrimary: '#c1f768',
+  colorSecondary: '#c1f768',
 
   // The four surfaces, in the order they stack: canvas, panel, surface.
-  appBg: '#121212', // --surface-canvas
-  appContentBg: '#161616', // --surface-panel
-  appPreviewBg: '#121212', // --surface-canvas
-  appBorderColor: '#2a2a2a', // --border
+  appBg: '#08090b', // --surface-canvas
+  appContentBg: '#0e0f11', // --surface-panel
+  appPreviewBg: '#08090b', // --surface-canvas
+  appBorderColor: '#212224', // --border over the panel
   appBorderRadius: 8, // --radius-lg
   /*
    * The row you are pointing at in the sidebar.
@@ -43,23 +43,23 @@ export const rustrakTheme = create({
    * blue. This is `--surface-hover`, the same tint the product puts under a nav
    * row.
    */
-  appHoverBg: '#1e1e1e', // --surface-hover
+  appHoverBg: '#161719', // --surface-hover over the canvas
 
   fontBase: '"Geist", ui-sans-serif, system-ui, sans-serif',
   fontCode: '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace',
 
-  textColor: '#fafafa', // --fg
-  textInverseColor: '#121212', // --fg-inverse
-  textMutedColor: '#888888', // --fg-subtle
+  textColor: '#f1f2f4', // --fg
+  textInverseColor: '#08090b', // --fg-inverse
+  textMutedColor: '#7e8084', // --fg-subtle
 
   // The toolbar over the story: the same surface a topbar uses.
-  barBg: '#1a1a1a', // --surface
-  barTextColor: '#888888', // --fg-subtle
-  barHoverColor: '#dddddd', // --fg-secondary
-  barSelectedColor: '#c5f11e', // --fg-brand
+  barBg: '#121315', // --surface
+  barTextColor: '#7e8084', // --fg-subtle
+  barHoverColor: '#d6d7d9', // --fg-secondary
+  barSelectedColor: '#c1f768', // --fg-brand
 
-  inputBg: '#1a1a1a', // --surface
-  inputBorder: '#2a2a2a', // --border
-  inputTextColor: '#fafafa', // --fg
-  inputBorderRadius: 6, // --radius-md
+  inputBg: '#121315', // --surface
+  inputBorder: '#212224', // --border over the panel
+  inputTextColor: '#f1f2f4', // --fg
+  inputBorderRadius: 7, // --radius-md
 });

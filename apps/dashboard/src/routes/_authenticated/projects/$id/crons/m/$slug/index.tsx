@@ -86,7 +86,7 @@ function MonitorPage() {
   const waiting = m.environments.length === 0;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex shrink-0 flex-wrap items-start justify-between gap-4 border-b px-4 py-4 md:px-8 md:py-6">
         <div className="min-w-0">
           <nav className="mb-1 text-xs text-muted-foreground">

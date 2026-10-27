@@ -30,6 +30,7 @@
     "@hookform/resolvers": "6.0.0",
     "@lezer/highlight": "1.2.5",
     "@rustrak/client": "workspace:*",
+    "@rustrak/ui": "workspace:*",
     "@tanstack/react-router": "1.170.45",
     "@tanstack/react-table": "9.3.1",
     "class-variance-authority": "0.7.1",

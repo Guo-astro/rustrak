@@ -515,7 +515,12 @@
       "logs": "Logs",
       "settings": "Paramètres",
       "crons": "Crons",
-      "feedback": "Retours utilisateurs"
+      "feedback": "Retours utilisateurs",
+      "groupTriage": "Tri",
+      "groupMonitor": "Surveillance",
+      "alerts": "Alertes",
+      "docs": "Documentation",
+      "jumpTo": "Aller à"
     },
     "collapse": {
       "expand": "Développer",
@@ -523,7 +528,10 @@
     },
     "switcher": {
       "projects": "Projets",
-      "fallback": "Projet"
+      "fallback": "Projet",
+      "all": "Tous les projets",
+      "new": "Nouveau projet",
+      "count": "{count, plural, one {# projet} other {# projets}}"
     },
     "copyUnavailable": "Presse-papiers indisponible",
     "copyUnavailableHint": "Sélectionnez le contenu ({label}) et copiez-le manuellement, ou accédez à Rustrak en HTTPS.",

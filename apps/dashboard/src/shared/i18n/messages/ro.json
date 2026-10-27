@@ -515,7 +515,12 @@
       "logs": "Jurnale",
       "settings": "Setări",
       "crons": "Crons",
-      "feedback": "Feedback utilizatori"
+      "feedback": "Feedback utilizatori",
+      "groupTriage": "Triere",
+      "groupMonitor": "Monitorizare",
+      "alerts": "Alerte",
+      "docs": "Documentație",
+      "jumpTo": "Salt la"
     },
     "collapse": {
       "expand": "Extinde",
@@ -523,7 +528,10 @@
     },
     "switcher": {
       "projects": "Proiecte",
-      "fallback": "Proiect"
+      "fallback": "Proiect",
+      "all": "Toate proiectele",
+      "new": "Proiect nou",
+      "count": "{count, plural, one {# proiect} few {# proiecte} other {# de proiecte}}"
     },
     "copyUnavailable": "Clipboard indisponibil",
     "copyUnavailableHint": "Selectează {label} și copiază-l manual sau accesează Rustrak prin HTTPS.",

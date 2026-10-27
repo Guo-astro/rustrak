@@ -1,19 +1,19 @@
-import { SearchIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useTranslations } from 'use-intl';
+import { type ReactNode, useEffect, useState } from 'react';
 import type { CommandProject } from '@/shared/config/commands';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { Kbd } from '@/shared/ui/components/shadcn/kbd';
 import { useIsMac } from '@/shared/ui/hooks/use-is-mac';
 import { CommandBarDialog } from './dialog/command-bar-dialog';
 
 interface CommandBarProps {
   /** Built per request from the projects the viewer can see. */
   projects: CommandProject[];
+  /**
+   * Draws what opens the bar, given the opener and the shortcut label for this
+   * machine. The bar does not own it: it lives wherever the frame puts search.
+   */
+  trigger: (open: () => void, shortcut: string) => ReactNode;
 }
 
-export function CommandBar({ projects }: CommandBarProps) {
-  const t = useTranslations();
+export function CommandBar({ projects, trigger }: CommandBarProps) {
   const [open, setOpen] = useState(false);
   /**
    * Bumped on every open, and used as the dialog's `key`, so each open gets a
@@ -54,27 +54,13 @@ export function CommandBar({ projects }: CommandBarProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  const shortcut = isMac ? '⌘K' : 'Ctrl K';
+
   return (
     <>
-      {/* One button, two shapes. Below `sm` it collapses to a 32px square with
-          just the icon: the palette used to be hidden outright on touch, which
-          left phones with no way into it at all. */}
-      <Button
-        variant="outline"
-        aria-label={t('commands.triggerSearch')}
-        onClick={openBar}
-        className="size-8 justify-center p-0 text-muted-foreground sm:w-56 sm:justify-between sm:px-2.5"
-      >
-        <span className="flex items-center gap-1.5">
-          <SearchIcon className="size-3.5" />
-          <span className="hidden text-[13px] sm:inline">
-            {t('commands.triggerSearch')}
-          </span>
-        </span>
-        {/* The handler takes either modifier, so the hint has to name the one
-            this machine actually has rather than always showing ⌘. */}
-        <Kbd className="hidden sm:inline-flex">{isMac ? '⌘K' : 'Ctrl K'}</Kbd>
-      </Button>
+      {/* The handler takes either modifier, so the hint has to name the one
+          this machine actually has rather than always showing ⌘. */}
+      {trigger(openBar, shortcut)}
 
       <CommandBarDialog
         key={session}

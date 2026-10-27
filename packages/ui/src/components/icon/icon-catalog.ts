@@ -1,12 +1,15 @@
 import { fromLucide } from './adapters/lucide';
 import {
   ArrowDownRight,
+  ArrowLeft,
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
   Bell,
   Bookmark,
+  BookOpen,
   Bot,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -29,16 +32,21 @@ import {
   GitBranch,
   GitCommitHorizontal,
   GitMerge,
+  HardDrive,
+  House,
   Inbox,
+  KeyRound,
   LayoutDashboard,
   Link,
   ListFilter,
   LoaderCircle,
+  LogOut,
   Menu,
   MessageSquare,
   Minus,
   PanelLeft,
   PanelRight,
+  Plug,
   Plus,
   RefreshCw,
   Rocket,
@@ -75,15 +83,22 @@ import type { IconComponent } from './icon';
  * three different check marks.
  */
 
-/* --- Navigation · the sidebar's seven destinations ------------------------ */
+/* --- Navigation · the sidebar's destinations ----------------------------- */
 
-export const OverviewIcon = fromLucide('OverviewIcon', LayoutDashboard);
+/** A project's front page. The house, because it is where you land. */
+export const OverviewIcon = fromLucide('OverviewIcon', House);
+/** Every project at once: the workspace, above any one of them. */
+export const ProjectsIcon = fromLucide('ProjectsIcon', LayoutDashboard);
 export const IssuesIcon = fromLucide('IssuesIcon', CircleAlert);
 export const ReleasesIcon = fromLucide('ReleasesIcon', Rocket);
 export const PerformanceIcon = fromLucide('PerformanceIcon', Zap);
 export const AgentsIcon = fromLucide('AgentsIcon', Bot);
 export const LogsIcon = fromLucide('LogsIcon', ScrollText);
+export const CronsIcon = fromLucide('CronsIcon', CalendarClock);
+export const FeedbackIcon = fromLucide('FeedbackIcon', MessageSquare);
 export const SettingsIcon = fromLucide('SettingsIcon', Settings);
+export const DocsIcon = fromLucide('DocsIcon', BookOpen);
+export const SignOutIcon = fromLucide('SignOutIcon', LogOut);
 
 /* --- Directions ----------------------------------------------------------- */
 
@@ -97,6 +112,8 @@ export const CollapsePanelIcon = fromLucide('CollapsePanelIcon', ChevronsLeft);
 export const ExpandPanelIcon = fromLucide('ExpandPanelIcon', ChevronsRight);
 export const PanelLeftIcon = fromLucide('PanelLeftIcon', PanelLeft);
 export const PanelRightIcon = fromLucide('PanelRightIcon', PanelRight);
+/** Out of where you are, up one level: from a project to all of them. */
+export const BackIcon = fromLucide('BackIcon', ArrowLeft);
 export const ArrowRightIcon = fromLucide('ArrowRightIcon', ArrowRight);
 /** A figure that went up. In this product that is usually bad news. */
 export const TrendUpIcon = fromLucide('TrendUpIcon', ArrowUpRight);
@@ -128,6 +145,8 @@ export const StarIcon = fromLucide('StarIcon', Star);
 export const CommentIcon = fromLucide('CommentIcon', MessageSquare);
 export const AutofixIcon = fromLucide('AutofixIcon', Sparkles);
 export const ConfigureIcon = fromLucide('ConfigureIcon', Wrench);
+/** The tick beside the option that is in effect: the current project. */
+export const SelectedIcon = fromLucide('SelectedIcon', Check);
 
 /* --- Issue lifecycle ------------------------------------------------------
    The three verbs an issue understands. `resolve` is a plain check because it
@@ -165,6 +184,10 @@ export const MergeIcon = fromLucide('MergeIcon', GitMerge);
 export const EnvironmentIcon = fromLucide('EnvironmentIcon', Server);
 export const MemberIcon = fromLucide('MemberIcon', User);
 export const TeamIcon = fromLucide('TeamIcon', Users);
+export const IntegrationsIcon = fromLucide('IntegrationsIcon', Plug);
+export const StorageIcon = fromLucide('StorageIcon', HardDrive);
+/** An API token: what lets something other than a person in. */
+export const TokensIcon = fromLucide('TokensIcon', KeyRound);
 
 /**
  * The same icons reachable by name, for navigation and action bars that are
@@ -172,6 +195,12 @@ export const TeamIcon = fromLucide('TeamIcon', Users);
  */
 export const icons = {
   overview: OverviewIcon,
+  projects: ProjectsIcon,
+  crons: CronsIcon,
+  feedback: FeedbackIcon,
+  docs: DocsIcon,
+  signOut: SignOutIcon,
+  selected: SelectedIcon,
   issues: IssuesIcon,
   releases: ReleasesIcon,
   performance: PerformanceIcon,
@@ -187,6 +216,7 @@ export const icons = {
   expandPanel: ExpandPanelIcon,
   panelLeft: PanelLeftIcon,
   panelRight: PanelRightIcon,
+  back: BackIcon,
   arrowRight: ArrowRightIcon,
   trendUp: TrendUpIcon,
   trendDown: TrendDownIcon,
@@ -232,6 +262,9 @@ export const icons = {
   environment: EnvironmentIcon,
   member: MemberIcon,
   team: TeamIcon,
+  integrations: IntegrationsIcon,
+  storage: StorageIcon,
+  tokens: TokensIcon,
 } as const satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof icons;

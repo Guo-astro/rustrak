@@ -16,6 +16,7 @@ export {
 } from './lib/focus';
 export {
   chevronFlip,
+  collapseFade,
   dropIn,
   interactiveTransition,
   popTransition,
@@ -23,6 +24,8 @@ export {
   pressScale,
   pressScaleSmall,
   pressScaleTrigger,
+  scopeEnter,
+  scopeGroup,
   slideTransition,
   swapAnimation,
   wipeReveal,
@@ -282,24 +285,31 @@ export type {
   AppShellProps,
   PageHeaderProps,
   PageProps,
-  SubHeaderProps,
 } from './components/shell/app-shell';
 export {
   AppShell,
   Page,
   PageHeader,
-  SubHeader,
 } from './components/shell/app-shell';
 export type {
+  SidebarBrandProps,
+  SidebarGroupProps,
   SidebarItemProps,
   SidebarProjectProps,
   SidebarProps,
+  SidebarScopeProps,
+  SidebarSearchProps,
+  SidebarUserProps,
 } from './components/shell/sidebar';
 export {
   Sidebar,
-  SidebarCollapseButton,
+  SidebarBrand,
+  SidebarGroup,
   SidebarItem,
   SidebarProject,
+  SidebarScope,
+  SidebarSearch,
+  SidebarUser,
 } from './components/shell/sidebar';
 export type { SidebarProviderProps } from './components/shell/sidebar-context';
 export {
@@ -308,16 +318,10 @@ export {
 } from './components/shell/sidebar-context';
 export type {
   TopbarActionProps,
-  TopbarBrandProps,
   TopbarProps,
-  TopbarSearchProps,
-  TopbarUserProps,
 } from './components/shell/topbar';
 export {
   Topbar,
   TopbarAction,
-  TopbarBrand,
   TopbarMenuButton,
-  TopbarSearch,
-  TopbarUser,
 } from './components/shell/topbar';

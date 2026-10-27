@@ -20,8 +20,8 @@ import * as AppShellStories from './app-shell.stories';
 <Cover
   eyebrow="Shell"
   title="AppShell"
-  lede="The application frame: topbar across the top, sidebar and content below it."
-  note="It occupies exactly the window, and the only thing that scrolls is the content."
+  lede="The application frame: the sidebar on the canvas, and beside it the sheet the pages sit on."
+  note="The sheet is inset by 8 px, rounded and one step lighter. That inset is the whole hierarchy: the edge is the application, the sheet is the page."
 />
 
 <Section
@@ -43,7 +43,7 @@ import * as AppShellStories from './app-shell.stories';
 <Section
   n="02"
   title="A record inside the same frame"
-  intro="The sidebar and the topbar do not move between a list and the record opened from it — only the content does."
+  intro="The sidebar does not move between a list and the record opened from it. The topbar carries the trail back and the paging between records."
 >
 
 <Canvas of={AppShellStories.IssueDetailScreen} sourceState="none" />
@@ -53,7 +53,7 @@ import * as AppShellStories from './app-shell.stories';
 <Section
   n="03"
   title="The sidebar collapses to a rail"
-  intro="216 px, or a 56 px rail, with ⌘B between them. The rail keeps the routes as icons and hands their names to tooltips."
+  intro="244 px, or a 64 px rail, with ⌘B or the toggle beside the mark between them. The rail keeps the routes as icons, hands their names to tooltips, and turns group labels into hairlines."
 >
 
 <Canvas of={AppShellStories.CollapsedSidebar} sourceState="none" />
@@ -65,11 +65,12 @@ import * as AppShellStories from './app-shell.stories';
 <Section n="04" title="What the sidebar holds">
 
 <Rule>
-  The project and the routes, and nothing else. A navigation column that also
-  holds controls stops being scannable.
+  Everything that does not change when you change page: the mark, the
+  project, search, the routes, settings and the account. What scopes a page --
+  an environment, a period -- goes in that page's topbar, never here.
 </Rule>
 
-<P>Earlier passes carried an environment selector and a quota block; both went.</P>
+<P>The routes are grouped (Triage, Monitor) under quiet labels; only they scroll.</P>
 
 </Section>
 
@@ -77,7 +78,7 @@ import * as AppShellStories from './app-shell.stories';
 
 <Guarantees>
   <Guarantee story="OnlyTheContentScrolls">Only the content scrolls, and the scrolling region is focusable — a scroll box with nothing focusable inside cannot be paged with a keyboard at all.</Guarantee>
-  <Guarantee story="TheActiveRouteIsAnnounced">The active route carries <code>aria-current</code> and gains weight, not only a background.</Guarantee>
+  <Guarantee story="TheActiveRouteIsAnnounced">The active route carries <code>aria-current</code> and gains colour, not only a background.</Guarantee>
   <Guarantee story="TheShortcutCollapsesIt">⌘B collapses and restores the sidebar, and the choice survives the page.</Guarantee>
 </Guarantees>
 

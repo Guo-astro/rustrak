@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, userEvent, within } from 'storybook/test';
+import { Avatar } from '../avatar/avatar';
 import { Breadcrumbs } from '../breadcrumbs/breadcrumbs';
 import { Button } from '../button/button';
 import { SplitButton } from '../button/split-button';
@@ -9,7 +11,10 @@ import {
   AssignIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CronsIcon,
+  DocsIcon,
   ExportIcon,
+  FeedbackIcon,
   IssuesIcon,
   LogsIcon,
   MuteIcon,
@@ -18,10 +23,15 @@ import {
   OverflowIcon,
   OverviewIcon,
   PerformanceIcon,
+  ProjectsIcon,
   ReleasesIcon,
   ResolveIcon,
+  SaveViewIcon,
   SettingsIcon,
+  SignOutIcon,
+  TeamIcon,
 } from '../icon/icon-catalog';
+import { Menu } from '../menu/menu';
 import {
   SegmentedControl,
   SegmentedItem,
@@ -29,21 +39,18 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from '../tabs/tabs';
 import { Tag } from '../tag/tag';
 import { Text } from '../text/text';
-import { AppShell, Page, PageHeader, SubHeader } from './app-shell';
+import { AppShell, Page, PageHeader } from './app-shell';
 import {
   Sidebar,
-  SidebarCollapseButton,
+  SidebarBrand,
+  SidebarGroup,
   SidebarItem,
   SidebarProject,
+  SidebarScope,
+  SidebarSearch,
+  SidebarUser,
 } from './sidebar';
-import {
-  Topbar,
-  TopbarAction,
-  TopbarBrand,
-  TopbarMenuButton,
-  TopbarSearch,
-  TopbarUser,
-} from './topbar';
+import { Topbar, TopbarMenuButton } from './topbar';
 
 /*
  * These are composition stories rather than props stories: what they check is
@@ -60,81 +67,135 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const ROUTES = [
-  { icon: OverviewIcon, label: 'Overview' },
-  { icon: IssuesIcon, label: 'Issues', count: '143' },
-  { icon: ReleasesIcon, label: 'Releases' },
-  { icon: PerformanceIcon, label: 'Performance' },
-  { icon: AgentsIcon, label: 'Agents' },
-  { icon: LogsIcon, label: 'Logs' },
-  { icon: SettingsIcon, label: 'Settings' },
+const GROUPS = [
+  {
+    label: 'Triage',
+    routes: [
+      { icon: IssuesIcon, label: 'Issues', count: '142' },
+      { icon: FeedbackIcon, label: 'Feedback' },
+      { icon: ReleasesIcon, label: 'Releases' },
+    ],
+  },
+  {
+    label: 'Monitor',
+    routes: [
+      { icon: PerformanceIcon, label: 'Performance' },
+      { icon: LogsIcon, label: 'Logs' },
+      { icon: CronsIcon, label: 'Crons', count: '1', tone: 'warning' },
+      { icon: NotificationIcon, label: 'Alerts' },
+      { icon: AgentsIcon, label: 'Agents' },
+    ],
+  },
 ] as const;
 
-function Frame({
-  active = 'Issues',
-  children,
-}: {
-  active?: string;
-  children: React.ReactNode;
-}) {
+function ShellSidebar({ active }: { active: string }) {
   return (
-    <AppShell
-      topbar={
-        <Topbar
-          menu={<TopbarMenuButton />}
-          brand={<TopbarBrand render={<a href="#home" />} />}
-          actions={
-            <>
-              <TopbarSearch />
-              <TopbarAction
-                icon={NotificationIcon}
-                aria-label="Notifications"
-                count={3}
-              />
-              <TopbarUser
-                name="María López"
-                email="maria@acme.dev"
-                version="rustrak 0.14.7"
-                actions={[
-                  { id: 'account', label: 'Account' },
-                  { id: 'prefs', label: 'Preferences' },
-                  { id: 'docs', label: 'Documentation' },
-                  {
-                    id: 'signout',
-                    label: 'Sign out',
-                    tone: 'danger',
-                    separated: true,
-                  },
-                ]}
-              />
-            </>
-          }
-        />
+    <Sidebar
+      header={
+        <>
+          <SidebarBrand render={<a href="#home" />} />
+          <SidebarProject
+            name="storefront-web"
+            detail="JavaScript"
+            platform="JS"
+          />
+          <SidebarSearch />
+        </>
       }
-      sidebar={
-        <Sidebar
-          header={
-            <SidebarProject
-              name="Checkout API"
-              organisation="Acme Corp"
-              platform="JS"
-            />
-          }
-          footer={<SidebarCollapseButton />}
-        >
-          {ROUTES.map((route) => (
+      footer={
+        <>
+          <SidebarItem
+            icon={SettingsIcon}
+            label="Settings"
+            render={<a href="#settings" />}
+          />
+          <SidebarItem
+            icon={DocsIcon}
+            label="Docs"
+            render={<a href="#docs" />}
+          />
+          <SidebarUser
+            name="Mara Kovač"
+            detail="Admin"
+            email="mara@acme.dev"
+            version="rustrak 0.21.1"
+            actions={[
+              { id: 'account', label: 'Account' },
+              {
+                id: 'signout',
+                label: 'Sign out',
+                icon: SignOutIcon,
+                tone: 'danger',
+                separated: true,
+              },
+            ]}
+          />
+        </>
+      }
+    >
+      <SidebarItem
+        icon={OverviewIcon}
+        label="Overview"
+        active={active === 'Overview'}
+        render={<a href="#overview" />}
+      />
+      {GROUPS.map((group) => (
+        <SidebarGroup key={group.label} label={group.label}>
+          {group.routes.map((route) => (
             <SidebarItem
               key={route.label}
               icon={route.icon}
               label={route.label}
               count={'count' in route ? route.count : undefined}
+              tone={'tone' in route ? route.tone : undefined}
               active={route.label === active}
               render={<a href={`#${route.label.toLowerCase()}`} />}
             />
           ))}
-        </Sidebar>
-      }
+        </SidebarGroup>
+      ))}
+    </Sidebar>
+  );
+}
+
+function Frame({
+  active = 'Issues',
+  defaultCollapsed,
+  crumbs = [{ label: 'Issues' }],
+  actions,
+  children,
+}: {
+  actions?: React.ReactNode;
+  active?: string;
+  defaultCollapsed?: boolean;
+  crumbs?: { label: string; mono?: boolean }[];
+  children: React.ReactNode;
+}) {
+  return (
+    <AppShell
+      defaultCollapsed={defaultCollapsed}
+      sidebar={<ShellSidebar active={active} />}
     >
+      <Topbar menu={<TopbarMenuButton />} actions={actions}>
+        <Breadcrumbs
+          items={[
+            {
+              label: 'storefront-web',
+              icon: (
+                <Avatar
+                  shape="square"
+                  size="xs"
+                  tone="brand"
+                  name="storefront-web"
+                  initials="JS"
+                />
+              ),
+              render: <a href="#project" />,
+            },
+            ...crumbs,
+          ]}
+        />
+      </Topbar>
       {children}
     </AppShell>
   );
@@ -236,32 +297,33 @@ function IssueList() {
 export const IssueListScreen: Story = {
   render: () => (
     <Frame>
+      <PageHeader
+        icon={IssuesIcon}
+        title="Issues"
+        meta="142 unresolved"
+        description="Errors and exceptions grouped by fingerprint"
+        actions={
+          <Button variant="secondary" icon={SaveViewIcon}>
+            Save view
+          </Button>
+        }
+      />
       <Page scroll={false}>
-        <PageHeader
-          title="Issues"
-          meta={
-            <Text variant="mono-sm" tone="ghost">
-              checkout-api · web@2026.8.1 · production
-            </Text>
-          }
-          actions={
-            <>
-              <SegmentedControl defaultValue="24 h" aria-label="Time range">
-                {['1 h', '24 h', '7 d', '30 d'].map((range) => (
-                  <SegmentedItem key={range} value={range}>
-                    {range}
-                  </SegmentedItem>
-                ))}
-              </SegmentedControl>
-              <Button variant="secondary" icon={ExportIcon}>
-                Export
-              </Button>
-              <Button variant="primary" icon={NewIcon}>
-                New project
-              </Button>
-            </>
-          }
-        />
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          <SegmentedControl defaultValue="24 h" aria-label="Time range">
+            {['1 h', '24 h', '7 d', '30 d'].map((range) => (
+              <SegmentedItem key={range} value={range}>
+                {range}
+              </SegmentedItem>
+            ))}
+          </SegmentedControl>
+          <Button variant="secondary" icon={ExportIcon}>
+            Export
+          </Button>
+          <Button variant="primary" icon={NewIcon}>
+            New project
+          </Button>
+        </div>
 
         <Tabs defaultValue="unresolved" className="min-h-0 flex-1">
           <TabList
@@ -295,37 +357,29 @@ export const IssueListScreen: Story = {
   ),
 };
 
-/** The record screen: the sub-header, the primary action, the record's tabs. */
+/** The record screen: record paging in the topbar, the primary action, the record's tabs. */
 export const IssueDetailScreen: Story = {
   render: () => (
-    <Frame>
-      <SubHeader
-        actions={
-          <>
-            <Count>12 of 143</Count>
-            <Button
-              size="xs"
-              variant="secondary"
-              icon={ChevronLeftIcon}
-              aria-label="Previous issue"
-            />
-            <Button
-              size="xs"
-              variant="secondary"
-              icon={ChevronRightIcon}
-              aria-label="Next issue"
-            />
-          </>
-        }
-      >
-        <Breadcrumbs
-          items={[
-            { label: 'Issues', render: <a href="#issues" /> },
-            { label: 'CHECKOUT-API-4F2' },
-          ]}
-        />
-      </SubHeader>
-
+    <Frame
+      crumbs={[{ label: 'Issues' }, { label: 'STOREFRONT-3K', mono: true }]}
+      actions={
+        <>
+          <Count>12 of 143</Count>
+          <Button
+            size="xs"
+            variant="secondary"
+            icon={ChevronLeftIcon}
+            aria-label="Previous issue"
+          />
+          <Button
+            size="xs"
+            variant="secondary"
+            icon={ChevronRightIcon}
+            aria-label="Next issue"
+          />
+        </>
+      }
+    >
       <Page scroll={false}>
         <div className="flex shrink-0 items-start justify-between gap-6">
           <div className="min-w-0">
@@ -398,47 +452,17 @@ export const IssueDetailScreen: Story = {
 /** The rail. Collapsed, every route keeps its name in a tooltip. */
 export const CollapsedSidebar: Story = {
   render: () => (
-    <AppShell
-      defaultCollapsed
-      topbar={<Topbar brand={<TopbarBrand />} actions={<TopbarSearch />} />}
-      sidebar={
-        <Sidebar
-          header={
-            <SidebarProject
-              name="Checkout API"
-              organisation="Acme Corp"
-              platform="JS"
-            />
-          }
-          footer={<SidebarCollapseButton />}
-        >
-          {ROUTES.map((route) => (
-            <SidebarItem
-              key={route.label}
-              icon={route.icon}
-              label={route.label}
-              count={'count' in route ? route.count : undefined}
-              active={route.label === 'Overview'}
-              render={<a href={`#${route.label.toLowerCase()}`} />}
-            />
-          ))}
-        </Sidebar>
-      }
-    >
-      <Page>
-        <PageHeader title="Overview" />
-      </Page>
-    </AppShell>
+    <Frame active="Overview" defaultCollapsed crumbs={[{ label: 'Overview' }]}>
+      <PageHeader icon={OverviewIcon} title="Overview" />
+    </Frame>
   ),
 };
 
 /** ⌘B collapses it, and the button says which state it is in. */
 export const TheShortcutCollapsesIt: Story = {
   render: () => (
-    <Frame active="Overview">
-      <Page>
-        <PageHeader title="Overview" />
-      </Page>
+    <Frame active="Overview" crumbs={[{ label: 'Overview' }]}>
+      <PageHeader icon={OverviewIcon} title="Overview" />
     </Frame>
   ),
   play: async ({ canvasElement }) => {
@@ -459,9 +483,7 @@ export const TheShortcutCollapsesIt: Story = {
 export const TheActiveRouteIsAnnounced: Story = {
   render: () => (
     <Frame>
-      <Page>
-        <PageHeader title="Issues" />
-      </Page>
+      <PageHeader icon={IssuesIcon} title="Issues" />
     </Frame>
   ),
   play: async ({ canvasElement }) => {
@@ -478,9 +500,9 @@ export const TheActiveRouteIsAnnounced: Story = {
 /** Nothing in the frame scrolls except the content. */
 export const OnlyTheContentScrolls: Story = {
   render: () => (
-    <Frame active="Logs">
+    <Frame active="Logs" crumbs={[{ label: 'Logs' }]}>
+      <PageHeader icon={LogsIcon} title="Logs" />
       <Page>
-        <PageHeader title="Logs" />
         {Array.from({ length: 60 }, (_, index) => (
           <Text key={index} variant="mono-sm" tone="muted">
             2026-08-23 11:0{index % 10}:37 · checkout-api · request completed
@@ -489,4 +511,127 @@ export const OnlyTheContentScrolls: Story = {
       </Page>
     </Frame>
   ),
+};
+
+const PROJECTS = ['storefront-web', 'billing-api', 'mobile-ios'];
+
+/** Into a project and back out, through the scope card. */
+function ScopeSidebar() {
+  const [project, setProject] = useState<string | null>(null);
+
+  return (
+    <AppShell
+      sidebar={
+        <Sidebar
+          header={
+            <>
+              <SidebarBrand render={<a href="#home" />} />
+              <Menu
+                trigger={
+                  <SidebarProject
+                    name={project ?? 'All projects'}
+                    detail={project ?? '3 projects'}
+                    platform="JS"
+                  />
+                }
+                actions={[
+                  {
+                    id: 'all',
+                    label: 'All projects',
+                    icon: ProjectsIcon,
+                    onSelect: () => setProject(null),
+                  },
+                  ...PROJECTS.map((name, index) => ({
+                    id: name,
+                    label: name,
+                    selected: name === project,
+                    separated: index === 0,
+                    onSelect: () => setProject(name),
+                  })),
+                ]}
+              />
+              <SidebarSearch />
+            </>
+          }
+        >
+          <SidebarScope
+            scope={project ? `project:${project}` : 'workspace'}
+            depth={project ? 1 : 0}
+          >
+            {project ? (
+              <>
+                <SidebarItem
+                  icon={OverviewIcon}
+                  label="Overview"
+                  href="#overview"
+                  active
+                />
+                {GROUPS.map((group) => (
+                  <SidebarGroup key={group.label} label={group.label}>
+                    {group.routes.map((route) => (
+                      <SidebarItem
+                        key={route.label}
+                        icon={route.icon}
+                        label={route.label}
+                      />
+                    ))}
+                  </SidebarGroup>
+                ))}
+              </>
+            ) : (
+              <>
+                <SidebarItem icon={ProjectsIcon} label="Projects" active />
+                <SidebarItem icon={TeamIcon} label="Team" href="#team" />
+                <SidebarGroup label="Projects">
+                  {PROJECTS.map((name) => (
+                    <SidebarItem
+                      key={name}
+                      leading={<Avatar shape="square" size="xs" name={name} />}
+                      label={name}
+                      href={`#${name}`}
+                    />
+                  ))}
+                </SidebarGroup>
+              </>
+            )}
+          </SidebarScope>
+        </Sidebar>
+      }
+    >
+      <Topbar>
+        <Breadcrumbs items={[{ label: project ?? 'Projects' }]} />
+      </Topbar>
+    </AppShell>
+  );
+}
+
+/** Going in slides forward, coming back slides back; the first paint is still. */
+export const ChangesScope: Story = {
+  render: () => <ScopeSidebar />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const page = within(document.body);
+    const nav = canvas.getByRole('navigation', { name: 'Main navigation' });
+    const scope = () => nav.querySelector('[data-direction], .group\\/scope');
+
+    await expect(scope()).not.toHaveAttribute('data-direction');
+
+    await userEvent.click(canvas.getByRole('button', { name: /All projects/ }));
+    await userEvent.click(
+      await page.findByRole('menuitem', { name: /billing-api/ }),
+    );
+    await expect(
+      await canvas.findByRole('link', { name: /Overview/ }),
+    ).toBeInTheDocument();
+    await expect(scope()).toHaveAttribute('data-direction', 'forward');
+
+    await userEvent.click(canvas.getByRole('button', { name: /billing-api/ }));
+    await userEvent.click(
+      await page.findByRole('menuitem', { name: /All projects/ }),
+    );
+    await expect(
+      await canvas.findByRole('link', { name: /Team/ }),
+    ).toBeInTheDocument();
+    await expect(scope()).toHaveAttribute('data-direction', 'back');
+  },
 };

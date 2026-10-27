@@ -108,8 +108,8 @@ export const spacingTokens = [
   'chip',
   'topbar',
   'wordmark',
-  'subheader',
   'tab',
+  'frame',
   'sidebar',
   'sidebar-rail',
   'nav-item',
@@ -126,6 +126,7 @@ export const spacingTokens = [
   'dialog-md',
   'dialog-lg',
   'dialog-xl',
+  'avatar-xs',
   'avatar',
   'avatar-lg',
   'badge',
@@ -145,6 +146,8 @@ export const radiusTokens = [
   'md',
   'lg',
   'xl',
+  '2xl',
+  '3xl',
   'pill',
 ] as const;
 
