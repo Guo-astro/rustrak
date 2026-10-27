@@ -53,7 +53,10 @@ export function ProjectsGrid({
           description: result.error.message,
         });
       }
-      router.refresh();
+      // Awaited and `sync`: the transition, and with it the optimistic
+      // removal, has to last until the list has reloaded, or the card flashes
+      // back in between.
+      await router.refresh({ sync: true });
     });
   };
 

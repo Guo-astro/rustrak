@@ -127,7 +127,8 @@ function projectsSummary(
       ? tProjects('summary.withFatal', { count: fatal.length })
       : '',
     tProjects('summary.events24h', {
-      count: format.number(events, 'compact'),
+      count: events,
+      display: format.number(events, 'compact'),
     }),
   ].filter(Boolean);
 }

@@ -581,7 +581,7 @@
     },
     "summary": {
       "withFatal": "{count, plural, one {# cu erori fatale} few {# cu erori fatale} other {# cu erori fatale}}",
-      "events24h": "{count} evenimente în 24 h"
+      "events24h": "{count, plural, one {{display} eveniment în 24 h} few {{display} evenimente în 24 h} other {{display} de evenimente în 24 h}}"
     }
   },
   "alerts": {

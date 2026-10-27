@@ -581,7 +581,7 @@
     },
     "summary": {
       "withFatal": "{count, plural, one {# con errores fatales} other {# con errores fatales}}",
-      "events24h": "{count} eventos en 24 h"
+      "events24h": "{count, plural, one {{display} evento en 24 h} other {{display} eventos en 24 h}}"
     }
   },
   "alerts": {
