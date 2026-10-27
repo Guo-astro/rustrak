@@ -582,7 +582,7 @@
     },
     "summary": {
       "withFatal": "{count} 个有致命错误",
-      "events24h": "24 小时内 {count} 个事件"
+      "events24h": "24 小时内 {display} 个事件"
     }
   },
   "alerts": {

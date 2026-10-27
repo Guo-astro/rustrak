@@ -106,32 +106,28 @@ export function McpSettings({ initial, isAdmin, connected }: McpSettingsProps) {
       />
 
       {enabled ? (
-        <>
-          <SettingSection title={t('mcp.page.connect')}>
-            <SettingRow title={t('mcp.server.endpoint')}>
-              <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised py-1 ps-3 pe-1">
-                <code className="min-w-0 flex-1 truncate font-mono text-mono text-fg">
-                  {url}
-                </code>
-                <CopyButton
-                  flags={copyFlags}
-                  target="url"
-                  value={url}
-                  label={t('mcp.server.endpoint')}
-                />
-              </div>
-            </SettingRow>
-            {/* The main way in only; the other one, and why there are two,
+        <SettingSection title={t('mcp.page.connect')}>
+          <SettingRow title={t('mcp.server.endpoint')}>
+            <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised py-1 ps-3 pe-1">
+              <code className="min-w-0 flex-1 truncate font-mono text-mono text-fg">
+                {url}
+              </code>
+              <CopyButton
+                flags={copyFlags}
+                target="url"
+                value={url}
+                label={t('mcp.server.endpoint')}
+              />
+            </div>
+          </SettingRow>
+          {/* The main way in only; the other one, and why there are two,
                 live behind the help button. */}
-            <ClientGuide
-              method={signInAvailable ? 'oauth' : 'token'}
-              url={url}
-              copyFlags={copyFlags}
-            />
-          </SettingSection>
-
-          {connected}
-        </>
+          <ClientGuide
+            method={signInAvailable ? 'oauth' : 'token'}
+            url={url}
+            copyFlags={copyFlags}
+          />
+        </SettingSection>
       ) : (
         <SettingSection title={t('mcp.page.connect')}>
           <SettingsEmpty
@@ -154,6 +150,10 @@ export function McpSettings({ initial, isAdmin, connected }: McpSettingsProps) {
           />
         </SettingSection>
       )}
+
+      {/* With MCP off too: the grants are still stored, and withdrawing one
+          must not wait for an admin to turn the server back on. */}
+      {connected}
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen} size="lg">
         <DialogHeader

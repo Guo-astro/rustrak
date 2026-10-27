@@ -271,6 +271,8 @@ describe('RustrakClient', () => {
                 sentry_key: 'a1b2c3d4-e5f6-0718-293a-4b5c6d7e8f90',
                 dsn: 'http://a1b2c3d4e5f60718293a4b5c6d7e8f90@localhost:8080/1',
                 stored_event_count: 0,
+                disabled_products: [],
+                product_order: [],
                 digested_event_count: 0,
                 rate_limited_event_count: 0,
                 rate_limit_per_minute: null,

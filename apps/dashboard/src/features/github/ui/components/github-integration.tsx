@@ -23,6 +23,7 @@ import { disconnectGitHub, getManifest } from '@/features/github/api/mutations';
 import { unreachableFromGitHub } from '@/features/github/lib/webhook-url';
 import { cn } from '@/shared/lib/utils';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
+import { Link } from '@/shared/ui/components/link';
 import {
   SettingRow,
   SettingSection,
@@ -245,7 +246,7 @@ function Setup({ status }: { status: GitHubStatus }) {
               <Button
                 variant="primary"
                 icon={ExternalLinkIcon}
-                render={<a href={app.install_url} />}
+                render={<Link href={app.install_url} />}
               >
                 {t('connection.install')}
               </Button>
@@ -421,7 +422,7 @@ function Connected({
           <Button
             variant="secondary"
             icon={ExternalLinkIcon}
-            render={<a href={app.install_url} />}
+            render={<Link href={app.install_url} />}
           >
             {t('connection.install')}
           </Button>
