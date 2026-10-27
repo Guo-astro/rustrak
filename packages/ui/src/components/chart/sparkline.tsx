@@ -41,6 +41,11 @@ export interface SparklineProps {
    * it a screen reader meets an unnamed image in every row.
    */
   label: string;
+  /**
+   * The value a full-height bar stands for at the least. Without a floor, one
+   * issue alone draws the same bar as a project in meltdown.
+   */
+  minScale?: number;
   className?: string;
 }
 
@@ -53,10 +58,11 @@ export function Sparkline({
   width = 110,
   height = 28,
   label,
+  minScale = 1,
   className,
 }: SparklineProps) {
   const styles = sparkline({ tone });
-  const max = Math.max(...values, 1);
+  const max = Math.max(...values, minScale);
   const step = VIEW_W / values.length;
 
   return (

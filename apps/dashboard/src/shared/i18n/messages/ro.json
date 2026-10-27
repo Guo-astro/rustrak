@@ -78,7 +78,7 @@
     "selectAllPageRows": "Selectează toate rândurile din această pagină",
     "selectRow": "Selectează rândul",
     "expand": "Extinde",
-    "selected": "{count} selectate",
+    "selected": "{count, plural, one {# selectat} few {# selectate} other {# de selectate}}",
     "clearSelection": "Golește",
     "selectionToolbar": "Acțiuni pentru rândurile selectate",
     "noMatches": "Nimic nu corespunde filtrelor curente.",
@@ -363,6 +363,7 @@
       "highestPriority": "Prioritate mare întâi",
       "me": "Eu",
       "unassigned": "Neasignat",
+      "assigned": "Asignat",
       "oldest": "Cele mai vechi întâi",
       "newest": "Cele mai noi întâi",
       "environment": "Mediu",
@@ -372,21 +373,17 @@
       "unassign": "Elimină asignarea",
       "copyId": "Copiază ID-ul",
       "copied": "ID copiat",
-      "count": "{count} issue-uri",
+      "count": "{count, plural, one {{display} problemă} few {{display} probleme} other {{display} de probleme}}",
       "views": {
         "open": "Deschise",
         "resolved": "Rezolvate",
-        "muted": "Silențioase",
+        "muted": "Amuțite",
         "all": "Toate"
       }
     },
     "detail": {
       "linkCopied": "Link copiat",
       "copyLink": "Copiază linkul",
-      "moreArchiveOptions": "Alte moduri de arhivare",
-      "archiveUntilEscalating": "Arhivează până escaladează",
-      "archiveUntilEscalatingHint": "Revine dacă începe să apară mai des",
-      "archiveForever": "Arhivează definitiv",
       "status": "Stare",
       "firstSeen": "Văzut prima dată {when}",
       "lastSeen": "Văzut ultima dată {when}",
@@ -675,7 +672,7 @@
     },
     "summary": {
       "withFatal": "{count, plural, one {# cu erori fatale} few {# cu erori fatale} other {# cu erori fatale}}",
-      "events24h": "{count} evenimente în 24 h"
+      "events24h": "{count, plural, one {{display} eveniment în 24 h} few {{display} evenimente în 24 h} other {{display} de evenimente în 24 h}}"
     }
   },
   "alerts": {
@@ -1639,7 +1636,7 @@
       "levelWarning": "Avertisment",
       "levelInfo": "Info",
       "issues": "Issue-uri deschise",
-      "issuesDescription": "Ce să verifici mai întâi",
+      "issuesDescription": "Ce să verifici mai întâi, din totdeauna",
       "issuesRecent": "Recente",
       "issuesNew": "Noi",
       "issuesFrequent": "Cele mai multe evenimente",
