@@ -8,7 +8,11 @@ import {
   serializeTableQuery,
   Text,
 } from '@rustrak/ui';
-import { createFileRoute, useRouterState } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  redirect,
+  useRouterState,
+} from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import {
   getProject,
@@ -64,11 +68,11 @@ export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
     per: searchString(String(search.per ?? '')) || undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ params, deps }) => {
+  loader: async ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
     const query = tableQuery(deps);
     const period = deps.period ?? DEFAULT_PERIOD;
-    return loadAll([
+    const loaded = await loadAll([
       getProject(projectId),
       listReleases(projectId, {
         environment: environmentOf(query),
@@ -78,6 +82,23 @@ export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
         per_page: query.pagination.pageSize,
       }),
     ]);
+
+    // A stale or shared `?page=` past the end lands on the last page, not on
+    // an empty table under a positive count.
+    if (loaded.success) {
+      const { total_pages } = loaded.data[1];
+      if (query.pagination.pageIndex + 1 > Math.max(total_pages, 1)) {
+        throw redirect({
+          to: '/projects/$id/releases',
+          params: { id: params.id },
+          search: {
+            ...deps,
+            page: total_pages > 1 ? String(total_pages) : undefined,
+          },
+        });
+      }
+    }
+    return loaded;
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
@@ -172,6 +193,7 @@ function ReleasesPage() {
                 }),
               });
             }}
+            scope={{ environment: environmentOf(query), period: search.period }}
             period={
               <PeriodFilter
                 period={period}

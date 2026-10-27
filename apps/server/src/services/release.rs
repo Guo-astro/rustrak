@@ -11,6 +11,9 @@ const RELEASE_COLUMNS: &str = "id, project_id, version, ref, url, date_created, 
 pub struct ReleaseService;
 
 /// What narrows a release summary: the numbers, never the list of releases.
+///
+/// Which releases an environment lists is the list endpoint's to decide, as
+/// Sentry's does; here a release keeps its row, with nothing to count.
 #[derive(Debug, Default)]
 pub struct SummaryFilter {
     pub environment: Option<String>,
@@ -187,11 +190,13 @@ impl ReleaseService {
         .fetch_all(pool)
         .await?;
 
+        // The environment, like the window, is in the counts and not in
+        // `WHERE`: a release with nothing in it keeps its row and its dates.
         let events_sql = format!(
             "SELECT release, MIN(ingested_at), MAX(ingested_at), \
-                    COUNT(CASE WHEN {} THEN 1 END) \
+                    COUNT(CASE WHEN {} AND ($2 IS NULL OR environment = $2) THEN 1 END) \
              FROM events \
-             WHERE project_id = $1 AND release <> '' AND ($2 IS NULL OR environment = $2) \
+             WHERE project_id = $1 AND release <> '' \
              GROUP BY release",
             since("ingested_at", hours)
         );
@@ -201,23 +206,32 @@ impl ReleaseService {
             .fetch_all(pool)
             .await?;
 
+        // Sentry's `newGroups`: per environment when one is asked, but never
+        // windowed -- it is what the release introduced, not when.
         let new_issues: Vec<(String, i64)> = sqlx::query_as(
             "SELECT first_release, COUNT(*) FROM issues \
              WHERE project_id = $1 AND first_release IS NOT NULL AND first_release <> '' \
                AND issue_category = 'error' \
+               AND ($2 IS NULL OR id IN ( \
+                   SELECT issue_id FROM issue_environments \
+                   WHERE project_id = $1 AND environment = $2)) \
              GROUP BY first_release",
         )
         .bind(project_id)
+        .bind(env)
         .fetch_all(pool)
         .await?;
 
-        let in_window = since("bucket", hours);
+        let in_scope = format!(
+            "{} AND ($2 IS NULL OR environment = $2)",
+            since("bucket", hours)
+        );
         let sessions_sql = format!(
             "SELECT release, MIN(bucket), \
-                    CAST(SUM(CASE WHEN {in_window} THEN total ELSE 0 END) AS BIGINT), \
-                    CAST(SUM(CASE WHEN {in_window} THEN crashed ELSE 0 END) AS BIGINT) \
+                    CAST(SUM(CASE WHEN {in_scope} THEN total ELSE 0 END) AS BIGINT), \
+                    CAST(SUM(CASE WHEN {in_scope} THEN crashed ELSE 0 END) AS BIGINT) \
              FROM session_counts \
-             WHERE project_id = $1 AND ($2 IS NULL OR environment = $2) \
+             WHERE project_id = $1 \
              GROUP BY release"
         );
         let sessions: Vec<SessionRow> = sqlx::query_as(sqlx::AssertSqlSafe(&*sessions_sql))

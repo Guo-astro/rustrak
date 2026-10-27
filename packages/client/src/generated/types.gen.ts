@@ -6734,7 +6734,7 @@ export type ReleasesListData = {
     };
     query?: {
         /**
-         * Count only this environment
+         * Only the releases seen in this environment, and count only it
          */
         environment?: string;
         /**

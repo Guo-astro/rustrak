@@ -8425,7 +8425,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Count only this environment",
+            "description": "Only the releases seen in this environment, and count only it",
             "required": false,
             "schema": {
               "type": "string"
