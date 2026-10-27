@@ -569,6 +569,19 @@
       "invalid": "Introdu un număr întreg de cel puțin 1 sau lasă gol.",
       "dropped": "Eliminate de limită",
       "droppedDescription": "Evenimente acceptate, dar nestocate, pentru că o limită fusese deja atinsă."
+    },
+    "card": {
+      "newIssues": "Probleme noi",
+      "openIssues": "Probleme deschise",
+      "stored": "Stocate",
+      "rising": "Probleme în creștere",
+      "waiting": "Se așteaptă primul eveniment",
+      "actions": "Acțiuni pentru {name}",
+      "lastDay": "Ultimele 24 de ore"
+    },
+    "summary": {
+      "withFatal": "{count, plural, one {# cu erori fatale} few {# cu erori fatale} other {# cu erori fatale}}",
+      "events24h": "{count, plural, one {{display} eveniment în 24 h} few {{display} evenimente în 24 h} other {{display} de evenimente în 24 h}}"
     }
   },
   "alerts": {

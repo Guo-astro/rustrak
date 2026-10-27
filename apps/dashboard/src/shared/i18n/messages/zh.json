@@ -569,6 +569,19 @@
       "invalid": "请输入不小于 1 的整数，或留空。",
       "dropped": "因限制被丢弃",
       "droppedDescription": "已接收但因已达到限制而未存储的事件。"
+    },
+    "card": {
+      "newIssues": "新问题",
+      "openIssues": "未解决问题",
+      "stored": "已存储",
+      "rising": "问题增多",
+      "waiting": "等待第一个事件",
+      "actions": "{name} 的操作",
+      "lastDay": "最近 24 小时"
+    },
+    "summary": {
+      "withFatal": "{count} 个有致命错误",
+      "events24h": "24 小时内 {display} 个事件"
     }
   },
   "alerts": {

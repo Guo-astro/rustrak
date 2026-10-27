@@ -298,10 +298,8 @@ export const IssueListScreen: Story = {
   render: () => (
     <Frame>
       <PageHeader
-        icon={IssuesIcon}
         title="Issues"
-        meta="142 unresolved"
-        description="Errors and exceptions grouped by fingerprint"
+        summary={['142 unresolved', '3 regressions', '12.4K events today']}
         actions={
           <Button variant="secondary" icon={SaveViewIcon}>
             Save view
@@ -453,7 +451,7 @@ export const IssueDetailScreen: Story = {
 export const CollapsedSidebar: Story = {
   render: () => (
     <Frame active="Overview" defaultCollapsed crumbs={[{ label: 'Overview' }]}>
-      <PageHeader icon={OverviewIcon} title="Overview" />
+      <PageHeader title="Overview" />
     </Frame>
   ),
 };
@@ -462,7 +460,7 @@ export const CollapsedSidebar: Story = {
 export const TheShortcutCollapsesIt: Story = {
   render: () => (
     <Frame active="Overview" crumbs={[{ label: 'Overview' }]}>
-      <PageHeader icon={OverviewIcon} title="Overview" />
+      <PageHeader title="Overview" />
     </Frame>
   ),
   play: async ({ canvasElement }) => {
@@ -483,7 +481,7 @@ export const TheShortcutCollapsesIt: Story = {
 export const TheActiveRouteIsAnnounced: Story = {
   render: () => (
     <Frame>
-      <PageHeader icon={IssuesIcon} title="Issues" />
+      <PageHeader title="Issues" />
     </Frame>
   ),
   play: async ({ canvasElement }) => {
@@ -501,7 +499,7 @@ export const TheActiveRouteIsAnnounced: Story = {
 export const OnlyTheContentScrolls: Story = {
   render: () => (
     <Frame active="Logs" crumbs={[{ label: 'Logs' }]}>
-      <PageHeader icon={LogsIcon} title="Logs" />
+      <PageHeader title="Logs" />
       <Page>
         {Array.from({ length: 60 }, (_, index) => (
           <Text key={index} variant="mono-sm" tone="muted">

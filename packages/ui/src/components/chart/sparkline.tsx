@@ -41,6 +41,11 @@ export interface SparklineProps {
    * it a screen reader meets an unnamed image in every row.
    */
   label: string;
+  /**
+   * The value a full-height bar stands for at the least. Without a floor, one
+   * issue alone draws the same bar as a project in meltdown.
+   */
+  minScale?: number;
   className?: string;
 }
 
@@ -53,10 +58,11 @@ export function Sparkline({
   width = 110,
   height = 28,
   label,
+  minScale = 1,
   className,
 }: SparklineProps) {
   const styles = sparkline({ tone });
-  const max = Math.max(...values, 1);
+  const max = Math.max(...values, minScale);
   const step = VIEW_W / values.length;
 
   return (
@@ -81,7 +87,10 @@ export function Sparkline({
             y={VIEW_H - h}
             width={step * 0.62}
             height={h}
-            className={styles.bar()}
+            // A quiet bucket stays neutral whatever the tone: the colour is
+            // for the buckets that carry the alarm, and a row of red hairs
+            // along the baseline reads as alarm everywhere.
+            className={value === 0 ? 'fill-border' : styles.bar()}
           />
         );
       })}

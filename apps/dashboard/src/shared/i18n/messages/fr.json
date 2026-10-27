@@ -569,6 +569,19 @@
       "invalid": "Saisissez un nombre entier supérieur ou égal à 1, ou laissez vide.",
       "dropped": "Écartés par la limite",
       "droppedDescription": "Événements acceptés mais non enregistrés, car une limite était déjà atteinte."
+    },
+    "card": {
+      "newIssues": "Nouveaux problèmes",
+      "openIssues": "Problèmes ouverts",
+      "stored": "Stockés",
+      "rising": "Problèmes en hausse",
+      "waiting": "En attente du premier événement",
+      "actions": "Actions pour {name}",
+      "lastDay": "Dernières 24 heures"
+    },
+    "summary": {
+      "withFatal": "{count, plural, one {# avec erreurs fatales} other {# avec erreurs fatales}}",
+      "events24h": "{count, plural, one {{display} événement en 24 h} other {{display} événements en 24 h}}"
     }
   },
   "alerts": {

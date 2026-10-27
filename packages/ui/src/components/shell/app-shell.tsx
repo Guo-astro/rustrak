@@ -3,7 +3,6 @@
 import { type ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/cn';
 import { tv } from '../../lib/tv';
-import type { IconComponent } from '../icon/icon';
 import { TooltipProvider } from '../tooltip/tooltip';
 import {
   SidebarProvider,
@@ -162,20 +161,20 @@ Page.displayName = 'Page';
 
 /** Tabs sit on the bottom rule, so only a header without them pads above it. */
 const pageHeader = tv({
-  base: 'shrink-0 border-b border-border-divider px-page-gutter pt-5.5',
+  base: 'shrink-0 border-b border-border-divider px-page-gutter pt-7',
   variants: {
-    tabs: { true: '', false: 'pb-5' },
+    tabs: { true: '', false: 'pb-6' },
   },
 });
 
 export interface PageHeaderProps {
   title: ReactNode;
-  /** The route's icon, in a tile beside the title. */
-  icon?: IconComponent;
-  /** A chip after the title: `142 unresolved`, `web@4.12.0 in production`. */
-  meta?: ReactNode;
-  /** One line under the title: what the page is. */
-  description?: ReactNode;
+  /**
+   * The page's state in a few facts, read left to right and separated by
+   * dots: `3 projects`, `1 with fatal errors`, `65 events today`. Facts, not
+   * a description: "Manage your projects" tells nobody anything twice.
+   */
+  summary?: ReactNode[];
   /** Pushed to the right, level with the title. */
   actions?: ReactNode;
   /** The page's tabs, under everything, sitting on the bottom rule. */
@@ -184,42 +183,50 @@ export interface PageHeaderProps {
 }
 
 /**
- * A page's heading: what it is, what it holds, and what can be done to it.
+ * A page's heading: what it is, how it stands, and what can be done to it.
  *
- * It runs the width of the sheet and ends on a rule, with the tabs sitting on
- * that rule, so the content below starts on a clean edge whatever the page
- * puts there. The icon is the same one as the route in the sidebar: it is
- * what ties the page you landed on to the row you clicked.
+ * No icon and no box. The sidebar already says which route this is, and a
+ * tile beside the title is the same signal said a second time, louder. What
+ * the header adds instead is the summary -- the two or three facts someone
+ * opened the page to learn.
+ *
+ * It ends on a rule the width of the sheet, with the tabs sitting on it when
+ * there are any. It sits outside the page's scroller (`Page`), so it stays put
+ * while the content moves under it: the title and the actions are always one
+ * glance away, however far down the list you are.
  */
 export function PageHeader({
   title,
-  icon: Icon,
-  meta,
-  description,
+  summary,
   actions,
   tabs,
   className,
 }: PageHeaderProps) {
+  // Not `filter(Boolean)`: a `0` is a fact worth reading.
+  const facts =
+    summary?.filter((fact) => fact != null && fact !== false && fact !== '') ??
+    [];
+
   return (
     <div className={pageHeader({ tabs: Boolean(tabs), className })}>
-      <div className="flex items-center gap-3.5">
-        {Icon ? (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-fg-secondary">
-            <Icon size="2xl" />
-          </span>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <h1 className="truncate text-title text-fg">{title}</h1>
-            {meta ? (
-              <span className="flex h-5.5 shrink-0 items-center gap-1.5 rounded-md bg-surface-hover px-2 text-meta text-fg-tertiary">
-                {meta}
-              </span>
-            ) : null}
-          </div>
-          {description ? (
-            <p className="mt-0.5 truncate text-value text-fg-subtle">
-              {description}
+      <div className="flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className="truncate text-page-title text-fg">{title}</h1>
+          {facts.length > 0 ? (
+            <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 text-value text-fg-subtle">
+              {facts.map((fact, index) => (
+                // Facts are positional: the order is the reading order, and
+                // a fact is any node, so there is no identity to key on.
+                // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+                <span key={index} className="flex items-center gap-2">
+                  {index > 0 ? (
+                    <span aria-hidden="true" className="text-fg-ghost">
+                      ·
+                    </span>
+                  ) : null}
+                  {fact}
+                </span>
+              ))}
             </p>
           ) : null}
         </div>
@@ -227,7 +234,7 @@ export function PageHeader({
           <div className="flex shrink-0 items-center gap-2">{actions}</div>
         ) : null}
       </div>
-      {tabs ? <div className="mt-4">{tabs}</div> : null}
+      {tabs ? <div className="mt-5">{tabs}</div> : null}
     </div>
   );
 }
