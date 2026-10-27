@@ -61,16 +61,17 @@ async fn new_issue(pool: &DbPool, project_id: i32, release: &str, digest_order: 
     id
 }
 
-async fn issue_seen_in(pool: &DbPool, project_id: i32, issue_id: Uuid, env: &str) {
+async fn issue_seen_in(pool: &DbPool, project_id: i32, issue_id: Uuid, env: &str, release: &str) {
     let now = Utc::now();
     sqlx::query(
-        "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen) \
-         VALUES ($1, $2, $3, $4, $4)",
+        "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen, first_release) \
+         VALUES ($1, $2, $3, $4, $4, $5)",
     )
     .bind(issue_id)
     .bind(project_id)
     .bind(env)
     .bind(now)
+    .bind(release)
     .execute(pool)
     .await
     .unwrap();
@@ -124,7 +125,7 @@ async fn seed(pool: &DbPool) -> i32 {
     event(pool, p, "1.0.0", "production", 48).await;
     event(pool, p, "1.0.0", "staging", 3).await;
     let issue = new_issue(pool, p, "1.0.0", 1).await;
-    issue_seen_in(pool, p, issue, "production").await;
+    issue_seen_in(pool, p, issue, "production", "1.0.0").await;
     sessions(pool, p, "1.0.0", "production", 1, 80, 20).await;
     sessions(pool, p, "0.9.0", "production", 72, 20, 0).await;
     user(pool, p, "1.0.0", "a", false).await;
@@ -234,51 +235,6 @@ async fn an_environment_narrows_the_numbers_not_the_releases() {
     // Its age is the release's, not the environment's.
     assert_eq!(rows[1].date_created, all[1].date_created);
     assert_eq!(rows[1].first_event, all[1].first_event);
-}
-
-#[actix_web::test]
-async fn a_new_issue_counts_in_the_environment_it_arrived_in() {
-    let db = TestDb::new().await;
-    let p = project(&db.pool).await;
-    // Introduced by 1.0.0 in production; reached staging only with 2.0.0.
-    let issue = new_issue(&db.pool, p, "1.0.0", 1).await;
-    issue_seen_in(&db.pool, p, issue, "production").await;
-    issue_seen_in(&db.pool, p, issue, "staging").await;
-    for (release, env) in [("1.0.0", "production"), ("2.0.0", "staging")] {
-        sqlx::query(
-            "INSERT INTO events (event_id, project_id, issue_id, data, timestamp, ingested_at, level, event_type, release, environment) \
-             VALUES ($1, $2, $3, '{}', $4, $4, 'error', 'error', $5, $6)",
-        )
-        .bind(Uuid::new_v4())
-        .bind(p)
-        .bind(issue)
-        .bind(Utc::now())
-        .bind(release)
-        .bind(env)
-        .execute(&db.pool)
-        .await
-        .unwrap();
-    }
-
-    let count = |env: &str| {
-        let filter = SummaryFilter {
-            environment: Some(env.to_string()),
-            ..Default::default()
-        };
-        let pool = db.pool.clone();
-        async move {
-            ReleaseService::summaries(&pool, p, &filter)
-                .await
-                .unwrap()
-                .into_iter()
-                .find(|r| r.version == "1.0.0")
-                .unwrap()
-                .new_issues
-        }
-    };
-
-    assert_eq!(count("production").await, 1);
-    assert_eq!(count("staging").await, 0);
 }
 
 #[actix_web::test]

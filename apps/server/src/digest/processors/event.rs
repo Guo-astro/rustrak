@@ -927,19 +927,24 @@ async fn write_digest_rows(
     );
     if !environment.is_empty() {
         sqlx::query(
-            "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen) \
-             VALUES ($1, $2, $3, $4, $4) \
+            // `first_release` as the issue's own: the first one sent, kept,
+            // so a release's new issues there outlive its events.
+            "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen, first_release) \
+             VALUES ($1, $2, $3, $4, $4, $5) \
              ON CONFLICT (issue_id, environment) DO UPDATE \
              SET first_seen = CASE WHEN excluded.first_seen < issue_environments.first_seen \
                                    THEN excluded.first_seen ELSE issue_environments.first_seen END, \
                  last_seen = CASE WHEN excluded.last_seen > issue_environments.last_seen \
                                   THEN excluded.last_seen ELSE issue_environments.last_seen END, \
-                 event_count = issue_environments.event_count + 1",
+                 event_count = issue_environments.event_count + 1, \
+                 first_release = CASE WHEN issue_environments.first_release = '' \
+                                      THEN excluded.first_release ELSE issue_environments.first_release END",
         )
         .bind(issue.id)
         .bind(write.project_id)
         .bind(environment)
         .bind(write.timestamp)
+        .bind(&write.denormalized.release)
         .execute(&mut **tx)
         .await?;
     }

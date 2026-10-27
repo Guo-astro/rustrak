@@ -24,6 +24,19 @@ async fn ingest(
     user: &str,
     at: DateTime<Utc>,
 ) -> Uuid {
+    ingest_release(pool, project_id, exc_type, environment, None, user, at).await
+}
+
+/// [`ingest`], with the event in `release` when there is one.
+async fn ingest_release(
+    pool: &DbPool,
+    project_id: i32,
+    exc_type: &str,
+    environment: Option<&str>,
+    release: Option<&str>,
+    user: &str,
+    at: DateTime<Utc>,
+) -> Uuid {
     let dir = tempfile::TempDir::new().unwrap();
     let event_id = Uuid::new_v4();
     let mut event = json!({
@@ -36,6 +49,9 @@ async fn ingest(
     });
     if let Some(env) = environment {
         event["environment"] = json!(env);
+    }
+    if let Some(release) = release {
+        event["release"] = json!(release);
     }
     store_event(
         dir.path(),
@@ -290,6 +306,71 @@ async fn issue_events_filter_by_environment() {
     assert_eq!(all["items"].as_array().unwrap().len(), 3);
     let lanza = get(&db.pool, &token, &format!("{uri}?environment=lanza")).await;
     assert_eq!(lanza["items"].as_array().unwrap().len(), 2);
+}
+
+#[actix_web::test]
+async fn a_releases_new_issues_in_an_environment_outlive_its_events() {
+    let (db, project_id, _) = setup().await;
+    let now = Utc::now();
+    // Introduced by 1.0 in production; reached staging only with 2.0.
+    let at = now - Duration::hours(1);
+    ingest_release(
+        &db.pool,
+        project_id,
+        "Mixed",
+        Some("production"),
+        Some("1.0"),
+        "u",
+        at,
+    )
+    .await;
+    ingest_release(
+        &db.pool,
+        project_id,
+        "Mixed",
+        Some("staging"),
+        Some("2.0"),
+        "u",
+        now,
+    )
+    .await;
+    // Created by CI, so 1.0 keeps its row once its events are gone.
+    rustrak::services::ReleaseService::create(
+        &db.pool,
+        project_id,
+        rustrak::models::CreateRelease {
+            version: "1.0".to_string(),
+            reference: None,
+            url: None,
+        },
+    )
+    .await
+    .unwrap();
+    // Retention takes every event; the issue and where it began stay.
+    sqlx::query("DELETE FROM events WHERE project_id = $1")
+        .bind(project_id)
+        .execute(&db.pool)
+        .await
+        .unwrap();
+
+    let new_in = |environment: &str| {
+        let filter = rustrak::services::release::SummaryFilter {
+            environment: Some(environment.to_string()),
+            ..Default::default()
+        };
+        let pool = db.pool.clone();
+        async move {
+            rustrak::services::ReleaseService::summaries(&pool, project_id, &filter)
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|r| r.version == "1.0")
+                .map(|r| r.new_issues)
+        }
+    };
+
+    assert_eq!(new_in("production").await, Some(1));
+    assert_eq!(new_in("staging").await, Some(0), "1.0 never ran in staging");
 }
 
 #[actix_web::test]
