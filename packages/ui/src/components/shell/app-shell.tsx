@@ -209,8 +209,10 @@ export function PageHeader({
 
   return (
     <div className={pageHeader({ tabs: Boolean(tabs), className })}>
-      <div className="flex items-start justify-between gap-6">
-        <div className="min-w-0">
+      {/* Wraps instead of squeezing: on a phone the actions -- a page's
+          filters, say -- drop under the title rather than crushing it. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 max-w-full">
           <h1 className="truncate text-page-title text-fg">{title}</h1>
           {facts.length > 0 ? (
             <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 text-value text-fg-subtle">
@@ -231,7 +233,9 @@ export function PageHeader({
           ) : null}
         </div>
         {actions ? (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex min-w-0 max-w-full grow flex-wrap items-center justify-end gap-2">
+            {actions}
+          </div>
         ) : null}
       </div>
       {tabs ? <div className="mt-5">{tabs}</div> : null}

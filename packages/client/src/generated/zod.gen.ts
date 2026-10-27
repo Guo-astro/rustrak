@@ -2654,7 +2654,9 @@ export const zStatsGetEventTimeseriesPath = z.object({
 
 export const zStatsGetEventTimeseriesQuery = z.object({
     period: z.string().optional(),
-    interval: z.int().optional()
+    interval: z.int().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -2754,7 +2756,8 @@ export const zIssuesListQuery = z.object({
     filter: zIssueFilter.optional(),
     category: zIssueCategory.optional(),
     q: z.string().nullish(),
-    environment: z.string().nullish()
+    environment: z.string().nullish(),
+    release: z.string().nullish()
 });
 
 /**
@@ -3227,6 +3230,15 @@ export const zMonitorsListCheckinsResponse = z.object({
     total_pages: z.int()
 });
 
+export const zReleasesListPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+/**
+ * Release names, newest first
+ */
+export const zReleasesListResponse = z.array(z.string());
+
 export const zReleasesNewIssuesPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
     release: z.string()
@@ -3278,7 +3290,9 @@ export const zSessionsGetSummaryPath = z.object({
 });
 
 export const zSessionsGetSummaryQuery = z.object({
-    period: z.string().optional()
+    period: z.string().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -3292,7 +3306,9 @@ export const zSessionsGetTimeseriesPath = z.object({
 
 export const zSessionsGetTimeseriesQuery = z.object({
     period: z.string().optional(),
-    interval: z.int().optional()
+    interval: z.int().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -3366,7 +3382,9 @@ export const zStatsGetSummaryPath = z.object({
 });
 
 export const zStatsGetSummaryQuery = z.object({
-    period: z.string().optional()
+    period: z.string().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**

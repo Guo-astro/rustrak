@@ -1,27 +1,37 @@
+import { Page, PageHeader, Text } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { useTranslations } from 'use-intl';
+import { PlatformIcon } from 'platformicons';
+import { useFormatter, useTranslations } from 'use-intl';
 import { getProject } from '@/features/project/api/queries';
-import { ProjectHeader } from '@/features/project/ui/components/project-header';
-import { parseOverviewPeriod } from '@/features/release/model/session-health';
-import { translator } from '@/shared/i18n/intl';
-import { searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { OverviewPeriodFilter } from './-components/overview-period-filter';
 import {
-  CounterTiles,
-  CrashFreeTile,
-  ErrorVolumeTile,
-  PerformanceTile,
-  SessionHealthTile,
-  TopIssuesTile,
-} from './-components/overview-tiles';
+  type OverviewPeriod,
+  PERIOD_CHOICES,
+} from '@/features/release/model/session-health';
+import { translator } from '@/shared/i18n/intl';
+import { searchOneOf, searchString } from '@/shared/lib/search-params';
+import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { OverviewFilters } from './-components/overview-filters';
+import {
+  ErrorVolumePanel,
+  IssuesPanel,
+  KpiRow,
+  LatencyPanel,
+  SessionsPanel,
+  useOverviewData,
+} from './-components/overview-panels';
+
+/** The window the page opens on, as Sentry's project page does. */
+const DEFAULT_PERIOD: OverviewPeriod = '14d';
 
 export const Route = createFileRoute('/_authenticated/projects/$id/')({
   validateSearch: (search: Record<string, unknown>) => ({
-    // An unrecognized window would otherwise reach the API, which ignores what
-    // it cannot parse and answers with all-time data while no filter button
-    // reads as selected. Drop it instead, so the URL and the UI always agree.
-    period: parseOverviewPeriod(searchString(search.period)),
+    // An unrecognized value is dropped rather than passed on: the API ignores
+    // what it cannot parse and answers unfiltered, while no control reads as
+    // selected. So the URL and the screen always agree.
+    period: searchOneOf(search.period, PERIOD_CHOICES),
+    environment: searchString(search.environment),
+    release: searchString(search.release),
+    compare: search.compare === true || search.compare === 'true' || undefined,
   }),
   loader: ({ params }) => getProject(Number.parseInt(params.id, 10)),
   head: ({ loaderData }) => {
@@ -48,10 +58,24 @@ export const Route = createFileRoute('/_authenticated/projects/$id/')({
 
 function ProjectPage() {
   const t = useTranslations('projectPages');
+  const format = useFormatter();
   const { id } = Route.useParams();
-  const { period } = Route.useSearch();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const projectResult = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
+
+  const choice = search.period ?? DEFAULT_PERIOD;
+  const period = choice === 'all' ? undefined : choice;
+  // Nothing comes before all time, so there is nothing to compare it with.
+  const compare = !!search.compare && period !== undefined;
+  const filters = {
+    projectId,
+    period,
+    environment: search.environment,
+    release: search.release,
+  };
+  const data = useOverviewData(filters, compare);
 
   if (!projectResult.success) {
     return (
@@ -60,53 +84,72 @@ function ProjectPage() {
   }
 
   const project = projectResult.data;
-  const tile = { projectId, period };
 
   return (
-    <div className="flex h-full flex-col overflow-auto">
-      <div className="w-full shrink-0 border-b px-4 py-4 md:px-8 md:py-6">
-        <ProjectHeader project={project} />
-      </div>
+    // On a phone the header scrolls away with the page: held in place, the
+    // title and the filters would take a third of the screen.
+    <div className="flex h-full flex-col max-lg:overflow-y-auto">
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-3">
+            <PlatformIcon
+              platform={project.platform ?? 'other'}
+              size={26}
+              format="lg"
+              className="shrink-0 rounded-md"
+            />
+            <span className="truncate">{project.name}</span>
+          </span>
+        }
+        summary={[
+          <Text key="slug" variant="mono-sm" tone="meta">
+            {project.slug}
+          </Text>,
+          t('overview.storedEvents', {
+            count: format.number(project.stored_event_count, 'compact'),
+          }),
+        ]}
+        actions={
+          <OverviewFilters
+            projectId={projectId}
+            period={choice}
+            environment={search.environment}
+            release={search.release}
+            onChange={(change) =>
+              navigate({ search: (prev) => ({ ...prev, ...change }) })
+            }
+          />
+        }
+      />
 
-      {/*
-        Bento grid: tile size is the hierarchy. The error-volume chart is the
-        one thing worth looking at first, so it takes four times the area of a
-        counter tile; everything else orbits it. One uniform gap throughout.
-      */}
-      <div className="flex w-full flex-1 flex-col gap-4 px-4 py-4 md:px-8 md:py-6">
-        <OverviewPeriodFilter projectId={projectId} activePeriod={period} />
+      <Page className="max-lg:flex-none max-lg:overflow-visible">
+        <KpiRow data={data} filters={filters} />
 
-        {/*
-          min-w-0 on every cell that holds a chart: a grid item defaults to
-          min-width:auto, so a ResponsiveContainer's measured width can pin its
-          column open and the whole page ends up scrolling sideways on a phone.
-        */}
-        <div className="grid gap-4 xl:grid-cols-4">
-          <div className="min-w-0 xl:col-span-2">
-            <ErrorVolumeTile {...tile} />
-          </div>
+        {/* min-w-0 on every cell holding a chart: a grid item defaults to
+            min-width:auto, so a chart's measured width can pin its column
+            open and the page ends up scrolling sideways on a phone. */}
+        <ErrorVolumePanel
+          data={data}
+          filters={filters}
+          compare={compare}
+          onCompareChange={(next) =>
+            navigate({
+              search: (prev) => ({ ...prev, compare: next || undefined }),
+            })
+          }
+        />
 
-          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:col-span-2">
-            {/* Both counters come from one query, so they share a read. */}
-            <CounterTiles {...tile} />
-            <div className="min-w-0 sm:col-span-2">
-              <CrashFreeTile {...tile} />
-            </div>
-          </div>
-
+        <div className="grid gap-4 xl:grid-cols-5">
           <div className="min-w-0 xl:col-span-3">
-            <SessionHealthTile {...tile} />
+            <IssuesPanel filters={filters} />
           </div>
-
-          <div className="min-w-0">
-            <PerformanceTile {...tile} />
-          </div>
-
-          <div className="min-w-0 xl:col-span-4">
-            <TopIssuesTile {...tile} />
+          <div className="min-w-0 xl:col-span-2">
+            <SessionsPanel data={data} filters={filters} />
           </div>
         </div>
-      </div>
+
+        <LatencyPanel projectId={projectId} />
+      </Page>
     </div>
   );
 }

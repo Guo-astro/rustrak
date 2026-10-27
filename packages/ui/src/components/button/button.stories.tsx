@@ -171,6 +171,21 @@ export const SelectedIsAnnounced: Story = {
 };
 
 /**
+ * Under the pointer, a switched-on button still looks switched on. A
+ * synthetic hover does not set `:hover`, so this pins the classes that
+ * restate the selected border and fill for it.
+ */
+export const SelectedSurvivesHover: Story = {
+  args: { variant: 'secondary', selected: true, children: 'Compare' },
+  play: async ({ canvasElement }) => {
+    const button = within(canvasElement).getByRole('button');
+
+    await expect(button).toHaveClass('hover:border-border-brand');
+    await expect(button).not.toHaveClass('hover:border-border-strong');
+  },
+};
+
+/**
  * Tailwind 4 dropped `cursor: pointer` from buttons. In a flat application the
  * hand is what separates "this does something" from "this is a label", so the
  * system puts it back in `styles/base.css`. These two pin it.

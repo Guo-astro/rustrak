@@ -465,6 +465,7 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `releases.list({ path })` | `GET /api/projects/{project_id}/releases` | The releases a project's events arrived in, newest first. |
 | `stats.getEventTimeseries({ path, query? })` | `GET /api/projects/{project_id}/events/stats` |  |
 | `stats.getSummary({ path, query? })` | `GET /api/projects/{project_id}/stats/summary` |  |
 

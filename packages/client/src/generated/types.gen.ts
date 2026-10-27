@@ -4884,6 +4884,14 @@ export type StatsGetEventTimeseriesData = {
          * Bucket width in hours (default: 1, max: 24)
          */
         interval?: number;
+        /**
+         * Only events from this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only events from this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/events/stats';
 };
@@ -5215,6 +5223,10 @@ export type IssuesListData = {
          * and last seen, event count, users and trend.
          */
         environment?: string | null;
+        /**
+         * Only issues that had an event in this release.
+         */
+        release?: string | null;
     };
     url: '/api/projects/{project_id}/issues';
 };
@@ -6641,6 +6653,38 @@ export type MonitorsListCheckinsResponses = {
 
 export type MonitorsListCheckinsResponse = MonitorsListCheckinsResponses[keyof MonitorsListCheckinsResponses];
 
+export type ReleasesListData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/releases';
+};
+
+export type ReleasesListErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Forbidden
+     */
+    403: unknown;
+};
+
+export type ReleasesListResponses = {
+    /**
+     * Release names, newest first
+     */
+    200: Array<string>;
+};
+
+export type ReleasesListResponse = ReleasesListResponses[keyof ReleasesListResponses];
+
 export type ReleasesNewIssuesData = {
     body?: never;
     path: {
@@ -6761,6 +6805,14 @@ export type SessionsGetSummaryData = {
          * Time window, e.g. '24h', '7d' (default: 24h)
          */
         period?: string;
+        /**
+         * Only sessions from this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only sessions from this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/sessions/summary';
 };
@@ -6802,6 +6854,14 @@ export type SessionsGetTimeseriesData = {
          * Bucket width in hours (default: 1, max: 24)
          */
         interval?: number;
+        /**
+         * Only sessions from this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only sessions from this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/sessions/timeseries';
 };
@@ -6992,6 +7052,14 @@ export type StatsGetSummaryData = {
          * Time window, e.g. '24h', '7d'. Omit for all time.
          */
         period?: string;
+        /**
+         * Only events, and issues seen, in this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only events, and issues seen, in this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/stats/summary';
 };

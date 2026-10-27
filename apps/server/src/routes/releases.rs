@@ -214,10 +214,15 @@ pub struct ReleasesApi;
 
 /// Configure release routes.
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/api/projects/{project_id}/releases").route(
-        "/{release}/new-issues",
-        web::get().to(new_issues_for_release),
-    ))
+    cfg.service(
+        web::scope("/api/projects/{project_id}/releases")
+            // Served from `stats`: it reads events, like the overview it fills.
+            .route("", web::get().to(crate::routes::stats::list_releases))
+            .route(
+                "/{release}/new-issues",
+                web::get().to(new_issues_for_release),
+            ),
+    )
     .route(
         "/api/0/projects/{org_slug}/{project_slug}/releases/",
         web::post().to(create_release),

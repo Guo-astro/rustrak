@@ -16,6 +16,12 @@ import type {
 } from '@rustrak/client';
 import { createClient } from '@/shared/api/rustrak';
 
+/** What the overview's page filters narrow every read to. */
+export interface OverviewScope {
+  environment?: string;
+  release?: string;
+}
+
 /**
  * Get projects with pagination.
  *
@@ -60,16 +66,18 @@ export async function getRateLimits(): Promise<
  * @param projectId - The project ID
  * @param period - Time window (e.g. '24h', '7d'). Omit for all time.
  * @param interval - Bucket width in hours (default: 1, max: 24).
+ * @param scope - Only this environment and release. Omit for every one.
  */
 export async function getProjectEventTimeseries(
   projectId: number,
   period?: string,
   interval?: number,
+  scope?: OverviewScope,
 ): Promise<Result<StatsGetEventTimeseriesResponse, RustrakError>> {
   const client = await createClient();
   return client.stats.getEventTimeseries({
     path: { project_id: projectId },
-    query: { period, interval },
+    query: { period, interval, ...scope },
   });
 }
 
@@ -86,10 +94,27 @@ export async function getProjectEventTimeseries(
 export async function getProjectStatsSummary(
   projectId: number,
   period?: string,
+  scope?: OverviewScope,
 ): Promise<Result<ProjectStatsSummary, RustrakError>> {
   const client = await createClient();
   return client.stats.getSummary({
     path: { project_id: projectId },
-    query: { period },
+    query: { period, ...scope },
   });
+}
+
+/** The releases a project's events arrived in, newest first. */
+export async function getProjectReleases(
+  projectId: number,
+): Promise<Result<string[], RustrakError>> {
+  const client = await createClient();
+  return client.releases.list({ path: { project_id: projectId } });
+}
+
+/** The environments a project's issues have been seen in, by name. */
+export async function getProjectEnvironments(
+  projectId: number,
+): Promise<Result<string[], RustrakError>> {
+  const client = await createClient();
+  return client.environments.list({ path: { project_id: projectId } });
 }

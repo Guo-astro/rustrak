@@ -6,6 +6,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::{Grouping, Issue};
 use crate::pagination::{IssueCategory, IssueCursor, IssueFilter, IssueSort, SortOrder};
 use crate::services::grouping::DenormalizedFields;
+use crate::services::scope::Scope;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -525,7 +526,7 @@ impl IssueService {
         page: i64,
         per_page: i64,
         search: Option<&str>,
-        environment: Option<&str>,
+        scope: Scope<'_>,
     ) -> AppResult<(Vec<Issue>, i64)> {
         if page < 1 {
             return Err(AppError::Validation(format!(
@@ -560,13 +561,13 @@ impl IssueService {
             offset,
             per_page,
             search,
-            environment,
+            scope,
         )
         .await
     }
 
     /// One window of a project's issues: `filter`, `category`, `search` and
-    /// `environment` as in [`Self::list_offset`], ordered by a trusted
+    /// `scope` as in [`Self::list_offset`], ordered by a trusted
     /// `order_clause`.
     ///
     /// Returns (issues, total_count) where total_count is the total matching issues.
@@ -580,7 +581,7 @@ impl IssueService {
         offset: i64,
         per_page: i64,
         search: Option<&str>,
-        environment: Option<&str>,
+        scope: Scope<'_>,
     ) -> AppResult<(Vec<Issue>, i64)> {
         let status_clause = filter_clause(filter, category);
         // Bound after `$1` (project_id), in order.
@@ -590,16 +591,16 @@ impl IssueService {
         // environment's first/last seen and count (Sentry's
         // `GroupEnvironment` and `__seen_stats_impl`). The rows read as
         // `issues`, so every clause below applies unchanged.
-        let source = match environment {
-            Some(env) => {
-                binds.push(env.to_string());
-                format!(
-                    "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
-                     JOIN issue_environments e ON e.issue_id = i.id \
-                     WHERE e.project_id = $1 AND e.environment = ${}) AS issues",
-                    binds.len() + 1
-                )
-            }
+        let env_param = scope.environment.map(|env| {
+            binds.push(env.to_string());
+            binds.len() + 1
+        });
+        let source = match env_param {
+            Some(n) => format!(
+                "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
+                 JOIN issue_environments e ON e.issue_id = i.id \
+                 WHERE e.project_id = $1 AND e.environment = ${n}) AS issues"
+            ),
             None => "issues".to_string(),
         };
 
@@ -633,7 +634,24 @@ impl IssueService {
             }
             None => String::new(),
         };
-        let from = format!("FROM {source} WHERE {status_clause} {search_clause}");
+        // In a release, only the issues that had an event in it -- in the
+        // environment too when there is one: an issue seen in production on
+        // 1.0 and in staging on 2.0 was never in production on 2.0.
+        let release_clause = match scope.release {
+            Some(release) => {
+                binds.push(release.to_string());
+                let env_clause = env_param
+                    .map(|n| format!(" AND environment = ${n}"))
+                    .unwrap_or_default();
+                format!(
+                    "AND id IN (SELECT issue_id FROM events \
+                     WHERE project_id = $1 AND release = ${}{env_clause})",
+                    binds.len() + 1
+                )
+            }
+            None => String::new(),
+        };
+        let from = format!("FROM {source} WHERE {status_clause} {search_clause} {release_clause}");
 
         let count_query = format!("SELECT COUNT(*) {from}");
         let mut count =
@@ -658,11 +676,16 @@ impl IssueService {
         Ok((issues, total_count.0))
     }
 
-    /// The environments a project's issues have been seen in, by name.
+    /// The environments a project has seen, by name: its issues', and its
+    /// sessions' -- a healthy environment has sessions and no issue at all.
+    /// Sentry's environments are the project's, not its issues'.
     pub async fn environments(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
         let rows: Vec<(String,)> = sqlx::query_as(
-            "SELECT DISTINCT environment FROM issue_environments \
-             WHERE project_id = $1 ORDER BY environment",
+            "SELECT environment FROM issue_environments WHERE project_id = $1 \
+             UNION \
+             SELECT environment FROM session_counts \
+             WHERE project_id = $1 AND environment <> '' \
+             ORDER BY environment",
         )
         .bind(project_id)
         .fetch_all(pool)
@@ -1423,7 +1446,7 @@ impl IssueService {
     pub async fn list_stats(
         pool: &DbPool,
         issue_ids: &[Uuid],
-        environment: Option<&str>,
+        scope: Scope<'_>,
     ) -> AppResult<HashMap<Uuid, IssueListStats>> {
         if issue_ids.is_empty() {
             return Ok(HashMap::new());
@@ -1445,11 +1468,13 @@ impl IssueService {
         let rows: Vec<(Uuid, Option<serde_json::Value>, DateTime<Utc>)> = sqlx::query_as(
             "SELECT issue_id, data -> 'user', ingested_at FROM events \
              WHERE issue_id = ANY($1) AND ingested_at >= $2 \
-             AND ($3::TEXT IS NULL OR environment = $3)",
+             AND ($3::TEXT IS NULL OR environment = $3) \
+             AND ($4::TEXT IS NULL OR release = $4)",
         )
         .bind(issue_ids)
         .bind(start_dt)
-        .bind(environment)
+        .bind(scope.environment)
+        .bind(scope.release)
         .fetch_all(pool)
         .await?;
 
@@ -1466,9 +1491,13 @@ impl IssueService {
             qb.push(") AND datetime(ingested_at) >= datetime(");
             qb.push_bind(start_dt.naive_utc());
             qb.push(")");
-            if let Some(env) = environment {
+            if let Some(env) = scope.environment {
                 qb.push(" AND environment = ");
                 qb.push_bind(env);
+            }
+            if let Some(release) = scope.release {
+                qb.push(" AND release = ");
+                qb.push_bind(release);
             }
             qb.build_query_as().fetch_all(pool).await?
         };

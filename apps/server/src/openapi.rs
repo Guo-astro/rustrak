@@ -107,6 +107,7 @@ impl Modify for SecurityAddon {
         crate::routes::sessions::get_timeseries,
         crate::routes::stats::get_event_timeseries,
         crate::routes::stats::get_stats_summary,
+        crate::routes::stats::list_releases,
         crate::routes::releases::new_issues_for_release,
         crate::routes::releases::create_release,
         crate::routes::releases::finalize_release,

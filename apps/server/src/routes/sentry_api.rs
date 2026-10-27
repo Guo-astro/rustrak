@@ -25,6 +25,7 @@ use crate::models::{Event, Issue, Project, UpdateIssueState};
 use crate::pagination::{IssueCategory, IssueFilter, SortOrder};
 use crate::services::access::{self, Action};
 use crate::services::grouping::exception_values;
+use crate::services::scope::Scope;
 
 use crate::services::{
     EventService, IssueService, IssueSocialService, ProjectMemberService, ProjectService,
@@ -648,14 +649,15 @@ pub async fn list_issues(
         page.start,
         page.size,
         search.text.as_deref(),
-        environment,
+        Scope::environment(environment),
     )
     .await?;
 
     let ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();
     // Users seen in the last 24h, as Rustrak's own issue list counts them;
     // in an environment, its users and series (`group_stream.py:206-229`).
-    let list_stats = IssueService::list_stats(pool.get_ref(), &ids, environment).await?;
+    let list_stats =
+        IssueService::list_stats(pool.get_ref(), &ids, Scope::environment(environment)).await?;
     let mut series = match period {
         Some((_, segments, interval)) => {
             IssueService::event_series(pool.get_ref(), &ids, segments, interval, environment)
@@ -714,7 +716,7 @@ async fn issue_details(
     project: &Project,
 ) -> AppResult<SentryIssueDetails> {
     let ids = [issue.id];
-    let users = IssueService::list_stats(pool, &ids, None)
+    let users = IssueService::list_stats(pool, &ids, Scope::default())
         .await?
         .remove(&issue.id)
         .map_or(0, |s| s.user_count);
@@ -1100,7 +1102,7 @@ pub async fn update_issue(
     .await?;
 
     let issue = IssueService::get_by_id(pool.get_ref(), issue.id).await?;
-    let users = IssueService::list_stats(pool.get_ref(), &[issue.id], None)
+    let users = IssueService::list_stats(pool.get_ref(), &[issue.id], Scope::default())
         .await?
         .remove(&issue.id)
         .map_or(0, |s| s.user_count);
