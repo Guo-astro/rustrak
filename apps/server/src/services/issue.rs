@@ -1446,7 +1446,7 @@ impl IssueService {
     pub async fn list_stats(
         pool: &DbPool,
         issue_ids: &[Uuid],
-        environment: Option<&str>,
+        scope: Scope<'_>,
     ) -> AppResult<HashMap<Uuid, IssueListStats>> {
         if issue_ids.is_empty() {
             return Ok(HashMap::new());
@@ -1468,11 +1468,13 @@ impl IssueService {
         let rows: Vec<(Uuid, Option<serde_json::Value>, DateTime<Utc>)> = sqlx::query_as(
             "SELECT issue_id, data -> 'user', ingested_at FROM events \
              WHERE issue_id = ANY($1) AND ingested_at >= $2 \
-             AND ($3::TEXT IS NULL OR environment = $3)",
+             AND ($3::TEXT IS NULL OR environment = $3) \
+             AND ($4::TEXT IS NULL OR release = $4)",
         )
         .bind(issue_ids)
         .bind(start_dt)
-        .bind(environment)
+        .bind(scope.environment)
+        .bind(scope.release)
         .fetch_all(pool)
         .await?;
 
@@ -1489,9 +1491,13 @@ impl IssueService {
             qb.push(") AND datetime(ingested_at) >= datetime(");
             qb.push_bind(start_dt.naive_utc());
             qb.push(")");
-            if let Some(env) = environment {
+            if let Some(env) = scope.environment {
                 qb.push(" AND environment = ");
                 qb.push_bind(env);
+            }
+            if let Some(release) = scope.release {
+                qb.push(" AND release = ");
+                qb.push_bind(release);
             }
             qb.build_query_as().fetch_all(pool).await?
         };

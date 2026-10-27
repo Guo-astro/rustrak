@@ -441,7 +441,7 @@ export function ErrorVolumePanel({
               data={points.map((p) => ({
                 t: new Date(p.bucket).getTime(),
                 total: p.total,
-                previous: p.previous ?? 0,
+                previous: p.previous,
               }))}
               series={[
                 {
@@ -449,11 +449,17 @@ export function ErrorVolumePanel({
                   label: t('thisPeriod'),
                   color: 'var(--sev-error)',
                 },
-                {
-                  key: 'previous',
-                  label: t('previousPeriod'),
-                  color: 'var(--chart-muted)',
-                },
+                // No `previous` means the comparison did not load: no line,
+                // rather than a line of zeros that reads as a quiet period.
+                ...(points.some((p) => p.previous !== undefined)
+                  ? [
+                      {
+                        key: 'previous',
+                        label: t('previousPeriod'),
+                        color: 'var(--chart-muted)',
+                      },
+                    ]
+                  : []),
               ]}
               xKey="t"
               height={280}
