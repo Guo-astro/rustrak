@@ -384,10 +384,6 @@
     "detail": {
       "linkCopied": "已复制链接",
       "copyLink": "复制链接",
-      "moreArchiveOptions": "更多归档方式",
-      "archiveUntilEscalating": "归档直至升级",
-      "archiveUntilEscalatingHint": "若发生频率上升会重新出现",
-      "archiveForever": "永久归档",
       "status": "状态",
       "firstSeen": "首次出现于 {when}",
       "lastSeen": "最近出现于 {when}",

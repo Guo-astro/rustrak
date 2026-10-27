@@ -40,6 +40,9 @@ pub struct IssueTagValue {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TagSummary {
     pub key: String,
+    /// The scanned events carrying the tag, whatever its value: Sentry's
+    /// `totalValues` (`GroupTagKey.count`), so each top value's share is its
+    /// `count` over this.
     pub total_values: usize,
     pub top_values: Vec<TagValueCount>,
 }
@@ -1341,7 +1344,7 @@ impl IssueService {
         let mut tags: Vec<TagSummary> = tag_counts
             .into_iter()
             .map(|(key, values)| {
-                let total_values = values.len();
+                let total_values = values.values().sum::<i64>().max(0) as usize;
                 let mut top_values = sort_counts(values);
                 top_values.truncate(10);
                 TagSummary {

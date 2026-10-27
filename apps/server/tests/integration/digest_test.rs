@@ -2716,7 +2716,9 @@ async fn test_tag_values_and_aggregates() {
     let agg = IssueService::aggregates(&db.pool, issue_id).await.unwrap();
     assert_eq!(agg.user_count, 2); // user-1, user-2
     let browser = agg.tags.iter().find(|t| t.key == "browser").unwrap();
-    assert_eq!(browser.total_values, 2);
+    // Sentry's `totalValues`: the events carrying the tag (chrome 2 +
+    // firefox 1), not how many distinct values it has.
+    assert_eq!(browser.total_values, 3);
 }
 
 #[actix_web::test]

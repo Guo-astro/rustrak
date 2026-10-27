@@ -98,6 +98,15 @@ export function EventNavigator({
       setActive(sectionInView(tops, line, atEnd));
     };
     const onScroll = (event: Event) => {
+      // Only the scroller the bar lives in: the reading column, or the page
+      // itself (whose scroll event targets the document). The rail, a JSON
+      // block or any other nested scroller reaching its end says nothing
+      // about where the reading is.
+      const scroller =
+        event.target instanceof Element
+          ? event.target
+          : document.scrollingElement;
+      if (!scroller?.contains(barRef.current)) return;
       if (pinned.current) {
         clearTimeout(settle.current);
         settle.current = setTimeout(() => {
@@ -105,7 +114,7 @@ export function EventNavigator({
         }, 150);
         return;
       }
-      read(event.target instanceof Element ? event.target : null);
+      read(scroller);
     };
 
     document.addEventListener('scroll', onScroll, true);

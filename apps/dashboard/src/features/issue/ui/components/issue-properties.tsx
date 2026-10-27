@@ -2,9 +2,10 @@ import type { IssueResponse } from '@rustrak/client';
 import { Avatar, Button, cn, Menu, type MenuAction, Text } from '@rustrak/ui';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
+import { PRIORITIES } from '@/features/issue/model/actions';
 import type { Assignable } from '@/features/issue/model/assignable';
 import { priorityDisplay, statusDisplay } from '@/features/issue/model/status';
-import { PRIORITIES, useIssueChange } from './issue-actions';
+import { useIssueChange } from './issue-actions';
 
 export type { Assignable } from '@/features/issue/model/assignable';
 

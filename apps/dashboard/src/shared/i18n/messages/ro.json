@@ -384,10 +384,6 @@
     "detail": {
       "linkCopied": "Link copiat",
       "copyLink": "Copiază linkul",
-      "moreArchiveOptions": "Alte moduri de arhivare",
-      "archiveUntilEscalating": "Arhivează până escaladează",
-      "archiveUntilEscalatingHint": "Revine dacă începe să apară mai des",
-      "archiveForever": "Arhivează definitiv",
       "status": "Stare",
       "firstSeen": "Văzut prima dată {when}",
       "lastSeen": "Văzut ultima dată {when}",

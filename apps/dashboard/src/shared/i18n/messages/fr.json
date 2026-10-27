@@ -384,10 +384,6 @@
     "detail": {
       "linkCopied": "Lien copié",
       "copyLink": "Copier le lien",
-      "moreArchiveOptions": "Autres façons d’archiver",
-      "archiveUntilEscalating": "Archiver jusqu’à aggravation",
-      "archiveUntilEscalatingHint": "Revient si cela se produit davantage",
-      "archiveForever": "Archiver définitivement",
       "status": "Statut",
       "firstSeen": "Vu pour la première fois {when}",
       "lastSeen": "Vu pour la dernière fois {when}",
