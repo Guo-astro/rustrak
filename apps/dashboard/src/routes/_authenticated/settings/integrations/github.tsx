@@ -31,7 +31,13 @@ function GitHubIntegrationPage() {
   const { status, login } = Route.useLoaderData();
   const loginCard = login.success ? (
     <GitHubLoginCard login={login.data.login} />
-  ) : null;
+  ) : (
+    <LoadFailure
+      error={login.error}
+      title={t('integrations.githubLoadFailed')}
+      notFoundOnMissing={false}
+    />
+  );
 
   return (
     <>

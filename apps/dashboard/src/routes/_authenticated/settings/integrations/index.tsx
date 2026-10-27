@@ -10,6 +10,7 @@ import { translator } from '@/shared/i18n/intl';
 import { cn } from '@/shared/lib/utils';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
 import { Link } from '@/shared/ui/components/link';
+import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import {
   integrationProjectId,
@@ -76,6 +77,23 @@ function IntegrationsPage() {
           ) : null
         }
       />
+
+      {/* A failed read is said, not shown as nothing configured. GitHub's
+          403 is a member's normal answer: the connection is an admin's. */}
+      {integrations.success ? null : (
+        <LoadFailure
+          error={integrations.error}
+          title={t('integrations.loadFailed')}
+          notFoundOnMissing={false}
+        />
+      )}
+      {github.success || github.error.kind === 'forbidden' ? null : (
+        <LoadFailure
+          error={github.error}
+          title={t('integrations.githubLoadFailed')}
+          notFoundOnMissing={false}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2 2xl:grid-cols-3">
         <IntegrationCard

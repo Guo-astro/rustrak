@@ -412,7 +412,7 @@ async fn feedback_off_drops_a_feedback_sent_as_an_event() {
     });
 
     // An envelope carries one event item, so the feedback goes alone.
-    let _dir = send(
+    let dir = send(
         &db,
         project_id,
         &key,
@@ -420,9 +420,31 @@ async fn feedback_off_drops_a_feedback_sent_as_an_event() {
     )
     .await;
 
-    // Give the digest the time it would need, then check it stored nothing.
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    // The digest removes the event's file whether it stores or drops it, so
+    // an empty ingest directory means it has run: only then is "no issue" an
+    // answer rather than a digest that has not happened yet.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    while has_files(dir.path()) {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the digest must consume the event"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
     assert_eq!(count(&db, "issues", project_id).await, 0);
+}
+
+fn has_files(dir: &std::path::Path) -> bool {
+    std::fs::read_dir(dir).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            let path = entry.path();
+            if path.is_dir() {
+                has_files(&path)
+            } else {
+                true
+            }
+        })
+    })
 }
 
 #[actix_web::test]

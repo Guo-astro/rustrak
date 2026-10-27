@@ -64,7 +64,14 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
   const tNav = useTranslations('projects');
   const router = useRouter();
   const [state, setState] = useState<ProductsState>({
-    order: orderedProducts(project.product_order),
+    // Grouped as the sidebar shows them (a stable sort keeps the saved order
+    // inside each group), so an order saved interleaved through the API still
+    // reorders from the keyboard.
+    order: orderedProducts(project.product_order).sort(
+      (a, b) =>
+        Number(GROUP_OF.get(a) === 'monitor') -
+        Number(GROUP_OF.get(b) === 'monitor'),
+    ),
     disabled: project.disabled_products,
   });
   // The row being dragged, and the state from before the drag began: the
