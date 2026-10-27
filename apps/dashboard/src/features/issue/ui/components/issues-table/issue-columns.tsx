@@ -196,6 +196,7 @@ export function issueColumns({
       enableSorting: false,
       cell: ({ getValue }) => (
         <AssigneeCell
+          assignedTo={getValue()}
           member={members.find((member) => member.id === getValue())}
           me={me}
           t={t}
@@ -225,7 +226,7 @@ export function issueColumns({
       id: 'lastSeen',
       header: t('columns.lastSeen'),
       cell: ({ getValue }) => (
-        <span title={format.dateTime(new Date(getValue()), 'long')}>
+        <span title={format.dateTime(new Date(getValue()), 'precise')}>
           {relative(getValue())}
         </span>
       ),
@@ -242,7 +243,7 @@ export function issueColumns({
       id: 'firstSeen',
       header: t('columns.age'),
       cell: ({ getValue }) => (
-        <span title={format.dateTime(new Date(getValue()), 'long')}>
+        <span title={format.dateTime(new Date(getValue()), 'precise')}>
           {relative(getValue())}
         </span>
       ),
@@ -327,21 +328,32 @@ function IssueCell({
 }
 
 function AssigneeCell({
+  assignedTo,
   member,
   me,
   t,
 }: {
+  assignedTo: number | null | undefined;
   member: Assignable | undefined;
   me: number;
   t: ColumnContext['t'];
 }) {
   // Nobody is the common case; a word in every row would be the loudest
   // thing in the column.
-  if (!member) {
+  if (assignedTo == null) {
     return (
       <span className="text-fg-ghost" title={t('table.unassigned')}>
         –
       </span>
+    );
+  }
+  // Assigned to someone the member list cannot name: it has not loaded, did
+  // not load, or they have left the project. Still assigned, never "–".
+  if (!member) {
+    return (
+      <Text variant="meta" tone="subtle" truncate>
+        {assignedTo === me ? t('table.me') : t('table.assigned')}
+      </Text>
     );
   }
   return (

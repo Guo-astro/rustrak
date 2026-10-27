@@ -39,6 +39,18 @@ const SORTS: Record<string, NonNullable<ListQuery['sort']>> = {
   priority: 'priority',
 };
 
+/**
+ * The query with only the sorts the server applies. Another column id in the
+ * address would be ignored by the request and kept by the URL, the two
+ * disagreeing about what the list is sorted by.
+ */
+export function withServerSorts(query: DataTableQuery): DataTableQuery {
+  return {
+    ...query,
+    sorting: query.sorting.filter((sort) => sort.id in SORTS),
+  };
+}
+
 type ListQuery = NonNullable<IssuesListData['query']>;
 
 const STATUS: Record<IssueView, NonNullable<ListQuery['filter']>> = {

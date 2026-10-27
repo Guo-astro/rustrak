@@ -1,6 +1,6 @@
 import type { DataTableQuery } from '@rustrak/ui';
 import { describe, expect, it } from 'vitest';
-import { issueListParams } from './issue-table';
+import { issueListParams, withServerSorts } from './issue-table';
 
 const base: DataTableQuery = {
   sorting: [],
@@ -65,5 +65,21 @@ describe('issueListParams', () => {
         'open',
       ),
     ).toMatchObject({ assigned: 'none' });
+  });
+});
+
+describe('withServerSorts', () => {
+  it('keeps the sorts the server applies and drops any other', () => {
+    const query: DataTableQuery = {
+      ...base,
+      sorting: [
+        { id: 'nonsense', desc: false },
+        { id: 'events', desc: true },
+        { id: 'title', desc: false },
+      ],
+    };
+    expect(withServerSorts(query).sorting).toEqual([
+      { id: 'events', desc: true },
+    ]);
   });
 });

@@ -631,6 +631,44 @@ export const WalksRowsFromKeyboard: Story = {
   },
 };
 
+/** With a modifier held the keys are the browser's or the app's, not the row's. */
+export const LeavesModifiedKeysAlone: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [, first] = canvas.getAllByRole('row') as HTMLElement[];
+
+    first?.focus();
+    await userEvent.keyboard('{Control>}j{/Control}');
+    await expect(first).toHaveFocus();
+
+    await userEvent.keyboard('{Meta>}x{/Meta}');
+    await expect(first).not.toHaveAttribute('data-selected', 'true');
+  },
+};
+
+/** A cancelled touch or pen drag ends the resize, like a release does. */
+export const CancelledDragStopsResizing: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [handle] = canvas.getAllByRole('separator', {
+      name: 'Resize column',
+    });
+    if (!handle) throw new Error('no resize handle');
+    const pointer = (type: string, clientX: number) =>
+      new PointerEvent(type, { bubbles: true, clientX, pointerId: 1 });
+
+    handle.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointercancel', 100));
+    const before = handle.getAttribute('aria-valuenow');
+    window.dispatchEvent(pointer('pointermove', 300));
+
+    await expect(handle).not.toHaveAttribute('data-resizing');
+    await expect(handle.getAttribute('aria-valuenow')).toBe(before);
+  },
+};
+
 /** Every word comes from the provider, so a screen is never half translated. */
 export const SpeaksTheReadersLanguage: Story = {
   render: () => (

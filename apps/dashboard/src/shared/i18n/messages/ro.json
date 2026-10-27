@@ -78,7 +78,7 @@
     "selectAllPageRows": "Selectează toate rândurile din această pagină",
     "selectRow": "Selectează rândul",
     "expand": "Extinde",
-    "selected": "{count} selectate",
+    "selected": "{count, plural, one {# selectat} few {# selectate} other {# de selectate}}",
     "clearSelection": "Golește",
     "selectionToolbar": "Acțiuni pentru rândurile selectate",
     "noMatches": "Nimic nu corespunde filtrelor curente.",
@@ -362,6 +362,7 @@
       "highestPriority": "Prioritate mare întâi",
       "me": "Eu",
       "unassigned": "Neasignat",
+      "assigned": "Asignat",
       "oldest": "Cele mai vechi întâi",
       "newest": "Cele mai noi întâi",
       "environment": "Mediu",
@@ -371,11 +372,11 @@
       "unassign": "Elimină asignarea",
       "copyId": "Copiază ID-ul",
       "copied": "ID copiat",
-      "count": "{count} issue-uri",
+      "count": "{count, plural, one {{display} problemă} few {{display} probleme} other {{display} de probleme}}",
       "views": {
         "open": "Deschise",
         "resolved": "Rezolvate",
-        "muted": "Silențioase",
+        "muted": "Amuțite",
         "all": "Toate"
       }
     }

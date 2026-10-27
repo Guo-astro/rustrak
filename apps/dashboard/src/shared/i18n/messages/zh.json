@@ -362,6 +362,7 @@
       "highestPriority": "优先级从高到低",
       "me": "我",
       "unassigned": "未分配",
+      "assigned": "已分配",
       "oldest": "最早优先",
       "newest": "最新优先",
       "environment": "环境",
@@ -371,7 +372,7 @@
       "unassign": "取消分配",
       "copyId": "复制 ID",
       "copied": "已复制 ID",
-      "count": "{count} 个问题",
+      "count": "{display} 个问题",
       "views": {
         "open": "未解决",
         "resolved": "已解决",

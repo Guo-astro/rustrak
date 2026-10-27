@@ -16,6 +16,7 @@ import {
   ISSUE_VIEWS,
   type IssueView,
   issueListParams,
+  withServerSorts,
 } from '@/features/issue/model/issue-table';
 import { IssuesTable } from '@/features/issue/ui/components/issues-table/issues-table';
 import {
@@ -53,14 +54,39 @@ function tableQuery(search: IssuesSearch): DataTableQuery {
   return parseTableQuery(params, ISSUE_FILTER_VARIANTS, PAGE_SIZE);
 }
 
+/** A query and a view, written the way the address holds them. */
+function toSearch(query: DataTableQuery, view: IssueView): IssuesSearch {
+  const params = serializeTableQuery(query, ISSUE_FILTER_VARIANTS, PAGE_SIZE);
+  return {
+    view: view === 'open' ? undefined : view,
+    q: params.get('q') ?? undefined,
+    sort: params.get('sort') ?? undefined,
+    page: params.get('page') ?? undefined,
+    per: params.get('per') ?? undefined,
+  };
+}
+
 export const Route = createFileRoute('/_authenticated/projects/$id/issues/')({
-  validateSearch: (search: Record<string, unknown>): IssuesSearch => ({
-    view: searchOneOf(search.view, ISSUE_VIEWS),
-    q: searchString(search.q),
-    sort: searchString(search.sort),
-    page: searchString(String(search.page ?? '')) || undefined,
-    per: searchString(String(search.per ?? '')) || undefined,
-  }),
+  // Read and written back, so the address keeps only what the table reads:
+  // an unknown sort, or a page that is not a number, is dropped rather than
+  // left in a URL that no control shows.
+  validateSearch: (search: Record<string, unknown>): IssuesSearch => {
+    const view =
+      searchOneOf(search.view, ISSUE_VIEWS) ??
+      // What the list's address called it before the redesign: links saved
+      // then still open the view they name.
+      searchOneOf(search.filter, ISSUE_VIEWS) ??
+      'open';
+    const raw = (value: unknown) =>
+      searchString(value == null ? undefined : String(value));
+    const query = tableQuery({
+      q: raw(search.q),
+      sort: raw(search.sort),
+      page: raw(search.page),
+      per: raw(search.per),
+    });
+    return toSearch(withServerSorts(query), view);
+  },
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
@@ -128,18 +154,20 @@ function IssuesPage() {
 
   const [project, page] = loaded.data;
 
-  const setQuery = (next: DataTableQuery, nextView: IssueView = view) => {
-    const params = serializeTableQuery(next, ISSUE_FILTER_VARIANTS, PAGE_SIZE);
+  // Each change applies to the address as it is when it lands, not as it was
+  // when this render read it: two changes in one gesture (clearing the
+  // filters and then the search) must not have the second undo the first.
+  const setQuery = (
+    update: (previous: DataTableQuery) => DataTableQuery,
+    nextView?: IssueView,
+  ) =>
     navigate({
-      search: {
-        view: nextView === 'open' ? undefined : nextView,
-        q: params.get('q') ?? undefined,
-        sort: params.get('sort') ?? undefined,
-        page: params.get('page') ?? undefined,
-        per: params.get('per') ?? undefined,
-      },
+      search: (previous) =>
+        toSearch(
+          update(tableQuery(previous)),
+          nextView ?? previous.view ?? 'open',
+        ),
     });
-  };
 
   return (
     <div className="flex h-full flex-col">
@@ -149,7 +177,8 @@ function IssuesPage() {
         summary={[
           t('issues.subtitle', { project: project.name }),
           tIssues('table.count', {
-            count: format.number(page.total_count),
+            count: page.total_count,
+            display: format.number(page.total_count),
           }),
         ]}
         tabs={
@@ -157,10 +186,10 @@ function IssuesPage() {
             value={view}
             onValueChange={(next) =>
               setQuery(
-                {
-                  ...query,
-                  pagination: { ...query.pagination, pageIndex: 0 },
-                },
+                (previous) => ({
+                  ...previous,
+                  pagination: { ...previous.pagination, pageIndex: 0 },
+                }),
                 next as IssueView,
               )
             }
@@ -181,7 +210,7 @@ function IssuesPage() {
           projectId={projectId}
           page={page}
           query={query}
-          onQueryChange={(updater) => setQuery(updater(query))}
+          onQueryChange={setQuery}
           loading={loading}
           me={me}
           members={

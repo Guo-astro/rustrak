@@ -78,7 +78,7 @@
     "selectAllPageRows": "Sélectionner toutes les lignes de cette page",
     "selectRow": "Sélectionner la ligne",
     "expand": "Développer",
-    "selected": "{count} sélectionnés",
+    "selected": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
     "clearSelection": "Effacer",
     "selectionToolbar": "Actions pour les lignes sélectionnées",
     "noMatches": "Rien ne correspond aux filtres actuels.",
@@ -362,6 +362,7 @@
       "highestPriority": "Priorité la plus haute d’abord",
       "me": "Moi",
       "unassigned": "Non assigné",
+      "assigned": "Assigné",
       "oldest": "Plus anciens d’abord",
       "newest": "Plus récents d’abord",
       "environment": "Environnement",
@@ -371,12 +372,12 @@
       "unassign": "Désassigner",
       "copyId": "Copier l’ID",
       "copied": "ID copié",
-      "count": "{count} issues",
+      "count": "{count, plural, one {{display} problème} other {{display} problèmes}}",
       "views": {
-        "open": "Ouvertes",
-        "resolved": "Résolues",
-        "muted": "Masquées",
-        "all": "Toutes"
+        "open": "Ouvert",
+        "resolved": "Résolu",
+        "muted": "En sourdine",
+        "all": "Tous"
       }
     }
   },
