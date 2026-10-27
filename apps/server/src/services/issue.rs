@@ -1715,8 +1715,10 @@ const ENV_SCOPED_COLUMNS: &str = "i.id, i.project_id, i.digest_order, i.numeric_
 fn narrowing_clause(filters: &IssueFilters, binds: &mut Vec<String>) -> String {
     let mut clause = String::new();
 
+    // An issue stored without a level is an error, as Sentry reads an event
+    // that sent none and as the list shows it: the filter has to agree.
     for (column, values) in [
-        ("level", &filters.levels),
+        ("COALESCE(level, 'error')", &filters.levels),
         ("priority", &filters.priorities),
     ] {
         if values.is_empty() {

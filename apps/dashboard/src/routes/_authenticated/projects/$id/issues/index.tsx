@@ -16,7 +16,7 @@ import {
   ISSUE_VIEWS,
   type IssueView,
   issueListParams,
-  withServerSorts,
+  withServerQuery,
 } from '@/features/issue/model/issue-table';
 import { IssuesTable } from '@/features/issue/ui/components/issues-table/issues-table';
 import {
@@ -85,7 +85,7 @@ export const Route = createFileRoute('/_authenticated/projects/$id/issues/')({
       page: raw(search.page),
       per: raw(search.per),
     });
-    return toSearch(withServerSorts(query), view);
+    return toSearch(withServerQuery(query, PAGE_SIZE), view);
   },
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) => {
@@ -210,6 +210,7 @@ function IssuesPage() {
           projectId={projectId}
           page={page}
           query={query}
+          view={view}
           onQueryChange={setQuery}
           loading={loading}
           me={me}

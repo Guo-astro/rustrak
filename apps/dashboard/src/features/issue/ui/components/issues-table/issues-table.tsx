@@ -41,6 +41,7 @@ import {
   deleteIssue,
   updateIssueState,
 } from '@/features/issue/api/mutations';
+import type { IssueView } from '@/features/issue/model/issue-table';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 import { DeleteIssuesDialog } from './delete-issues-dialog';
 import { type Assignable, issueColumns } from './issue-columns';
@@ -60,6 +61,7 @@ interface IssuesTableProps {
   projectId: number;
   page: IssuesListResponse;
   query: DataTableQuery;
+  view: IssueView;
   onQueryChange: (
     updater: (previous: DataTableQuery) => DataTableQuery,
   ) => void;
@@ -81,6 +83,7 @@ export function IssuesTable({
   projectId,
   page,
   query,
+  view,
   onQueryChange,
   loading,
   members,
@@ -97,8 +100,8 @@ export function IssuesTable({
   const [now] = useState(() => Date.now());
 
   const columns = useMemo(
-    () => issueColumns({ t, format, members, me, now }),
-    [t, format, members, me, now],
+    () => issueColumns({ projectId, t, format, members, me, now }),
+    [projectId, t, format, members, me, now],
   );
 
   const fields = useMemo<QueryField[]>(
@@ -226,10 +229,12 @@ export function IssuesTable({
         }
         empty={{
           title: t('empty.title'),
+          // True only of an empty Open view with nothing narrowing it: an
+          // empty Resolved view says nothing about what is still open.
           description:
-            query.filters.length || query.search
-              ? undefined
-              : t('empty.allResolved'),
+            view === 'open' && !query.filters.length && !query.search
+              ? t('empty.allResolved')
+              : undefined,
         }}
         bulkActions={
           <BulkActions

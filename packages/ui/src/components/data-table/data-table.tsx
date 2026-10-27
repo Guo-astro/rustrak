@@ -522,6 +522,8 @@ function Resizer<TData extends RowData>({
     handle.parentElement?.getBoundingClientRect().width ?? width ?? 0;
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
+    // The primary button only: a right-click opens a menu, it does not drag.
+    if (event.button !== 0) return;
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = drawnWidth(event.currentTarget);

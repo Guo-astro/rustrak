@@ -14,6 +14,7 @@ import {
 } from '@rustrak/ui';
 import type { useFormatter, useTranslations } from 'use-intl';
 import { SEEN_WINDOWS } from '@/features/issue/model/issue-table';
+import { Link } from '@/shared/ui/components/link';
 
 /** Someone an issue can be assigned to. */
 export interface Assignable {
@@ -51,6 +52,7 @@ const SUBSTATUS_TONE: Record<string, TagTone> = {
 const NEW_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface ColumnContext {
+  projectId: number;
   t: ReturnType<typeof useTranslations<'issues'>>;
   format: ReturnType<typeof useFormatter>;
   members: Assignable[];
@@ -69,6 +71,7 @@ const column = createDataTableColumnHelper<IssueResponse>();
  * you sort or filter by, at a fixed width the reader can drag.
  */
 export function issueColumns({
+  projectId,
   t,
   format,
   members,
@@ -91,7 +94,14 @@ export function issueColumns({
       header: t('columns.issue'),
       enableHiding: false,
       enableSorting: false,
-      cell: ({ row }) => <IssueCell issue={row.original} now={now} t={t} />,
+      cell: ({ row }) => (
+        <IssueCell
+          issue={row.original}
+          href={`/projects/${projectId}/issues/${row.original.id}`}
+          now={now}
+          t={t}
+        />
+      ),
       meta: { label: t('columns.issue') },
     }),
     column.accessor('level', {
@@ -281,10 +291,13 @@ function issueBadge(
 /** Title, then the short id, where it fails and what is unusual about it. */
 function IssueCell({
   issue,
+  href,
   now,
   t,
 }: {
   issue: IssueResponse;
+  /** The title is a real link, so it opens in a new tab like any other. */
+  href: string;
   now: number;
   t: ColumnContext['t'];
 }) {
@@ -302,16 +315,18 @@ function IssueCell({
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="flex min-w-0 items-center gap-2">
           {/* An issue the reader has not opened yet reads brighter. */}
-          <Text
-            variant="value"
-            truncate
+          {/* The row opens the issue on a click anywhere; the title is also
+              a link, so a middle-click or "open in new tab" works on it. The
+              row ignores clicks on links, so the two never both navigate. */}
+          <Link
+            href={href}
             className={cn(
-              'font-medium',
+              'min-w-0 truncate text-value font-medium hover:underline',
               issue.has_seen === false ? 'text-fg' : 'text-fg-secondary',
             )}
           >
             {issue.title}
-          </Text>
+          </Link>
           {badge ? (
             <Tag variant="soft" tone={badge.tone} className="shrink-0">
               {t(`issueStatus.${badge.key}`)}
