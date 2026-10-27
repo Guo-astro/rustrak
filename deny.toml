@@ -20,6 +20,15 @@ ignore = [
     { id = "RUSTSEC-2026-0367", reason = "zip 7 extract() is never called (symbolic-debuginfo reads entries only)" },
     { id = "RUSTSEC-2026-0368", reason = "zip 7 extract() is never called (symbolic-debuginfo reads entries only)" },
     { id = "RUSTSEC-2026-0369", reason = "zip 7 extract() is never called (symbolic-debuginfo reads entries only)" },
+    # `zstd` 0.13 / `zstd-safe` 7, pulled in by `symbolic-debuginfo` (up to
+    # 14.0-alpha it requires ^0.13.1), which only calls `zstd::bulk::decompress`
+    # on compressed ELF sections. 0391 is `with_context` stream reuse, 0398
+    # needs the `seekable` feature (not enabled), and 0403's own text exempts
+    # the bulk API. Rustrak's own `zstd` is 0.14.3. Drop these once symbolic
+    # moves to zstd 0.14.
+    { id = "RUSTSEC-2026-0391", reason = "zstd 0.13 is only used through the bulk API (symbolic-debuginfo); no with_context streams" },
+    { id = "RUSTSEC-2026-0398", reason = "zstd-safe 7 seekable feature is not enabled" },
+    { id = "RUSTSEC-2026-0403", reason = "zstd 0.13 is only used through the bulk API (symbolic-debuginfo), which the advisory exempts" },
 ]
 [licenses]
 version = 2
