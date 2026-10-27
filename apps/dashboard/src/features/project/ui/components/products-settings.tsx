@@ -73,13 +73,22 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
     product: Product;
     before: ProductsState;
   } | null>(null);
+  // One save at a time: each sends both lists whole, so two in flight could
+  // land out of order and the older one would win.
+  const [saving, setSaving] = useState(false);
 
   const save = async (next: ProductsState, previous = state) => {
     setState(next);
-    const result = await updateProject(project.id, {
-      product_order: next.order,
-      disabled_products: next.disabled,
-    });
+    setSaving(true);
+    let result: Awaited<ReturnType<typeof updateProject>>;
+    try {
+      result = await updateProject(project.id, {
+        product_order: next.order,
+        disabled_products: next.disabled,
+      });
+    } finally {
+      setSaving(false);
+    }
     if (!result.success) {
       setState(previous);
       toast.error(t('products.saveFailed'), {
@@ -104,10 +113,17 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
     return order;
   };
 
+  // A product moves within its sidebar group: the sidebar lists Triage and
+  // Monitor under their own headings, so an order across them could not show.
+  const sameGroup = (a: Product, b: Product | undefined) =>
+    b !== undefined && GROUP_OF.get(a) === GROUP_OF.get(b);
+
   const move = (product: Product, to: number) => {
     const order = reorder(product, to);
     if (order.join() !== state.order.join()) save({ ...state, order });
   };
+
+  const performanceOff = state.disabled.includes('performance');
 
   return (
     <SettingSection
@@ -126,14 +142,18 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
           return (
             <li
               key={product}
-              draggable
+              draggable={!saving}
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move';
                 setDrag({ product, before: state });
               }}
               onDragOver={(event) => {
                 event.preventDefault();
-                if (drag && drag.product !== product) {
+                if (
+                  drag &&
+                  drag.product !== product &&
+                  sameGroup(drag.product, product)
+                ) {
                   setState({ ...state, order: reorder(drag.product, index) });
                 }
               }}
@@ -185,13 +205,17 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
                 <ReorderButton
                   label={t('products.moveUp', { name })}
                   icon={ChevronUpIcon}
-                  disabled={index === 0}
+                  disabled={
+                    saving || !sameGroup(product, state.order[index - 1])
+                  }
                   onClick={() => move(product, index - 1)}
                 />
                 <ReorderButton
                   label={t('products.moveDown', { name })}
                   icon={ChevronDownIcon}
-                  disabled={index === state.order.length - 1}
+                  disabled={
+                    saving || !sameGroup(product, state.order[index + 1])
+                  }
                   onClick={() => move(product, index + 1)}
                 />
               </div>
@@ -208,8 +232,7 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
                     // Agents rides on performance: with that off there is
                     // nothing for it to keep, so it waits for performance.
                     disabled={
-                      product === 'agents' &&
-                      state.disabled.includes('performance')
+                      saving || (product === 'agents' && performanceOff)
                     }
                     onCheckedChange={(checked) => toggle(product, checked)}
                   />

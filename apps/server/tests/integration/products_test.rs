@@ -369,6 +369,63 @@ async fn agents_off_drops_only_the_ai_spans() {
 }
 
 #[actix_web::test]
+async fn agents_off_keeps_ai_data_out_of_the_stored_transaction() {
+    let db = TestDb::new().await;
+    let (project_id, key) = project_without(&db, "No agents", vec![Product::Agents]).await;
+    let (header, payload) = transaction_item(json!([
+        span("a1b2c3d4e5f60718", "db"),
+        span("b1b2c3d4e5f60718", "gen_ai.chat"),
+    ]));
+    // An AI trace root: some SDKs send it inline on contexts.trace.
+    let mut txn: serde_json::Value = serde_json::from_str(&payload).unwrap();
+    txn["contexts"]["trace"]["op"] = json!("gen_ai.invoke_agent");
+    txn["contexts"]["trace"]["data"] = json!({ "gen_ai.operation.name": "invoke_agent" });
+
+    let _dir = send(&db, project_id, &key, &[(header, txn.to_string())]).await;
+
+    let data: sqlx::types::Json<serde_json::Value> =
+        sqlx::query_scalar("SELECT data FROM transactions WHERE project_id = $1")
+            .bind(project_id)
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
+    let ops: Vec<&str> = data.0["spans"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["op"].as_str())
+        .collect();
+    assert_eq!(ops, vec!["db"], "the stored payload is not a second copy");
+    assert!(data.0["contexts"]["trace"].get("data").is_none());
+}
+
+#[actix_web::test]
+async fn feedback_off_drops_a_feedback_sent_as_an_event() {
+    let db = TestDb::new().await;
+    let (project_id, key) = project_without(&db, "No feedback", vec![Product::Feedback]).await;
+    let feedback = json!({
+        "type": "feedback",
+        "event_id": Uuid::new_v4().simple().to_string(),
+        "timestamp": 1704801600.0_f64,
+        "platform": "javascript",
+        "contexts": { "feedback": { "message": "the button does nothing" } }
+    });
+
+    // An envelope carries one event item, so the feedback goes alone.
+    let _dir = send(
+        &db,
+        project_id,
+        &key,
+        &[(json!({ "type": "event" }), feedback.to_string())],
+    )
+    .await;
+
+    // Give the digest the time it would need, then check it stored nothing.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(count(&db, "issues", project_id).await, 0);
+}
+
+#[actix_web::test]
 async fn performance_off_turns_agents_off_with_it() {
     let db = TestDb::new().await;
     let (project_id, _) = project_without(&db, "No perf", vec![Product::Performance]).await;

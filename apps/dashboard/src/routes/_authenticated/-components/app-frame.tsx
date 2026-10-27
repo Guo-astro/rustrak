@@ -411,6 +411,12 @@ function SettingsNav({
   const tSettings = useTranslations('settings');
   const pathname = usePathname();
   const base = project ? `/projects/${project.id}` : '';
+  // The list is capped; the project you are in is listed whether it made the
+  // cut or not, since its settings pages have no other way in.
+  const listed =
+    project && !projects.some((p) => p.id === project.id)
+      ? [project, ...projects]
+      : projects;
   return (
     <>
       <SidebarItem
@@ -430,9 +436,9 @@ function SettingsNav({
           ),
         )}
       </SidebarGroup>
-      {projects.length > 0 ? (
+      {listed.length > 0 ? (
         <SidebarGroup label={t('switcher.projects')}>
-          {projects.map((option) => {
+          {listed.map((option) => {
             const optionBase = `/projects/${option.id}/settings`;
             return (
               <SidebarSubmenu

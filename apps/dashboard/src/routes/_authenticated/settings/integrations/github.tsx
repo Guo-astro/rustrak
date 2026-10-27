@@ -29,6 +29,9 @@ function GitHubIntegrationPage() {
   const t = useTranslations('settings');
   const tGitHub = useTranslations('github');
   const { status, login } = Route.useLoaderData();
+  const loginCard = login.success ? (
+    <GitHubLoginCard login={login.data.login} />
+  ) : null;
 
   return (
     <>
@@ -44,12 +47,11 @@ function GitHubIntegrationPage() {
         description={tGitHub('connection.description')}
       />
       {status.success ? (
-        <GitHubIntegration
-          status={status.data}
-          login={
-            login.success ? <GitHubLoginCard login={login.data.login} /> : null
-          }
-        />
+        <GitHubIntegration status={status.data} login={loginCard} />
+      ) : status.error.kind === 'forbidden' ? (
+        // The app and its installations are an admin's; which GitHub account
+        // is theirs is every member's to set.
+        loginCard
       ) : (
         <LoadFailure
           error={status.error}
