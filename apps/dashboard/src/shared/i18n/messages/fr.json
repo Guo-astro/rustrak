@@ -653,7 +653,7 @@
     },
     "summary": {
       "withFatal": "{count, plural, one {# avec erreurs fatales} other {# avec erreurs fatales}}",
-      "events24h": "{count} événements en 24 h"
+      "events24h": "{count, plural, one {{display} événement en 24 h} other {{display} événements en 24 h}}"
     }
   },
   "alerts": {
@@ -1617,7 +1617,7 @@
       "levelWarning": "Avertissement",
       "levelInfo": "Info",
       "issues": "Issues ouvertes",
-      "issuesDescription": "À regarder en premier",
+      "issuesDescription": "À regarder en premier, depuis le début",
       "issuesRecent": "Récentes",
       "issuesNew": "Nouvelles",
       "issuesFrequent": "Plus d’événements",

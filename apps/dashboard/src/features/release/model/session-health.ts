@@ -23,6 +23,10 @@ export const OVERVIEW_PERIODS = ['24h', '7d', '14d', '30d'] as const;
 
 export type OverviewPeriod = (typeof OVERVIEW_PERIODS)[number];
 
+/** What `?period=` can hold. Absent is the default window, not all time. */
+export const PERIOD_CHOICES = [...OVERVIEW_PERIODS, 'all'] as const;
+export type PeriodChoice = (typeof PERIOD_CHOICES)[number];
+
 /** Narrow a raw `?period=` value to a supported window, or undefined ("All"). */
 export function parseOverviewPeriod(raw?: string): OverviewPeriod | undefined {
   return OVERVIEW_PERIODS.find((p) => p === raw);

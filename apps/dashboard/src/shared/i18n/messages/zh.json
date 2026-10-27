@@ -653,7 +653,7 @@
     },
     "summary": {
       "withFatal": "{count} 个有致命错误",
-      "events24h": "24 小时内 {count} 个事件"
+      "events24h": "24 小时内 {display} 个事件"
     }
   },
   "alerts": {
@@ -1617,7 +1617,7 @@
       "levelWarning": "警告",
       "levelInfo": "信息",
       "issues": "未解决问题",
-      "issuesDescription": "优先查看",
+      "issuesDescription": "优先查看（全部时间）",
       "issuesRecent": "最近",
       "issuesNew": "新增",
       "issuesFrequent": "事件最多",

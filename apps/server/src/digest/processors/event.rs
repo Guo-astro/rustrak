@@ -7,7 +7,7 @@ use crate::ingest::storage::{delete_event_at, read_event_with_location, EventSto
 #[cfg(feature = "sqlite")]
 use crate::ingest::storage::{delete_paths, event_paths_at};
 use crate::ingest::EventMetadata;
-use crate::models::{AlertType, Grouping, Issue};
+use crate::models::{AlertType, Grouping, Issue, Product};
 use crate::services::rate_limit::QuotaScope;
 use crate::services::sourcemap::SourceMapProvider;
 use crate::services::{
@@ -157,6 +157,14 @@ impl ErrorProcessor {
         let attachments = feedback::take_attachments(&mut event_data);
         // A feedback Sentry would filter is dropped here, like an invalid event.
         let feedback = Feedback::from_event(&event_data)?;
+        // Checked here and not at ingest: a feedback also arrives as an event
+        // of type `feedback` and from the user-report endpoint, and every one
+        // of them is digested through this line.
+        if feedback.is_some() && !project.keeps(Product::Feedback) {
+            return Err(AppError::Validation(
+                "feedback dropped: turned off for this project".to_string(),
+            ));
+        }
         // A feedback occurrence defaults to `info`, and the event, its issue
         // and its alert rules all read that level from here.
         if feedback.is_some()
