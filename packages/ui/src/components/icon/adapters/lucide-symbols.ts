@@ -60,6 +60,7 @@ export {
   Palette,
   PanelLeft,
   PanelRight,
+  Paperclip,
   Pencil,
   Play,
   Plug,

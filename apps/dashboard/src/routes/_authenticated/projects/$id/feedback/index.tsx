@@ -16,9 +16,9 @@ import { useTranslations } from 'use-intl';
 import { updateIssueState } from '@/features/issue/api/mutations';
 import { listFeedback } from '@/features/issue/api/queries';
 import {
+  landingAfter,
   MAILBOX_FILTER,
   MAILBOXES,
-  nextAfter,
 } from '@/features/issue/model/feedback-mailbox';
 import { FeedbackDetail } from '@/features/issue/ui/components/feedback-detail';
 import { FeedbackList } from '@/features/issue/ui/components/feedback-list';
@@ -103,6 +103,9 @@ function FeedbackPage() {
   const ids = items.map((item) => item.id);
   // One is always open: the one the URL names, else the newest.
   const current = items.find((item) => item.id === search.selected) ?? items[0];
+  // Narrow, the pane shows only once the reader picked a row on this page;
+  // a stale `?selected=` falls back to the list, not to `items[0]`'s pane.
+  const opened = current !== undefined && current.id === search.selected;
   const isPending = isLoading || isUpdating;
 
   const select = (selected: string | undefined) =>
@@ -124,7 +127,22 @@ function FeedbackPage() {
         });
         return;
       }
-      await select(nextAfter(ids, current.id));
+      const landing = landingAfter(ids, current.id, page);
+      await navigate({
+        // A reader who opened another row, page or mailbox while this saved
+        // keeps it: the landing belongs to the row they acted on.
+        search: (prev) =>
+          prev.selected !== search.selected ||
+          prev.mailbox !== search.mailbox ||
+          prev.page !== search.page
+            ? prev
+            : {
+                ...prev,
+                page: landing.page === 1 ? undefined : landing.page,
+                selected: landing.selected,
+              },
+        replace: true,
+      });
       router.refresh();
     });
   };
@@ -188,7 +206,7 @@ function FeedbackPage() {
           <div
             className={cn(
               'min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-border bg-panel lg:flex lg:w-96 lg:flex-none xl:w-[28rem]',
-              search.selected ? 'hidden' : 'flex',
+              opened ? 'hidden' : 'flex',
             )}
           >
             <FeedbackList
@@ -212,7 +230,7 @@ function FeedbackPage() {
             className={cn(
               // A card beside the list; on its own on a phone, the page is the card.
               'min-h-0 flex-1 flex-col overflow-hidden lg:flex lg:rounded-lg lg:border lg:border-border lg:bg-panel',
-              search.selected ? 'flex' : 'hidden',
+              opened ? 'flex' : 'hidden',
             )}
           >
             <FeedbackDetail
