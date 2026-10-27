@@ -31,17 +31,14 @@ import {
   scopeEnter,
   TeamIcon,
 } from '@rustrak/ui';
-import { useMatch } from '@tanstack/react-router';
+import { useLoaderData, useMatch } from '@tanstack/react-router';
 import { PlatformIcon } from 'platformicons';
 import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
-import { getProjects } from '@/features/project/api/queries';
 import { toCommandProjects } from '@/features/project/lib/command-items';
 import { logout } from '@/features/user/api/mutations';
-import { COMMAND_BAR_PROJECT_LIMIT } from '@/shared/config/commands';
 import { CommandBar } from '@/shared/ui/components/command-bar/command-bar';
 import { Link } from '@/shared/ui/components/link';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 import { usePathname } from '@/shared/ui/hooks/use-pathname';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
@@ -179,15 +176,12 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   const project = useCurrentProject();
   const [signingOut, startSignOut] = useTransition();
 
-  // One read for the switcher and the command bar. A failed or pending read
-  // still renders both: the static commands are the bulk of the bar, and an
-  // empty switcher still leads to "All projects".
-  const read = useAsync(
-    () => getProjects({ per_page: COMMAND_BAR_PROJECT_LIMIT }),
-    [],
-  );
-  const projects =
-    read.state === 'ready' && read.data.success ? read.data.data.items : [];
+  // One read for the switcher and the command bar, from the layout's loader so
+  // a created or deleted project shows up on the next navigation or refresh.
+  // A failed read still renders both: the static commands are the bulk of the
+  // bar, and an empty switcher still leads to "All projects".
+  const read = useLoaderData({ from: '/_authenticated' });
+  const projects = read.success ? read.data.items : [];
 
   const base = project ? `/projects/${project.id}` : '';
   const active = project ? activeRoute(pathname, base) : undefined;

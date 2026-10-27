@@ -13,23 +13,24 @@ function ProjectSettingsLayout() {
   const projectId = Number.parseInt(id, 10);
 
   return (
-    <div className="w-full">
-      <div className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background px-4 py-3 md:hidden">
+    // Same shape as `/settings`: the nav stays put, the content column scrolls.
+    <div className="flex h-full w-full flex-col">
+      <div className="z-30 flex items-center gap-3 border-b bg-background px-4 py-3 md:hidden">
         <ProjectSettingsMobileNav projectId={projectId} />
         <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
           {t('nav.projectSettingsTitle')}
         </span>
       </div>
 
-      <div className="flex min-h-full">
-        <aside className="sticky top-0 hidden h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-border p-6 md:flex">
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-border p-6 md:flex">
           <h2 className="mb-4 px-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
             {t('nav.projectSettingsTitle')}
           </h2>
           <ProjectSettingsNav projectId={projectId} />
         </aside>
 
-        <div className="min-w-0 flex-1 p-4 md:p-8">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
           <Outlet />
         </div>
       </div>

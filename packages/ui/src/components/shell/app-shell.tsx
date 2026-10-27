@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import { tv } from '../../lib/tv';
 import type { IconComponent } from '../icon/icon';
 import { TooltipProvider } from '../tooltip/tooltip';
 import {
@@ -159,6 +160,14 @@ export function Page({ children, className, scroll = true }: PageProps) {
 
 Page.displayName = 'Page';
 
+/** Tabs sit on the bottom rule, so only a header without them pads above it. */
+const pageHeader = tv({
+  base: 'shrink-0 border-b border-border-divider px-page-gutter pt-5.5',
+  variants: {
+    tabs: { true: '', false: 'pb-5' },
+  },
+});
+
 export interface PageHeaderProps {
   title: ReactNode;
   /** The route's icon, in a tile beside the title. */
@@ -192,13 +201,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div
-      className={cn(
-        'shrink-0 border-b border-border-divider px-page-gutter pt-5.5',
-        tabs ? null : 'pb-5',
-        className,
-      )}
-    >
+    <div className={pageHeader({ tabs: Boolean(tabs), className })}>
       <div className="flex items-center gap-3.5">
         {Icon ? (
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-fg-secondary">
