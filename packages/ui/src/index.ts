@@ -185,7 +185,6 @@ export {
 export type { DataTableLabels } from './components/data-table/labels';
 export {
   DataTableLabelsProvider,
-  ENGLISH_LABELS,
   useDataTableLabels,
 } from './components/data-table/labels';
 export type { DataTablePaginationProps } from './components/data-table/pagination';
