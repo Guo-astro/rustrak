@@ -60,7 +60,7 @@ export function withServerQuery(
   query: DataTableQuery,
   pageSize = 50,
 ): DataTableQuery {
-  const sort = query.sorting.find((s) => s.id in SORTS);
+  const sort = query.sorting.find((s) => Object.hasOwn(SORTS, s.id));
   const filters = query.filters.flatMap((filter) => {
     const allowed = FIXED_VALUES[filter.id];
     if (!allowed || !Array.isArray(filter.value)) return [filter];
@@ -136,7 +136,8 @@ export function issueListParams(
   }
 
   const sort = query.sorting[0];
-  params.sort = (sort && SORTS[sort.id]) || 'last_seen';
+  params.sort =
+    (sort && Object.hasOwn(SORTS, sort.id) && SORTS[sort.id]) || 'last_seen';
   params.order = sort && !sort.desc ? 'asc' : 'desc';
   params.page = query.pagination.pageIndex + 1;
   params.per_page = query.pagination.pageSize;

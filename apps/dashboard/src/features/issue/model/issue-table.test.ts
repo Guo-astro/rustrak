@@ -74,6 +74,8 @@ describe('withServerQuery', () => {
       ...base,
       sorting: [
         { id: 'nonsense', desc: false },
+        // An inherited key is not a sort: `toString` is on every object.
+        { id: 'toString', desc: false },
         { id: 'events', desc: true },
         { id: 'priority', desc: false },
       ],
