@@ -160,6 +160,34 @@ export const CompleteAFilter: Story = {
   },
 };
 
+/**
+ * A value picked after some free text keeps the field open on its values:
+ * the text goes out as the search, and the next pick is one keystroke away.
+ */
+export const PicksAfterASearchKeepTheValues: Story = {
+  render: () => <Harness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole('combobox');
+
+    await userEvent.click(input);
+    await userEvent.keyboard('timeout level:err');
+    await userEvent.click(await canvas.findByRole('option', { name: /Error/ }));
+
+    await waitFor(() =>
+      expect(canvas.getByTestId('committed').textContent).toContain(
+        'search="timeout"',
+      ),
+    );
+    // Level is multiple, so it stays picked: every one of its values is still
+    // on offer, not filtered by the search text it was typed after.
+    await expect(input).toHaveValue('timeout ');
+    await expect(
+      await canvas.findByRole('option', { name: /Warning/ }),
+    ).toBeInTheDocument();
+  },
+};
+
 /** What no key claims is the search, and Enter is what sends it. */
 export const FreeText: Story = {
   render: () => <Harness />,

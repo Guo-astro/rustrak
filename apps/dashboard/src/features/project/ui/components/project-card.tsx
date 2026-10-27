@@ -20,6 +20,12 @@ import {
 import { Link } from '@/shared/ui/components/link';
 import { MetricDeltaText } from '@/shared/ui/components/metric-delta';
 
+/**
+ * Floor for the activity strip: it counts issues, and three concurrent issues
+ * is already a busy hour for one project.
+ */
+const TREND_MIN_SCALE = 4;
+
 interface ProjectCardProps {
   project: ProjectResponse;
   onDelete: (project: ProjectResponse) => void;
@@ -43,7 +49,9 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
   const format = useFormatter();
   const { stats } = project;
   const health = stats ? projectHealth(stats) : 'quiet';
-  const waiting = project.stored_event_count === 0;
+  // `digested`, not `stored`: retention empties the store of a project that
+  // has long been sending events.
+  const waiting = project.digested_event_count === 0;
 
   return (
     <article
@@ -64,7 +72,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
           format="lg"
           className="shrink-0 rounded-lg"
         />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-24 flex-1 flex-col">
           <Link
             href={`/projects/${project.id}`}
             className={cn(
@@ -138,6 +146,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
             values={stats.trend}
             tone={health === 'critical' ? 'danger' : 'neutral'}
             label={t('trendLabel', { label: t('columns.issueActivity') })}
+            minScale={TREND_MIN_SCALE}
             className="h-10 w-full"
           />
         ) : (
@@ -230,12 +239,16 @@ function HealthBadge({
   return (
     <span
       className={cn(
-        'flex h-6 shrink-0 items-center gap-1.5 rounded-md px-2 text-meta font-medium',
+        // Shrinks before the name does: on a phone the name is what matters.
+        'flex h-6 min-w-0 items-center gap-1.5 rounded-md px-2 text-meta font-medium',
         tone,
       )}
     >
-      <span aria-hidden="true" className="size-1.5 rounded-pill bg-current" />
-      {label}
+      <span
+        aria-hidden="true"
+        className="size-1.5 shrink-0 rounded-pill bg-current"
+      />
+      <span className="truncate">{label}</span>
     </span>
   );
 }

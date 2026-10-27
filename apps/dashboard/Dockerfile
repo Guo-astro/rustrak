@@ -28,8 +28,9 @@ WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
-# `@rustrak/client` is a workspace dependency compiled by its own build.
-RUN pnpm --filter @rustrak/client build && pnpm --filter @rustrak/dashboard build
+# `@rustrak/client` and `@rustrak/ui` are workspace dependencies compiled by
+# their own builds; the trailing `...` builds them first, in dependency order.
+RUN pnpm --filter "@rustrak/dashboard..." build
 
 # ── Stage 3: nginx ───────────────────────────────────────────────────────────
 # `nginx-unprivileged` runs as uid 101 from the first instruction and listens

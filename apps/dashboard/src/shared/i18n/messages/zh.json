@@ -363,6 +363,7 @@
       "highestPriority": "优先级从高到低",
       "me": "我",
       "unassigned": "未分配",
+      "assigned": "已分配",
       "oldest": "最早优先",
       "newest": "最新优先",
       "environment": "环境",
@@ -372,7 +373,7 @@
       "unassign": "取消分配",
       "copyId": "复制 ID",
       "copied": "已复制 ID",
-      "count": "{count} 个问题",
+      "count": "{display} 个问题",
       "views": {
         "open": "未解决",
         "resolved": "已解决",
@@ -675,7 +676,7 @@
     },
     "summary": {
       "withFatal": "{count} 个有致命错误",
-      "events24h": "24 小时内 {count} 个事件"
+      "events24h": "24 小时内 {display} 个事件"
     }
   },
   "alerts": {
@@ -1639,7 +1640,7 @@
       "levelWarning": "警告",
       "levelInfo": "信息",
       "issues": "未解决问题",
-      "issuesDescription": "优先查看",
+      "issuesDescription": "优先查看（全部时间）",
       "issuesRecent": "最近",
       "issuesNew": "新增",
       "issuesFrequent": "事件最多",

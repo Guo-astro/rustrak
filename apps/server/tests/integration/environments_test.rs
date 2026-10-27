@@ -291,3 +291,125 @@ async fn issue_events_filter_by_environment() {
     let lanza = get(&db.pool, &token, &format!("{uri}?environment=lanza")).await;
     assert_eq!(lanza["items"].as_array().unwrap().len(), 2);
 }
+
+#[actix_web::test]
+async fn environment_and_release_need_one_event_in_both() {
+    let (db, project_id, token) = setup().await;
+    let now = Utc::now();
+    // One issue, seen in production on 1.0 and in staging on 2.0.
+    ingest(&db.pool, project_id, "Mixed", Some("production"), "u", now).await;
+    ingest(&db.pool, project_id, "Mixed", Some("staging"), "u", now).await;
+    sqlx::query(
+        "UPDATE events SET release = CASE environment \
+         WHEN 'production' THEN '1.0' ELSE '2.0' END WHERE project_id = $1",
+    )
+    .bind(project_id)
+    .execute(&db.pool)
+    .await
+    .unwrap();
+
+    let body = get(
+        &db.pool,
+        &token,
+        &format!("/api/projects/{project_id}/issues?environment=production&release=2.0"),
+    )
+    .await;
+    assert_eq!(body["total_count"], 0, "no event is in production on 2.0");
+
+    let scope = rustrak::services::scope::Scope {
+        environment: Some("production"),
+        release: Some("2.0"),
+    };
+    let summary =
+        rustrak::services::stats::StatsService::project_summary(&db.pool, project_id, None, scope)
+            .await
+            .unwrap();
+    assert_eq!(summary.open_issues, 0);
+}
+
+#[actix_web::test]
+async fn environments_include_the_ones_only_sessions_arrived_in() {
+    let (db, project_id, token) = setup().await;
+    ingest(
+        &db.pool,
+        project_id,
+        "Seen",
+        Some("production"),
+        "u",
+        Utc::now(),
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO session_counts \
+         (project_id, release, environment, bucket, total, errored, crashed, abnormal) \
+         VALUES ($1, '1.0', 'canary', '2026-06-10T10:00:00Z', 1, 0, 0, 0)",
+    )
+    .bind(project_id)
+    .execute(&db.pool)
+    .await
+    .unwrap();
+
+    let body = get(
+        &db.pool,
+        &token,
+        &format!("/api/projects/{project_id}/environments"),
+    )
+    .await;
+
+    assert_eq!(body, json!(["canary", "production"]));
+}
+
+#[actix_web::test]
+async fn list_stats_count_only_the_scopes_release() {
+    let (db, project_id, _) = setup().await;
+    let now = Utc::now();
+    // The first user's event is on 1.0, the second's on 2.0.
+    let issue = ingest(
+        &db.pool,
+        project_id,
+        "Spread",
+        Some("production"),
+        "u1",
+        now,
+    )
+    .await;
+    set_unreleased(&db.pool, project_id, "1.0").await;
+    ingest(
+        &db.pool,
+        project_id,
+        "Spread",
+        Some("production"),
+        "u2",
+        now,
+    )
+    .await;
+    set_unreleased(&db.pool, project_id, "2.0").await;
+
+    let stats = rustrak::services::IssueService::list_stats(
+        &db.pool,
+        &[issue],
+        rustrak::services::scope::Scope {
+            environment: None,
+            release: Some("2.0"),
+        },
+    )
+    .await
+    .unwrap();
+
+    let stats = &stats[&issue];
+    assert_eq!(stats.user_count, 1);
+    assert_eq!(stats.trend.iter().sum::<i64>(), 1);
+}
+
+/// Puts the project's events that have no release yet in `release`.
+async fn set_unreleased(pool: &DbPool, project_id: i32, release: &str) {
+    sqlx::query(
+        "UPDATE events SET release = $1 \
+         WHERE project_id = $2 AND (release IS NULL OR release = '')",
+    )
+    .bind(release)
+    .bind(project_id)
+    .execute(pool)
+    .await
+    .unwrap();
+}
