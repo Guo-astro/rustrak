@@ -1,3 +1,4 @@
+import { Collapsible as BaseCollapsible } from '@base-ui/react/collapsible';
 import { mergeProps } from '@base-ui/react/merge-props';
 import { useRender } from '@base-ui/react/use-render';
 import { type ComponentPropsWithoutRef, type ReactNode, useState } from 'react';
@@ -17,6 +18,7 @@ import { Wordmark } from '../brand/wordmark';
 import { Count } from '../count/count';
 import type { IconComponent } from '../icon/icon';
 import {
+  ChevronRightIcon,
   MoreIcon,
   PanelLeftIcon,
   SearchIcon,
@@ -480,6 +482,83 @@ export function SidebarGroup({ label: text, children }: SidebarGroupProps) {
 }
 
 SidebarGroup.displayName = 'SidebarGroup';
+
+export interface SidebarSubmenuProps {
+  /** The thing the routes inside belong to: a project's name. */
+  label: string;
+  /** Its 18 px logo. */
+  leading: ReactNode;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** The routes inside: `SidebarItem`s. */
+  children: ReactNode;
+}
+
+/**
+ * A row that opens to the routes of one thing -- a project's settings -- set
+ * in under it on a hairline, so they read as belonging to it.
+ *
+ * The panel's height animates (Base UI measures it into
+ * `--collapsible-panel-height`), so the rows below slide instead of jumping.
+ * On the rail there is no room for nested rows: the logo stays, with the name
+ * in its tooltip, and the panel is left closed.
+ */
+export function SidebarSubmenu({
+  label: text,
+  leading,
+  open,
+  defaultOpen,
+  onOpenChange,
+  children,
+}: SidebarSubmenuProps) {
+  const { collapsed } = useSidebar();
+
+  return (
+    <BaseCollapsible.Root
+      open={collapsed ? false : open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
+      className="flex shrink-0 flex-col"
+    >
+      <Tooltip content={text} side="right" disabled={!collapsed}>
+        <BaseCollapsible.Trigger
+          aria-label={collapsed ? text : undefined}
+          className={row({ className: 'group/submenu' })}
+        >
+          {leading}
+          <span className={cn('flex-1 text-start', label({ collapsed }))}>
+            {text}
+          </span>
+          <ChevronRightIcon
+            size="md"
+            aria-hidden="true"
+            className={cn(
+              'shrink-0 text-fg-ghost transition-[rotate] duration-moderate ease-standard',
+              'group-data-panel-open/submenu:rotate-90',
+              'motion-reduce:transition-none',
+              label({ collapsed }),
+            )}
+          />
+        </BaseCollapsible.Trigger>
+      </Tooltip>
+      <BaseCollapsible.Panel
+        className={cn(
+          'h-(--collapsible-panel-height) overflow-hidden',
+          'transition-[height] duration-moderate ease-standard',
+          'data-starting-style:h-0 data-ending-style:h-0',
+          'motion-reduce:transition-none',
+        )}
+      >
+        <div className="ms-5 mt-px mb-1.5 flex flex-col gap-px border-s border-border-subtle ps-2">
+          {children}
+        </div>
+      </BaseCollapsible.Panel>
+    </BaseCollapsible.Root>
+  );
+}
+
+SidebarSubmenu.displayName = 'SidebarSubmenu';
 
 type Direction = 'forward' | 'back' | 'swap';
 

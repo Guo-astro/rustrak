@@ -32,6 +32,34 @@ const COLOR: Record<Kind, string> = {
 
 const HEIGHT = 260;
 
+/** An axis label: furniture, in the meta ink and the small mono. */
+function AxisTick({
+  x,
+  y,
+  payload,
+  anchor,
+  format,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string | number };
+  anchor: 'middle' | 'end';
+  format?: (value: string | number) => string;
+}) {
+  if (payload == null) return null;
+  return (
+    <text
+      x={x}
+      y={y}
+      dy={anchor === 'middle' ? 12 : 3}
+      textAnchor={anchor}
+      className="fill-fg-meta font-mono text-mono-sm tabular-nums"
+    >
+      {format ? format(payload.value) : payload.value}
+    </text>
+  );
+}
+
 /**
  * Bytes by how long ago they arrived, stacked by kind. What the next cleanup
  * deletes is the hatched part of each bar, so the chart answers "what is
@@ -68,7 +96,7 @@ export function AgeChart({
   if (empty) {
     return (
       <div
-        className="flex items-center justify-center text-sm text-muted-foreground"
+        className="flex items-center justify-center text-meta text-fg-subtle"
         style={{ height: HEIGHT }}
       >
         {t('age.empty')}
@@ -104,12 +132,12 @@ export function AgeChart({
           </defs>
           <CartesianGrid
             vertical={false}
-            stroke="var(--border)"
+            stroke="var(--border-divider)"
             strokeDasharray="3 3"
           />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+            tick={<AxisTick anchor="middle" />}
             axisLine={false}
             tickLine={false}
             // Drops the labels that would overlap on a narrow screen; the
@@ -118,14 +146,15 @@ export function AgeChart({
             minTickGap={8}
           />
           <YAxis
-            tickFormatter={(v) => formatBytes(Number(v))}
-            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+            tick={
+              <AxisTick anchor="end" format={(v) => formatBytes(Number(v))} />
+            }
             axisLine={false}
             tickLine={false}
             width={76}
           />
           <Tooltip
-            cursor={{ fill: 'var(--muted)', opacity: 0.5 }}
+            cursor={{ fill: 'var(--surface-hover)' }}
             content={<Tip />}
           />
           {kinds.flatMap((kind) => [
@@ -134,7 +163,7 @@ export function AgeChart({
               dataKey={`${kind}Kept`}
               stackId="age"
               fill={COLOR[kind]}
-              stroke="var(--card)"
+              stroke="var(--surface)"
               strokeWidth={1}
               maxBarSize={56}
               isAnimationActive={false}
@@ -144,7 +173,7 @@ export function AgeChart({
               dataKey={`${kind}Goes`}
               stackId="age"
               fill={`url(#storage-hatch-${kind})`}
-              stroke="var(--card)"
+              stroke="var(--surface)"
               strokeWidth={1}
               maxBarSize={56}
               isAnimationActive={false}
@@ -157,12 +186,34 @@ export function AgeChart({
           items={kinds.map((k) => ({ label: t(`kind.${k}`), color: COLOR[k] }))}
         />
         {anyGoes && (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-hint text-fg-subtle">
             {/* Neutral: the hatch means "goes" whatever the kind. */}
-            <span
-              aria-hidden
-              className="size-2.5 rounded-[2px] bg-[repeating-linear-gradient(135deg,var(--muted-foreground)_0_1.5px,transparent_1.5px_3.5px)]"
-            />
+            <svg aria-hidden="true" viewBox="0 0 10 10" className="size-2.5">
+              <defs>
+                <pattern
+                  id="storage-hatch-legend"
+                  width="3.5"
+                  height="3.5"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(45)"
+                >
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="3.5"
+                    stroke="var(--fg-meta)"
+                    strokeWidth="1.5"
+                  />
+                </pattern>
+              </defs>
+              <rect
+                width="10"
+                height="10"
+                rx="2"
+                fill="url(#storage-hatch-legend)"
+              />
+            </svg>
             {t('age.goes')}
           </span>
         )}
@@ -216,7 +267,7 @@ function makeTooltip(
     const goes = kinds.reduce((s, k) => s + bucket.goes[k], 0);
     return (
       <ChartTooltipSurface>
-        <p className="mb-1 font-medium text-popover-foreground">{label}</p>
+        <p className="mb-1 font-medium text-fg">{label}</p>
         {kinds.map((k) => (
           <ChartTooltipRow
             key={k}

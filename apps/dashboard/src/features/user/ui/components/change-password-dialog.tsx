@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -7,7 +8,6 @@ import { z } from 'zod';
 import { changePassword } from '@/features/user/api/mutations';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import { PasswordInput } from '@/shared/ui/components/password-input';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   Dialog,
   DialogClose,
@@ -109,9 +109,7 @@ export function ChangePasswordDialog() {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger render={<Button variant="outline" />}>
-        {t('account.password.change')}
-      </DialogTrigger>
+      <DialogTrigger render={<Button>{t('account.password.change')}</Button>} />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('account.password.change')}</DialogTitle>
@@ -133,7 +131,9 @@ export function ChangePasswordDialog() {
                 name={name}
                 render={({ field }) => (
                   <FormItem className="space-y-2">
-                    <FormLabel>{t(`account.password.${label}`)}</FormLabel>
+                    <FormLabel className="text-label text-fg-muted">
+                      {t(`account.password.${label}`)}
+                    </FormLabel>
                     <FormControl>
                       <PasswordInput
                         autoComplete={autoComplete}
@@ -153,11 +153,9 @@ export function ChangePasswordDialog() {
             <DialogFooter>
               <DialogClose
                 disabled={isPending}
-                render={<Button variant="outline" type="button" />}
-              >
-                {t('account.password.cancel')}
-              </DialogClose>
-              <Button type="submit" disabled={isPending}>
+                render={<Button>{t('account.password.cancel')}</Button>}
+              />
+              <Button type="submit" variant="primary" loading={isPending}>
                 {isPending
                   ? t('account.password.submitting')
                   : t('account.password.submit')}

@@ -159,6 +159,8 @@ export type { InputShellSize } from './components/input/input-shell';
 export { inputShell } from './components/input/input-shell';
 export type { PopoverProps } from './components/popover/popover';
 export { Popover } from './components/popover/popover';
+export type { SwitchProps } from './components/switch/switch';
+export { Switch } from './components/switch/switch';
 
 /* --- Data table ---------------------------------------------------------- */
 
@@ -299,6 +301,7 @@ export type {
   SidebarProps,
   SidebarScopeProps,
   SidebarSearchProps,
+  SidebarSubmenuProps,
   SidebarUserProps,
 } from './components/shell/sidebar';
 export {
@@ -309,6 +312,7 @@ export {
   SidebarProject,
   SidebarScope,
   SidebarSearch,
+  SidebarSubmenu,
   SidebarUser,
 } from './components/shell/sidebar';
 export type { SidebarProviderProps } from './components/shell/sidebar-context';

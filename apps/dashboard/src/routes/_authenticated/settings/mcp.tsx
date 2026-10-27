@@ -5,6 +5,7 @@ import { ConnectedApps } from '@/features/mcp/ui/components/connected-apps';
 import { McpSettings } from '@/features/mcp/ui/components/mcp-settings';
 import { translator } from '@/shared/i18n/intl';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { useSessionUser } from '@/shared/ui/hooks/use-session-user';
 
 export const Route = createFileRoute('/_authenticated/settings/mcp')({
@@ -32,36 +33,37 @@ function McpPage() {
   const { settings, connections } = Route.useLoaderData();
   const user = useSessionUser();
 
-  return (
-    <>
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-          {t('mcp.title')}
-        </h1>
-        <p className="text-muted-foreground mt-1">{t('mcp.subtitle')}</p>
-      </div>
+  const connected = connections.success ? (
+    <ConnectedApps initial={connections.data} />
+  ) : (
+    <LoadFailure
+      error={connections.error}
+      title={t('mcp.connected.loadFailed')}
+      notFoundOnMissing={false}
+    />
+  );
 
-      {settings.success ? (
-        <McpSettings initial={settings.data} isAdmin={user.role === 'admin'} />
-      ) : (
+  if (!settings.success) {
+    return (
+      <>
+        <SettingsHeader
+          title={t('mcp.title')}
+          description={t('mcp.subtitle')}
+        />
         <LoadFailure
           error={settings.error}
           title={t('mcp.loadFailed')}
           notFoundOnMissing={false}
         />
-      )}
+      </>
+    );
+  }
 
-      <div className="mt-6">
-        {connections.success ? (
-          <ConnectedApps initial={connections.data} />
-        ) : (
-          <LoadFailure
-            error={connections.error}
-            title={t('mcp.connected.loadFailed')}
-            notFoundOnMissing={false}
-          />
-        )}
-      </div>
-    </>
+  return (
+    <McpSettings
+      initial={settings.data}
+      isAdmin={user.role === 'admin'}
+      connected={connected}
+    />
   );
 }

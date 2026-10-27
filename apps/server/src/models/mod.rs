@@ -131,7 +131,8 @@ pub use issue::{
 };
 pub use log::LogResponse;
 pub use project::{
-    CreateProject, Project, ProjectResponse, UpdateProject, SELECTABLE_PLATFORMS, VALID_PLATFORMS,
+    CreateProject, Product, Project, ProjectResponse, UpdateProject, SELECTABLE_PLATFORMS,
+    VALID_PLATFORMS,
 };
 pub use project_member::{ProjectMember, ProjectMemberResponse, ProjectRole, UpsertProjectMember};
 pub use release::{is_valid_version, CreateRelease, Release, ReleaseResponse, UpdateRelease};

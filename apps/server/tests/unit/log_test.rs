@@ -82,6 +82,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         let body = bytes::Bytes::from(body);
@@ -126,6 +127,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         LogsProcessor
             .process(bytes::Bytes::from(body), &ctx)
@@ -160,6 +162,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         LogsProcessor
             .process(bytes::Bytes::from(body), &ctx)

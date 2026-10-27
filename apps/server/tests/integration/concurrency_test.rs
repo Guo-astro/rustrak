@@ -1054,6 +1054,7 @@ async fn test_shared_processor_digests_concurrent_events() {
                 event_id: Uuid::parse_str(&metadata.event_id).unwrap_or_else(|_| Uuid::nil()),
                 ingested_at: metadata.ingested_at,
                 remote_addr: metadata.remote_addr.clone(),
+                keep_ai_spans: true,
             };
             processor.process(metadata, &ctx).await
         });
@@ -1227,6 +1228,7 @@ async fn test_a_slow_write_does_not_drop_queued_digests() {
                 event_id: Uuid::parse_str(&metadata.event_id).unwrap_or_else(|_| Uuid::nil()),
                 ingested_at: metadata.ingested_at,
                 remote_addr: metadata.remote_addr.clone(),
+                keep_ai_spans: true,
             };
             processor.process(metadata, &ctx).await
         }));

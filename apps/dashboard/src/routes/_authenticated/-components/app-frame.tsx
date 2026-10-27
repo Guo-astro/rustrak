@@ -1,15 +1,22 @@
-import type { UserResponse } from '@rustrak/client';
+import type { Product, UserResponse } from '@rustrak/client';
 import {
   AgentsIcon,
+  AppearanceIcon,
+  BackIcon,
   Breadcrumbs,
   CronsIcon,
   type Crumb,
   cn,
   DocsIcon,
+  FacetsIcon,
   FeedbackIcon,
   type IconComponent,
+  InfoIcon,
+  IntegrationsIcon,
   IssuesIcon,
+  LinkIcon,
   LogsIcon,
+  MemberIcon,
   Menu,
   type MenuAction,
   NewIcon,
@@ -26,17 +33,25 @@ import {
   SidebarProject,
   SidebarScope,
   SidebarSearch,
+  SidebarSubmenu,
   SidebarUser,
   SignOutIcon,
+  StorageIcon,
   scopeEnter,
   TeamIcon,
+  TokensIcon,
 } from '@rustrak/ui';
 import { useLoaderData, useMatch } from '@tanstack/react-router';
 import { PlatformIcon } from 'platformicons';
 import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
 import { toCommandProjects } from '@/features/project/lib/command-items';
+import {
+  keepsProduct,
+  orderedProducts,
+} from '@/features/project/model/products';
 import { logout } from '@/features/user/api/mutations';
+import { isSettingsPath } from '@/shared/lib/settings-path';
 import { CommandBar } from '@/shared/ui/components/command-bar/command-bar';
 import { Link } from '@/shared/ui/components/link';
 import { usePathname } from '@/shared/ui/hooks/use-pathname';
@@ -50,9 +65,10 @@ import { useRouter } from '@/shared/ui/hooks/use-router';
  * project switcher is `project`, the account is `user`, and the command bar is
  * both plus the static settings routes.
  *
- * The sidebar has two modes and the URL picks between them. Inside a project
- * (`/projects/$id/**`) it holds that project's routes; anywhere else it holds
- * the workspace, which is the list of projects and settings.
+ * The sidebar has three modes and the URL picks between them, each one level
+ * deeper than the last: the workspace (the projects), a project (its routes),
+ * and settings (every settings page, the instance's and each project's).
+ * Moving between them is a `SidebarScope` change, so it slides.
  */
 
 const DOCS_URL = 'https://rustrak.dev';
@@ -65,7 +81,59 @@ interface FrameProject {
   name: string;
   slug: string;
   platform: string | null;
+  disabled_products: Product[];
+  product_order: Product[];
 }
+
+/** The product a route shows, when it is one a project can turn off. */
+const PRODUCT_OF: Partial<Record<NavKey, Product>> = {
+  issues: 'issues',
+  feedback: 'feedback',
+  releases: 'releases',
+  performance: 'performance',
+  logs: 'logs',
+  crons: 'crons',
+  agents: 'agents',
+};
+
+interface SettingsEntry {
+  key: string;
+  icon: IconComponent;
+  href: string;
+  adminOnly?: boolean;
+}
+
+const ACCOUNT_SETTINGS: SettingsEntry[] = [
+  { key: 'profile', icon: MemberIcon, href: '/settings/profile' },
+  { key: 'preferences', icon: AppearanceIcon, href: '/settings/preferences' },
+];
+
+const WORKSPACE_SETTINGS: SettingsEntry[] = [
+  { key: 'team', icon: TeamIcon, href: '/settings/team', adminOnly: true },
+  {
+    key: 'integrations',
+    icon: IntegrationsIcon,
+    href: '/settings/integrations',
+  },
+  { key: 'apiTokens', icon: TokensIcon, href: '/settings/tokens' },
+  { key: 'mcp', icon: AgentsIcon, href: '/settings/mcp' },
+  {
+    key: 'storage',
+    icon: StorageIcon,
+    href: '/settings/storage',
+    adminOnly: true,
+  },
+  { key: 'instance', icon: InfoIcon, href: '/settings/instance' },
+];
+
+/** A project's settings pages, appended to `/projects/$id/settings`. */
+const PROJECT_SETTINGS: SettingsEntry[] = [
+  { key: 'general', icon: SettingsIcon, href: '/general' },
+  { key: 'data', icon: FacetsIcon, href: '/data' },
+  { key: 'clientKeys', icon: TokensIcon, href: '/client-keys' },
+  { key: 'members', icon: TeamIcon, href: '/members' },
+  { key: 'github', icon: LinkIcon, href: '/github' },
+];
 
 type NavKey =
   | 'overview'
@@ -142,7 +210,23 @@ function useCurrentProject(): FrameProject | null {
     name: t('switcher.fallback'),
     slug: '',
     platform: null,
+    disabled_products: [],
+    product_order: [],
   };
+}
+
+/**
+ * Which of the three modes the sidebar is in, and its `SidebarScope` key and
+ * depth: workspace 0, a project 1, settings 2.
+ */
+function sidebarScope(pathname: string, project: FrameProject | null) {
+  if (isSettingsPath(pathname)) {
+    return { settingsMode: true, scope: 'settings', depth: 2 };
+  }
+  if (project) {
+    return { settingsMode: false, scope: `project:${project.id}`, depth: 1 };
+  }
+  return { settingsMode: false, scope: 'workspace', depth: 0 };
 }
 
 /** The project's platform logo, the same one the projects list shows. */
@@ -150,7 +234,7 @@ function ProjectLogo({
   project,
   size,
 }: {
-  project: FrameProject;
+  project: Pick<FrameProject, 'platform'>;
   size: 18 | 26;
 }) {
   return (
@@ -170,7 +254,6 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   const t = useTranslations('projects');
   const tUser = useTranslations('user');
   const tCommands = useTranslations('commands');
-  const tSettings = useTranslations('settings');
   const pathname = usePathname();
   const router = useRouter();
   const project = useCurrentProject();
@@ -184,15 +267,8 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   const projects = read.success ? read.data.items : [];
 
   const base = project ? `/projects/${project.id}` : '';
-  const active = project ? activeRoute(pathname, base) : undefined;
-  const settingsHref = project ? `${base}/settings` : '/settings';
-  const inSettings =
-    pathname.startsWith(settingsHref) &&
-    active == null &&
-    !pathname.startsWith('/settings/team');
-  const scope = project ? `project:${project.id}` : 'workspace';
-  const depth = project ? 1 : 0;
-
+  const { settingsMode, scope, depth } = sidebarScope(pathname, project);
+  const isAdmin = user.role === 'admin';
   const switcher: MenuAction[] = [
     {
       id: 'all',
@@ -233,7 +309,7 @@ export function AppSidebar({ user }: { user: UserResponse }) {
               be a second way of saying the page you are on. It arrives with
               the routes, as the first row of the same entrance. */}
           <SidebarScope scope={scope} depth={depth}>
-            {project ? (
+            {project && !settingsMode ? (
               <Menu
                 trigger={
                   <SidebarProject
@@ -262,19 +338,15 @@ export function AppSidebar({ user }: { user: UserResponse }) {
       }
       footer={
         <>
-          <SidebarItem
-            icon={SettingsIcon}
-            label={t('nav.settings')}
-            active={inSettings}
-            render={<Link href={settingsHref} />}
-          />
-          <SidebarItem
-            icon={DocsIcon}
-            label={t('nav.docs')}
-            render={
-              <Link href={DOCS_URL} target="_blank" rel="noopener noreferrer" />
-            }
-          />
+          {/* Inside settings the way out is the back row at the top, and the
+              settings link would point at the page you are on. */}
+          {settingsMode ? null : (
+            <FooterLinks
+              settingsHref={
+                project ? `${base}/settings/general` : '/settings/profile'
+              }
+            />
+          )}
           <SidebarUser
             name={user.email}
             detail={tUser(`roles.${user.role}`)}
@@ -283,7 +355,7 @@ export function AppSidebar({ user }: { user: UserResponse }) {
                 id: 'settings',
                 label: tUser('header.settings'),
                 icon: SettingsIcon,
-                onSelect: () => router.push('/settings'),
+                onSelect: () => router.push('/settings/profile'),
               },
               {
                 id: 'sign-out',
@@ -305,60 +377,214 @@ export function AppSidebar({ user }: { user: UserResponse }) {
           project slides its routes in from the right, leaving it slides the
           workspace back in from the left. */}
       <SidebarScope scope={scope} depth={depth}>
-        {project ? (
-          <>
-            <SidebarItem
-              icon={OVERVIEW.icon}
-              label={t('nav.overview')}
-              active={active === OVERVIEW}
-              render={<Link href={base} />}
-            />
-            {GROUPS.map((group) => (
-              <SidebarGroup key={group.label} label={t(`nav.${group.label}`)}>
-                {group.routes.map((route) => (
-                  <SidebarItem
-                    key={route.key}
-                    icon={route.icon}
-                    label={t(`nav.${route.key}`)}
-                    active={active === route}
-                    render={<Link href={`${base}${route.path}`} />}
-                  />
-                ))}
-              </SidebarGroup>
-            ))}
-          </>
+        {settingsMode ? (
+          <SettingsNav
+            project={project}
+            projects={projects}
+            isAdmin={isAdmin}
+          />
+        ) : project ? (
+          <ProjectNav project={project} />
         ) : (
-          <>
-            <SidebarItem
-              icon={ProjectsIcon}
-              label={t('switcher.all')}
-              active={pathname === '/projects'}
-              render={<Link href="/projects" />}
-            />
-            <SidebarItem
-              icon={TeamIcon}
-              label={tSettings('nav.team')}
-              active={pathname.startsWith('/settings/team')}
-              render={<Link href="/settings/team" />}
-            />
-            {projects.length > 0 ? (
-              <SidebarGroup label={t('switcher.projects')}>
-                {/* ponytail: the first few, until settings lets the reader
-                    choose which ones are pinned here. */}
-                {projects.slice(0, SIDEBAR_PROJECTS).map((option) => (
-                  <SidebarItem
-                    key={option.id}
-                    leading={<ProjectLogo project={option} size={18} />}
-                    label={option.name}
-                    render={<Link href={`/projects/${option.id}`} />}
-                  />
-                ))}
-              </SidebarGroup>
-            ) : null}
-          </>
+          <WorkspaceNav projects={projects} />
         )}
       </SidebarScope>
     </Sidebar>
+  );
+}
+
+type ProjectOption =
+  | FrameProject
+  | { id: number; name: string; platform: string | null };
+
+/** Every settings page: the account, the workspace, and each project's. */
+function SettingsNav({
+  project,
+  projects,
+  isAdmin,
+}: {
+  project: FrameProject | null;
+  projects: ProjectOption[];
+  isAdmin: boolean;
+}) {
+  const t = useTranslations('projects');
+  const tSettings = useTranslations('settings');
+  const pathname = usePathname();
+  const base = project ? `/projects/${project.id}` : '';
+  // The list is capped; the project you are in is listed whether it made the
+  // cut or not, since its settings pages have no other way in.
+  const listed =
+    project && !projects.some((p) => p.id === project.id)
+      ? [project, ...projects]
+      : projects;
+  return (
+    <>
+      <SidebarItem
+        icon={BackIcon}
+        label={project ? project.name : t('switcher.all')}
+        render={<Link href={project ? base : '/projects'} />}
+      />
+      <SidebarGroup label={tSettings('nav.groupAccount')}>
+        {ACCOUNT_SETTINGS.map((entry) => (
+          <SettingsLink key={entry.key} entry={entry} pathname={pathname} />
+        ))}
+      </SidebarGroup>
+      <SidebarGroup label={tSettings('nav.groupWorkspace')}>
+        {WORKSPACE_SETTINGS.filter((e) => !e.adminOnly || isAdmin).map(
+          (entry) => (
+            <SettingsLink key={entry.key} entry={entry} pathname={pathname} />
+          ),
+        )}
+      </SidebarGroup>
+      {listed.length > 0 ? (
+        <SidebarGroup label={t('switcher.projects')}>
+          {listed.map((option) => {
+            const optionBase = `/projects/${option.id}/settings`;
+            return (
+              <SidebarSubmenu
+                key={option.id}
+                label={option.name}
+                leading={<ProjectLogo project={option} size={18} />}
+                defaultOpen={option.id === project?.id}
+              >
+                {PROJECT_SETTINGS.map((entry) => (
+                  <SettingsLink
+                    key={entry.key}
+                    entry={{
+                      ...entry,
+                      href: `${optionBase}${entry.href}`,
+                    }}
+                    pathname={pathname}
+                  />
+                ))}
+              </SidebarSubmenu>
+            );
+          })}
+        </SidebarGroup>
+      ) : null}
+    </>
+  );
+}
+
+/** A project's routes, in its own order, without the products it turned off. */
+function ProjectNav({ project }: { project: FrameProject }) {
+  const t = useTranslations('projects');
+  const pathname = usePathname();
+  const base = `/projects/${project.id}`;
+  const active = activeRoute(pathname, base);
+  const productRank = orderedProducts(project.product_order);
+  // Alerts belongs to no product and is always there.
+  const shown = (route: NavRoute) => {
+    const product = PRODUCT_OF[route.key];
+    return !product || keepsProduct(project.disabled_products, product);
+  };
+  const rank = (route: NavRoute) => {
+    const product = PRODUCT_OF[route.key];
+    return product ? productRank.indexOf(product) : productRank.length;
+  };
+  return (
+    <>
+      <SidebarItem
+        icon={OVERVIEW.icon}
+        label={t('nav.overview')}
+        active={active === OVERVIEW}
+        render={<Link href={base} />}
+      />
+      {GROUPS.map((group) => (
+        <SidebarGroup key={group.label} label={t(`nav.${group.label}`)}>
+          {group.routes
+            .filter(shown)
+            .sort((a, b) => rank(a) - rank(b))
+            .map((route) => (
+              <SidebarItem
+                key={route.key}
+                icon={route.icon}
+                label={t(`nav.${route.key}`)}
+                active={active === route}
+                render={<Link href={`${base}${route.path}`} />}
+              />
+            ))}
+        </SidebarGroup>
+      ))}
+    </>
+  );
+}
+
+/** Above any one project: the list of them, the team, and the projects. */
+function WorkspaceNav({ projects }: { projects: ProjectOption[] }) {
+  const t = useTranslations('projects');
+  const tSettings = useTranslations('settings');
+  const pathname = usePathname();
+  return (
+    <>
+      <SidebarItem
+        icon={ProjectsIcon}
+        label={t('switcher.all')}
+        active={pathname === '/projects'}
+        render={<Link href="/projects" />}
+      />
+      <SidebarItem
+        icon={TeamIcon}
+        label={tSettings('nav.team')}
+        active={pathname.startsWith('/settings/team')}
+        render={<Link href="/settings/team" />}
+      />
+      {projects.length > 0 ? (
+        <SidebarGroup label={t('switcher.projects')}>
+          {/* ponytail: the first few, until settings lets the reader
+                    choose which ones are pinned here. */}
+          {projects.slice(0, SIDEBAR_PROJECTS).map((option) => (
+            <SidebarItem
+              key={option.id}
+              leading={<ProjectLogo project={option} size={18} />}
+              label={option.name}
+              render={<Link href={`/projects/${option.id}`} />}
+            />
+          ))}
+        </SidebarGroup>
+      ) : null}
+    </>
+  );
+}
+
+/** Settings and the docs, at the foot of the workspace and project modes. */
+function FooterLinks({ settingsHref }: { settingsHref: string }) {
+  const t = useTranslations('projects');
+  return (
+    <>
+      <SidebarItem
+        icon={SettingsIcon}
+        label={t('nav.settings')}
+        render={<Link href={settingsHref} />}
+      />
+      <SidebarItem
+        icon={DocsIcon}
+        label={t('nav.docs')}
+        render={
+          <Link href={DOCS_URL} target="_blank" rel="noopener noreferrer" />
+        }
+      />
+    </>
+  );
+}
+
+/** One settings page in the sidebar's settings mode. */
+function SettingsLink({
+  entry,
+  pathname,
+}: {
+  entry: SettingsEntry;
+  pathname: string;
+}) {
+  const tSettings = useTranslations('settings');
+  return (
+    <SidebarItem
+      icon={entry.icon}
+      label={tSettings(`nav.${entry.key}` as 'nav.account')}
+      // A page with pages under it -- an integration's own -- stays marked.
+      active={pathname === entry.href || pathname.startsWith(`${entry.href}/`)}
+      render={<Link href={entry.href} />}
+    />
   );
 }
 
@@ -371,8 +597,28 @@ export function AppBreadcrumbs() {
 
   let items: Crumb[];
 
-  if (project) {
-    const base = `/projects/${project.id}`;
+  const base = project ? `/projects/${project.id}` : '';
+  // The settings page the URL is on, for the trail's last crumb.
+  const settingsPage = [
+    ...ACCOUNT_SETTINGS,
+    ...WORKSPACE_SETTINGS,
+    ...PROJECT_SETTINGS.map((e) => ({
+      ...e,
+      href: `${base}/settings${e.href}`,
+    })),
+  ].find((e) => pathname.startsWith(e.href));
+
+  if (project && settingsPage && isSettingsPath(pathname)) {
+    items = [
+      {
+        label: project.name,
+        icon: <ProjectLogo project={project} size={18} />,
+        render: <Link href={base} />,
+      },
+      { label: tSettings('nav.settingsTitle') },
+      { label: tSettings(`nav.${settingsPage.key}` as 'nav.profile') },
+    ];
+  } else if (project) {
     const route = activeRoute(pathname, base);
     items = [
       {
@@ -387,7 +633,12 @@ export function AppBreadcrumbs() {
       },
     ];
   } else if (pathname.startsWith('/settings')) {
-    items = [{ label: tSettings('nav.settingsTitle') }];
+    items = [
+      { label: tSettings('nav.settingsTitle') },
+      ...(settingsPage
+        ? [{ label: tSettings(`nav.${settingsPage.key}` as 'nav.profile') }]
+        : []),
+    ];
   } else if (pathname.startsWith('/projects/new')) {
     items = [
       { label: t('switcher.projects'), render: <Link href="/projects" /> },

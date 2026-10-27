@@ -1,12 +1,11 @@
 import type { ProjectResponse } from '@rustrak/client';
-import { Check, Copy } from 'lucide-react';
+import { Button, CopyIcon, SelectedIcon } from '@rustrak/ui';
 import { useTheme } from 'next-themes';
 import { useTranslations } from 'use-intl';
 import { resolveSetupSnippet } from '@/features/project/lib/setup-snippet';
 import { platformLabel } from '@/shared/config/platforms';
 import { CodeBlock } from '@/shared/ui/components/code-block';
 import { SettingSection } from '@/shared/ui/components/setting-row';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import { useCopyFlags } from '@/shared/ui/hooks/use-copy-flags';
 import {
   type SyntaxHighlighter,
@@ -40,29 +39,17 @@ export function ClientKeysSettings({ project }: ClientKeysSettingsProps) {
     : t('clientKeys.exampleJs');
 
   return (
-    <div className="max-w-3xl">
+    <>
       <SettingSection
         title={t('clientKeys.dsn')}
         description={t('clientKeys.dsnDescription')}
       >
-        <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted p-3">
-          <code className="flex-1 truncate font-mono text-xs">
-            {project.dsn}
-          </code>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => copy('dsn', project.dsn, t('clientKeys.dsn'))}
-            className="shrink-0"
-            aria-label={t('clientKeys.copyDsn')}
-          >
-            {isCopied('dsn') ? (
-              <Check className="size-4 text-primary" />
-            ) : (
-              <Copy className="size-4" />
-            )}
-          </Button>
-        </div>
+        <CopyValue
+          value={project.dsn}
+          copied={isCopied('dsn')}
+          ariaLabel={t('clientKeys.copyDsn')}
+          onCopy={() => copy('dsn', project.dsn, t('clientKeys.dsn'))}
+        />
       </SettingSection>
 
       {snippet?.install && (
@@ -70,30 +57,18 @@ export function ClientKeysSettings({ project }: ClientKeysSettingsProps) {
           title={t('clientKeys.install')}
           description={t('clientKeys.installDescription')}
         >
-          <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted p-3">
-            <code className="flex-1 overflow-x-auto font-mono text-xs">
-              {snippet.install}
-            </code>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                copy(
-                  'install',
-                  snippet.install ?? '',
-                  t('clientKeys.commandLabel'),
-                )
-              }
-              className="shrink-0"
-              aria-label={t('clientKeys.copyInstallCommand')}
-            >
-              {isCopied('install') ? (
-                <Check className="size-4 text-primary" />
-              ) : (
-                <Copy className="size-4" />
-              )}
-            </Button>
-          </div>
+          <CopyValue
+            value={snippet.install}
+            copied={isCopied('install')}
+            ariaLabel={t('clientKeys.copyInstallCommand')}
+            onCopy={() =>
+              copy(
+                'install',
+                snippet.install ?? '',
+                t('clientKeys.commandLabel'),
+              )
+            }
+          />
         </SettingSection>
       )}
 
@@ -108,6 +83,34 @@ export function ClientKeysSettings({ project }: ClientKeysSettingsProps) {
           codeExample && copy('code', codeExample, t('clientKeys.exampleLabel'))
         }
         copied={isCopied('code')}
+      />
+    </>
+  );
+}
+
+/** One value to paste somewhere else, in mono, with its copy button. */
+function CopyValue({
+  value,
+  copied,
+  ariaLabel,
+  onCopy,
+}: {
+  value: string;
+  copied: boolean;
+  ariaLabel: string;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-5 py-3">
+      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-mono text-fg">
+        {value}
+      </code>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={copied ? SelectedIcon : CopyIcon}
+        onClick={onCopy}
+        aria-label={ariaLabel}
       />
     </div>
   );
@@ -150,61 +153,45 @@ function SetupSection({
       description={
         codeExample ? t('clientKeys.dsnFilled') : t('clientKeys.pointSdk')
       }
-    >
-      <div className="mt-3">
-        {codeExample && (
-          <>
-            <div className="mb-2 flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onCopy}
-                className="h-6 text-xs"
-              >
-                {copied ? (
-                  <>
-                    <Check className="mr-1 size-3 text-primary" />
-                    {t('clientKeys.copied')}
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-1 size-3" />
-                    {t('clientKeys.copy')}
-                  </>
-                )}
-              </Button>
-            </div>
-            <div className="overflow-hidden overflow-x-auto rounded-lg border">
-              <CodeBlock
-                code={codeExample}
-                language={codeLanguage}
-                highlighter={highlighter}
-              />
-            </div>
-          </>
-        )}
-
-        <p
-          className={`text-xs text-muted-foreground${codeExample ? ' mt-3' : ''}`}
-        >
-          {t('clientKeys.compatLead')}{' '}
-          <a
-            href={docsUrl ?? 'https://docs.sentry.io/platforms/'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
+      actions={
+        codeExample ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={copied ? SelectedIcon : CopyIcon}
+            onClick={onCopy}
           >
-            {docsUrl
-              ? t('clientKeys.docsPlatform', {
-                  platform: platformLabel(platform ?? ''),
-                })
-              : t('clientKeys.docsSentry')}
-          </a>{' '}
-          {codeExample
-            ? t('clientKeys.compatFull')
-            : t('clientKeys.compatSteps')}
-        </p>
-      </div>
+            {copied ? t('clientKeys.copied') : t('clientKeys.copy')}
+          </Button>
+        ) : null
+      }
+    >
+      {codeExample && (
+        <div className="overflow-x-auto border-b border-border-divider">
+          <CodeBlock
+            code={codeExample}
+            language={codeLanguage}
+            highlighter={highlighter}
+          />
+        </div>
+      )}
+
+      <p className="px-5 py-3 text-hint text-fg-subtle">
+        {t('clientKeys.compatLead')}{' '}
+        <a
+          href={docsUrl ?? 'https://docs.sentry.io/platforms/'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-fg-brand hover:underline"
+        >
+          {docsUrl
+            ? t('clientKeys.docsPlatform', {
+                platform: platformLabel(platform ?? ''),
+              })
+            : t('clientKeys.docsSentry')}
+        </a>{' '}
+        {codeExample ? t('clientKeys.compatFull') : t('clientKeys.compatSteps')}
+      </p>
     </SettingSection>
   );
 }

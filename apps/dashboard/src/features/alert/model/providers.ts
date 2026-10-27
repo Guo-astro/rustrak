@@ -17,30 +17,25 @@ export const alertProviders: {
   type: ProviderType;
   name: string;
   descriptionKey: string;
-  color: string;
 }[] = [
   {
     type: 'slack',
     name: 'Slack',
     descriptionKey: 'providers.slack.description',
-    color: 'bg-[#4A154B]',
   },
   {
     type: 'email',
     name: 'Email',
     descriptionKey: 'providers.email.description',
-    color: 'bg-[#0066CC]',
   },
   {
     type: 'webhook',
     name: 'Webhook',
     descriptionKey: 'providers.webhook.description',
-    color: 'bg-orange-600',
   },
   {
     type: 'custom_webhook',
     name: 'Custom Webhook',
     descriptionKey: 'providers.customWebhook.description',
-    color: 'bg-emerald-600',
   },
 ];

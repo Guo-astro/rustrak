@@ -1,6 +1,6 @@
 use super::{clamp, clamp_opt, extract_timestamp, is_stale, Processor, ProcessorCtx};
 use crate::error::{AppError, AppResult};
-use crate::services::gen_ai::{extract_gen_ai_columns, GenAiColumns};
+use crate::services::gen_ai::{extract_gen_ai_columns, is_ai_span, GenAiColumns};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
@@ -43,12 +43,26 @@ const SPAN_ROWS_PER_INSERT: usize = 256;
 /// A standalone span already stored under the same trace and span id is
 /// skipped, which makes an SDK retry a no-op. The conflict target is a partial
 /// index on `transaction_id IS NULL`, so a transaction's children never match.
+///
+/// With `keep_ai_spans` false -- the project turned agents off -- every AI
+/// span is left out here, the one place all three span producers go
+/// through, and the rest of the trace is stored as usual.
 pub(crate) async fn insert_span_rows(
     conn: &mut <crate::db::Db as sqlx::Database>::Connection,
     project_id: i32,
+    keep_ai_spans: bool,
     rows: Vec<SpanRow>,
 ) -> AppResult<()> {
-    let mut rows = rows.into_iter().peekable();
+    let mut rows = rows
+        .into_iter()
+        // An AI span by its attributes, or by its `op` alone when it came
+        // without a `data` bag: the same test Relay applies (`is_ai_span`).
+        .filter(|row| {
+            keep_ai_spans
+                || (row.gen_ai.operation_type.is_none()
+                    && !is_ai_span(&serde_json::Value::Null, row.op.as_deref()))
+        })
+        .peekable();
     while rows.peek().is_some() {
         let mut query = sqlx::QueryBuilder::new(
             r#"INSERT INTO spans (
@@ -228,7 +242,7 @@ impl SpanProcessor {
     /// Writes one chunk in one transaction.
     async fn insert_all(&self, ctx: &ProcessorCtx, parsed: Vec<SpanRow>) -> AppResult<()> {
         let mut tx = ctx.pool.begin().await?;
-        insert_span_rows(&mut tx, ctx.project_id, parsed).await?;
+        insert_span_rows(&mut tx, ctx.project_id, ctx.keep_ai_spans, parsed).await?;
         tx.commit().await?;
         Ok(())
     }

@@ -18,6 +18,7 @@ fn ctx(pool: &rustrak::db::DbPool, project_id: i32) -> ProcessorCtx {
         event_id: Uuid::nil(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     }
 }
 

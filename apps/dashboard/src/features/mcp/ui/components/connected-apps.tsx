@@ -1,25 +1,14 @@
 import type { OAuthGrant } from '@rustrak/client';
-import { Unplug } from 'lucide-react';
+import { Avatar, Button, IntegrationsIcon } from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { revokeConnection } from '@/features/mcp/api/mutations';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/shadcn/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/components/shadcn/table';
+  SettingSection,
+  SettingsEmpty,
+  SettingsListItem,
+} from '@/shared/ui/components/setting-row';
 
 /** The host a client is published from, which is what a reader recognises. */
 function clientHost(clientId: string): string {
@@ -55,62 +44,40 @@ export function ConnectedApps({ initial }: { initial: OAuthGrant[] }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('mcp.connected.title')}</CardTitle>
-        <CardDescription>{t('mcp.connected.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {grants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
-            <Unplug className="mb-3 size-8 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              {t('mcp.connected.empty')}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('mcp.connected.columns.name')}</TableHead>
-                  <TableHead>{t('mcp.connected.columns.client')}</TableHead>
-                  <TableHead>{t('mcp.connected.columns.since')}</TableHead>
-                  <TableHead className="w-0" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {grants.map((grant) => (
-                  <TableRow key={grant.id}>
-                    <TableCell className="font-medium">
-                      {grant.client_name}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {clientHost(grant.client_id)}
-                    </TableCell>
-                    <TableCell>
-                      {format.dateTime(new Date(grant.created_at), 'date')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => revoke(grant)}
-                        aria-label={t('mcp.connected.revokeLabel', {
-                          name: grant.client_name,
-                        })}
-                      >
-                        {t('mcp.connected.revoke')}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <SettingSection title={t('mcp.connected.title')}>
+      {grants.length === 0 ? (
+        <SettingsEmpty
+          icon={<IntegrationsIcon size="2xl" />}
+          title={t('mcp.connected.empty')}
+        />
+      ) : (
+        grants.map((grant) => (
+          <SettingsListItem
+            key={grant.id}
+            leading={<Avatar name={grant.client_name} shape="square" />}
+            title={grant.client_name}
+            description={
+              <span className="font-mono text-mono">
+                {clientHost(grant.client_id)}
+              </span>
+            }
+            meta={format.dateTime(new Date(grant.created_at), 'date')}
+            actions={
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isPending}
+                onClick={() => revoke(grant)}
+                aria-label={t('mcp.connected.revokeLabel', {
+                  name: grant.client_name,
+                })}
+              >
+                {t('mcp.connected.revoke')}
+              </Button>
+            }
+          />
+        ))
+      )}
+    </SettingSection>
   );
 }

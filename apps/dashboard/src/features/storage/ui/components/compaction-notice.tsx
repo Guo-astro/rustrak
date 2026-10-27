@@ -1,5 +1,5 @@
 import type { CleanupStatus, Compaction } from '@rustrak/client';
-import { HardDrive, Loader2 } from 'lucide-react';
+import { Button, StorageIcon } from '@rustrak/ui';
 import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -15,11 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { Card, CardContent } from '@/shared/ui/components/shadcn/card';
 
 /**
- * Shown only on a SQLite file created before incremental mode, which never
+ * A row in the storage page's retention section, shown only on a SQLite file created before incremental mode, which never
  * gives deleted data's space back to the disk: says how much it holds and
  * compacts it once, behind a dialog that prices the disk and the pause.
  * Read again with the rest of the page, so it goes once compacted.
@@ -56,32 +54,32 @@ export function CompactionNotice({
   if (!compaction?.needed) return null;
 
   return (
-    <Card>
-      <CardContent className="flex flex-wrap items-start gap-4">
-        <HardDrive className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-semibold">{t('compaction.title')}</p>
-          <p className="text-sm text-muted-foreground">
-            {t('compaction.description', {
-              size: formatBytes(compaction.reclaimable_bytes),
-            })}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => setConfirming(true)}
-          disabled={disabled}
-        >
-          {t('compaction.action')}
-        </Button>
-      </CardContent>
+    <div className="flex flex-wrap items-start gap-4 border-b border-border-divider px-5 py-4 last:border-b-0">
+      <StorageIcon
+        size="lg"
+        aria-hidden="true"
+        className="mt-0.5 shrink-0 text-fg-muted"
+      />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-value font-medium text-fg">
+          {t('compaction.title')}
+        </p>
+        <p className="max-w-2xl text-hint text-fg-subtle">
+          {t('compaction.description', {
+            size: formatBytes(compaction.reclaimable_bytes),
+          })}
+        </p>
+      </div>
+      <Button onClick={() => setConfirming(true)} disabled={disabled}>
+        {t('compaction.action')}
+      </Button>
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
         compaction={compaction}
         onStarted={onStarted}
       />
-    </Card>
+    </div>
   );
 }
 
@@ -131,8 +129,8 @@ function ConfirmDialog({
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <ul className="list-disc space-y-1.5 pl-5 text-sm">
-          <li className={room ? undefined : 'text-destructive'}>
+        <ul className="list-disc space-y-1.5 pl-5 text-value text-fg">
+          <li className={room ? undefined : 'text-danger-fg'}>
             {free === null
               ? t('compaction.diskUnknown', {
                   required: formatBytes(compaction.required_disk_bytes),
@@ -149,8 +147,12 @@ function ConfirmDialog({
           <AlertDialogCancel disabled={isPending}>
             {t('cancel')}
           </AlertDialogCancel>
-          <Button onClick={run} disabled={isPending || !room}>
-            {isPending && <Loader2 className="animate-spin" />}
+          <Button
+            variant="primary"
+            onClick={run}
+            loading={isPending}
+            disabled={!room}
+          >
             {t('compaction.confirm')}
           </Button>
         </AlertDialogFooter>

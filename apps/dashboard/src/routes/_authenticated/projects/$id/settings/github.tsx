@@ -9,6 +9,7 @@ import { getProject } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/settings/github',
@@ -42,12 +43,7 @@ function GitHubSettingsPage() {
 
   return (
     <>
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-          GitHub
-        </h1>
-        <p className="text-muted-foreground mt-1">{t('repository.subtitle')}</p>
-      </div>
+      <SettingsHeader title="GitHub" description={t('repository.subtitle')} />
       <RepositorySettings
         // A new repository starts from its own saved mappings.
         key={repository?.repo_full_name ?? 'none'}

@@ -37,7 +37,8 @@
   "theme": {
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "system": "System",
+    "label": "Theme"
   },
   "update": {
     "srAvailable": "Rustrak {version} is available.",
@@ -837,7 +838,8 @@
       "edit": "Edit",
       "deleteAria": "Delete {name}",
       "close": "Close",
-      "addProvider": "Add {name}"
+      "addProvider": "Add {name}",
+      "more": "More actions for {name}"
     },
     "table": {
       "rule": "Rule",
@@ -892,6 +894,24 @@
     "newFeedback": {
       "name": "New feedback",
       "description": "A user submits feedback"
+    },
+    "page": {
+      "general": "General",
+      "connection": "Connection",
+      "server": "Server",
+      "authentication": "Authentication",
+      "authenticationDescription": "Only if your SMTP server asks for a login.",
+      "nameDescription": "How it is listed when an alert rule picks where to send.",
+      "methodDescription": "A webhook posts to one fixed channel. A bot token can post to any channel the bot is in.",
+      "portDescription": "Usually 587 for STARTTLS, 465 for TLS.",
+      "fromDescription": "The sender alerts arrive from.",
+      "testTitle": "Send a test",
+      "testDescription": "Sends a sample alert with the settings last saved, not unsaved edits.",
+      "dangerTitle": "Danger zone",
+      "deleteTitle": "Delete this integration",
+      "deleteDescription": "Alert rules that send through it stop delivering here.",
+      "unsaved": "Unsaved changes",
+      "back": "All {name} integrations"
     }
   },
   "events": {
@@ -1710,11 +1730,11 @@
       "general": "General",
       "alerts": "Alerts",
       "members": "Members",
-      "clientKeys": "Client Keys",
+      "clientKeys": "SDK",
       "apiTokens": "API Tokens",
       "integrations": "Integrations",
-      "mcp": "AI assistants (MCP)",
-      "team": "Team",
+      "mcp": "AI assistants",
+      "team": "Members",
       "storage": "Storage",
       "account": "Account",
       "appearance": "Appearance",
@@ -1723,7 +1743,14 @@
       "projectSettingsTitle": "Project Settings",
       "openSettingsMenu": "Open settings menu",
       "settingsTitle": "Settings",
-      "github": "GitHub"
+      "github": "Repository",
+      "products": "Products",
+      "groupAccount": "Account",
+      "groupWorkspace": "Workspace",
+      "profile": "Profile",
+      "preferences": "Preferences",
+      "instance": "Instance",
+      "data": "Data"
     },
     "loadProjectFailed": "Could not load project",
     "loadProjectsFailed": "Could not load projects",
@@ -1739,7 +1766,7 @@
       "meta": {
         "title": "Client Keys | Rustrak"
       },
-      "title": "Client Keys (DSN)",
+      "title": "SDK",
       "subtitle": "Connect an application to this project."
     },
     "alerts": {
@@ -1770,7 +1797,7 @@
         "title": "Team | Rustrak",
         "description": "Manage your team members and invitations"
       },
-      "title": "Team",
+      "title": "Members",
       "subtitle": "Manage your team members and invitations",
       "notAuthorizedDescription": "Only instance administrators can manage the team. Contact an admin if you need access.",
       "loadFailed": "Could not load the team"
@@ -1792,8 +1819,8 @@
         "title": "AI assistants | Rustrak",
         "description": "Connect AI assistants to Rustrak over MCP"
       },
-      "title": "AI assistants (MCP)",
-      "subtitle": "Let Claude, ChatGPT, Cursor and other AI assistants read and triage your errors, with the permissions of whoever connects them.",
+      "title": "AI assistants",
+      "subtitle": "Let Claude, ChatGPT or Cursor read and triage your errors.",
       "loadFailed": "Could not load the MCP settings",
       "copy": "Copy",
       "copied": "Copied",
@@ -1853,6 +1880,28 @@
         "revokeFailed": "Could not disconnect the assistant",
         "revoked": "{name} disconnected",
         "loadFailed": "Could not load your connected assistants"
+      },
+      "page": {
+        "offTitle": "The MCP server is off",
+        "offAdmin": "Turn it on to connect an assistant.",
+        "offMember": "Ask an instance admin to turn it on.",
+        "enable": "Turn on",
+        "connect": "Connect an assistant",
+        "webHint": "Add a custom connector and paste the URL above. You sign in to Rustrak and approve.",
+        "tokenHint": "This server has no PUBLIC_URL, so assistants connect with an API token.",
+        "help": "How it works",
+        "helpTitle": "Two ways to connect",
+        "helpIntro": "Both work at the same time: use whichever your assistant supports.",
+        "oauthName": "Sign in",
+        "tokenName": "API token",
+        "oauth1": "claude.ai, ChatGPT, Claude Code, Cursor, VS Code",
+        "oauth2": "You sign in to Rustrak and approve",
+        "oauth3": "Nothing to copy or renew",
+        "token1": "Scripts, CI, clients that cannot sign in",
+        "token2": "You paste a token into the client",
+        "token3": "Revoking the token disconnects it",
+        "publicUrl": "Sign in needs PUBLIC_URL: the address this server is reached at.",
+        "tokenSetup": "Set up with a token"
       }
     },
     "storage": {
@@ -1923,6 +1972,49 @@
       "githubRepository": "GitHub Repository",
       "reportAnIssue": "Report an Issue",
       "sentryDocs": "Sentry SDK Documentation"
+    },
+    "products": {
+      "title": "Products",
+      "subtitle": "What this project keeps, and the order its sidebar lists it in.",
+      "note": "Turning a product off removes it from the sidebar and stops storing its data as it arrives: the SDK keeps sending it, and Rustrak drops it. What is already stored is kept, and shows again when you turn it back on.",
+      "alwaysOn": "Always on",
+      "saved": "Saved",
+      "saveFailed": "Could not save the products",
+      "drag": "Drag to reorder {name}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "items": {
+        "issues": "Errors and exceptions, grouped into issues.",
+        "feedback": "What users send through the feedback widget.",
+        "releases": "Release health, from sessions.",
+        "performance": "Transactions and spans.",
+        "logs": "Structured logs from the SDK.",
+        "crons": "Check-ins from scheduled jobs.",
+        "agents": "AI agent traces: the gen_ai spans inside performance data."
+      }
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Who you are on this instance, and how you sign in."
+    },
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "How Rustrak reads to you: language, time zone and theme.",
+      "display": "Display",
+      "theme": "Theme",
+      "themeDescription": "Light, dark, or follow your system."
+    },
+    "instance": {
+      "title": "Instance",
+      "subtitle": "What this Rustrak runs, and the limits it applies.",
+      "version": "Version",
+      "limits": "Ingest limits",
+      "limitsDescription": "The server’s limits per project. A project can only set lower ones, in its Data settings.",
+      "unlimited": "No limit"
+    },
+    "data": {
+      "title": "Data",
+      "subtitle": "What this project keeps, and how much it accepts."
     }
   },
   "github": {
@@ -2015,6 +2107,31 @@
       "description": "Assigning you an issue in Rustrak assigns you its linked GitHub issues, and the other way round.",
       "saved": "GitHub username saved",
       "saveFailed": "Could not save your GitHub username"
+    },
+    "setup": {
+      "title": "Set up GitHub",
+      "createTitle": "Create the GitHub App",
+      "createDescription": "GitHub shows you the app before creating it, and it stays private to your account or organization.",
+      "created": "Created as {slug}",
+      "organization": "Organization",
+      "organizationHint": "Leave it empty for your personal account. The app can only be installed where it is created.",
+      "installTitle": "Choose repositories",
+      "installDescription": "Install the app and pick the repositories Rustrak may read.",
+      "linkTitle": "Link each project to its repository",
+      "linkDescription": "In each project’s settings, under GitHub.",
+      "featuresTitle": "What it adds",
+      "active": "Active",
+      "you": "You",
+      "features": {
+        "code": "Code in stack traces",
+        "codeDescription": "Open the line that failed, at the commit that ran it.",
+        "commits": "Suspect commits",
+        "commitsDescription": "The commit that most likely broke it, on the issue.",
+        "issues": "GitHub issues",
+        "issuesDescription": "Open or link issues, and resolve errors from commits.",
+        "owners": "Code owners",
+        "ownersDescription": "Who owns the failing code, from CODEOWNERS."
+      }
     }
   },
   "conditions": {

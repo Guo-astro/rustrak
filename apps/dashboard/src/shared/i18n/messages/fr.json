@@ -37,7 +37,8 @@
   "theme": {
     "light": "Clair",
     "dark": "Sombre",
-    "system": "Système"
+    "system": "Système",
+    "label": "Thème"
   },
   "update": {
     "srAvailable": "Rustrak {version} est disponible.",
@@ -837,7 +838,8 @@
       "edit": "Modifier",
       "deleteAria": "Supprimer {name}",
       "close": "Fermer",
-      "addProvider": "Ajouter {name}"
+      "addProvider": "Ajouter {name}",
+      "more": "Plus d’actions pour {name}"
     },
     "table": {
       "rule": "Règle",
@@ -892,6 +894,24 @@
     "newFeedback": {
       "name": "Nouveau retour",
       "description": "Un utilisateur envoie un retour"
+    },
+    "page": {
+      "general": "Général",
+      "connection": "Connexion",
+      "server": "Serveur",
+      "authentication": "Authentification",
+      "authenticationDescription": "Seulement si votre serveur SMTP demande une connexion.",
+      "nameDescription": "Son nom lorsqu’une règle d’alerte choisit où envoyer.",
+      "methodDescription": "Un webhook publie dans un canal fixe. Un jeton de bot peut publier dans tout canal où se trouve le bot.",
+      "portDescription": "Généralement 587 pour STARTTLS, 465 pour TLS.",
+      "fromDescription": "L’expéditeur des alertes.",
+      "testTitle": "Envoyer un test",
+      "testDescription": "Envoie une alerte d’exemple avec les paramètres enregistrés, pas les modifications non enregistrées.",
+      "dangerTitle": "Zone de danger",
+      "deleteTitle": "Supprimer cette intégration",
+      "deleteDescription": "Les règles d’alerte qui l’utilisent cesseront d’envoyer ici.",
+      "unsaved": "Modifications non enregistrées",
+      "back": "Toutes les intégrations {name}"
     }
   },
   "events": {
@@ -1710,11 +1730,11 @@
       "general": "Général",
       "alerts": "Alertes",
       "members": "Membres",
-      "clientKeys": "Clés client",
+      "clientKeys": "SDK",
       "apiTokens": "Jetons API",
       "integrations": "Intégrations",
-      "mcp": "Assistants IA (MCP)",
-      "team": "Équipe",
+      "mcp": "Assistants IA",
+      "team": "Membres",
       "storage": "Stockage",
       "account": "Compte",
       "appearance": "Apparence",
@@ -1723,7 +1743,14 @@
       "projectSettingsTitle": "Paramètres du projet",
       "openSettingsMenu": "Ouvrir le menu des paramètres",
       "settingsTitle": "Paramètres",
-      "github": "GitHub"
+      "github": "Dépôt",
+      "products": "Produits",
+      "groupAccount": "Compte",
+      "groupWorkspace": "Espace de travail",
+      "profile": "Profil",
+      "preferences": "Préférences",
+      "instance": "Instance",
+      "data": "Données"
     },
     "loadProjectFailed": "Impossible de charger le projet",
     "loadProjectsFailed": "Impossible de charger les projets",
@@ -1739,7 +1766,7 @@
       "meta": {
         "title": "Clés client | Rustrak"
       },
-      "title": "Clés client (DSN)",
+      "title": "SDK",
       "subtitle": "Connectez une application à ce projet."
     },
     "alerts": {
@@ -1770,7 +1797,7 @@
         "title": "Équipe | Rustrak",
         "description": "Gérez les membres de votre équipe et les invitations"
       },
-      "title": "Équipe",
+      "title": "Membres",
       "subtitle": "Gérez les membres de votre équipe et les invitations",
       "notAuthorizedDescription": "Seuls les administrateurs de l’instance peuvent gérer l’équipe. Contactez un admin si vous avez besoin d’y accéder.",
       "loadFailed": "Impossible de charger l’équipe"
@@ -1792,8 +1819,8 @@
         "title": "Assistants IA | Rustrak",
         "description": "Connecter des assistants IA à Rustrak via MCP"
       },
-      "title": "Assistants IA (MCP)",
-      "subtitle": "Laissez Claude, ChatGPT, Cursor et d'autres assistants IA lire et trier vos erreurs, avec les droits de la personne qui les connecte.",
+      "title": "Assistants IA",
+      "subtitle": "Laissez Claude, ChatGPT ou Cursor lire et trier vos erreurs.",
       "loadFailed": "Impossible de charger les réglages MCP",
       "copy": "Copier",
       "copied": "Copié",
@@ -1853,6 +1880,28 @@
         "revokeFailed": "Impossible de déconnecter l'assistant",
         "revoked": "{name} déconnecté",
         "loadFailed": "Impossible de charger vos assistants connectés"
+      },
+      "page": {
+        "offTitle": "Le serveur MCP est désactivé",
+        "offAdmin": "Activez-le pour connecter un assistant.",
+        "offMember": "Demandez à un administrateur de l’activer.",
+        "enable": "Activer",
+        "connect": "Connecter un assistant",
+        "webHint": "Ajoutez un connecteur personnalisé et collez l’URL ci-dessus. Vous vous connectez à Rustrak et approuvez.",
+        "tokenHint": "Ce serveur n’a pas de PUBLIC_URL : les assistants se connectent avec un jeton d’API.",
+        "help": "Comment ça marche",
+        "helpTitle": "Deux façons de se connecter",
+        "helpIntro": "Les deux fonctionnent en même temps : utilisez celle que votre assistant prend en charge.",
+        "oauthName": "Connexion",
+        "tokenName": "Jeton d’API",
+        "oauth1": "claude.ai, ChatGPT, Claude Code, Cursor, VS Code",
+        "oauth2": "Vous vous connectez à Rustrak et approuvez",
+        "oauth3": "Rien à copier ni à renouveler",
+        "token1": "Scripts, CI, clients sans connexion",
+        "token2": "Vous collez un jeton dans le client",
+        "token3": "Révoquer le jeton le déconnecte",
+        "publicUrl": "La connexion nécessite PUBLIC_URL : l’adresse de ce serveur.",
+        "tokenSetup": "Configurer avec un jeton"
       }
     },
     "storage": {
@@ -1923,6 +1972,49 @@
       "githubRepository": "Dépôt GitHub",
       "reportAnIssue": "Signaler un problème",
       "sentryDocs": "Documentation des SDK Sentry"
+    },
+    "products": {
+      "title": "Produits",
+      "subtitle": "Ce que ce projet conserve, et l’ordre de sa barre latérale.",
+      "note": "Désactiver un produit le retire de la barre latérale et cesse de stocker ses données à leur arrivée : le SDK continue de les envoyer et Rustrak les ignore. Ce qui est déjà stocké est conservé et réapparaît si vous le réactivez.",
+      "alwaysOn": "Toujours actif",
+      "saved": "Enregistré",
+      "saveFailed": "Impossible d’enregistrer les produits",
+      "drag": "Glisser pour réordonner {name}",
+      "moveUp": "Monter {name}",
+      "moveDown": "Descendre {name}",
+      "items": {
+        "issues": "Erreurs et exceptions, regroupées en problèmes.",
+        "feedback": "Ce que les utilisateurs envoient via le widget de feedback.",
+        "releases": "Santé des versions, à partir des sessions.",
+        "performance": "Transactions et spans.",
+        "logs": "Logs structurés du SDK.",
+        "crons": "Check-ins des tâches planifiées.",
+        "agents": "Traces d’agents IA : les spans gen_ai des données de performance."
+      }
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Qui vous êtes sur cette instance, et comment vous vous connectez."
+    },
+    "preferences": {
+      "title": "Préférences",
+      "subtitle": "Comment Rustrak s’affiche pour vous : langue, fuseau horaire et thème.",
+      "display": "Affichage",
+      "theme": "Thème",
+      "themeDescription": "Clair, sombre, ou celui de votre système."
+    },
+    "instance": {
+      "title": "Instance",
+      "subtitle": "Ce que fait tourner ce Rustrak, et les limites qu’il applique.",
+      "version": "Version",
+      "limits": "Limites d’ingestion",
+      "limitsDescription": "Les limites du serveur par projet. Un projet ne peut en fixer que de plus basses, dans ses réglages Données.",
+      "unlimited": "Aucune limite"
+    },
+    "data": {
+      "title": "Données",
+      "subtitle": "Ce que ce projet conserve, et combien il en accepte."
     }
   },
   "github": {
@@ -2015,6 +2107,31 @@
       "description": "Vous assigner un ticket dans Rustrak vous assigne ses tickets GitHub liés, et inversement.",
       "saved": "Nom d'utilisateur GitHub enregistré",
       "saveFailed": "Impossible d'enregistrer votre nom d'utilisateur GitHub"
+    },
+    "setup": {
+      "title": "Configurer GitHub",
+      "createTitle": "Créer la GitHub App",
+      "createDescription": "GitHub vous montre l’app avant de la créer, et elle reste privée à votre compte ou organisation.",
+      "created": "Créée sous {slug}",
+      "organization": "Organisation",
+      "organizationHint": "Laissez vide pour votre compte personnel. L’app ne peut être installée que là où elle est créée.",
+      "installTitle": "Choisir les dépôts",
+      "installDescription": "Installez l’app et choisissez les dépôts que Rustrak peut lire.",
+      "linkTitle": "Lier chaque projet à son dépôt",
+      "linkDescription": "Dans les paramètres de chaque projet, sous GitHub.",
+      "featuresTitle": "Ce que ça apporte",
+      "active": "Active",
+      "you": "Vous",
+      "features": {
+        "code": "Code dans les stack traces",
+        "codeDescription": "Ouvrez la ligne en échec, au commit qui l’a exécutée.",
+        "commits": "Commits suspects",
+        "commitsDescription": "Le commit qui l’a le plus probablement cassé, sur l’issue.",
+        "issues": "Issues GitHub",
+        "issuesDescription": "Ouvrez ou liez des issues, et résolvez les erreurs depuis les commits.",
+        "owners": "Code owners",
+        "ownersDescription": "Qui possède le code en échec, d’après CODEOWNERS."
+      }
     }
   },
   "conditions": {

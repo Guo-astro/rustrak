@@ -79,6 +79,7 @@ async fn store_sample_logs(pool: &rustrak::db::DbPool, project_id: i32) {
         event_id: Uuid::new_v4(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
     LogsProcessor
         .process(bytes::Bytes::from(body), &ctx)

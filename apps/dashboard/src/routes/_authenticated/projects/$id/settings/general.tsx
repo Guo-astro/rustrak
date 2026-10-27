@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getProject, getRateLimits } from '@/features/project/api/queries';
+import { getProject } from '@/features/project/api/queries';
 import { GeneralSettingsForm } from '@/features/project/ui/components/general-settings-form/general-settings-form';
 import { translator } from '@/shared/i18n/intl';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/settings/general',
@@ -11,19 +12,13 @@ export const Route = createFileRoute(
   head: () => ({
     meta: [{ title: translator('settings')('general.meta.title') }],
   }),
-  loader: async ({ params }) => {
-    const [project, rateLimits] = await Promise.all([
-      getProject(Number.parseInt(params.id, 10)),
-      getRateLimits(),
-    ]);
-    return { project, rateLimits };
-  },
+  loader: ({ params }) => getProject(Number.parseInt(params.id, 10)),
   component: GeneralSettingsPage,
 });
 
 function GeneralSettingsPage() {
   const t = useTranslations('settings');
-  const { project, rateLimits } = Route.useLoaderData();
+  const project = Route.useLoaderData();
 
   if (!project.success) {
     return <LoadFailure error={project.error} title={t('loadProjectFailed')} />;
@@ -31,18 +26,12 @@ function GeneralSettingsPage() {
 
   return (
     <>
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-          {t('general.title')}
-        </h1>
-        <p className="text-muted-foreground mt-1">{t('general.subtitle')}</p>
-      </div>
-
-      <GeneralSettingsForm
-        project={project.data}
-        // A failure here costs only the placeholder, not the page.
-        serverLimits={rateLimits.success ? rateLimits.data : null}
+      <SettingsHeader
+        title={t('general.title')}
+        description={t('general.subtitle')}
       />
+
+      <GeneralSettingsForm project={project.data} />
     </>
   );
 }

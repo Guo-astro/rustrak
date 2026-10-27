@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { Button } from '../button/button';
-import { ReleaseIcon } from '../icon/icon-catalog';
 import { Text } from '../text/text';
 import { alert, confirm } from './confirm';
 import {
@@ -198,7 +197,6 @@ export const Alert: Story = {
       onClick={() =>
         alert({
           title: 'Export finished',
-          tone: 'success',
           description: '12,403 events written to events.ndjson.',
         })
       }
@@ -219,7 +217,6 @@ const pickRelease = createDialog<Record<string, never>, string>(
         <DialogHeader
           title="Choose a release"
           description="The regression is marked against it."
-          icon={ReleaseIcon}
         />
         <DialogBody>
           <div className="flex flex-col gap-1 pt-1">

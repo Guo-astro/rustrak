@@ -1,16 +1,21 @@
 import type { AuthTokenResponse } from '@rustrak/client';
-import { Copy, Trash2 } from 'lucide-react';
+import {
+  CopyIcon,
+  cn,
+  DeleteIcon,
+  focusRing,
+  interactiveTransition,
+  Menu,
+  MoreIcon,
+} from '@rustrak/ui';
 import { useTranslations } from 'use-intl';
-import { Button } from '@/shared/ui/components/shadcn/button';
 
 /**
- * Copy and delete for one token, shared by the phone card and the desktop row.
+ * Copy and delete for one token, behind the row's ⋯ menu.
  *
- * The two layouts had this pair written out twice, down to the triple
- * `disabled` condition and the labels. A token is identified by its
- * description where it has one and by its prefix otherwise, and that fallback
- * is the whole reason these buttons need labels: the icons alone announce
- * "copy" and "delete" without ever saying what.
+ * A token is identified by its description where it has one and by its
+ * prefix otherwise, and that fallback is the whole reason these actions need
+ * labels: "copy" and "delete" alone never say what.
  */
 export function TokenActions({
   token,
@@ -27,25 +32,42 @@ export function TokenActions({
   const label = token.description || token.token_prefix;
 
   return (
-    <div className="flex shrink-0 items-center gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => onCopy(token)}
-        disabled={busy}
-        aria-label={t('copyTokenLabel', { label })}
-      >
-        <Copy className="size-4" />
-      </Button>
-      <Button
-        variant="destructive"
-        size="icon"
-        onClick={() => onDelete(token)}
-        disabled={busy}
-        aria-label={t('deleteTokenLabel', { label })}
-      >
-        <Trash2 className="size-4" />
-      </Button>
-    </div>
+    <Menu
+      align="end"
+      trigger={
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={t('actionsLabel')}
+          className={cn(
+            'flex size-control-xs items-center justify-center rounded-md text-fg-meta',
+            'hover:bg-surface-hover hover:text-fg disabled:opacity-30',
+            'data-popup-open:bg-surface-hover',
+            interactiveTransition,
+            focusRing,
+          )}
+        >
+          <MoreIcon size="lg" />
+        </button>
+      }
+      actions={[
+        {
+          id: 'copy',
+          label: t('copyTokenLabel', { label }),
+          icon: CopyIcon,
+          disabled: busy,
+          onSelect: () => onCopy(token),
+        },
+        {
+          id: 'delete',
+          label: t('deleteTokenLabel', { label }),
+          icon: DeleteIcon,
+          tone: 'danger',
+          separated: true,
+          disabled: busy,
+          onSelect: () => onDelete(token),
+        },
+      ]}
+    />
   );
 }

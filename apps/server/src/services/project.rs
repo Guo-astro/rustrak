@@ -2,7 +2,9 @@ use slug::slugify;
 
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult, FieldErrorCode};
-use crate::models::{CreateProject, Project, UpdateProject, SELECTABLE_PLATFORMS, VALID_PLATFORMS};
+use crate::models::{
+    CreateProject, Product, Project, UpdateProject, SELECTABLE_PLATFORMS, VALID_PLATFORMS,
+};
 use crate::pagination::SortOrder;
 
 /// Whether [`ProjectService::update_inner`] runs the slug availability
@@ -29,7 +31,8 @@ impl ProjectService {
                    digested_event_count, created_at, updated_at, platform,
                    quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
             FROM projects
             ORDER BY created_at DESC
             "#,
@@ -66,7 +69,8 @@ impl ProjectService {
                    digested_event_count, created_at, updated_at, platform,
                    quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
             FROM projects
             {}
             LIMIT $1 OFFSET $2
@@ -126,7 +130,8 @@ impl ProjectService {
                    digested_event_count, created_at, updated_at, platform,
                    quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
             FROM projects
             WHERE id IN ({})
             {}
@@ -152,7 +157,8 @@ impl ProjectService {
                    digested_event_count, created_at, updated_at, platform,
                    quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
             FROM projects
             WHERE id = $1
             "#,
@@ -177,7 +183,8 @@ impl ProjectService {
                    digested_event_count, created_at, updated_at, platform,
                    quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
             FROM projects
             WHERE sentry_key = $1
             "#,
@@ -315,6 +322,16 @@ impl ProjectService {
         // Verify it exists
         Self::get_by_id(pool, id).await?;
 
+        if input
+            .disabled_products
+            .as_ref()
+            .is_some_and(|off| off.contains(&Product::Issues))
+        {
+            return Err(AppError::Validation(
+                "issues cannot be disabled: a project always keeps its errors".to_string(),
+            ));
+        }
+
         let name = match input.name {
             Some(ref name) => {
                 let name = name.trim();
@@ -381,6 +398,8 @@ impl ProjectService {
             && slug.is_none()
             && input.rate_limit_per_minute.is_none()
             && input.rate_limit_per_hour.is_none()
+            && input.disabled_products.is_none()
+            && input.product_order.is_none()
         {
             // If no fields to update, return project unchanged
             return Self::get_by_id(pool, id).await;
@@ -396,13 +415,16 @@ impl ProjectService {
                 slug = COALESCE($3, slug),
                 rate_limit_per_minute = CASE WHEN $5 THEN $6 ELSE rate_limit_per_minute END,
                 rate_limit_per_hour = CASE WHEN $7 THEN $8 ELSE rate_limit_per_hour END,
+                disabled_products = CASE WHEN $9 THEN $10 ELSE disabled_products END,
+                product_order = CASE WHEN $11 THEN $12 ELSE product_order END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $4
             RETURNING id, name, slug, sentry_key, stored_event_count,
                       digested_event_count, created_at, updated_at, platform,
                       quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
             "#,
         )
         .bind(name)
@@ -413,6 +435,12 @@ impl ProjectService {
         .bind(input.rate_limit_per_minute.flatten())
         .bind(input.rate_limit_per_hour.is_some())
         .bind(input.rate_limit_per_hour.flatten())
+        .bind(input.disabled_products.is_some())
+        .bind(sqlx::types::Json(
+            input.disabled_products.unwrap_or_default(),
+        ))
+        .bind(input.product_order.is_some())
+        .bind(sqlx::types::Json(input.product_order.unwrap_or_default()))
         .fetch_one(pool)
         .await
         .map_err(|e| {
@@ -583,7 +611,8 @@ impl ProjectService {
                       digested_event_count, created_at, updated_at, platform,
                       quota_exceeded_until, quota_exceeded_reason, next_quota_check,
                    quota_minute_window, quota_minute_count, quota_hour_window, quota_hour_count,
-                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour
+                   rate_limited_event_count, rate_limit_per_minute, rate_limit_per_hour,
+                   disabled_products, product_order
         "#;
 
         let result = sqlx::query_as::<_, Project>(INSERT_SQL)

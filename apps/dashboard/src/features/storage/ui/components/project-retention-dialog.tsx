@@ -125,7 +125,7 @@ function Editor({
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {KINDS.map((kind) => (
                 <div key={kind} className="space-y-1">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-hint text-fg-subtle">
                     {t(`kind.${kind}`)}
                   </span>
                   <KeepForSelect
@@ -179,8 +179,8 @@ function Choice({
   return (
     <div
       className={cn(
-        'rounded-md border p-3',
-        checked && 'border-primary bg-primary/5',
+        'rounded-md border border-border-subtle p-3',
+        checked && 'border-border-brand bg-surface-selected',
       )}
     >
       <label className="flex cursor-pointer items-start gap-3">
@@ -190,11 +190,11 @@ function Choice({
           checked={checked}
           onChange={onSelect}
           disabled={disabled}
-          className="mt-1 accent-primary"
+          className="mt-1 accent-fg-brand"
         />
         <span className="min-w-0">
-          <span className="block text-sm font-medium">{title}</span>
-          <span className="block text-xs text-muted-foreground">{detail}</span>
+          <span className="block text-value font-medium text-fg">{title}</span>
+          <span className="block text-hint text-fg-subtle">{detail}</span>
         </span>
       </label>
       {children}

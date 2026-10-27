@@ -37,7 +37,8 @@
   "theme": {
     "light": "Claro",
     "dark": "Oscuro",
-    "system": "Sistema"
+    "system": "Sistema",
+    "label": "Tema"
   },
   "update": {
     "srAvailable": "Rustrak {version} está disponible.",
@@ -837,7 +838,8 @@
       "edit": "Editar",
       "deleteAria": "Eliminar {name}",
       "close": "Cerrar",
-      "addProvider": "Añadir {name}"
+      "addProvider": "Añadir {name}",
+      "more": "Más acciones para {name}"
     },
     "table": {
       "rule": "Regla",
@@ -892,6 +894,24 @@
     "newFeedback": {
       "name": "Feedback nuevo",
       "description": "Un usuario envía feedback"
+    },
+    "page": {
+      "general": "General",
+      "connection": "Conexión",
+      "server": "Servidor",
+      "authentication": "Autenticación",
+      "authenticationDescription": "Solo si tu servidor SMTP pide iniciar sesión.",
+      "nameDescription": "Cómo aparece al elegir a dónde envía una regla de alerta.",
+      "methodDescription": "Un webhook publica en un canal fijo. Un bot token puede publicar en cualquier canal donde esté el bot.",
+      "portDescription": "Normalmente 587 para STARTTLS, 465 para TLS.",
+      "fromDescription": "El remitente desde el que llegan las alertas.",
+      "testTitle": "Enviar una prueba",
+      "testDescription": "Envía una alerta de ejemplo con la configuración guardada, no con los cambios sin guardar.",
+      "dangerTitle": "Zona de peligro",
+      "deleteTitle": "Eliminar esta integración",
+      "deleteDescription": "Las reglas de alerta que envían por ella dejarán de entregar aquí.",
+      "unsaved": "Cambios sin guardar",
+      "back": "Todas las integraciones de {name}"
     }
   },
   "events": {
@@ -1710,11 +1730,11 @@
       "general": "General",
       "alerts": "Alertas",
       "members": "Miembros",
-      "clientKeys": "Claves de cliente",
+      "clientKeys": "SDK",
       "apiTokens": "Tokens de API",
       "integrations": "Integraciones",
-      "mcp": "Asistentes de IA (MCP)",
-      "team": "Equipo",
+      "mcp": "Asistentes de IA",
+      "team": "Miembros",
       "storage": "Almacenamiento",
       "account": "Cuenta",
       "appearance": "Apariencia",
@@ -1723,7 +1743,14 @@
       "projectSettingsTitle": "Configuración del proyecto",
       "openSettingsMenu": "Abrir menú de configuración",
       "settingsTitle": "Configuración",
-      "github": "GitHub"
+      "github": "Repositorio",
+      "products": "Productos",
+      "groupAccount": "Cuenta",
+      "groupWorkspace": "Workspace",
+      "profile": "Perfil",
+      "preferences": "Preferencias",
+      "instance": "Instancia",
+      "data": "Datos"
     },
     "loadProjectFailed": "No se pudo cargar el proyecto",
     "loadProjectsFailed": "No se pudieron cargar los proyectos",
@@ -1739,7 +1766,7 @@
       "meta": {
         "title": "Claves de cliente | Rustrak"
       },
-      "title": "Claves de cliente (DSN)",
+      "title": "SDK",
       "subtitle": "Conecta una aplicación a este proyecto."
     },
     "alerts": {
@@ -1770,7 +1797,7 @@
         "title": "Equipo | Rustrak",
         "description": "Gestiona a los miembros de tu equipo y las invitaciones"
       },
-      "title": "Equipo",
+      "title": "Miembros",
       "subtitle": "Gestiona a los miembros de tu equipo y las invitaciones",
       "notAuthorizedDescription": "Solo los administradores de la instancia pueden gestionar el equipo. Contacta con un admin si necesitas acceso.",
       "loadFailed": "No se pudo cargar el equipo"
@@ -1792,8 +1819,8 @@
         "title": "Asistentes de IA | Rustrak",
         "description": "Conecta asistentes de IA a Rustrak mediante MCP"
       },
-      "title": "Asistentes de IA (MCP)",
-      "subtitle": "Deja que Claude, ChatGPT, Cursor y otros asistentes de IA lean y gestionen tus errores, con los permisos de quien los conecta.",
+      "title": "Asistentes de IA",
+      "subtitle": "Deja que Claude, ChatGPT o Cursor lean y gestionen tus errores.",
       "loadFailed": "No se pudo cargar la configuración de MCP",
       "copy": "Copiar",
       "copied": "Copiado",
@@ -1853,6 +1880,28 @@
         "revokeFailed": "No se pudo desconectar el asistente",
         "revoked": "{name} desconectado",
         "loadFailed": "No se pudieron cargar tus asistentes conectados"
+      },
+      "page": {
+        "offTitle": "El servidor MCP está apagado",
+        "offAdmin": "Actívalo para conectar un asistente.",
+        "offMember": "Pide a un administrador que lo active.",
+        "enable": "Activar",
+        "connect": "Conectar un asistente",
+        "webHint": "Añade un conector personalizado y pega la URL de arriba. Inicias sesión en Rustrak y lo apruebas.",
+        "tokenHint": "Este servidor no tiene PUBLIC_URL, así que los asistentes se conectan con un token de API.",
+        "help": "Cómo funciona",
+        "helpTitle": "Dos formas de conectar",
+        "helpIntro": "Las dos funcionan a la vez: usa la que admita tu asistente.",
+        "oauthName": "Iniciar sesión",
+        "tokenName": "Token de API",
+        "oauth1": "claude.ai, ChatGPT, Claude Code, Cursor, VS Code",
+        "oauth2": "Inicias sesión en Rustrak y lo apruebas",
+        "oauth3": "Nada que copiar ni renovar",
+        "token1": "Scripts, CI y clientes sin inicio de sesión",
+        "token2": "Pegas un token en el cliente",
+        "token3": "Revocar el token lo desconecta",
+        "publicUrl": "Iniciar sesión necesita PUBLIC_URL: la dirección por la que se llega a este servidor.",
+        "tokenSetup": "Configurar con un token"
       }
     },
     "storage": {
@@ -1923,6 +1972,49 @@
       "githubRepository": "Repositorio de GitHub",
       "reportAnIssue": "Informar de un problema",
       "sentryDocs": "Documentación de los SDK de Sentry"
+    },
+    "products": {
+      "title": "Productos",
+      "subtitle": "Qué guarda este proyecto y en qué orden aparece en su sidebar.",
+      "note": "Desactivar un producto lo quita del sidebar y deja de guardar sus datos al recibirlos: el SDK sigue enviándolos y Rustrak los descarta. Lo que ya está guardado se conserva y vuelve a verse si lo reactivas.",
+      "alwaysOn": "Siempre activo",
+      "saved": "Guardado",
+      "saveFailed": "No se pudieron guardar los productos",
+      "drag": "Arrastra para reordenar {name}",
+      "moveUp": "Subir {name}",
+      "moveDown": "Bajar {name}",
+      "items": {
+        "issues": "Errores y excepciones, agrupados en issues.",
+        "feedback": "Lo que los usuarios envían desde el widget de feedback.",
+        "releases": "Salud de las versiones, a partir de sesiones.",
+        "performance": "Transacciones y spans.",
+        "logs": "Logs estructurados del SDK.",
+        "crons": "Check-ins de tareas programadas.",
+        "agents": "Trazas de agentes de IA: los spans gen_ai dentro del rendimiento."
+      }
+    },
+    "profile": {
+      "title": "Perfil",
+      "subtitle": "Quién eres en esta instancia y cómo inicias sesión."
+    },
+    "preferences": {
+      "title": "Preferencias",
+      "subtitle": "Cómo te muestra Rustrak las cosas: idioma, zona horaria y tema.",
+      "display": "Visualización",
+      "theme": "Tema",
+      "themeDescription": "Claro, oscuro o el de tu sistema."
+    },
+    "instance": {
+      "title": "Instancia",
+      "subtitle": "Qué versión de Rustrak corre y qué límites aplica.",
+      "version": "Versión",
+      "limits": "Límites de ingesta",
+      "limitsDescription": "Los límites del servidor por proyecto. Un proyecto solo puede fijar otros más bajos, en sus ajustes de Datos.",
+      "unlimited": "Sin límite"
+    },
+    "data": {
+      "title": "Datos",
+      "subtitle": "Qué guarda este proyecto y cuánto acepta."
     }
   },
   "github": {
@@ -2015,6 +2107,31 @@
       "description": "Asignarte un issue en Rustrak te asigna sus issues enlazados de GitHub, y al revés.",
       "saved": "Usuario de GitHub guardado",
       "saveFailed": "No se pudo guardar tu usuario de GitHub"
+    },
+    "setup": {
+      "title": "Configurar GitHub",
+      "createTitle": "Crear la GitHub App",
+      "createDescription": "GitHub te enseña la app antes de crearla, y queda privada en tu cuenta u organización.",
+      "created": "Creada como {slug}",
+      "organization": "Organización",
+      "organizationHint": "Déjalo vacío para tu cuenta personal. La app solo se puede instalar donde se crea.",
+      "installTitle": "Elegir repositorios",
+      "installDescription": "Instala la app y elige los repositorios que Rustrak puede leer.",
+      "linkTitle": "Vincular cada proyecto a su repositorio",
+      "linkDescription": "En los ajustes de cada proyecto, en GitHub.",
+      "featuresTitle": "Qué añade",
+      "active": "Activa",
+      "you": "Tú",
+      "features": {
+        "code": "Código en los stack traces",
+        "codeDescription": "Abre la línea que falló, en el commit que la ejecutó.",
+        "commits": "Commits sospechosos",
+        "commitsDescription": "El commit que más probablemente lo rompió, en el issue.",
+        "issues": "Issues de GitHub",
+        "issuesDescription": "Abre o vincula issues, y resuelve errores desde commits.",
+        "owners": "Code owners",
+        "ownersDescription": "Quién es dueño del código que falla, según CODEOWNERS."
+      }
     }
   },
   "conditions": {

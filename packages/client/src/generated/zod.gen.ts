@@ -991,6 +991,23 @@ export const zPreviewTemplateResponse = z.object({
     rendered: z.string().nullish()
 });
 
+/**
+ * A kind of data a project can keep, and a route in its sidebar.
+ *
+ * Turning one off is not a view setting: its items are dropped at ingest,
+ * with a 200 as Relay drops filtered data, so nothing new is stored and the
+ * SDK does not retry. What was already stored stays.
+ */
+export const zProduct = z.enum([
+    'issues',
+    'feedback',
+    'releases',
+    'performance',
+    'agents',
+    'logs',
+    'crons'
+]);
+
 export const zProjectAge = z.object({
     events: zKindAge,
     logs: zKindAge,
@@ -1033,10 +1050,12 @@ export const zProjectRepository = z.object({
 export const zProjectResponse = z.object({
     created_at: z.iso.datetime({ offset: true }),
     digested_event_count: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    disabled_products: z.array(zProduct),
     dsn: z.string(),
     id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
     name: z.string(),
     platform: z.string().nullable(),
+    product_order: z.array(zProduct),
     rate_limit_per_hour: z.int().nullable(),
     rate_limit_per_minute: z.int().nullable(),
     rate_limited_event_count: z.int(),
@@ -1815,8 +1834,10 @@ export const zUpdatePreferencesRequest = z.object({
  * DTO for updating a project
  */
 export const zUpdateProject = z.object({
+    disabled_products: z.array(zProduct).nullish(),
     name: z.string().nullish(),
     platform: z.string().nullish(),
+    product_order: z.array(zProduct).nullish(),
     rate_limit_per_hour: z.int().nullish(),
     rate_limit_per_minute: z.int().nullish(),
     slug: z.string().nullish()
@@ -2319,10 +2340,12 @@ export const zProjectsListResponse = z.object({
     items: z.array(z.object({
         created_at: z.iso.datetime({ offset: true }),
         digested_event_count: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+        disabled_products: z.array(zProduct),
         dsn: z.string(),
         id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
         name: z.string(),
         platform: z.string().nullable(),
+        product_order: z.array(zProduct),
         rate_limit_per_hour: z.int().nullable(),
         rate_limit_per_minute: z.int().nullable(),
         rate_limited_event_count: z.int(),

@@ -6,7 +6,7 @@ import type {
   StorageAge,
   StorageSummary,
 } from '@rustrak/client';
-import { Settings2, Trash2 } from 'lucide-react';
+import { Button, ConfigureIcon, DeleteIcon } from '@rustrak/ui';
 import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { getRetention } from '@/features/storage/api/queries';
@@ -16,24 +16,19 @@ import {
   summarize,
 } from '@/features/storage/model/retention';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/shadcn/card';
+import { SettingSection } from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { useCleanupJob } from '../hooks/use-cleanup-job';
 import { AgeChart } from './age-chart';
 import { CompactionNotice } from './compaction-notice';
 import { DeleteDialog } from './delete-dialog';
 import { ProjectRetentionDialog } from './project-retention-dialog';
 import { RetentionDialog } from './retention-dialog';
-import { StorageOverview } from './storage-overview';
+import { CleanupLine, StorageOverview } from './storage-overview';
 import { StorageProjects } from './storage-projects';
 import {
   ChartSkeleton,
+  LineSkeleton,
   OverviewSkeleton,
   ProjectsSkeleton,
 } from './storage-skeletons';
@@ -132,36 +127,33 @@ export function StorageView({
   };
 
   return (
-    <div className="min-w-0 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">
-            {title}
-          </h1>
-          <p className="mt-1 text-muted-foreground">{subtitle}</p>
-        </div>
-        {/* Shown at once, enabled once the current figures are in: both
-            dialogs price what they delete from the projects' sizes. */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setDeleting(true)}
-            disabled={cleanup.running || !data || reloading}
-          >
-            <Trash2 />
-            {t('deleteAction')}
-          </Button>
-          <Button
-            onClick={() => setEditing(true)}
-            disabled={!data || reloading}
-          >
-            <Settings2 />
-            {t('action')}
-          </Button>
-        </div>
-      </div>
-
-      <CompactionNotice disabled={cleanup.running} onStarted={cleanup.follow} />
+    <div className="min-w-0">
+      <SettingsHeader
+        title={title}
+        description={subtitle}
+        actions={
+          // Shown at once, enabled once the current figures are in: both
+          // dialogs price what they delete from the projects' sizes.
+          <>
+            <Button
+              variant="danger"
+              icon={DeleteIcon}
+              onClick={() => setDeleting(true)}
+              disabled={cleanup.running || !data || reloading}
+            >
+              {t('deleteAction')}
+            </Button>
+            <Button
+              variant="primary"
+              icon={ConfigureIcon}
+              onClick={() => setEditing(true)}
+              disabled={!data || reloading}
+            >
+              {t('action')}
+            </Button>
+          </>
+        }
+      />
 
       {figures && 'error' in figures ? (
         <LoadFailure
@@ -169,31 +161,41 @@ export function StorageView({
           title={ts('storage.loadFailed')}
           notFoundOnMissing={false}
         />
-      ) : summary ? (
-        <StorageOverview
-          summary={summary}
-          retention={retention}
-          job={cleanup.job}
-        />
       ) : (
-        <OverviewSkeleton />
+        <SettingSection title={t('overview.title')}>
+          {summary ? (
+            <StorageOverview summary={summary} />
+          ) : (
+            <OverviewSkeleton />
+          )}
+        </SettingSection>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            {t('age.title')}
-          </CardTitle>
-          <CardDescription>{t('age.description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <SettingSection title={t('projects.retention')}>
+        {figures && 'error' in figures ? null : summary ? (
+          <CleanupLine
+            summary={summary}
+            retention={retention}
+            job={cleanup.job}
+          />
+        ) : (
+          <LineSkeleton />
+        )}
+        <CompactionNotice
+          disabled={cleanup.running}
+          onStarted={cleanup.follow}
+        />
+      </SettingSection>
+
+      <SettingSection title={t('age.title')} description={t('age.description')}>
+        <div className="px-5 py-4">
           {summary ? (
             <AgeChart buckets={summary.buckets} kinds={KINDS} />
           ) : (
             <ChartSkeleton />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </SettingSection>
 
       {summary ? (
         <StorageProjects
@@ -202,7 +204,9 @@ export function StorageView({
           onEditRetention={setProject}
         />
       ) : (
-        <ProjectsSkeleton />
+        <SettingSection title={t('projects.title')}>
+          <ProjectsSkeleton />
+        </SettingSection>
       )}
 
       <RetentionDialog
