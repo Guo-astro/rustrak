@@ -2722,6 +2722,34 @@ async fn test_tag_values_and_aggregates() {
 }
 
 #[actix_web::test]
+async fn test_aggregates_count_a_repeated_tag_key_once_per_event() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "Repeated Tags Project").await;
+    let temp_dir = TempDir::new().unwrap();
+    let cfg = create_rate_limit_config();
+
+    // One event sending `browser` twice, in the list form of `tags`.
+    ingest_event_with_tags(
+        &db.pool,
+        project.id,
+        temp_dir.path(),
+        &cfg,
+        json!([["browser", "chrome"], ["browser", "firefox"]]),
+        json!({"id": "user-1"}),
+    )
+    .await;
+
+    let issue_id = only_issue_id(&db.pool, project.id).await;
+    let agg = IssueService::aggregates(&db.pool, issue_id).await.unwrap();
+    let browser = agg.tags.iter().find(|t| t.key == "browser").unwrap();
+
+    // Relay deduplicates tags and keeps the first: one event, one value.
+    assert_eq!(browser.total_values, 1);
+    assert_eq!(browser.top_values.len(), 1);
+    assert_eq!(browser.top_values[0].value, "chrome");
+}
+
+#[actix_web::test]
 async fn test_list_stats_counts_distinct_users_per_issue() {
     let db = TestDb::new().await;
     let project = create_test_project(&db.pool, "List Stats Project").await;

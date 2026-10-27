@@ -19,7 +19,9 @@ const SEGMENTS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3'] as const;
  */
 export function TagDistribution({ tags }: { tags: TagSummary[] }) {
   const format = useFormatter();
-  const percent = (value: number) => format.number(value, { style: 'percent' });
+  // The app's named format: one decimal, so a share of 1 in 1,000 reads
+  // 0.1%, not 0%.
+  const percent = (value: number) => format.number(value, 'percent');
 
   return (
     <ul className="flex flex-col gap-3">
@@ -73,7 +75,12 @@ export function TagDistribution({ tags }: { tags: TagSummary[] }) {
                     key={value.value}
                     className="flex items-baseline justify-between gap-3"
                   >
-                    <Text variant="mono-sm" tone="subtle" truncate>
+                    {/* Opened to be read: the value wraps, never clips. */}
+                    <Text
+                      variant="mono-sm"
+                      tone="subtle"
+                      className="min-w-0 break-words"
+                    >
                       {value.value}
                     </Text>
                     <Text variant="meta" tone="subtle" className="tabular-nums">

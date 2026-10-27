@@ -120,7 +120,18 @@ pub(crate) fn derive_priority(level: Option<&str>) -> &'static str {
 /// Extracts (key, value) tag pairs from an event payload. Handles both the
 /// object form (`tags: {k: v}`) and the normalized array form
 /// (`tags: [[k, v]]` or `tags: [{"key": k, "value": v}]`).
+///
+/// Each key once, the first occurrence kept: Relay deduplicates an event's
+/// tags the same way (`normalize_event_tags`), so a key sent twice counts as
+/// one event carrying it, not two.
 fn extract_tags(data: &serde_json::Value) -> Vec<(String, String)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut tags = extract_raw_tags(data);
+    tags.retain(|(key, _)| seen.insert(key.clone()));
+    tags
+}
+
+fn extract_raw_tags(data: &serde_json::Value) -> Vec<(String, String)> {
     let Some(tags) = data.get("tags") else {
         return Vec::new();
     };
