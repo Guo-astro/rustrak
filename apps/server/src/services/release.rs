@@ -207,14 +207,17 @@ impl ReleaseService {
             .await?;
 
         // Sentry's `newGroups`: per environment when one is asked, but never
-        // windowed -- it is what the release introduced, not when.
+        // windowed -- it is what the release introduced, not when. In an
+        // environment, the release has to have brought it there: one event
+        // in both, not the issue reaching it later with another release.
         let new_issues: Vec<(String, i64)> = sqlx::query_as(
             "SELECT first_release, COUNT(*) FROM issues \
              WHERE project_id = $1 AND first_release IS NOT NULL AND first_release <> '' \
                AND issue_category = 'error' \
                AND ($2 IS NULL OR id IN ( \
-                   SELECT issue_id FROM issue_environments \
-                   WHERE project_id = $1 AND environment = $2)) \
+                   SELECT issue_id FROM events \
+                   WHERE project_id = $1 AND environment = $2 \
+                     AND release = issues.first_release)) \
              GROUP BY first_release",
         )
         .bind(project_id)

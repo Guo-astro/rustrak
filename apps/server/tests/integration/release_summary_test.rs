@@ -237,6 +237,51 @@ async fn an_environment_narrows_the_numbers_not_the_releases() {
 }
 
 #[actix_web::test]
+async fn a_new_issue_counts_in_the_environment_it_arrived_in() {
+    let db = TestDb::new().await;
+    let p = project(&db.pool).await;
+    // Introduced by 1.0.0 in production; reached staging only with 2.0.0.
+    let issue = new_issue(&db.pool, p, "1.0.0", 1).await;
+    issue_seen_in(&db.pool, p, issue, "production").await;
+    issue_seen_in(&db.pool, p, issue, "staging").await;
+    for (release, env) in [("1.0.0", "production"), ("2.0.0", "staging")] {
+        sqlx::query(
+            "INSERT INTO events (event_id, project_id, issue_id, data, timestamp, ingested_at, level, event_type, release, environment) \
+             VALUES ($1, $2, $3, '{}', $4, $4, 'error', 'error', $5, $6)",
+        )
+        .bind(Uuid::new_v4())
+        .bind(p)
+        .bind(issue)
+        .bind(Utc::now())
+        .bind(release)
+        .bind(env)
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    }
+
+    let count = |env: &str| {
+        let filter = SummaryFilter {
+            environment: Some(env.to_string()),
+            ..Default::default()
+        };
+        let pool = db.pool.clone();
+        async move {
+            ReleaseService::summaries(&pool, p, &filter)
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|r| r.version == "1.0.0")
+                .unwrap()
+                .new_issues
+        }
+    };
+
+    assert_eq!(count("production").await, 1);
+    assert_eq!(count("staging").await, 0);
+}
+
+#[actix_web::test]
 async fn a_query_keeps_the_versions_that_contain_it() {
     let db = TestDb::new().await;
     let p = seed(&db.pool).await;

@@ -19,11 +19,12 @@ use actix_web::cookie::Key;
 use actix_web::{test, web, App};
 use chrono::Utc;
 use rustrak::config::{Config, DashboardConfig, DatabaseConfig, RateLimitConfig};
-use rustrak::models::{CreateAuthToken, CreateProject, CreateUserRequest, UserRole};
+use rustrak::models::{CreateAuthToken, CreateProject, CreateRelease, CreateUserRequest, UserRole};
 use rustrak::routes;
 use rustrak::services::grouping::DenormalizedFields;
 use rustrak::services::{
-    AuthTokenService, CleanupJob, EventService, IssueService, ProjectService, UsersService,
+    AuthTokenService, CleanupJob, EventService, IssueService, ProjectService, ReleaseService,
+    UsersService,
 };
 use rustrak::telemetry::{
     ConfigFacts, Context, Counters, Report, Reporter, Sink, SinkError, TelemetryStatus,
@@ -202,6 +203,18 @@ async fn seed(db: &TestDb) -> (Seed, String) {
     .await
     .unwrap();
 
+    ReleaseService::create(
+        &db.pool,
+        project.id,
+        CreateRelease {
+            version: CONTRACT_RELEASE.into(),
+            reference: None,
+            url: None,
+        },
+    )
+    .await
+    .unwrap();
+
     let now = Utc::now();
     let transaction_id = Uuid::new_v4();
     // No `op`: the stat-group route, called without one, matches a null op.
@@ -270,6 +283,7 @@ fn param_value(name: &str, path: &str, schema: &Value, seed: &Seed) -> String {
         "span_id" => seed.span_row_id.to_string(),
         "rule_id" => seed.rule_id.to_string(),
         "slug" => "contract".into(),
+        "release" => CONTRACT_RELEASE.into(),
         "project_slug" => seed.project_slug.clone(),
         "org_slug" => "rustrak".into(),
         "key" => "level".into(),
@@ -286,6 +300,7 @@ fn param_value(name: &str, path: &str, schema: &Value, seed: &Seed) -> String {
     }
 }
 
+const CONTRACT_RELEASE: &str = "1.0.0";
 const CONTRACT_CLIENT: &str = "https://client.example/metadata.json";
 const CONTRACT_REDIRECT: &str = "https://client.example/callback";
 
