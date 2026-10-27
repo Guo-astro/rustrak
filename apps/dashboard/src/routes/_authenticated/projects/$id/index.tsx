@@ -3,14 +3,14 @@ import { createFileRoute } from '@tanstack/react-router';
 import { PlatformIcon } from 'platformicons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { getProject } from '@/features/project/api/queries';
-import type { OverviewPeriod } from '@/features/release/model/session-health';
+import {
+  type OverviewPeriod,
+  PERIOD_CHOICES,
+} from '@/features/release/model/session-health';
 import { translator } from '@/shared/i18n/intl';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import {
-  OverviewFilters,
-  PERIOD_CHOICES,
-} from './-components/overview-filters';
+import { OverviewFilters } from './-components/overview-filters';
 import {
   ErrorVolumePanel,
   IssuesPanel,

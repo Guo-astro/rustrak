@@ -16,12 +16,11 @@ import {
   getProjectEnvironments,
   getProjectReleases,
 } from '@/features/project/api/queries';
-import { OVERVIEW_PERIODS } from '@/features/release/model/session-health';
+import {
+  PERIOD_CHOICES,
+  type PeriodChoice,
+} from '@/features/release/model/session-health';
 import { useAsync } from '@/shared/ui/hooks/use-async';
-
-/** What `?period=` can hold. Absent is the default window, not all time. */
-export const PERIOD_CHOICES = [...OVERVIEW_PERIODS, 'all'] as const;
-export type PeriodChoice = (typeof PERIOD_CHOICES)[number];
 
 export interface FilterChange {
   period?: PeriodChoice;
