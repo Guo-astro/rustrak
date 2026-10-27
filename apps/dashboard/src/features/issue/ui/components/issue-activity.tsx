@@ -202,7 +202,10 @@ export function IssueActivity({
                   )}
                   <time
                     dateTime={entry.created_at}
-                    title={format.dateTime(new Date(entry.created_at), 'long')}
+                    title={format.dateTime(
+                      new Date(entry.created_at),
+                      'dateTime',
+                    )}
                     className="text-hint text-fg-meta"
                   >
                     {format.relativeTime(new Date(entry.created_at))}

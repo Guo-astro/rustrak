@@ -1843,7 +1843,19 @@
         "title": "No feedback here",
         "description": "Feedback sent with the SDK's feedback widget or captureFeedback shows up here"
       },
-      "anonymous": "Anonymous"
+      "anonymous": "Anonymous",
+      "count": "{count, plural, one {# report} other {# reports}}",
+      "pageOf": "Page {page} of {total}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "attachments": "{count, plural, one {# attachment} other {# attachments}}",
+      "linkedError": "Linked error",
+      "noLinkedError": "Sent without an error",
+      "viewError": "View the error it is about",
+      "page": "Page",
+      "received": "Received",
+      "openIssue": "Open as an issue",
+      "back": "Back to the list"
     }
   },
   "settings": {

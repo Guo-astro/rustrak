@@ -1843,7 +1843,19 @@
         "title": "Aucun retour ici",
         "description": "Les retours envoyés avec le widget de retour du SDK ou captureFeedback apparaissent ici"
       },
-      "anonymous": "Anonyme"
+      "anonymous": "Anonyme",
+      "count": "{count, plural, one {# retour} other {# retours}}",
+      "pageOf": "Page {page} sur {total}",
+      "previousPage": "Page précédente",
+      "nextPage": "Page suivante",
+      "attachments": "{count, plural, one {# pièce jointe} other {# pièces jointes}}",
+      "linkedError": "Erreur liée",
+      "noLinkedError": "Envoyé sans erreur",
+      "viewError": "Voir l'erreur concernée",
+      "page": "Page",
+      "received": "Reçu",
+      "openIssue": "Ouvrir comme ticket",
+      "back": "Retour à la liste"
     }
   },
   "settings": {

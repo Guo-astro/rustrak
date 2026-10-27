@@ -1843,7 +1843,19 @@
         "title": "这里没有反馈",
         "description": "通过 SDK 的反馈组件或 captureFeedback 发送的反馈会显示在这里"
       },
-      "anonymous": "匿名"
+      "anonymous": "匿名",
+      "count": "{count} 条反馈",
+      "pageOf": "第 {page} 页，共 {total} 页",
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "attachments": "{count} 个附件",
+      "linkedError": "关联的错误",
+      "noLinkedError": "未关联任何错误",
+      "viewError": "查看相关错误",
+      "page": "页面",
+      "received": "收到时间",
+      "openIssue": "作为问题打开",
+      "back": "返回列表"
     }
   },
   "settings": {

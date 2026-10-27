@@ -82,7 +82,7 @@ export function IssueProperties({
   ];
 
   const seen = (iso: string) => (
-    <span title={format.dateTime(new Date(iso), 'long')}>
+    <span title={format.dateTime(new Date(iso), 'dateTime')}>
       {format.relativeTime(new Date(iso))}
     </span>
   );
