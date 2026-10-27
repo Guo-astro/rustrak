@@ -1050,7 +1050,7 @@ export type IssueResponse = {
 /**
  * Sort mode for issues listing
  */
-export type IssueSort = 'digest_order' | 'last_seen' | 'event_count';
+export type IssueSort = 'digest_order' | 'last_seen' | 'event_count' | 'first_seen' | 'priority';
 
 export type IssueStatsResponse = {
     /**
@@ -5227,6 +5227,34 @@ export type IssuesListData = {
          * Only issues that had an event in this release.
          */
         release?: string | null;
+        /**
+         * Only these levels, comma-separated: `fatal,error`.
+         */
+        level?: string | null;
+        /**
+         * Only these priorities, comma-separated: `high,medium`.
+         */
+        priority?: string | null;
+        /**
+         * `none` for unassigned issues, or a user id.
+         */
+        assigned?: string | null;
+        /**
+         * Only issues first seen within this window: `24h`, `7d`.
+         */
+        first_seen?: string | null;
+        /**
+         * Only issues last seen within this window: `24h`, `7d`.
+         */
+        last_seen?: string | null;
+        /**
+         * Only issues with at least this many events.
+         */
+        events_min?: number | null;
+        /**
+         * Only issues with at most this many events.
+         */
+        events_max?: number | null;
     };
     url: '/api/projects/{project_id}/issues';
 };

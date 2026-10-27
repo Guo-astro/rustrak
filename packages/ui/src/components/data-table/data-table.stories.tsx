@@ -22,6 +22,7 @@ import {
   type DataTableFeatures,
   type FilterOption,
 } from './features';
+import { DataTableLabelsProvider } from './labels';
 import { type DataTableQuery, emptyTableQuery } from './query';
 import { useDataTable } from './use-data-table';
 
@@ -588,6 +589,121 @@ export const BarAndHeaderStayInSync: Story = {
     );
     await expect(canvas.getAllByText(/PaymentDeclined/).length).toBeGreaterThan(
       0,
+    );
+  },
+};
+
+/** A sized column takes the arrow keys on its edge, and the drag's width. */
+export const ResizesColumns: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [handle] = canvas.getAllByRole('separator', {
+      name: 'Resize column',
+    });
+    const before = Number(handle?.getAttribute('aria-valuenow'));
+
+    handle?.focus();
+    await userEvent.keyboard('{ArrowRight}');
+
+    await waitFor(() =>
+      expect(Number(handle?.getAttribute('aria-valuenow'))).toBe(before + 16),
+    );
+  },
+};
+
+/** j and k walk the rows, x ticks the one you are on. */
+export const WalksRowsFromKeyboard: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [, first, second] = canvas.getAllByRole('row') as HTMLElement[];
+
+    first?.focus();
+    await userEvent.keyboard('j');
+    await expect(second).toHaveFocus();
+
+    await userEvent.keyboard('x');
+    await expect(second).toHaveAttribute('data-selected', 'true');
+
+    await userEvent.keyboard('k');
+    await expect(first).toHaveFocus();
+  },
+};
+
+/** With a modifier held the keys are the browser's or the app's, not the row's. */
+export const LeavesModifiedKeysAlone: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [, first] = canvas.getAllByRole('row') as HTMLElement[];
+
+    first?.focus();
+    await userEvent.keyboard('{Control>}j{/Control}');
+    await expect(first).toHaveFocus();
+
+    await userEvent.keyboard('{Meta>}x{/Meta}');
+    await expect(first).not.toHaveAttribute('data-selected', 'true');
+  },
+};
+
+/** A cancelled touch or pen drag ends the resize, like a release does. */
+export const CancelledDragStopsResizing: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [handle] = canvas.getAllByRole('separator', {
+      name: 'Resize column',
+    });
+    if (!handle) throw new Error('no resize handle');
+    const pointer = (type: string, clientX: number) =>
+      new PointerEvent(type, { bubbles: true, clientX, pointerId: 1 });
+
+    handle.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointercancel', 100));
+    const before = handle.getAttribute('aria-valuenow');
+    window.dispatchEvent(pointer('pointermove', 300));
+
+    await expect(handle).not.toHaveAttribute('data-resizing');
+    await expect(handle.getAttribute('aria-valuenow')).toBe(before);
+  },
+};
+
+/** Every word comes from the provider, so a screen is never half translated. */
+export const SpeaksTheReadersLanguage: Story = {
+  render: () => (
+    <DataTableLabelsProvider
+      labels={{
+        locale: 'es-ES',
+        range: (first, last, total) => `${first}–${last} de ${total}`,
+        chooseColumns: 'Elegir columnas',
+      }}
+    >
+      <IssuesTable />
+    </DataTableLabelsProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/1–10 de 60/)).toBeInTheDocument();
+    await expect(
+      canvas.getByRole('button', { name: 'Elegir columnas' }),
+    ).toBeInTheDocument();
+  },
+};
+
+/** A tick leaves with its row: the selection only ever holds visible rows. */
+export const SelectionFollowsTheRows: Story = {
+  render: () => <IssuesTable />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [box] = canvas.getAllByRole('checkbox', { name: 'Select row' });
+    if (box) await userEvent.click(box);
+    await expect(canvas.getAllByText('1 selected').length).toBeGreaterThan(0);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Next page' }));
+
+    await waitFor(() =>
+      expect(canvas.queryAllByText(/selected/)).toHaveLength(0),
     );
   },
 };

@@ -739,7 +739,9 @@ export const zIssuePriority = z.enum([
 export const zIssueSort = z.enum([
     'digest_order',
     'last_seen',
-    'event_count'
+    'event_count',
+    'first_seen',
+    'priority'
 ]);
 
 export const zIssueStatsResponse = z.object({
@@ -2757,7 +2759,14 @@ export const zIssuesListQuery = z.object({
     category: zIssueCategory.optional(),
     q: z.string().nullish(),
     environment: z.string().nullish(),
-    release: z.string().nullish()
+    release: z.string().nullish(),
+    level: z.string().nullish(),
+    priority: z.string().nullish(),
+    assigned: z.string().nullish(),
+    first_seen: z.string().nullish(),
+    last_seen: z.string().nullish(),
+    events_min: z.int().nullish(),
+    events_max: z.int().nullish()
 });
 
 /**

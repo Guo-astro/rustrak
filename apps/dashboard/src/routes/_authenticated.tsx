@@ -12,6 +12,7 @@ import { COMMAND_BAR_PROJECT_LIMIT } from '@/shared/config/commands';
 import { Link } from '@/shared/ui/components/link';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
 import { Button } from '@/shared/ui/components/shadcn/button';
+import { TableLabels } from '@/shared/ui/components/table-labels';
 import { UpdateBannerSlot } from '@/shared/ui/components/update-banner-slot';
 import {
   AppBreadcrumbs,
@@ -84,7 +85,9 @@ function AuthenticatedLayout() {
       {/* The sheet's only scroller. Screens that own their scrolling fill it
           with `h-full` and scroll inside. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <Outlet />
+        <TableLabels>
+          <Outlet />
+        </TableLabels>
       </div>
       {/* Fixed-positioned, so arriving late shifts nothing. */}
       <UpdateBannerSlot />

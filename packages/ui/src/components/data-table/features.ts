@@ -2,6 +2,7 @@ import {
   type Column,
   type ColumnDef,
   columnFilteringFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   createColumnHelper,
   globalFilteringFeature,
@@ -92,6 +93,9 @@ export interface DataTableColumnMeta {
    * which is right for exactly one column per table -- the title. Everything
    * measurable (a level, a count, a date) states its width, so the flexible
    * column is the one that absorbs the viewport.
+   *
+   * A column with a width can be dragged wider or narrower by the reader;
+   * the flexible one cannot, since it is whatever the others leave.
    */
   width?: number;
   /** Tabular mono figures: counts, durations. */
@@ -119,6 +123,7 @@ export const dataTableFeatures = tableFeatures({
   globalFilteringFeature,
   rowPaginationFeature,
   columnVisibilityFeature,
+  columnSizingFeature,
   rowSelectionFeature,
   columnMeta: metaHelper<DataTableColumnMeta>(),
 });

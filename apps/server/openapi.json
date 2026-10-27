@@ -5289,6 +5289,92 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Only these levels, comma-separated: `fatal,error`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "description": "Only these priorities, comma-separated: `high,medium`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "assigned",
+            "in": "query",
+            "description": "`none` for unassigned issues, or a user id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "first_seen",
+            "in": "query",
+            "description": "Only issues first seen within this window: `24h`, `7d`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "last_seen",
+            "in": "query",
+            "description": "Only issues last seen within this window: `24h`, `7d`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "events_min",
+            "in": "query",
+            "description": "Only issues with at least this many events.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "events_max",
+            "in": "query",
+            "description": "Only issues with at most this many events.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
           }
         ],
         "responses": {
@@ -14637,7 +14723,9 @@
         "enum": [
           "digest_order",
           "last_seen",
-          "event_count"
+          "event_count",
+          "first_seen",
+          "priority"
         ]
       },
       "IssueStatsResponse": {

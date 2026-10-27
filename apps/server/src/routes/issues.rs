@@ -100,6 +100,7 @@ pub async fn list_issues(
             environment: query.environment.as_deref(),
             release: query.release.as_deref(),
         },
+        &query.issue_filters(),
     )
     .await?;
 
@@ -252,6 +253,7 @@ pub async fn list_feedback(
         query.per_page,
         None,
         Scope::default(),
+        &crate::services::issue::IssueFilters::default(),
     )
     .await?;
     let ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();

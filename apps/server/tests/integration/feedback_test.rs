@@ -434,6 +434,7 @@ async fn the_issue_list_shows_one_category_at_a_time() {
         .await
         .unwrap();
 
+    let no_filters = rustrak::services::issue::IssueFilters::default();
     let list = |category| {
         IssueService::list_offset(
             &s.db.pool,
@@ -446,6 +447,7 @@ async fn the_issue_list_shows_one_category_at_a_time() {
             50,
             None,
             Scope::default(),
+            &no_filters,
         )
     };
     let (errors, total) = list(IssueCategory::Error).await.unwrap();

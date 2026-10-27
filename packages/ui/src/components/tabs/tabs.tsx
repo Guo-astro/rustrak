@@ -36,8 +36,22 @@ const tabs = tv({
        end of. It is not the `tablist`: `role="tablist"` owns tabs and nothing
        else, so a filter summary sitting inside it is content a screen reader
        has no reason to reach. */
-    strip: 'flex items-center border-b border-border-subtle',
-    list: 'relative flex items-center gap-5',
+    // Scrolls rather than overflows: on a phone a few tabs are wider than
+    // the screen, and the page must not scroll sideways to reach them.
+    //
+    // The rule is drawn on the bottom edge of the frame around the strip,
+    // rather than as a border: the lime indicator then lies on the same
+    // baseline, over the rule, instead of a pixel above it -- a scroller
+    // clips anything pushed below its border. It is the frame's and not the
+    // strip's because the frame does not scroll: drawn inside the scroller,
+    // the rule would move with the tabs and end short of the visible strip.
+    // `before:`, painted under the strip, so the indicator stays on top.
+    frame: [
+      'relative min-w-0',
+      "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border-subtle before:content-['']",
+    ],
+    strip: 'relative flex min-w-0 items-center overflow-x-auto',
+    list: 'relative flex shrink-0 items-center gap-5',
     meta: 'ms-auto ps-5 pb-0.5',
     tab: [
       'relative flex h-tab shrink-0 items-center gap-1.75',
@@ -50,7 +64,7 @@ const tabs = tv({
       focusRing,
     ],
     indicator: [
-      'absolute bottom-0 left-0 h-(--stroke-indicator) bg-surface-brand',
+      'absolute bottom-0 left-0 z-10 h-(--stroke-indicator) bg-surface-brand',
       'w-(--active-tab-width) translate-x-(--active-tab-left)',
       slideTransition,
     ],
@@ -91,17 +105,19 @@ export function TabList({ className, children, meta, ...props }: TabListProps) {
   const styles = tabs();
 
   return (
-    <div className={styles.strip({ className })}>
-      <BaseTabs.List className={styles.list()} {...props}>
-        {children}
-        {/* `renderBeforeHydration` paints the position into the server HTML, so
-            the rule does not snap into place when React takes over. */}
-        <BaseTabs.Indicator
-          renderBeforeHydration
-          className={styles.indicator()}
-        />
-      </BaseTabs.List>
-      {meta ? <span className={styles.meta()}>{meta}</span> : null}
+    <div className={styles.frame({ className })}>
+      <div className={styles.strip()}>
+        <BaseTabs.List className={styles.list()} {...props}>
+          {children}
+          {/* `renderBeforeHydration` paints the position into the server HTML,
+              so the rule does not snap into place when React takes over. */}
+          <BaseTabs.Indicator
+            renderBeforeHydration
+            className={styles.indicator()}
+          />
+        </BaseTabs.List>
+        {meta ? <span className={styles.meta()}>{meta}</span> : null}
+      </div>
     </div>
   );
 }

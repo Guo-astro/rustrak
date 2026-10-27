@@ -1017,6 +1017,7 @@ async fn test_sdk_issue_is_searchable_by_frame_filename_and_module() {
             20,
             Some(term),
             Scope::default(),
+            &rustrak::services::issue::IssueFilters::default(),
         )
         .await
         .expect("search");

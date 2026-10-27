@@ -77,7 +77,39 @@
     "lastPage": "Last page",
     "selectAllPageRows": "Select all rows on this page",
     "selectRow": "Select row",
-    "expand": "Expand"
+    "expand": "Expand",
+    "selected": "{count, plural, other {# selected}}",
+    "clearSelection": "Clear",
+    "selectionToolbar": "Actions for the selected rows",
+    "noMatches": "Nothing matches the current filters.",
+    "nothingYet": "There is nothing here yet.",
+    "clearFilters": "Clear filters",
+    "actions": "Actions",
+    "rowActions": "Row actions",
+    "columns": "Columns",
+    "chooseColumns": "Choose columns",
+    "resizeColumn": "Resize column",
+    "filterValues": "Filter values",
+    "filterValuesPlaceholder": "Filter values…",
+    "nothingMatches": "Nothing matches",
+    "contains": "Contains…",
+    "filterText": "Filter text",
+    "min": "Min",
+    "max": "Max",
+    "lowestFirst": "Lowest first",
+    "highestFirst": "Highest first",
+    "aToZ": "A to Z",
+    "zToA": "Z to A",
+    "clearFilter": "Clear filter",
+    "hideColumn": "Hide column",
+    "range": "{first}–{last} of {total}",
+    "rowsPerPage": "Rows {size}",
+    "rowsOption": "{size} rows",
+    "filterBy": "Filter by",
+    "suggestions": "Suggestions",
+    "filterAndSearch": "Filter by key:value, or search…",
+    "addFilter": "Add a filter…",
+    "clearAll": "Clear filters and search"
   },
   "commands": {
     "overview": "Overview",
@@ -215,7 +247,9 @@
       "age": "Age",
       "events": "Events",
       "users": "Users",
-      "lastSeen": "Last seen"
+      "lastSeen": "Last seen",
+      "level": "Level",
+      "assignee": "Assignee"
     },
     "actionsTitle": "Actions",
     "actionsFor": "Actions for {title}",
@@ -307,6 +341,44 @@
     "card": {
       "usersAffected": "{count, plural, =1 {# user affected} other {# users affected}}",
       "eventCount": "{count, plural, =1 {# event} other {# events}}"
+    },
+    "table": {
+      "windows": {
+        "1h": "Last hour",
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "14d": "Last 14 days",
+        "30d": "Last 30 days"
+      },
+      "levels": {
+        "fatal": "Fatal",
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Info"
+      },
+      "fewest": "Fewest events",
+      "most": "Most events",
+      "lowestPriority": "Lowest priority first",
+      "highestPriority": "Highest priority first",
+      "me": "Me",
+      "unassigned": "Unassigned",
+      "assigned": "Assigned",
+      "oldest": "Oldest first",
+      "newest": "Newest first",
+      "environment": "Environment",
+      "release": "Release",
+      "assign": "Assign",
+      "assignToMe": "Assign to me",
+      "unassign": "Unassign",
+      "copyId": "Copy ID",
+      "copied": "ID copied",
+      "count": "{count, plural, one {{display} issue} other {{display} issues}}",
+      "views": {
+        "open": "Open",
+        "resolved": "Resolved",
+        "muted": "Muted",
+        "all": "All"
+      }
     }
   },
   "roles": {
@@ -1574,7 +1646,7 @@
         "description": "Issues for {project}"
       },
       "title": "Issues",
-      "subtitle": "Open issues for {project}",
+      "subtitle": "Errors from {project}, grouped by what caused them",
       "loadFailed": "Could not load issues",
       "loadLatestEventFailed": "Could not load the latest event"
     },

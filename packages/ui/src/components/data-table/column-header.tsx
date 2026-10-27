@@ -15,12 +15,17 @@ import {
   ResolveIcon,
 } from '../icon/icon-catalog';
 import { Popover } from '../popover/popover';
-import type { ColumnFilterSpec, DataTableFeatures } from './features';
+import type {
+  ColumnFilterSpec,
+  DataTableColumnMeta,
+  DataTableFeatures,
+} from './features';
 import {
   OptionsFilterPanel,
   RangeFilterPanel,
   TextFilterPanel,
 } from './filter-panel';
+import { type DataTableLabels, useDataTableLabels } from './labels';
 
 /**
  * A column header that is also the column's control -- the GitHub pattern.
@@ -88,15 +93,16 @@ const columnHeader = tv({
 const styles = columnHeader();
 
 /** The wording a sort offers when the column has not chosen its own. */
-function sortWording(header: SortableHeader): { asc: string; desc: string } {
-  const meta = header.column.columnDef.meta;
+function sortWording(
+  meta: DataTableColumnMeta | undefined,
+  labels: DataTableLabels,
+): { asc: string; desc: string } {
   if (meta?.sortLabels) return meta.sortLabels;
-  if (meta?.numeric) return { asc: 'Lowest first', desc: 'Highest first' };
-  return { asc: 'A to Z', desc: 'Z to A' };
+  if (meta?.numeric) {
+    return { asc: labels.lowestFirst, desc: labels.highestFirst };
+  }
+  return { asc: labels.aToZ, desc: labels.zToA };
 }
-
-// The one alias this file needs; the generics never vary inside it.
-type SortableHeader = Header<DataTableFeatures, any, any>;
 
 export interface DataTableColumnHeaderProps<TData extends RowData> {
   header: Header<DataTableFeatures, TData, unknown>;
@@ -215,7 +221,10 @@ function SortSection<TData extends RowData>({
   onDone: () => void;
 }) {
   const { column } = header;
-  const wording = sortWording(header);
+  const wording = sortWording(
+    column.columnDef.meta as DataTableColumnMeta | undefined,
+    useDataTableLabels(),
+  );
 
   return (
     <div className={styles.section()}>
@@ -286,6 +295,7 @@ function ActionsSection<TData extends RowData>({
   canClearFilter: boolean;
   canHide: boolean;
 }) {
+  const labels = useDataTableLabels();
   return (
     <div className={styles.section()}>
       {canClearFilter ? (
@@ -300,7 +310,7 @@ function ActionsSection<TData extends RowData>({
             className="shrink-0 text-fg-ghost"
           />
           <span className="min-w-0 flex-1 truncate text-start">
-            Clear filter
+            {labels.clearFilter}
           </span>
         </button>
       ) : null}
@@ -312,7 +322,7 @@ function ActionsSection<TData extends RowData>({
         >
           <span className="w-3 shrink-0" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate text-start">
-            Hide column
+            {labels.hideColumn}
           </span>
         </button>
       ) : null}
