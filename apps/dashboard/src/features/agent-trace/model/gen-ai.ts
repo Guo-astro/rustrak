@@ -336,13 +336,13 @@ export function chatMessages(raw: string): ChatMessage[] | null {
       tool_calls?: unknown;
     };
     const body = Array.isArray(parts) ? parts : content;
-    // A model that only asked for tools says nothing in text: its calls are
-    // what it said, and an empty bubble would hide them.
-    const text =
-      messageText(body) ||
-      (Array.isArray(tool_calls) && tool_calls.length
+    // The tools a model asked for are part of what it said, after any text:
+    // a message may hold only them, or prose and them.
+    const calls =
+      Array.isArray(tool_calls) && tool_calls.length
         ? JSON.stringify(tool_calls)
-        : '');
+        : '';
+    const text = [messageText(body), calls].filter(Boolean).join('\n');
     messages.push({ role: String(role), content: text });
   }
   return messages;

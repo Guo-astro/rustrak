@@ -32,6 +32,17 @@ describe('fillBuckets', () => {
     // 09:30 is the window's start, in the 09:00 bucket.
     expect(filled.map((p) => p.value)).toEqual([0, 0, 5, 0]);
   });
+
+  it('stops at the current bucket, whatever a clock ahead sent', () => {
+    const filled = fillBuckets(
+      [point(11, 5), { bucket: '9999-01-01T00:00:00Z', value: 1 }],
+      1,
+      undefined,
+      (bucket) => ({ bucket, value: 0 }),
+      Date.UTC(2026, 0, 1, 12, 30),
+    );
+    expect(filled.map((p) => p.value)).toEqual([5, 0]);
+  });
 });
 
 describe('resolveAgentFilters', () => {

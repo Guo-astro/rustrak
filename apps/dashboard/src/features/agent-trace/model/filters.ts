@@ -47,7 +47,7 @@ export interface AgentDashboardFilters {
  * the first busy bucket, over all time) to now. The server sends only the
  * buckets that held something, and a chart spaces its points evenly: without
  * them, 09:00, 10:00 and 20:00 read as equally far apart. Buckets are aligned
- * to the epoch, as the server's are.
+ * to the epoch, as the server's are, and none is later than the current one.
  */
 export function fillBuckets<T extends { bucket: string }>(
   points: T[],
@@ -65,7 +65,9 @@ export function fillBuckets<T extends { bucket: string }>(
     periodHours !== undefined
       ? align(now - periodHours * 3_600_000)
       : Math.min(...busy);
-  const last = Math.max(align(now), ...busy);
+  // Never past now: a span from a clock far ahead would otherwise ask for a
+  // bucket per interval up to it. Its bucket is left out of the chart.
+  const last = align(now);
   const filled: T[] = [];
   for (let at = first; at <= last; at += step) {
     filled.push(byBucket.get(at) ?? empty(new Date(at).toISOString()));
