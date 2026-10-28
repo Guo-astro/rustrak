@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::db::DbPool;
 use crate::error::AppResult;
 use crate::models::{LogResponse, LogVolumePoint};
-use crate::services::scope::{bucket_hours, like_pattern, since};
+use crate::services::scope::{bucket_hours, epoch, like_pattern, since};
 
 pub struct LogService;
 
@@ -49,12 +49,6 @@ macro_rules! bind_filters {
             .bind($like.as_deref())
     };
 }
-
-/// A timestamp column as whole seconds since the epoch.
-#[cfg(feature = "postgres")]
-const EPOCH: &str = "CAST(EXTRACT(EPOCH FROM timestamp) AS BIGINT)";
-#[cfg(not(feature = "postgres"))]
-const EPOCH: &str = "CAST(strftime('%s', timestamp) AS INTEGER)";
 
 impl LogService {
     /// Lists logs for a project with offset-based pagination (newest first by
@@ -128,13 +122,14 @@ impl LogService {
     ) -> AppResult<Vec<LogVolumePoint>> {
         let like = like_pattern(filters.query.as_deref());
         let condition = filters.condition();
+        let epoch = epoch("timestamp");
         let now = Utc::now().timestamp();
 
         let start = match filters.period_hours {
             Some(hours) => now - hours * 3600,
             None => {
                 let sql =
-                    format!("SELECT MIN({EPOCH}) FROM logs WHERE project_id = $1 AND {condition}");
+                    format!("SELECT MIN({epoch}) FROM logs WHERE project_id = $1 AND {condition}");
                 let (oldest,): (Option<i64>,) = bind_filters!(
                     sqlx::query_as(sqlx::AssertSqlSafe(&*sql)),
                     project_id,
@@ -152,7 +147,7 @@ impl LogService {
 
         let interval = volume_bucket_hours((now - start) / 3600) * 3600;
         let sql = format!(
-            "SELECT ({EPOCH} / {interval}) * {interval} AS at, level, COUNT(*) \
+            "SELECT ({epoch} / {interval}) * {interval} AS at, level, COUNT(*) \
              FROM logs WHERE project_id = $1 AND {condition} GROUP BY at, level"
         );
         let rows: Vec<(i64, String, i64)> = bind_filters!(

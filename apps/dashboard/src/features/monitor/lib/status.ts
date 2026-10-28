@@ -1,4 +1,4 @@
-import type { MonitorResponse } from '@rustrak/client';
+import type { CheckInResponse, MonitorResponse } from '@rustrak/client';
 
 /**
  * One word for a monitor across its environments, for the list and the
@@ -11,6 +11,31 @@ export function monitorHealth(monitor: MonitorResponse): MonitorHealth {
   if (statuses.includes('error')) return 'failing';
   if (statuses.includes('ok')) return 'ok';
   return 'waiting';
+}
+
+/** The stripe at the start of a row: colour only where it needs a look. */
+export const HEALTH_MARK: Record<MonitorHealth, string> = {
+  failing: 'bg-sev-error',
+  ok: 'bg-success',
+  waiting: 'bg-border-control',
+};
+
+/**
+ * The newest run that finished, across environments: each one's recent
+ * check-ins come newest first, but joined they come by environment name.
+ */
+export function lastRun(monitor: MonitorResponse): CheckInResponse | undefined {
+  let newest: CheckInResponse | undefined;
+  for (const env of monitor.environments) {
+    const run = env.recent_checkins.find((c) => c.status !== 'in_progress');
+    if (
+      run &&
+      (!newest || Date.parse(run.date_added) > Date.parse(newest.date_added))
+    ) {
+      newest = run;
+    }
+  }
+  return newest;
 }
 
 /** The most recent real check-in of any environment. */

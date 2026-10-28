@@ -1278,6 +1278,20 @@ export type MonitorEnvironmentResponse = {
 };
 
 /**
+ * One environment of a monitor over a window, bucket by bucket: what
+ * `GET /monitor-stats` returns, Sentry's `monitors-stats`.
+ */
+export type MonitorEnvironmentStats = {
+    /**
+     * Oldest first, every environment of the response on the same axis.
+     */
+    buckets: Array<MonitorStatsBucket>;
+    environment: string;
+    monitor_environment_id: string;
+    monitor_slug: string;
+};
+
+/**
  * Health of one monitor environment.
  */
 export type MonitorEnvironmentStatus = 'active' | 'ok' | 'error';
@@ -1290,6 +1304,30 @@ export type MonitorResponse = {
     is_muted: boolean;
     name: string;
     slug: string;
+};
+
+/**
+ * The check-ins of one bucket, counted by status.
+ */
+export type MonitorStatsBucket = {
+    /**
+     * Mean duration of the bucket's check-ins that reported one.
+     */
+    avg_duration_ms: number | null;
+    /**
+     * Where the bucket starts.
+     */
+    bucket: string;
+    /**
+     * How many check-ins reported a duration: the mean's weight when buckets
+     * are averaged together.
+     */
+    duration_count: number;
+    error: number;
+    in_progress: number;
+    missed: number;
+    ok: number;
+    timeout: number;
 };
 
 /**
@@ -6607,6 +6645,49 @@ export type MembersRemoveResponses = {
 };
 
 export type MembersRemoveResponse = MembersRemoveResponses[keyof MembersRemoveResponses];
+
+export type MonitorsStatsData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * The window (`24h`, `7d`, `30d`...); the last day if absent.
+         */
+        period?: string | null;
+        /**
+         * Only this monitor.
+         */
+        slug?: string | null;
+    };
+    url: '/api/projects/{project_id}/monitor-stats';
+};
+
+export type MonitorsStatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type MonitorsStatsError = MonitorsStatsErrors[keyof MonitorsStatsErrors];
+
+export type MonitorsStatsResponses = {
+    /**
+     * Each monitor environment's check-ins by status, in sixty buckets on one axis
+     */
+    200: Array<MonitorEnvironmentStats>;
+};
+
+export type MonitorsStatsResponse = MonitorsStatsResponses[keyof MonitorsStatsResponses];
 
 export type MonitorsListData = {
     body?: never;

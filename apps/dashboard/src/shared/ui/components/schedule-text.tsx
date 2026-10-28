@@ -25,7 +25,7 @@ export function ScheduleText({
     <span>
       {text}
       {timezone && timezone !== 'UTC' && (
-        <span className="text-muted-foreground"> · {timezone}</span>
+        <span className="text-fg-subtle"> · {timezone}</span>
       )}
     </span>
   );

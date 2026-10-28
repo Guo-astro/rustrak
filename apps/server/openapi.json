@@ -8083,6 +8083,91 @@
         ]
       }
     },
+    "/api/projects/{project_id}/monitor-stats": {
+      "get": {
+        "tags": [
+          "Monitors"
+        ],
+        "summary": "GET /api/projects/{project_id}/monitor-stats\nCounts the check-ins of a project's monitors by status over a window, bucket by bucket.",
+        "operationId": "monitors.stats",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "The window (`24h`, `7d`, `30d`...); the last day if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "description": "Only this monitor.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Each monitor environment's check-ins by status, in sixty buckets on one axis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorEnvironmentStats"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/monitors": {
       "get": {
         "tags": [
@@ -15934,6 +16019,35 @@
           }
         }
       },
+      "MonitorEnvironmentStats": {
+        "type": "object",
+        "description": "One environment of a monitor over a window, bucket by bucket: what\n`GET /monitor-stats` returns, Sentry's `monitors-stats`.",
+        "required": [
+          "monitor_slug",
+          "monitor_environment_id",
+          "environment",
+          "buckets"
+        ],
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonitorStatsBucket"
+            },
+            "description": "Oldest first, every environment of the response on the same axis."
+          },
+          "environment": {
+            "type": "string"
+          },
+          "monitor_environment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "monitor_slug": {
+            "type": "string"
+          }
+        }
+      },
       "MonitorEnvironmentStatus": {
         "type": "string",
         "description": "Health of one monitor environment.",
@@ -15980,6 +16094,60 @@
           },
           "slug": {
             "type": "string"
+          }
+        }
+      },
+      "MonitorStatsBucket": {
+        "type": "object",
+        "description": "The check-ins of one bucket, counted by status.",
+        "required": [
+          "bucket",
+          "ok",
+          "error",
+          "missed",
+          "timeout",
+          "in_progress",
+          "avg_duration_ms",
+          "duration_count"
+        ],
+        "properties": {
+          "avg_duration_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Mean duration of the bucket's check-ins that reported one."
+          },
+          "bucket": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Where the bucket starts."
+          },
+          "duration_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many check-ins reported a duration: the mean's weight when buckets\nare averaged together."
+          },
+          "error": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "in_progress": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "missed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ok": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeout": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

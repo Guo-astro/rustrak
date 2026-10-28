@@ -495,3 +495,49 @@ pub fn validate_monitor_name(name: &str) -> AppResult<String> {
     }
     Ok(name.to_string())
 }
+
+/// One environment of a monitor over a window, bucket by bucket: what
+/// `GET /monitor-stats` returns, Sentry's `monitors-stats`.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct MonitorEnvironmentStats {
+    pub monitor_slug: String,
+    pub monitor_environment_id: uuid::Uuid,
+    pub environment: String,
+    /// Oldest first, every environment of the response on the same axis.
+    pub buckets: Vec<MonitorStatsBucket>,
+}
+
+/// The check-ins of one bucket, counted by status.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct MonitorStatsBucket {
+    /// Where the bucket starts.
+    pub bucket: DateTime<Utc>,
+    pub ok: i64,
+    pub error: i64,
+    pub missed: i64,
+    pub timeout: i64,
+    pub in_progress: i64,
+    /// Mean duration of the bucket's check-ins that reported one.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub avg_duration_ms: Option<f64>,
+    /// How many check-ins reported a duration: the mean's weight when buckets
+    /// are averaged together.
+    pub duration_count: i64,
+}
+
+impl MonitorStatsBucket {
+    pub fn empty(at: i64) -> Self {
+        Self {
+            bucket: DateTime::from_timestamp(at, 0).unwrap_or_default(),
+            ok: 0,
+            error: 0,
+            missed: 0,
+            timeout: 0,
+            in_progress: 0,
+            avg_duration_ms: None,
+            duration_count: 0,
+        }
+    }
+}

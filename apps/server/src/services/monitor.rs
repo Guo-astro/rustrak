@@ -16,14 +16,18 @@ use crate::error::{AppError, AppResult, FieldErrorCode};
 use crate::models::monitor::{
     slugify_monitor_slug, validate_monitor_name, CheckIn, CheckInResponse, CheckInStatus,
     CreateMonitor, FailureReason, MonitorConfig, MonitorEnvironmentResponse,
-    MonitorEnvironmentStatus, MonitorFailure, MonitorResponse, UpdateMonitor, MAX_MAX_RUNTIME,
+    MonitorEnvironmentStats, MonitorEnvironmentStatus, MonitorFailure, MonitorResponse,
+    MonitorStatsBucket, UpdateMonitor, MAX_MAX_RUNTIME,
 };
 use crate::services::hash_grouping_key;
+use crate::services::scope::epoch;
 
 type Tx<'a> = sqlx::Transaction<'a, Db>;
 
 /// Check-ins shown per environment on a monitor's timeline.
 const RECENT_CHECKINS: i64 = 48;
+/// Buckets on a stats axis, whatever the window.
+const STATS_BUCKETS: i64 = 60;
 /// How long check-ins are kept (Sentry keeps them 90 days).
 const CHECKIN_RETENTION_DAYS: i64 = 90;
 /// Most check-ins deleted per sweep.
@@ -277,6 +281,103 @@ impl MonitorService {
             monitors.push(to_response(pool, row).await?);
         }
         Ok(monitors)
+    }
+
+    /// Every environment of the project's monitors (or of `slug` alone) over
+    /// the last `period_hours`, in [`STATS_BUCKETS`] buckets on one axis.
+    pub async fn stats(
+        pool: &DbPool,
+        project_id: i32,
+        slug: Option<&str>,
+        period_hours: i64,
+    ) -> AppResult<Vec<MonitorEnvironmentStats>> {
+        let envs: Vec<(Uuid, String, String)> = sqlx::query_as(
+            r#"
+            SELECT e.id, m.slug, e.environment
+            FROM monitor_environments e JOIN monitors m ON m.id = e.monitor_id
+            WHERE m.project_id = $1 AND ($2 IS NULL OR m.slug = $3)
+            ORDER BY m.slug, e.environment
+            "#,
+        )
+        .bind(project_id)
+        .bind(slug)
+        .bind(slug)
+        .fetch_all(pool)
+        .await?;
+
+        let interval = (period_hours * 3600 / STATS_BUCKETS).max(60);
+        let now = Utc::now().timestamp();
+        let start = now - period_hours * 3600;
+        // The first whole bucket after the window starts, so the last one
+        // reaches now; the part of the window before it counts in the first.
+        let first = start.div_euclid(interval) * interval + interval;
+        let epoch = epoch("c.date_added");
+        let sql = format!(
+            "SELECT c.monitor_environment_id, ({epoch} / {interval}) * {interval} AS at, c.status, \
+                    COUNT(*), CAST(SUM(c.duration_ms) AS BIGINT), COUNT(c.duration_ms) \
+             FROM monitor_checkins c JOIN monitors m ON m.id = c.monitor_id \
+             WHERE m.project_id = $1 AND ($2 IS NULL OR m.slug = $3) AND {epoch} >= $4 \
+             GROUP BY c.monitor_environment_id, at, c.status"
+        );
+        let rows: Vec<(Uuid, i64, String, i64, Option<i64>, i64)> =
+            sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+                .bind(project_id)
+                .bind(slug)
+                .bind(slug)
+                .bind(start)
+                .fetch_all(pool)
+                .await?;
+
+        // Per bucket: the counts, and the durations' sum and count for the mean.
+        let mut stats: Vec<(MonitorEnvironmentStats, Vec<(i64, i64)>)> = envs
+            .into_iter()
+            .map(|(id, slug, environment)| {
+                let buckets = (0..STATS_BUCKETS)
+                    .map(|i| MonitorStatsBucket::empty(first + i * interval))
+                    .collect();
+                let env = MonitorEnvironmentStats {
+                    monitor_slug: slug,
+                    monitor_environment_id: id,
+                    environment,
+                    buckets,
+                };
+                (env, vec![(0, 0); STATS_BUCKETS as usize])
+            })
+            .collect();
+        for (env_id, at, status, count, duration_sum, durations) in rows {
+            let Some((env, sums)) = stats
+                .iter_mut()
+                .find(|(e, _)| e.monitor_environment_id == env_id)
+            else {
+                continue;
+            };
+            let Ok(index) = usize::try_from(((at - first) / interval).max(0)) else {
+                continue;
+            };
+            let Some(bucket) = env.buckets.get_mut(index) else {
+                continue;
+            };
+            match CheckInStatus::parse(&status) {
+                CheckInStatus::Ok => bucket.ok += count,
+                CheckInStatus::Error | CheckInStatus::Unknown => bucket.error += count,
+                CheckInStatus::Missed => bucket.missed += count,
+                CheckInStatus::Timeout => bucket.timeout += count,
+                CheckInStatus::InProgress => bucket.in_progress += count,
+            }
+            sums[index].0 += duration_sum.unwrap_or(0);
+            sums[index].1 += durations;
+        }
+
+        Ok(stats
+            .into_iter()
+            .map(|(mut env, sums)| {
+                for (bucket, (sum, n)) in env.buckets.iter_mut().zip(sums) {
+                    bucket.avg_duration_ms = (n > 0).then(|| sum as f64 / n as f64);
+                    bucket.duration_count = n;
+                }
+                env
+            })
+            .collect())
     }
 
     pub async fn get_by_slug(

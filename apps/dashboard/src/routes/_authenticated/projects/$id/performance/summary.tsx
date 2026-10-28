@@ -1,5 +1,4 @@
 import { createFileRoute, notFound } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
 import {
   DEFAULT_PERIOD,
@@ -18,11 +17,11 @@ import {
   EndpointFigures,
   LatencyChart,
   Loaded,
-  Panel,
   SlowestSamples,
 } from '@/features/transaction/ui/components/endpoint-detail';
 import { translator } from '@/shared/i18n/intl';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
+import { Panel, RailBlock } from '@/shared/ui/components/panel';
 import { useAsync } from '@/shared/ui/hooks/use-async';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
@@ -174,22 +173,5 @@ function EndpointPage() {
         </aside>
       </div>
     </div>
-  );
-}
-
-function RailBlock({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="border-border-divider border-b px-5 py-4 last:border-b-0">
-      <h2 className="mb-3 font-mono text-column text-fg-meta uppercase">
-        {title}
-      </h2>
-      {children}
-    </section>
   );
 }

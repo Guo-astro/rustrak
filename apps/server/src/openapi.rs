@@ -146,6 +146,7 @@ impl Modify for SecurityAddon {
         crate::routes::monitors::update_monitor,
         crate::routes::monitors::delete_monitor,
         crate::routes::monitors::list_checkins,
+        crate::routes::monitors::get_monitor_stats,
         crate::routes::spans::list_spans,
         crate::routes::spans::get_span,
         crate::routes::agents::agent_runs,

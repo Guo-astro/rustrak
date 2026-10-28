@@ -1,9 +1,10 @@
 import type {
+  CheckInResponse,
   MonitorEnvironmentResponse,
   MonitorResponse,
 } from '@rustrak/client';
 import { describe, expect, it } from 'vitest';
-import { lastCheckIn, monitorHealth, nextCheckIn } from './status';
+import { lastCheckIn, lastRun, monitorHealth, nextCheckIn } from './status';
 
 function env(
   overrides: Partial<MonitorEnvironmentResponse>,
@@ -84,5 +85,34 @@ describe('lastCheckIn and nextCheckIn', () => {
   it('is null without check-ins', () => {
     expect(lastCheckIn(monitor([]))).toBeNull();
     expect(nextCheckIn(monitor([]))).toBeNull();
+  });
+});
+
+describe('lastRun', () => {
+  const run = (overrides: Partial<CheckInResponse>): CheckInResponse =>
+    ({ status: 'ok', duration_ms: 1000, ...overrides }) as CheckInResponse;
+
+  it('is the newest finished run across environments, not the first listed', () => {
+    const m = monitor([
+      // `alpha` sorts first, but `beta` ran last.
+      env({
+        environment: 'alpha',
+        recent_checkins: [
+          run({ date_added: '2026-01-01T05:00:00Z', duration_ms: 1000 }),
+        ],
+      }),
+      env({
+        environment: 'beta',
+        recent_checkins: [
+          run({ date_added: '2026-01-01T07:00:00Z', status: 'in_progress' }),
+          run({ date_added: '2026-01-01T06:00:00Z', duration_ms: 3000 }),
+        ],
+      }),
+    ]);
+    expect(lastRun(m)?.duration_ms).toBe(3000);
+  });
+
+  it('is undefined before any run finished', () => {
+    expect(lastRun(monitor([]))).toBeUndefined();
   });
 });

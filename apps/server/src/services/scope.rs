@@ -32,6 +32,14 @@ pub(crate) fn since(column: &str, hours: Option<i64>) -> String {
     return format!("datetime({column}) >= datetime('now', '-{hours} hours')");
 }
 
+/// A timestamp column as whole seconds since the epoch, as SQL.
+pub(crate) fn epoch(column: &str) -> String {
+    #[cfg(feature = "postgres")]
+    return format!("CAST(EXTRACT(EPOCH FROM {column}) AS BIGINT)");
+    #[cfg(not(feature = "postgres"))]
+    return format!("CAST(strftime('%s', {column}) AS INTEGER)");
+}
+
 /// [`since`] for a `DATE` column.
 pub(crate) fn since_day(column: &str, hours: Option<i64>) -> String {
     let Some(hours) = hours else {

@@ -68,32 +68,6 @@ export function Loaded<T>({
   );
 }
 
-/** A panel of the reading column: a heading, what it shows, its content. */
-export function Panel({
-  title,
-  hint,
-  flush,
-  children,
-}: {
-  title: string;
-  hint: string;
-  /** Rows that run to the panel's edges. */
-  flush?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex min-w-0 flex-col rounded-2xl border border-border-subtle bg-surface">
-      <header className="px-5 pt-4">
-        <h2 className="text-card-title text-fg">{title}</h2>
-        <p className="mt-0.5 text-fg-subtle text-meta">{hint}</p>
-      </header>
-      <div className={cn('min-w-0 pt-3 pb-4', flush ? null : 'px-5')}>
-        {children}
-      </div>
-    </section>
-  );
-}
-
 /**
  * Four figures in one strip: how much it runs, how slow it gets, how often it
  * fails, and what it costs in all. The rest describe it, and live in the rail.
