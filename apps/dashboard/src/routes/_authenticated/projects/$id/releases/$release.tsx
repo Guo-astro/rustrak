@@ -1,5 +1,5 @@
 import { formatFilterQuery } from '@rustrak/ui';
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { ISSUE_FILTER_VARIANTS } from '@/features/issue/model/issue-table';
 import { getProject } from '@/features/project/api/queries';
@@ -32,15 +32,6 @@ import {
   SessionsPanel,
 } from './-components/release-panels';
 
-/** The release from the path, or `null` if it is not a decodable one. */
-function decodeRelease(raw: string): string | null {
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return null;
-  }
-}
-
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/releases/$release',
 )({
@@ -51,10 +42,9 @@ export const Route = createFileRoute(
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const version = decodeRelease(params.release);
-    // `%zz` is not a release this instance has seen: the same answer as one
-    // that was never reported, not the application-error screen.
-    if (version === null) throw notFound();
+    // Already decoded by the router, which treats an undecodable `%zz` as
+    // no match: decoding again would turn a literal `%20` into a space.
+    const version = params.release;
     const period = deps.period ?? DEFAULT_PERIOD;
     return loadAll([
       getProject(projectId),
@@ -81,7 +71,7 @@ export const Route = createFileRoute(
         {
           name: 'description',
           content: t('releaseDetail.meta.description', {
-            release: decodeRelease(params.release) ?? release.version,
+            release: params.release,
           }),
         },
       ],

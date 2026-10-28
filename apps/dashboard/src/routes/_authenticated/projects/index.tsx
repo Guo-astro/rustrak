@@ -1,6 +1,6 @@
 import type { ProjectsListResponse } from '@rustrak/client';
 import { Button, NewIcon, Page, PageHeader } from '@rustrak/ui';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useFormatter, useTranslations } from 'use-intl';
 import { getProjects } from '@/features/project/api/queries';
 import { ProjectsGrid } from '@/features/project/ui/components/projects-grid';
@@ -37,12 +37,25 @@ export const Route = createFileRoute('/_authenticated/projects/')({
   // One request, stats included: the server aggregates the whole page in two
   // queries. Asking per row would be 20 round trips for a table that renders
   // above the fold.
-  loader: ({ deps }) =>
-    getProjects({
+  loader: async ({ deps }) => {
+    const projects = await getProjects({
       page: deps.page,
       per_page: 20,
       stats_period: STATS_PERIOD,
-    }),
+    });
+
+    // Deleting the last card on the last page leaves that page empty, and an
+    // empty page renders "no projects" with no way back. Send the browser to
+    // the last page that exists, as the releases list does.
+    if (projects.success && deps.page > 1) {
+      const { total_pages } = projects.data;
+      if (deps.page > total_pages) {
+        throw redirect({ href: `/projects?page=${Math.max(total_pages, 1)}` });
+      }
+    }
+
+    return projects;
+  },
   component: ProjectsPage,
 });
 
@@ -90,14 +103,18 @@ function ProjectsPage() {
 
 /**
  * The header's facts: how many projects, how many need looking at, how busy
- * the last day was. The last two add up this page only, which is every
- * project until there are more than fit on one.
+ * the last day was. The last two can only add up the page in hand, so they
+ * appear only while that page is every project: beside a total for all of
+ * them, a sum over twenty would read as a sum over all.
  */
 function projectsSummary(
   data: ProjectsListResponse,
   tProjects: ReturnType<typeof useTranslations<'projects'>>,
   format: ReturnType<typeof useFormatter>,
 ): string[] {
+  const count = tProjects('switcher.count', { count: data.total_count });
+  if (data.total_pages > 1) return [count];
+
   const fatal = data.items.filter((p) => (p.stats?.fatal_issues ?? 0) > 0);
   const events = data.items.reduce(
     (sum, p) => sum + (p.stats?.events.current ?? 0),
@@ -105,12 +122,13 @@ function projectsSummary(
   );
 
   return [
-    tProjects('switcher.count', { count: data.total_count }),
+    count,
     fatal.length > 0
       ? tProjects('summary.withFatal', { count: fatal.length })
       : '',
     tProjects('summary.events24h', {
-      count: format.number(events, 'compact'),
+      count: events,
+      display: format.number(events, 'compact'),
     }),
   ].filter(Boolean);
 }

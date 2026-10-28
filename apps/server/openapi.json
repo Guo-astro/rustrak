@@ -8425,7 +8425,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Count only this environment",
+            "description": "Only the releases seen in this environment, and count only it",
             "required": false,
             "schema": {
               "type": "string"
@@ -17805,6 +17805,7 @@
           },
           "total_values": {
             "type": "integer",
+            "description": "The scanned events carrying the tag, whatever its value: Sentry's\n`totalValues` (`GroupTagKey.count`), so each top value's share is its\n`count` over this.",
             "minimum": 0
           }
         }

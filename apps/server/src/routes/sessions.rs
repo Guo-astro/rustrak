@@ -106,9 +106,7 @@ pub async fn get_stats(
     Ok(HttpResponse::Ok().json(OffsetPaginatedResponse::new(rows, total, page, per_page)))
 }
 
-/// Query params for the summary endpoint. Unlike `StatsQuery`, this endpoint
-/// has no release scoping, so it doesn't accept `release` at all rather than
-/// silently ignoring it.
+/// Query params for the summary endpoint.
 #[derive(serde::Deserialize)]
 pub struct SummaryQuery {
     /// Time window in hours (default: 24).

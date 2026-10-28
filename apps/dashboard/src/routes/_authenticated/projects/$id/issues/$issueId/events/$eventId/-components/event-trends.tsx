@@ -1,4 +1,4 @@
-import type { IssueAggregates, IssueStatsResponse } from '@rustrak/client';
+import type { IssueStatsResponse } from '@rustrak/client';
 import { BarsChart, Text } from '@rustrak/ui';
 import { useFormatter, useTranslations } from 'use-intl';
 
@@ -7,15 +7,11 @@ import { useFormatter, useTranslations } from 'use-intl';
  * whether it is getting worse is the question every reader brings.
  *
  * Lifetime totals are the rail's; this panel counts the window it draws, so
- * the figure and the bars always agree.
+ * the figure and the bars always agree. No user count here: the one there is
+ * read from the latest events with no date bound, and beside "30 days" it
+ * would claim a window it was not counted over. The rail has it.
  */
-export function EventTrends({
-  stats,
-  aggregates,
-}: {
-  stats: IssueStatsResponse | null;
-  aggregates: IssueAggregates | null;
-}) {
+export function EventTrends({ stats }: { stats: IssueStatsResponse | null }) {
   const t = useTranslations('issues');
   const format = useFormatter();
   // The spec types each bucket as `number[]`; the server sends a
@@ -38,10 +34,6 @@ export function EventTrends({
         </div>
         <dl className="flex gap-6">
           <Figure label={t('columns.events')} value={format.number(total)} />
-          <Figure
-            label={t('columns.users')}
-            value={format.number(aggregates?.user_count ?? 0)}
-          />
         </dl>
       </header>
       <div className="px-3 pt-3 pb-4">

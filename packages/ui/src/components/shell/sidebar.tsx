@@ -440,6 +440,14 @@ export function SidebarItem({
 
 SidebarItem.displayName = 'SidebarItem';
 
+/** The hairline a group's label turns into on the rail. */
+const groupRule = tv({
+  base: ['absolute start-2 top-1/2 w-6', collapseFade],
+  variants: {
+    collapsed: { true: 'opacity-100', false: 'opacity-0' },
+  },
+});
+
 export interface SidebarGroupProps {
   /** What the routes underneath have in common: Triage, Monitor. */
   label: string;
@@ -466,13 +474,7 @@ export function SidebarGroup({ label: text, children }: SidebarGroupProps) {
         )}
       >
         <span className={label({ collapsed })}>{text}</span>
-        <Separator
-          className={cn(
-            'absolute start-2 top-1/2 w-6',
-            collapseFade,
-            collapsed ? 'opacity-100' : 'opacity-0',
-          )}
-        />
+        <Separator className={groupRule({ collapsed })} />
       </div>
       {children}
     </div>
