@@ -228,6 +228,7 @@
   "logs": {
     "emptyValue": "(vacío)",
     "volumeFailed": "No se pudo cargar el gráfico de volumen",
+    "lineFailed": "No se pudo abrir esta línea. Puede que se haya eliminado.",
     "attributes": "Atributos",
     "empty": {
       "title": "Ningún registro coincide con esta búsqueda en este periodo"

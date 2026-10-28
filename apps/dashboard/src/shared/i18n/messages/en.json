@@ -228,6 +228,7 @@
   "logs": {
     "emptyValue": "(empty)",
     "volumeFailed": "Could not load the volume chart",
+    "lineFailed": "This line could not be opened. It may have been deleted.",
     "attributes": "Attributes",
     "empty": {
       "title": "No logs match this search in this window"

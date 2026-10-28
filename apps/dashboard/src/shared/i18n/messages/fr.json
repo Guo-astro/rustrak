@@ -228,6 +228,7 @@
   "logs": {
     "emptyValue": "(vide)",
     "volumeFailed": "Impossible de charger le graphique de volume",
+    "lineFailed": "Impossible d’ouvrir cette ligne. Elle a peut-être été supprimée.",
     "attributes": "Attributs",
     "empty": {
       "title": "Aucun journal ne correspond à cette recherche sur cette période"

@@ -118,11 +118,12 @@ function LogsPage() {
   const page = search.page ?? 1;
 
   const items = loaded.success ? loaded.data[1].items : [];
-  const current = useSelectedLog(
+  const selection = useSelectedLog(
     Number.parseInt(id, 10),
     items,
     search.selected,
   );
+  const current = selection.log;
 
   const select = (selected: string | undefined) =>
     navigate({ search: (prev) => ({ ...prev, selected }), replace: true });
@@ -222,16 +223,11 @@ function LogsPage() {
                 }
               />
             </div>
-            {current ? (
-              <div className="flex min-h-0 w-full flex-col overflow-hidden lg:w-[28rem] lg:flex-none lg:rounded-lg lg:border lg:border-border lg:bg-panel xl:w-[34rem]">
-                <LogDetail
-                  key={current.id}
-                  log={current}
-                  onTrace={(trace) => narrow({ trace })}
-                  onClose={() => select(undefined)}
-                />
-              </div>
-            ) : null}
+            <SelectedPane
+              selection={selection}
+              onTrace={(trace) => narrow({ trace })}
+              onClose={() => select(undefined)}
+            />
           </div>
         </Page>
       )}
@@ -284,6 +280,12 @@ function VolumePanel({
   );
 }
 
+/** The open line, or that the one the address names could not be read. */
+interface Selection {
+  log: LogResponse | undefined;
+  failed: boolean;
+}
+
 /**
  * The line `?selected=` names: from the page when it is on it, fetched on its
  * own when newer lines have pushed it off, so a linked line still opens.
@@ -292,17 +294,59 @@ function useSelectedLog(
   projectId: number,
   items: LogResponse[],
   selected: string | undefined,
-): LogResponse | undefined {
+): Selection {
   const onPage = items.find((log) => log.id === selected);
+  // The answer carries what it was asked for: on the render that changes
+  // `selected`, the hook still holds the previous line until its effect runs.
+  const asked = `${projectId}:${selected}`;
   const fetched = useAsync(
-    () =>
-      selected && !onPage
-        ? getLog(projectId, selected)
-        : Promise.resolve(undefined),
+    async () => ({
+      asked,
+      result:
+        selected && !onPage ? await getLog(projectId, selected) : undefined,
+    }),
     [projectId, selected, Boolean(onPage)],
   );
-  if (onPage) return onPage;
-  return fetched.state === 'ready' && fetched.data?.success
-    ? fetched.data.data
-    : undefined;
+  if (onPage) return { log: onPage, failed: false };
+  if (
+    fetched.state !== 'ready' ||
+    fetched.data.asked !== asked ||
+    !fetched.data.result
+  ) {
+    return { log: undefined, failed: false };
+  }
+  const { result } = fetched.data;
+  return result.success
+    ? { log: result.data, failed: false }
+    : { log: undefined, failed: true };
+}
+
+/** Beside the list: the open line, or why the linked one did not open. */
+function SelectedPane({
+  selection,
+  onTrace,
+  onClose,
+}: {
+  selection: Selection;
+  onTrace: (trace: string) => void;
+  onClose: () => void;
+}) {
+  const tLogs = useTranslations('logs');
+  if (!selection.log && !selection.failed) return null;
+  return (
+    <div className="flex min-h-0 w-full flex-col overflow-hidden lg:w-[28rem] lg:flex-none lg:rounded-lg lg:border lg:border-border lg:bg-panel xl:w-[34rem]">
+      {selection.log ? (
+        <LogDetail
+          key={selection.log.id}
+          log={selection.log}
+          onTrace={onTrace}
+          onClose={onClose}
+        />
+      ) : (
+        <Text variant="meta" tone="subtle" className="p-4">
+          {tLogs('lineFailed')}
+        </Text>
+      )}
+    </div>
+  );
 }

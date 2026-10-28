@@ -228,6 +228,7 @@
   "logs": {
     "emptyValue": "(gol)",
     "volumeFailed": "Graficul de volum nu a putut fi încărcat",
+    "lineFailed": "Această linie nu a putut fi deschisă. Poate a fost ștearsă.",
     "attributes": "Atribute",
     "empty": {
       "title": "Niciun jurnal nu corespunde acestei căutări în această perioadă"
