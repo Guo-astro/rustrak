@@ -107,6 +107,12 @@ export interface WaterfallRow {
   startMs: number;
   endMs: number;
   status?: string;
+  /**
+   * Time spent in the span itself, not its children: the SDK's
+   * `exclusive_time` when it sent one, else its duration less its direct
+   * children's.
+   */
+  selfMs: number;
 }
 
 /**
@@ -127,7 +133,7 @@ export function waterfallSpans(
     ...payload.spans.flatMap((s) => (s.span_id ? [s.span_id] : [])),
   ]);
 
-  const spans = payload.spans.flatMap((span, index): WaterfallRow[] => {
+  const spans = payload.spans.flatMap((span, index) => {
     if (span.start_timestamp == null || span.timestamp == null) return [];
     return [
       {
@@ -141,11 +147,12 @@ export function waterfallSpans(
         startMs: ms(span.start_timestamp),
         endMs: ms(span.timestamp),
         status: span.status,
+        exclusive: span.exclusive_time,
       },
     ];
   });
 
-  return [
+  const rows = [
     {
       id: rootId,
       parentId: null,
@@ -154,9 +161,17 @@ export function waterfallSpans(
       startMs: 0,
       endMs: ms(payload.transactionEnd),
       status: payload.status,
+      exclusive: undefined as number | undefined,
     },
     ...spans,
   ];
+  return rows.map(({ exclusive, ...row }): WaterfallRow => {
+    const children = rows
+      .filter((child) => child.parentId === row.id)
+      .reduce((sum, child) => sum + (child.endMs - child.startMs), 0);
+    const own = row.endMs - row.startMs;
+    return { ...row, selfMs: exclusive ?? Math.max(0, own - children) };
+  });
 }
 
 /** Web-vital thresholds (good up to, poor from) from web.dev, in ms but CLS. */
@@ -187,7 +202,10 @@ export function readMeasurements(
     ([key, raw]): MeasurementRow[] => {
       const m = asObject(raw);
       if (!m || typeof m.value !== 'number') return [];
-      const vital = VITALS[key.toLowerCase()];
+      // Own keys only: `constructor` is not a vital.
+      const vital = Object.hasOwn(VITALS, key.toLowerCase())
+        ? VITALS[key.toLowerCase()]
+        : undefined;
       const value = m.value;
       const rating: MeasurementRow['rating'] = vital
         ? value <= vital.good

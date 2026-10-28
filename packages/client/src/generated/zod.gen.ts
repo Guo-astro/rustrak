@@ -3501,6 +3501,7 @@ export const zTransactionsListQuery = z.object({
     status: z.string().nullish(),
     environment: z.string().nullish(),
     release: z.string().nullish(),
+    period: z.string().nullish(),
     sort: z.union([
         z.literal('recent'),
         z.literal('slowest')

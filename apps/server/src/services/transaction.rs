@@ -25,6 +25,8 @@ pub struct TransactionFilters {
     pub status: Option<String>,
     pub environment: Option<String>,
     pub release: Option<String>,
+    /// Only the last this many hours; all time when `None`.
+    pub period_hours: Option<i64>,
     /// Longest first instead of newest first.
     pub slowest: bool,
 }
@@ -46,7 +48,8 @@ impl TransactionService {
         let per_page = per_page.clamp(1, 100);
         let offset = crate::pagination::offset(page, per_page);
 
-        let total_count: (i64,) = sqlx::query_as(
+        let window = since("timestamp", filters.period_hours);
+        let count_sql = format!(
             r#"
             SELECT COUNT(*) FROM transactions
             WHERE project_id = $1
@@ -55,21 +58,23 @@ impl TransactionService {
               AND ($6 IS NULL OR status = $7)
               AND ($8 IS NULL OR environment = $9)
               AND ($10 IS NULL OR release = $11)
+              AND {window}
             "#,
-        )
-        .bind(project_id)
-        .bind(filters.name.as_deref())
-        .bind(filters.name.as_deref())
-        .bind(filters.op.as_deref())
-        .bind(filters.op.as_deref())
-        .bind(filters.status.as_deref())
-        .bind(filters.status.as_deref())
-        .bind(filters.environment.as_deref())
-        .bind(filters.environment.as_deref())
-        .bind(filters.release.as_deref())
-        .bind(filters.release.as_deref())
-        .fetch_one(pool)
-        .await?;
+        );
+        let total_count: (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(&*count_sql))
+            .bind(project_id)
+            .bind(filters.name.as_deref())
+            .bind(filters.name.as_deref())
+            .bind(filters.op.as_deref())
+            .bind(filters.op.as_deref())
+            .bind(filters.status.as_deref())
+            .bind(filters.status.as_deref())
+            .bind(filters.environment.as_deref())
+            .bind(filters.environment.as_deref())
+            .bind(filters.release.as_deref())
+            .bind(filters.release.as_deref())
+            .fetch_one(pool)
+            .await?;
 
         let order = if filters.slowest {
             // NULL durations last on both backends, without NULLS LAST.
@@ -89,6 +94,7 @@ impl TransactionService {
               AND ($6 IS NULL OR status = $7)
               AND ($8 IS NULL OR environment = $9)
               AND ($10 IS NULL OR release = $11)
+              AND {window}
             ORDER BY {order}
             LIMIT $12 OFFSET $13
             "#,
@@ -446,8 +452,9 @@ impl TransactionService {
         Ok(rows.into_iter().map(|(d,)| d).collect())
     }
 
-    /// One endpoint over the last `period_hours`, bucket by bucket with no
-    /// gaps: how often it ran and failed, and its p50 and p95.
+    /// One endpoint over the last `period_hours`, or since its oldest call
+    /// when `None`, bucket by bucket with no gaps: how often it ran and
+    /// failed, and its p50 and p95.
     // ponytail: reads every sample of one endpoint in the window and buckets
     // them here, which is portable; move the bucketing into SQL if an
     // endpoint's window ever holds millions of samples.
@@ -457,14 +464,14 @@ impl TransactionService {
         name: &str,
         op: Option<&str>,
         environment: Option<&str>,
-        period_hours: i64,
+        period_hours: Option<i64>,
     ) -> AppResult<Vec<TransactionTimeseriesPoint>> {
         let sql = format!(
             "SELECT timestamp, duration_ms, status FROM transactions \
              WHERE project_id = $1 AND transaction_name = $2 \
                AND (op = $3 OR (op IS NULL AND $4 IS NULL)) \
                AND duration_ms IS NOT NULL AND ($5 IS NULL OR environment = $6) AND {}",
-            since("timestamp", Some(period_hours))
+            since("timestamp", period_hours)
         );
         let rows: Vec<(DateTime<Utc>, f64, Option<String>)> =
             sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
@@ -477,9 +484,14 @@ impl TransactionService {
                 .fetch_all(pool)
                 .await?;
 
+        let now = Utc::now().timestamp();
+        // All time: back to the oldest call, and never under a day.
+        let period_hours = period_hours.unwrap_or_else(|| {
+            let oldest = rows.iter().map(|(ts, ..)| ts.timestamp()).min();
+            oldest.map_or(24, |ts| ((now - ts) / 3600 + 1).max(24))
+        });
         let interval = bucket_hours(period_hours) * 3600;
         let align = |ts: i64| ts.div_euclid(interval) * interval;
-        let now = Utc::now().timestamp();
         let mut buckets: BTreeMap<i64, (Vec<f64>, i64)> = BTreeMap::new();
         let mut at = align(now - period_hours * 3600);
         while at <= align(now) {

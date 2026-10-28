@@ -198,7 +198,12 @@ function PerformancePage() {
                 endpointHref(
                   projectId,
                   { name: row.transaction_name, op: row.op },
-                  scope,
+                  // The page's own period, `all` included: the endpoint page
+                  // reads a missing one as the default, not as all time.
+                  {
+                    period: search.period,
+                    environment: scope.environment,
+                  },
                 ),
               )
             }

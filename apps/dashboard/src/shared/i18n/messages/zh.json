@@ -2536,6 +2536,7 @@
       "op": "操作",
       "description": "描述",
       "duration": "耗时",
+      "selfTime": "自身耗时",
       "start": "开始",
       "status": "状态",
       "spanId": "Span ID"

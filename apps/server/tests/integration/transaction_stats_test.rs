@@ -183,7 +183,7 @@ async fn an_endpoint_trend_has_every_bucket_of_the_window() {
         "GET /report",
         Some("http.server"),
         None,
-        24,
+        Some(24),
     )
     .await
     .unwrap();
@@ -193,6 +193,42 @@ async fn an_endpoint_trend_has_every_bucket_of_the_window() {
     assert_eq!(points.iter().map(|p| p.count).sum::<i64>(), 2);
     assert_eq!(points.iter().map(|p| p.failures).sum::<i64>(), 1);
     assert!(points.iter().any(|p| p.p95_ms == 1100.0));
+}
+
+#[actix_web::test]
+async fn an_all_time_trend_reaches_back_to_the_oldest_call() {
+    let db = TestDb::new().await;
+    let p = seed(&db.pool).await;
+
+    // Three days back: past any default window a missing one could fall to.
+    let points = TransactionService::group_timeseries(
+        &db.pool,
+        p,
+        "GET /old",
+        Some("http.server"),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(points.iter().map(|p| p.count).sum::<i64>(), 1);
+}
+
+#[actix_web::test]
+async fn samples_keep_to_the_window() {
+    let db = TestDb::new().await;
+    let p = seed(&db.pool).await;
+
+    let filters = TransactionFilters {
+        period_hours: Some(24),
+        ..Default::default()
+    };
+    let (rows, total) = TransactionService::list_offset(&db.pool, p, 1, 20, &filters)
+        .await
+        .unwrap();
+    assert_eq!(total, 12);
+    assert!(rows.iter().all(|r| r.transaction_name != "GET /old"));
 }
 
 #[actix_web::test]

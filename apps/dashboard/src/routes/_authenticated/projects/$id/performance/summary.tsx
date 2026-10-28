@@ -91,6 +91,7 @@ function EndpointPage() {
         name,
         op,
         environment: scope.environment,
+        period: scope.period,
         sort: 'slowest',
         per_page: 10,
       }),

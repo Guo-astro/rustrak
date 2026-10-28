@@ -311,6 +311,29 @@ describe('waterfallSpans', () => {
     expect(rows[1]).toMatchObject({ id: 'a', parentId: 'r', op: 'db' });
     expect(rows[1]?.startMs).toBeCloseTo(100);
     expect(rows[2]).toMatchObject({ parentId: 'r', status: 'internal_error' });
+    // Self time: its own duration less its children's, 500 - 100 - 100.
+    expect(rows[0]?.selfMs).toBeCloseTo(300);
+    expect(rows[1]?.selfMs).toBeCloseTo(100);
+  });
+
+  it("takes a span's self time from the SDK when it sent one", () => {
+    const payload = readTransactionPayload(
+      txn({
+        data: {
+          start_timestamp: 100,
+          timestamp: 101,
+          spans: [
+            {
+              span_id: 'a',
+              start_timestamp: 100,
+              timestamp: 100.5,
+              exclusive_time: 42,
+            },
+          ],
+        },
+      }),
+    );
+    expect(waterfallSpans(payload, 'GET /')[1]?.selfMs).toBe(42);
   });
 
   it('skips a span with no clock', () => {
@@ -333,5 +356,10 @@ describe('readMeasurements', () => {
     expect(rows[0]).toMatchObject({ vital: true, rating: 'poor' });
     expect(rows[1]).toMatchObject({ rating: 'good' });
     expect(rows[2]).toMatchObject({ vital: false, rating: null });
+  });
+
+  it('never reads an inherited name as a vital', () => {
+    const [row] = readMeasurements({ constructor: { value: 1 } });
+    expect(row).toMatchObject({ vital: false, rating: null });
   });
 });

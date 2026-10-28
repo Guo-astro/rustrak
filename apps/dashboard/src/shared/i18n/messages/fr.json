@@ -2536,6 +2536,7 @@
       "op": "Opération",
       "description": "Description",
       "duration": "Durée",
+      "selfTime": "Temps propre",
       "start": "Début",
       "status": "Statut",
       "spanId": "Id du span"

@@ -2536,6 +2536,7 @@
       "op": "Operație",
       "description": "Descriere",
       "duration": "Durată",
+      "selfTime": "Timp propriu",
       "start": "Început",
       "status": "Stare",
       "spanId": "Id span"

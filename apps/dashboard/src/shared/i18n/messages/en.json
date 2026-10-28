@@ -2536,6 +2536,7 @@
       "op": "Operation",
       "description": "Description",
       "duration": "Duration",
+      "selfTime": "Self time",
       "start": "Start",
       "status": "Status",
       "spanId": "Span id"

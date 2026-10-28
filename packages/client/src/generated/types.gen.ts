@@ -7327,6 +7327,10 @@ export type TransactionsListData = {
          */
         release?: string | null;
         /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
+        /**
          * `slowest` for the longest first; newest first otherwise.
          */
         sort?: 'recent' | 'slowest' | null;
