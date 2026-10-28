@@ -33,15 +33,30 @@ describe('fillBuckets', () => {
     expect(filled.map((p) => p.value)).toEqual([0, 0, 5, 0]);
   });
 
-  it('stops at the current bucket, whatever a clock ahead sent', () => {
+  it('fills only up to now, but keeps a busy bucket past it', () => {
+    const ahead = '9999-01-01T00:00:00.000Z';
     const filled = fillBuckets(
-      [point(11, 5), { bucket: '9999-01-01T00:00:00Z', value: 1 }],
+      [point(11, 5), { bucket: ahead, value: 1 }],
       1,
       undefined,
       (bucket) => ({ bucket, value: 0 }),
       Date.UTC(2026, 0, 1, 12, 30),
     );
-    expect(filled.map((p) => p.value)).toEqual([5, 0]);
+    // One point for the clock far ahead, not an empty bucket per hour to it.
+    expect(filled.map((p) => p.bucket)).toEqual([hour(11), hour(12), ahead]);
+    expect(filled.map((p) => p.value)).toEqual([5, 0, 1]);
+  });
+
+  it('keeps the newest runs when the browser clock runs behind', () => {
+    const filled = fillBuckets(
+      [point(9, 2), point(12, 5)],
+      1,
+      undefined,
+      (bucket) => ({ bucket, value: 0 }),
+      Date.UTC(2026, 0, 1, 10, 30),
+    );
+    expect(filled.map((p) => p.bucket)).toEqual([hour(9), hour(10), hour(12)]);
+    expect(filled.map((p) => p.value)).toEqual([2, 0, 5]);
   });
 });
 
