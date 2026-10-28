@@ -7,7 +7,7 @@ export interface ConversationTurn {
   startedAt: string | null;
   /** Every agent that ran in the turn, in order. */
   agents: string[];
-  /** The user's last message in the turn's first model call. */
+  /** The user's last message in the turn's first model call that holds one. */
   question: string | null;
   /** The last thing a model answered in text. */
   answer: string | null;
@@ -39,7 +39,12 @@ export function conversationTurns(
 
   return [...turns.entries()].map(([traceId, inTurn]) => {
     const calls = inTurn.filter((s) => s.operation_type === 'ai_client');
-    const prompt = calls.find((s) => s.input)?.input;
+    // The first call may carry only a system prompt: the question is in the
+    // first one that says something as the user.
+    const question =
+      calls
+        .map((s) => (s.input ? lastSaid(s.input, 'user') : null))
+        .find((said) => said) ?? null;
     const output = calls.filter((s) => s.output).at(-1)?.output;
     return {
       traceId,
@@ -51,7 +56,7 @@ export function conversationTurns(
           ),
         ),
       ],
-      question: prompt ? lastSaid(prompt, 'user') : null,
+      question,
       answer: output ? lastSaid(output, 'assistant') : null,
       tools: inTurn.filter((s) => s.operation_type === 'tool'),
       tokens: inTurn.reduce(

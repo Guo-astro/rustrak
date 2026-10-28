@@ -64,6 +64,21 @@ describe('conversationTurns', () => {
     });
   });
 
+  it('finds the question in a later call when the first holds none', () => {
+    const [turn] = conversationTurns([
+      cspan({
+        input: JSON.stringify([{ role: 'system', content: 'Be brief.' }]),
+      }),
+      cspan({
+        input: JSON.stringify([
+          { role: 'system', content: 'Be brief.' },
+          { role: 'user', content: 'Where is my order?' },
+        ]),
+      }),
+    ]);
+    expect(turn?.question).toBe('Where is my order?');
+  });
+
   it('reads a plain prompt as the question and a message array as the answer', () => {
     const [turn] = conversationTurns([
       cspan({

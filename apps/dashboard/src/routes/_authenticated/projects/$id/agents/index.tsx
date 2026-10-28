@@ -26,6 +26,7 @@ import {
 } from '@/features/agent-trace/api/queries';
 import {
   AGENT_PERIODS,
+  fillBuckets,
   resolveAgentFilters,
 } from '@/features/agent-trace/model/filters';
 import { ConversationsList } from '@/features/agent-trace/ui/components/agent-conversations';
@@ -186,6 +187,7 @@ function AgentsPage() {
   const loading = useRouterState({ select: (s) => s.isLoading });
   const projectId = Number.parseInt(id, 10);
   const view = search.view ?? 'overview';
+  const filters = resolveAgentFilters(search);
 
   if (!loaded.success) {
     return (
@@ -355,10 +357,25 @@ function AgentsPage() {
           <AgentFigures summary={summary} />
           <div className="grid shrink-0 gap-5 xl:grid-cols-2">
             <Panel title={t('charts.runs')} hint={t('charts.runsHint')}>
-              <RunsChart points={runs} />
+              <RunsChart
+                points={fillBuckets(
+                  runs,
+                  filters.intervalHours,
+                  filters.periodHours,
+                  (bucket) => ({ bucket, value: 0, errors: 0 }),
+                )}
+              />
             </Panel>
             <Panel title={t('charts.duration')} hint={t('charts.durationHint')}>
-              <DurationChart points={duration} />
+              {/* An empty bucket is a gap in the line, not a zero. */}
+              <DurationChart
+                points={fillBuckets(
+                  duration,
+                  filters.intervalHours,
+                  filters.periodHours,
+                  (bucket) => ({ bucket, avg_ms: 0, p95_ms: 0 }),
+                )}
+              />
             </Panel>
           </div>
           <div className="grid shrink-0 gap-5 xl:grid-cols-2">
