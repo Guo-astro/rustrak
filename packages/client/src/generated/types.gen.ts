@@ -4279,8 +4279,12 @@ export type AgentsConversationsResponses = {
             agent_names: Array<string>;
             conversation_id: string;
             error_count: number;
-            first_seen: string;
-            last_seen: string;
+            /**
+             * From the spans' start times, else their end times; `null` when no span
+             * of the conversation carries either, as a transaction's child can.
+             */
+            first_seen: string | null;
+            last_seen: string | null;
             llm_call_count: number;
             tool_call_count: number;
             /**

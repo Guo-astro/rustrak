@@ -3156,11 +3156,18 @@
                             "format": "int64"
                           },
                           "first_seen": {
-                            "type": "string",
-                            "format": "date-time"
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "From the spans' start times, else their end times; `null` when no span\nof the conversation carries either, as a transaction's child can."
                           },
                           "last_seen": {
-                            "type": "string",
+                            "type": [
+                              "string",
+                              "null"
+                            ],
                             "format": "date-time"
                           },
                           "llm_call_count": {

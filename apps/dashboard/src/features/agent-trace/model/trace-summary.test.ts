@@ -202,6 +202,8 @@ describe('waterfallSpans', () => {
         startMs: Date.parse('2026-01-01T00:00:00.000Z'),
         endMs: Date.parse('2026-01-01T00:00:02.000Z'),
         status: undefined,
+        // What the server classified it as, which the colour follows.
+        operationType: 'agent',
       },
       {
         id: 'row-llm',
@@ -211,6 +213,7 @@ describe('waterfallSpans', () => {
         startMs: Date.parse('2026-01-01T00:00:00.500Z'),
         endMs: Date.parse('2026-01-01T00:00:01.500Z'),
         status: 'internal_error',
+        operationType: 'ai_client',
       },
     ]);
   });

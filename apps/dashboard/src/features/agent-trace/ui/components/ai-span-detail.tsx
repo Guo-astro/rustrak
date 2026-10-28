@@ -13,7 +13,7 @@ import {
 } from '@/features/agent-trace/model/gen-ai';
 
 /** The four kinds of AI span, in the waterfall's colours. */
-export const OPERATION_TONE: Record<string, TagTone> = {
+const OPERATION_TONE: Record<string, TagTone> = {
   agent: 'brand',
   ai_client: 'info',
   tool: 'warning',
@@ -103,7 +103,7 @@ export function AiSpanDetail({ span }: { span: SpanDetailResponse }) {
                 className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 px-3 py-1.5 font-mono text-mono-sm"
               >
                 <dt className="break-all text-fg-subtle">{key}</dt>
-                <dd className="line-clamp-4 break-all text-fg">
+                <dd className="max-h-40 overflow-y-auto break-all text-fg">
                   {typeof value === 'string' ? value : JSON.stringify(value)}
                 </dd>
               </div>
@@ -213,6 +213,7 @@ function Conversation({ raw, speaker }: { raw: string; speaker?: string }) {
       <div className="flex flex-col gap-2">
         {messages.map((message, index) => (
           // Messages are positional by nature: index is their identity.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
           <Message
             key={index}
             speaker={message.role}

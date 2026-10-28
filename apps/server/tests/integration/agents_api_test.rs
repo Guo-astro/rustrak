@@ -877,3 +877,107 @@ async fn test_agent_conversations_list_and_transcript() {
     .await;
     assert_eq!(resp.status(), 404);
 }
+
+/// The list holds up against what SDKs really send: a turn per environment,
+/// a conversation whose only tagged span is no AI span, and a span with no
+/// start time.
+#[actix_web::test]
+async fn test_agent_conversations_agree_with_their_filters_and_count() {
+    let db = TestDb::new().await;
+    let pool = db.pool.clone();
+    let token = create_test_token(&pool).await;
+    let project_id = create_test_project(&pool).await;
+    let ctx = ProcessorCtx {
+        pool: pool.clone(),
+        project_id,
+        event_id: Uuid::nil(),
+        ingested_at: Utc::now(),
+        remote_addr: None,
+        keep_ai_spans: true,
+    };
+    let spans = [
+        // One conversation, a turn in each environment, by different agents.
+        json!({"span_id": "d100000000000000", "trace_id": "prod-turn", "start_timestamp": 10.0, "timestamp": 11.0,
+               "environment": "production",
+               "data": {"gen_ai.operation.type": "agent", "gen_ai.agent.name": "billing", "gen_ai.conversation.id": "conv-2"}}),
+        json!({"span_id": "d200000000000000", "trace_id": "staging-turn", "start_timestamp": 20.0, "timestamp": 21.0,
+               "environment": "staging",
+               "data": {"gen_ai.operation.type": "agent", "gen_ai.agent.name": "support", "gen_ai.conversation.id": "conv-2"}}),
+        // Tagged, but no AI span anywhere in its trace: not a listed row.
+        json!({"span_id": "d300000000000000", "trace_id": "plain-trace", "op": "http.client",
+               "start_timestamp": 30.0, "timestamp": 31.0,
+               "data": {"gen_ai.conversation.id": "conv-3"}}),
+    ];
+    for span in spans {
+        SpanProcessor
+            .process(bytes::Bytes::from(serde_json::to_vec(&span).unwrap()), &ctx)
+            .await
+            .unwrap();
+    }
+    // An agent run that never sent its start, as a transaction's child span
+    // can be stored.
+    sqlx::query(
+        "INSERT INTO spans (id, project_id, span_id, trace_id, op, timestamp, data, \
+         gen_ai_operation_type, gen_ai_agent_name, gen_ai_conversation_id) \
+         VALUES ($1, $2, 'd400000000000000', 'no-start', 'gen_ai.invoke_agent', $3, $4, \
+         'agent', 'triage', 'conv-4')",
+    )
+    .bind(Uuid::new_v4())
+    .bind(project_id)
+    .bind(Utc::now())
+    .bind(json!({}))
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(create_test_config()))
+            .configure(routes::agents::configure),
+    )
+    .await;
+    let get = |uri: String| {
+        test::TestRequest::get()
+            .uri(&uri)
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .to_request()
+    };
+
+    let resp = test::call_service(
+        &app,
+        get(format!("/api/projects/{project_id}/agents/conversations")),
+    )
+    .await;
+    assert_eq!(
+        resp.status(),
+        200,
+        "a span with no start time breaks nothing"
+    );
+    let body: Value = test::read_body_json(resp).await;
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(
+        body["total_count"].as_u64().unwrap() as usize,
+        items.len(),
+        "the count is of the rows the page can list"
+    );
+    let no_start = items
+        .iter()
+        .find(|c| c["conversation_id"] == "conv-4")
+        .unwrap();
+    assert!(no_start["last_seen"].is_string());
+
+    let body: Value = test::call_and_read_body_json(
+        &app,
+        get(format!(
+            "/api/projects/{project_id}/agents/conversations?environment=staging"
+        )),
+    )
+    .await;
+    assert_eq!(body["items"][0]["conversation_id"], "conv-2");
+    assert_eq!(
+        body["items"][0]["agent_names"],
+        json!(["support"]),
+        "only the agents of the turns the filter keeps"
+    );
+}

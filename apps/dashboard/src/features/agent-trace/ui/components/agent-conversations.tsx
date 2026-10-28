@@ -14,7 +14,10 @@ import {
 } from '@rustrak/ui';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { conversationTurns } from '@/features/agent-trace/model/conversation';
+import {
+  conversationHref,
+  conversationTurns,
+} from '@/features/agent-trace/model/conversation';
 import { Link } from '@/shared/ui/components/link';
 
 /**
@@ -101,7 +104,8 @@ function ConversationRow({
   const format = useFormatter();
   // The clock the relative times are read against, taken once per row.
   const [now] = useState(() => Date.now());
-  const last = new Date(conversation.last_seen);
+  // No time when none of its spans carried one.
+  const last = conversation.last_seen ? new Date(conversation.last_seen) : null;
 
   return (
     <li>
@@ -134,20 +138,18 @@ function ConversationRow({
               {t('errors', { count: conversation.error_count })}
             </Tag>
           ) : null}
-          <span
-            className="text-fg-subtle"
-            title={format.dateTime(last, 'dateTime')}
-          >
-            {format.relativeTime(last, { now: new Date(now) })}
-          </span>
+          {last ? (
+            <span
+              className="text-fg-subtle"
+              title={format.dateTime(last, 'dateTime')}
+            >
+              {format.relativeTime(last, { now: new Date(now) })}
+            </span>
+          ) : null}
         </span>
       </Link>
     </li>
   );
-}
-
-export function conversationHref(projectId: number, conversationId: string) {
-  return `/projects/${projectId}/agents/conversations/${encodeURIComponent(conversationId)}`;
 }
 
 /**

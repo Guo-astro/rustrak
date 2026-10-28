@@ -25,8 +25,48 @@ export function AgentGraphView({ spans }: { spans: SpanResponse[] }) {
     );
   }
 
+  // A handoff back to an earlier agent, or to one further along, has no
+  // arrow between neighbouring cards: those are listed under them.
+  const unseen = handoffs.filter(
+    (h) =>
+      !agents.some(
+        (agent, index) =>
+          agents[index - 1]?.name === h.from && agent.name === h.to,
+      ),
+  );
+
   return (
-    <div className="flex flex-col items-stretch gap-3 overflow-x-auto px-5 pb-5 lg:flex-row lg:items-start">
+    <div className="flex flex-col gap-3 px-5 pb-5">
+      <div className="flex flex-col items-stretch gap-3 overflow-x-auto lg:flex-row lg:items-start">
+        <AgentCards agents={agents} handoffs={handoffs} />
+      </div>
+      {unseen.length > 0 ? (
+        <ul className="flex flex-col gap-1 text-fg-subtle text-hint">
+          {unseen.map((h) => (
+            <li key={`${h.from}→${h.to}`} className="flex items-center gap-1.5">
+              <span className="text-fg-secondary">{h.from}</span>
+              <ArrowRightIcon size="sm" aria-hidden="true" />
+              <span className="text-fg-secondary">{h.to}</span>
+              <span>{t('handoff', { count: h.count })}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/** The cards in the order the agents first ran, an arrow between each pair. */
+function AgentCards({
+  agents,
+  handoffs,
+}: {
+  agents: GraphAgent[];
+  handoffs: { from: string; to: string; count: number }[];
+}) {
+  const t = useTranslations('agents.graph');
+  return (
+    <>
       {agents.map((agent, index) => {
         const previous = agents[index - 1];
         const handoff =
@@ -48,7 +88,7 @@ export function AgentGraphView({ spans }: { spans: SpanResponse[] }) {
           </Fragment>
         );
       })}
-    </div>
+    </>
   );
 }
 

@@ -121,6 +121,8 @@ export interface WaterfallRow {
   startMs: number;
   endMs: number;
   status?: string;
+  /** The server's `gen_ai_operation_type`, which names the kind before `op`. */
+  operationType?: string;
 }
 
 /**
@@ -147,6 +149,7 @@ export function waterfallSpans(spans: SpanResponse[]): WaterfallRow[] {
         startMs,
         endMs,
         status: s.status ?? undefined,
+        operationType: s.gen_ai_operation_type ?? undefined,
       },
     ];
   });

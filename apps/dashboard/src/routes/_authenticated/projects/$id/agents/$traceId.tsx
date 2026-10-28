@@ -15,12 +15,12 @@ import { createFileRoute, notFound } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { getSpan, listSpans } from '@/features/agent-trace/api/queries';
+import { conversationHref } from '@/features/agent-trace/model/conversation';
 import {
   resolveSelectedSpan,
   summarizeTrace,
   waterfallSpans,
 } from '@/features/agent-trace/model/trace-summary';
-import { conversationHref } from '@/features/agent-trace/ui/components/agent-conversations';
 import { AgentGraphView } from '@/features/agent-trace/ui/components/agent-graph';
 import { SpanDetailPane } from '@/features/agent-trace/ui/components/span-detail-pane';
 import { getProject } from '@/features/project/api/queries';

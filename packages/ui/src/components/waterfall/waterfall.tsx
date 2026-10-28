@@ -193,6 +193,12 @@ export interface WaterfallSpan {
   endMs: number;
   /** Anything other than `ok` or absent reads as failed. */
   status?: string;
+  /**
+   * An AI span's kind as the server classified it (`agent`, `ai_client`,
+   * `tool`, `handoff`), which knows more `op` spellings than a prefix does:
+   * `ai.toolCall` is a tool. Read before `op` when present.
+   */
+  operationType?: string;
 }
 
 /** The kinds time divides into, plus the one that broke. */
@@ -221,18 +227,30 @@ const KIND_BAR: Record<SpanKind, string> = {
   error: 'bg-sev-error',
 };
 
+const OPERATION_KIND: Record<string, SpanKind> = {
+  agent: 'agent',
+  ai_client: 'llm',
+  tool: 'tool',
+  handoff: 'handoff',
+};
+
 function spanKind(span: WaterfallSpan): SpanKind {
   if (span.status && span.status !== 'ok') return 'error';
+  const classified = span.operationType && OPERATION_KIND[span.operationType];
+  if (classified) return classified;
   const op = (span.op ?? '').toLowerCase();
-  if (op.startsWith('gen_ai.') || op.startsWith('ai.')) {
-    if (op.includes('invoke_agent')) return 'agent';
-    if (op.includes('execute_tool')) return 'tool';
-    if (op.includes('handoff')) return 'handoff';
-    return 'llm';
-  }
+  if (op.startsWith('gen_ai.') || op.startsWith('ai.')) return aiKind(op);
   if (op.startsWith('db') || op.startsWith('cache')) return 'db';
   if (op.startsWith('http') || op.startsWith('resource')) return 'http';
   return 'internal';
+}
+
+/** An AI span the server did not classify, read from its `op` alone. */
+function aiKind(op: string): SpanKind {
+  if (op.includes('invoke_agent')) return 'agent';
+  if (op.includes('execute_tool')) return 'tool';
+  if (op.includes('handoff')) return 'handoff';
+  return 'llm';
 }
 
 /* --- The tree ------------------------------------------------------------- */

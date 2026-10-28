@@ -756,8 +756,12 @@ impl SpanService {
              {scope} {time_filter}"
         );
 
+        // Counted through the page's own join: a conversation whose turns hold
+        // no AI span is never a row, so it is never counted either.
         let total: (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-            "SELECT COUNT(DISTINCT conversation_id) FROM ({turns}) t"
+            "SELECT COUNT(DISTINCT t.conversation_id) FROM ({turns}) t \
+             JOIN spans s ON s.project_id = $1 AND s.trace_id = t.trace_id \
+                         AND s.gen_ai_operation_type IS NOT NULL"
         )))
         .bind(project_id)
         .bind(filters.environment.as_deref())
@@ -774,13 +778,14 @@ impl SpanService {
                                  ELSE COALESCE(s.gen_ai_usage_total_tokens, 0) END)
                         AS DOUBLE PRECISION) AS total_tokens,
                    SUM(CASE WHEN s.status IS NOT NULL AND s.status <> 'ok' THEN 1 ELSE 0 END) AS error_count,
-                   MIN(s.start_timestamp) AS first_seen,
-                   MAX(s.start_timestamp) AS last_seen
+                   COALESCE(MIN(s.start_timestamp), MIN(s.timestamp)) AS first_seen,
+                   COALESCE(MAX(s.start_timestamp), MAX(s.timestamp)) AS last_seen
             FROM ({turns}) t
             JOIN spans s ON s.project_id = $1 AND s.trace_id = t.trace_id
                         AND s.gen_ai_operation_type IS NOT NULL
             GROUP BY t.conversation_id
-            ORDER BY last_seen DESC, t.conversation_id ASC
+            ORDER BY COALESCE(MAX(s.start_timestamp), MAX(s.timestamp)) IS NULL,
+                     last_seen DESC, t.conversation_id ASC
             LIMIT $3 OFFSET $4
             "#
         )))
@@ -795,18 +800,20 @@ impl SpanService {
         for row in &rows {
             let conversation_id: String = row.get("conversation_id");
             // ponytail: one query per row for its agents, at most a page of them.
-            let agents: Vec<(String,)> = sqlx::query_as(
+            // Of the same turns the row counts: the window and environment too.
+            let agents: Vec<(String,)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
                 r#"
                 SELECT gen_ai_agent_name FROM spans
                 WHERE project_id = $1 AND gen_ai_operation_type = 'agent'
                   AND gen_ai_agent_name IS NOT NULL
-                  AND trace_id IN (SELECT trace_id FROM spans
-                                   WHERE project_id = $1 AND gen_ai_conversation_id = $2)
+                  AND trace_id IN (SELECT t.trace_id FROM ({turns}) t
+                                   WHERE t.conversation_id = $3)
                 GROUP BY gen_ai_agent_name
                 ORDER BY MIN(start_timestamp) ASC
-                "#,
-            )
+                "#
+            )))
             .bind(project_id)
+            .bind(filters.environment.as_deref())
             .bind(&conversation_id)
             .fetch_all(pool)
             .await?;
