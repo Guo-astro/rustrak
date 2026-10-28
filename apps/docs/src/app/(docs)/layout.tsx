@@ -41,7 +41,7 @@ export default async function DocsLayout({
       navbar={
         <Navbar logo={logo} projectLink="https://github.com/AbianS/rustrak" />
       }
-      footer={<Footer>GPL-3.0 {new Date().getFullYear()} Rustrak</Footer>}
+      footer={<Footer>AGPL-3.0 {new Date().getFullYear()} Rustrak</Footer>}
     >
       {children}
     </Layout>

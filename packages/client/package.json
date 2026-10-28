@@ -55,7 +55,7 @@
     "observability"
   ],
   "author": "AbianS",
-  "license": "GPL-3.0",
+  "license": "MIT",
   "engines": {
     "node": ">=20"
   },

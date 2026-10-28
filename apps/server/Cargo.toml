@@ -4,7 +4,7 @@ version = "0.21.1"
 edition = "2021"
 authors = ["Rustrak Team"]
 description = "Ultra-lightweight error tracking server compatible with Sentry SDKs"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 
 [dependencies]
 # Web framework (HTTP/2 is disabled until Actix moves to h2 0.4.)

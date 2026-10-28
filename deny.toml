@@ -43,9 +43,9 @@ allow = [
     "Zlib",
     "0BSD",
     "CDLA-Permissive-2.0",
-    "GPL-3.0-only",
+    "AGPL-3.0-only",
     # nom-supreme, brownstone, indent_write (via symbolic-debuginfo). MPL-2.0
-    # is GPL-3.0 compatible (MPL 2.0 section 3.3).
+    # is compatible with the GNU licences (MPL 2.0 section 3.3).
     "MPL-2.0",
 ]
 private = { ignore = true }

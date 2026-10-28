@@ -44,8 +44,8 @@ export function RustrakWordmark({
   /**
    * Drop the label and hide the mark from assistive tech. For the one placement
    * where the word is already said beside it: the licence line in the footer
-   * sets `Rustrak · GPL-3.0` as text, so a labelled mark in front of it reads
-   * out as "Rustrak, Rustrak · GPL-3.0".
+   * sets `Rustrak · AGPL-3.0` as text, so a labelled mark in front of it reads
+   * out as "Rustrak, Rustrak · AGPL-3.0".
    *
    * Off by default, and it has to be. Everywhere else the mark is the only
    * thing in its box — in the nav and in the docs header it is the whole

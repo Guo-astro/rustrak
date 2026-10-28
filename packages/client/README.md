@@ -15,7 +15,7 @@
     <a href="https://bundlephobia.com/package/@rustrak/client">
       <img src="https://img.shields.io/bundlephobia/minzip/@rustrak/client?style=flat-square&label=bundle" alt="bundle size" />
     </a>
-    <a href="https://github.com/rustrak/rustrak/blob/main/LICENSE">
+    <a href="https://github.com/rustrak/rustrak/blob/main/packages/client/LICENSE">
       <img src="https://img.shields.io/npm/l/@rustrak/client?style=flat-square" alt="license" />
     </a>
     <a href="https://github.com/rustrak/rustrak/actions/workflows/ci.yml">
@@ -548,4 +548,4 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 ## License
 
-[GPL-3.0](https://github.com/rustrak/rustrak/blob/main/LICENSE)
+[MIT](LICENSE)

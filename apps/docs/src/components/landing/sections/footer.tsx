@@ -147,9 +147,9 @@ export function SiteFooter() {
 
               Which is also why the drawing is `decorative`: the word is already
               said, in the sentence, so a labelled mark in front of it announces
-              "Rustrak, Rustrak · GPL-3.0". This is the only placement on the
+              "Rustrak, Rustrak · AGPL-3.0". This is the only placement on the
               page where that is true. */}
-          <span>Rustrak · GPL-3.0</span>
+          <span>Rustrak · AGPL-3.0</span>
         </p>
         <p>Not affiliated with Sentry. Compatible with its SDKs.</p>
       </div>

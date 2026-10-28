@@ -21,7 +21,7 @@ import { LandingPage } from '@/components/landing/landing-page';
 export const metadata = {
   title: 'Rustrak: error tracking on a server you own',
   description:
-    'Self-hosted, Sentry-compatible error tracking. Point any official Sentry SDK at a binary you run yourself. Open source under GPL-3.0, in under 100MB of RAM.',
+    'Self-hosted, Sentry-compatible error tracking. Point any official Sentry SDK at a binary you run yourself. Open source under AGPL-3.0, in under 100MB of RAM.',
 };
 
 export default function Page() {
