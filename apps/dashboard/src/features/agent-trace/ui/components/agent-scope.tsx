@@ -1,11 +1,8 @@
 import { EnvironmentIcon, TimeIcon } from '@rustrak/ui';
 import { useTranslations } from 'use-intl';
 import { AGENT_PERIODS } from '@/features/agent-trace/model/filters';
-import {
-  ScopeBar,
-  ScopeSegment,
-  scopeActions,
-} from '@/shared/ui/components/scope-bar';
+import { scopeActions } from '@/shared/lib/scope-actions';
+import { ScopeBar, ScopeSegment } from '@/shared/ui/components/scope-bar';
 
 type AgentPeriod = (typeof AGENT_PERIODS)[number];
 

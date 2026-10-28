@@ -78,7 +78,7 @@
     "selectAllPageRows": "Select all rows on this page",
     "selectRow": "Select row",
     "expand": "Expand",
-    "selected": "{count} selected",
+    "selected": "{count, plural, other {# selected}}",
     "clearSelection": "Clear",
     "selectionToolbar": "Actions for the selected rows",
     "noMatches": "Nothing matches the current filters.",
@@ -227,6 +227,8 @@
   },
   "logs": {
     "emptyValue": "(empty)",
+    "volumeFailed": "Could not load the volume chart",
+    "lineFailed": "This line could not be opened. It may have been deleted.",
     "attributes": "Attributes",
     "empty": {
       "title": "No logs match this search in this window"
@@ -378,6 +380,7 @@
       "highestPriority": "Highest priority first",
       "me": "Me",
       "unassigned": "Unassigned",
+      "assigned": "Assigned",
       "oldest": "Oldest first",
       "newest": "Newest first",
       "environment": "Environment",
@@ -387,7 +390,7 @@
       "unassign": "Unassign",
       "copyId": "Copy ID",
       "copied": "ID copied",
-      "count": "{count} issues",
+      "count": "{count, plural, one {{display} issue} other {{display} issues}}",
       "views": {
         "open": "Open",
         "resolved": "Resolved",
@@ -398,10 +401,6 @@
     "detail": {
       "linkCopied": "Link copied",
       "copyLink": "Copy link",
-      "moreArchiveOptions": "More ways to archive",
-      "archiveUntilEscalating": "Archive until escalating",
-      "archiveUntilEscalatingHint": "Comes back if it starts happening more",
-      "archiveForever": "Archive forever",
       "status": "Status",
       "firstSeen": "First seen {when}",
       "lastSeen": "Last seen {when}",
@@ -690,7 +689,7 @@
     },
     "summary": {
       "withFatal": "{count, plural, one {# with fatal errors} other {# with fatal errors}}",
-      "events24h": "{count} events in 24 h"
+      "events24h": "{count, plural, one {{display} event in 24 h} other {{display} events in 24 h}}"
     }
   },
   "alerts": {
@@ -1829,7 +1828,7 @@
       "levelWarning": "Warning",
       "levelInfo": "Info",
       "issues": "Open issues",
-      "issuesDescription": "What to look at first",
+      "issuesDescription": "What to look at first, all time",
       "issuesRecent": "Latest",
       "issuesNew": "New",
       "issuesFrequent": "Most events",
@@ -2724,6 +2723,7 @@
       "op": "Operation",
       "description": "Description",
       "duration": "Duration",
+      "selfTime": "Self time",
       "start": "Start",
       "status": "Status",
       "spanId": "Span id"

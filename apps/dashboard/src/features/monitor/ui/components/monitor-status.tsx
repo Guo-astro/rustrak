@@ -12,13 +12,6 @@ const TONE: Record<MonitorHealth, TagTone> = {
   waiting: 'neutral',
 };
 
-/** The stripe at the start of a row: colour only where it needs a look. */
-export const HEALTH_MARK: Record<MonitorHealth, string> = {
-  failing: 'bg-sev-error',
-  ok: 'bg-success',
-  waiting: 'bg-border-control',
-};
-
 /** The monitor's health spelled out, and whether it is muted. */
 export function MonitorStatus({ monitor }: { monitor: MonitorResponse }) {
   const t = useTranslations('crons');

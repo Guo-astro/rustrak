@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use sqlx::Row;
+use uuid::Uuid;
 
 use crate::db::DbPool;
 use crate::error::AppResult;
@@ -94,26 +95,21 @@ impl LogService {
         .fetch_all(pool)
         .await?;
 
-        let logs: Vec<LogResponse> = rows
-            .iter()
-            .map(|row| {
-                let timestamp: DateTime<Utc> = row.get("timestamp");
-                let ingested_at: DateTime<Utc> = row.get("ingested_at");
-                LogResponse {
-                    id: row.get("id"),
-                    trace_id: row.get("trace_id"),
-                    span_id: row.get("span_id"),
-                    level: row.get("level"),
-                    severity_number: row.get("severity_number"),
-                    body: row.get("body"),
-                    attributes: row.get("attributes"),
-                    timestamp,
-                    ingested_at,
-                }
-            })
-            .collect();
+        Ok((rows.iter().map(log_response).collect(), total_count.0))
+    }
 
-        Ok((logs, total_count.0))
+    /// One of a project's logs by id; `None` if it has no such log.
+    pub async fn get(pool: &DbPool, project_id: i32, id: Uuid) -> AppResult<Option<LogResponse>> {
+        let row = sqlx::query(
+            "SELECT id, trace_id, span_id, level, severity_number, body, \
+                    attributes, timestamp, ingested_at \
+             FROM logs WHERE project_id = $1 AND id = $2",
+        )
+        .bind(project_id)
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+        Ok(row.as_ref().map(log_response))
     }
 
     /// How many logs `filters` matches, level by level, bucket by bucket with
@@ -171,11 +167,29 @@ impl LogService {
             at += interval;
         }
         for (at, level, count) in rows {
-            if let Some(point) = buckets.get_mut(&at) {
+            // A clock running ahead still counts, in the current bucket, as
+            // the list counts it.
+            if let Some(point) = buckets.get_mut(&at.min(align(now))) {
                 point.add(&level, count);
             }
         }
         Ok(buckets.into_values().collect())
+    }
+}
+
+fn log_response(row: &<crate::db::Db as sqlx::Database>::Row) -> LogResponse {
+    let timestamp: DateTime<Utc> = row.get("timestamp");
+    let ingested_at: DateTime<Utc> = row.get("ingested_at");
+    LogResponse {
+        id: row.get("id"),
+        trace_id: row.get("trace_id"),
+        span_id: row.get("span_id"),
+        level: row.get("level"),
+        severity_number: row.get("severity_number"),
+        body: row.get("body"),
+        attributes: row.get("attributes"),
+        timestamp,
+        ingested_at,
     }
 }
 

@@ -682,6 +682,8 @@ describe('Error Handling', () => {
                 sentry_key: 'invalid-uuid',
                 dsn: 'http://localhost:8080/1',
                 stored_event_count: 0,
+                disabled_products: [],
+                product_order: [],
                 digested_event_count: 0,
                 rate_limited_event_count: 0,
                 rate_limit_per_minute: null,

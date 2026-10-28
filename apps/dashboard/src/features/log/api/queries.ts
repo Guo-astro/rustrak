@@ -2,6 +2,7 @@
  * Reads for the log feature: the lines, and how many there were over time.
  */
 import type {
+  LogResponse,
   LogsListData,
   LogsListResponse,
   LogsVolumeData,
@@ -17,6 +18,14 @@ export async function listLogs(
 ): Promise<Result<LogsListResponse, RustrakError>> {
   const client = await createClient();
   return client.logs.list({ path: { project_id: projectId }, query: options });
+}
+
+export async function getLog(
+  projectId: number,
+  logId: string,
+): Promise<Result<LogResponse, RustrakError>> {
+  const client = await createClient();
+  return client.logs.get({ path: { project_id: projectId, log_id: logId } });
 }
 
 export async function getLogVolume(

@@ -6,19 +6,11 @@ import {
   cn,
   focusRingInset,
   Tag,
-  type TagTone,
   Text,
 } from '@rustrak/ui';
-import { useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { matchParts } from '@/features/log/model/log-view';
-
-export const LEVEL_TONE: Record<string, TagTone> = {
-  fatal: 'error',
-  error: 'error',
-  warn: 'warning',
-  info: 'info',
-};
+import { LEVEL_TONE, matchParts } from '@/features/log/model/log-view';
 
 /** The stripe at the start of a line: colour only where it needs a look. */
 const LEVEL_MARK: Record<string, string> = {
@@ -27,16 +19,6 @@ const LEVEL_MARK: Record<string, string> = {
   warn: 'bg-sev-warning',
   info: 'bg-sev-info',
 };
-
-/** A log line's clock: to the millisecond, since lines come in bursts. */
-export const LINE_TIME = {
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  fractionalSecondDigits: 3,
-} as const;
 
 /**
  * The log lines, newest first, one line each: a stripe and a word for the
@@ -51,6 +33,7 @@ export function LogList({
   isPending,
   onSelect,
   onPageChange,
+  emptyHint,
 }: {
   logs: LogsListResponse;
   /** The free text the list was searched with, marked in each message. */
@@ -60,16 +43,23 @@ export function LogList({
   isPending: boolean;
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
+  /** Said under an empty list, e.g. how to send logs when nothing narrows it. */
+  emptyHint?: ReactNode;
 }) {
   const t = useTranslations('logs');
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {logs.items.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center px-4 py-16 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
           <Text variant="meta" tone="subtle">
             {t('empty.title')}
           </Text>
+          {emptyHint ? (
+            <Text variant="meta" tone="subtle" className="max-w-md">
+              {emptyHint}
+            </Text>
+          ) : null}
         </div>
       ) : (
         <ul
@@ -166,7 +156,7 @@ function LogLine({
           title={format.relativeTime(at)}
           className="hidden shrink-0 text-fg-subtle tabular-nums sm:block"
         >
-          {format.dateTime(at, LINE_TIME)}
+          {format.dateTime(at, 'logLine')}
         </time>
         <Tag
           tone={LEVEL_TONE[log.level] ?? 'neutral'}

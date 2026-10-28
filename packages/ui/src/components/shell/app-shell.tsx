@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import { tv } from '../../lib/tv';
 import { TooltipProvider } from '../tooltip/tooltip';
 import {
   SidebarProvider,
@@ -158,6 +159,18 @@ export function Page({ children, className, scroll = true }: PageProps) {
 
 Page.displayName = 'Page';
 
+/**
+ * With tabs, their own rule is the header's bottom edge: a border here as
+ * well would draw a second line under it, and the lime indicator would sit on
+ * one and not the other.
+ */
+const pageHeader = tv({
+  base: 'shrink-0 px-page-gutter pt-7',
+  variants: {
+    tabs: { true: '', false: 'border-b border-border-divider pb-6' },
+  },
+});
+
 export interface PageHeaderProps {
   title: ReactNode;
   /**
@@ -193,19 +206,13 @@ export function PageHeader({
   tabs,
   className,
 }: PageHeaderProps) {
-  const facts = summary?.filter(Boolean) ?? [];
+  // Not `filter(Boolean)`: a `0` is a fact worth reading.
+  const facts =
+    summary?.filter((fact) => fact != null && fact !== false && fact !== '') ??
+    [];
 
   return (
-    <div
-      className={cn(
-        'shrink-0 px-page-gutter pt-7',
-        // With tabs, their own rule is the header's bottom edge: a border here
-        // as well would draw a second line under it, and the lime indicator
-        // would sit on one and not the other.
-        tabs ? null : 'border-b border-border-divider pb-6',
-        className,
-      )}
-    >
+    <div className={pageHeader({ tabs: Boolean(tabs), className })}>
       {/* Wraps instead of squeezing: on a phone the actions -- a page's
           filters, say -- drop under the title rather than crushing it. */}
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
@@ -214,7 +221,9 @@ export function PageHeader({
           {facts.length > 0 ? (
             <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 text-value text-fg-subtle">
               {facts.map((fact, index) => (
-                // Facts are positional: the order is the reading order.
+                // Facts are positional: the order is the reading order, and
+                // a fact is any node, so there is no identity to key on.
+                // react-doctor-disable-next-line react-doctor/no-array-index-as-key
                 <span key={index} className="flex items-center gap-2">
                   {/* On a phone the facts wrap, and a dot would lead the new line. */}
                   {index > 0 ? (
@@ -240,7 +249,7 @@ export function PageHeader({
       {/* Out to the page's edges, so the rule runs as wide as a border would;
           the gutter moves inside the strip. */}
       {tabs ? (
-        <div className="-mx-page-gutter mt-5 [&_[data-slot=tab-strip]]:px-page-gutter [&_[data-slot=tab-strip]]:after:bg-border-divider">
+        <div className="-mx-page-gutter mt-5 [&_[data-slot=tab-frame]]:before:bg-border-divider [&_[data-slot=tab-strip]]:px-page-gutter">
           {tabs}
         </div>
       ) : null}

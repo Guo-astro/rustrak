@@ -522,6 +522,9 @@ pub struct MonitorStatsBucket {
     /// Mean duration of the bucket's check-ins that reported one.
     #[cfg_attr(feature = "openapi", schema(required))]
     pub avg_duration_ms: Option<f64>,
+    /// How many check-ins reported a duration: the mean's weight when buckets
+    /// are averaged together.
+    pub duration_count: i64,
 }
 
 impl MonitorStatsBucket {
@@ -534,6 +537,7 @@ impl MonitorStatsBucket {
             timeout: 0,
             in_progress: 0,
             avg_duration_ms: None,
+            duration_count: 0,
         }
     }
 }

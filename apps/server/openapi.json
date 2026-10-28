@@ -3156,11 +3156,18 @@
                             "format": "int64"
                           },
                           "first_seen": {
-                            "type": "string",
-                            "format": "date-time"
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "From the spans' start times, else their end times; `null` when no span\nof the conversation carries either, as a transaction's child can."
                           },
                           "last_seen": {
-                            "type": "string",
+                            "type": [
+                              "string",
+                              "null"
+                            ],
                             "format": "date-time"
                           },
                           "llm_call_count": {
@@ -8099,6 +8106,74 @@
         ]
       }
     },
+    "/api/projects/{project_id}/logs/{log_id}": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "GET /api/projects/{project_id}/logs/{log_id}\nReturns one of a project's logs, wherever it falls in the list.",
+        "operationId": "logs.get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "log_id",
+            "in": "path",
+            "description": "Log ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/members": {
       "get": {
         "tags": [
@@ -8975,7 +9050,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Count only this environment",
+            "description": "Only the releases seen in this environment, and count only it",
             "required": false,
             "schema": {
               "type": "string"
@@ -10256,6 +10331,18 @@
             }
           },
           {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "sort",
             "in": "query",
             "description": "`slowest` for the longest first; newest first otherwise.",
@@ -10419,7 +10506,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, p50/p95/p99 latency,\nfailure rate) grouped by transaction name + op, most frequent first.",
+        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, time spent, p50/p95/p99\nlatency, failure rate) grouped by transaction name + op, the most time spent\nfirst unless `sort` asks otherwise.",
         "operationId": "transactions.getStats",
         "parameters": [
           {
@@ -10752,7 +10839,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, the\nlast 14 days.",
+        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, back\nto its oldest call and never less than the last 24 hours, which is also\nwhat an endpoint with no calls gets.",
         "operationId": "transactions.getStatGroupTimeseries",
         "parameters": [
           {
@@ -16496,7 +16583,8 @@
           "missed",
           "timeout",
           "in_progress",
-          "avg_duration_ms"
+          "avg_duration_ms",
+          "duration_count"
         ],
         "properties": {
           "avg_duration_ms": {
@@ -16511,6 +16599,11 @@
             "type": "string",
             "format": "date-time",
             "description": "Where the bucket starts."
+          },
+          "duration_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many check-ins reported a duration: the mean's weight when buckets\nare averaged together."
           },
           "error": {
             "type": "integer",
@@ -18613,6 +18706,7 @@
           },
           "total_values": {
             "type": "integer",
+            "description": "The scanned events carrying the tag, whatever its value: Sentry's\n`totalValues` (`GroupTagKey.count`), so each top value's share is its\n`count` over this.",
             "minimum": 0
           }
         }

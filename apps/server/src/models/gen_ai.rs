@@ -120,8 +120,12 @@ pub struct AgentConversationSummary {
     /// `agent` spans excluded, as everywhere: their usage rolls up their children.
     pub total_tokens: f64,
     pub error_count: i64,
-    pub first_seen: DateTime<Utc>,
-    pub last_seen: DateTime<Utc>,
+    /// From the spans' start times, else their end times; `null` when no span
+    /// of the conversation carries either, as a transaction's child can.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub first_seen: Option<DateTime<Utc>>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub last_seen: Option<DateTime<Utc>>,
 }
 
 /// A conversation in full: its AI spans across every turn, oldest first,

@@ -35,3 +35,25 @@ export function nextAfter(ids: string[], id: string): string | undefined {
   if (index === -1) return undefined;
   return ids[index + 1] ?? ids[index - 1];
 }
+
+/**
+ * Where the inbox lands after `id` leaves it: the neighbour on the same page,
+ * or the page before when that was its last row -- the emptied page would
+ * show nothing, not even the controls to leave it.
+ */
+export function landingAfter(
+  ids: string[],
+  id: string,
+  page: number,
+): { page: number; selected: string | undefined } {
+  const selected = nextAfter(ids, id);
+  return { page: selected || page === 1 ? page : page - 1, selected };
+}
+
+/**
+ * Whether a page address the SDK sent may be a link. It comes from whoever
+ * holds the DSN, so any other scheme -- `mailto:`, an app's own -- stays text.
+ */
+export function isWebUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}

@@ -300,8 +300,16 @@ async fn stats_bucket_each_environment_on_one_axis() {
     let total = |status: &str| -> i64 { buckets.iter().map(|b| b[status].as_i64().unwrap()).sum() };
     assert_eq!(total("ok"), 2);
     assert_eq!(total("error"), 1);
-    // Both ok runs, 50 minutes ago, share a 24-minute bucket: 3 s on average.
-    assert!(buckets.iter().any(|b| b["avg_duration_ms"] == 3000.0));
+    // Both ok runs, 50 minutes ago, share a 24-minute bucket: 3 s on average,
+    // over the two runs that reported a duration.
+    let timed = buckets
+        .iter()
+        .find(|b| b["avg_duration_ms"] == 3000.0)
+        .unwrap();
+    assert_eq!(timed["duration_count"], 2);
+    // The error 10 minutes ago reported none: it counts, but not in the mean.
+    let untimed = buckets.iter().find(|b| b["error"] == 1).unwrap();
+    assert_eq!(untimed["duration_count"], 0);
 
     let staging = envs.iter().find(|e| e["environment"] == "staging").unwrap();
     let staging_buckets = staging["buckets"].as_array().unwrap();
@@ -320,5 +328,38 @@ async fn stats_bucket_each_environment_on_one_axis() {
         .to_request();
     let none: Value = test::call_and_read_body_json(&app, req).await;
     assert_eq!(none, json!([]));
+    drop(db);
+}
+
+/// A run just inside the window's start falls before the first full bucket;
+/// it still counts, in the first one, rather than dropping out of the window.
+#[actix_web::test]
+async fn stats_keep_a_run_from_the_start_of_the_window() {
+    setup!(db, app, token, pid);
+    MonitorService::process_check_in(
+        &db.pool,
+        pid,
+        CheckIn::new(
+            Uuid::new_v4(),
+            "job",
+            CheckInStatus::Ok,
+            Some("production".to_string()),
+            Some(1.0),
+            Some(serde_json::from_value(hourly()).unwrap()),
+            None,
+        )
+        .unwrap(),
+        Utc::now() - chrono::Duration::hours(24) + chrono::Duration::seconds(5),
+    )
+    .await
+    .unwrap();
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/projects/{pid}/monitor-stats?period=24h"))
+        .insert_header(auth(&token))
+        .to_request();
+    let stats: Value = test::call_and_read_body_json(&app, req).await;
+    let buckets = stats[0]["buckets"].as_array().unwrap();
+    assert_eq!(buckets[0]["ok"], 1);
     drop(db);
 }

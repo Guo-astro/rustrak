@@ -78,7 +78,7 @@
     "selectAllPageRows": "Seleccionar todas las filas de esta página",
     "selectRow": "Seleccionar fila",
     "expand": "Expandir",
-    "selected": "{count} seleccionados",
+    "selected": "{count, plural, one {# seleccionado} other {# seleccionados}}",
     "clearSelection": "Limpiar",
     "selectionToolbar": "Acciones para las filas seleccionadas",
     "noMatches": "Nada coincide con los filtros actuales.",
@@ -227,6 +227,8 @@
   },
   "logs": {
     "emptyValue": "(vacío)",
+    "volumeFailed": "No se pudo cargar el gráfico de volumen",
+    "lineFailed": "No se pudo abrir esta línea. Puede que se haya eliminado.",
     "attributes": "Atributos",
     "empty": {
       "title": "Ningún registro coincide con esta búsqueda en este periodo"
@@ -369,8 +371,8 @@
       "levels": {
         "fatal": "Fatal",
         "error": "Error",
-        "warning": "Warning",
-        "info": "Info"
+        "warning": "Advertencia",
+        "info": "Información"
       },
       "fewest": "Menos eventos",
       "most": "Más eventos",
@@ -378,6 +380,7 @@
       "highestPriority": "Mayor prioridad primero",
       "me": "Yo",
       "unassigned": "Sin asignar",
+      "assigned": "Asignado",
       "oldest": "Más antiguos primero",
       "newest": "Más recientes primero",
       "environment": "Entorno",
@@ -387,7 +390,7 @@
       "unassign": "Quitar asignación",
       "copyId": "Copiar ID",
       "copied": "ID copiado",
-      "count": "{count} issues",
+      "count": "{count, plural, one {{display} problema} other {{display} problemas}}",
       "views": {
         "open": "Abiertos",
         "resolved": "Resueltos",
@@ -398,10 +401,6 @@
     "detail": {
       "linkCopied": "Enlace copiado",
       "copyLink": "Copiar enlace",
-      "moreArchiveOptions": "Más formas de archivar",
-      "archiveUntilEscalating": "Archivar hasta que escale",
-      "archiveUntilEscalatingHint": "Vuelve si empieza a ocurrir más",
-      "archiveForever": "Archivar para siempre",
       "status": "Estado",
       "firstSeen": "Visto por primera vez {when}",
       "lastSeen": "Visto por última vez {when}",
@@ -690,7 +689,7 @@
     },
     "summary": {
       "withFatal": "{count, plural, one {# con errores fatales} other {# con errores fatales}}",
-      "events24h": "{count} eventos en 24 h"
+      "events24h": "{count, plural, one {{display} evento en 24 h} other {{display} eventos en 24 h}}"
     }
   },
   "alerts": {
@@ -1829,7 +1828,7 @@
       "levelWarning": "Warning",
       "levelInfo": "Info",
       "issues": "Issues abiertos",
-      "issuesDescription": "Lo primero que mirar",
+      "issuesDescription": "Lo primero que mirar, de siempre",
       "issuesRecent": "Recientes",
       "issuesNew": "Nuevos",
       "issuesFrequent": "Más eventos",
@@ -2724,6 +2723,7 @@
       "op": "Operación",
       "description": "Descripción",
       "duration": "Duración",
+      "selfTime": "Tiempo propio",
       "start": "Inicio",
       "status": "Estado",
       "spanId": "Id del span"

@@ -119,16 +119,17 @@ impl LogVolumePoint {
         }
     }
 
-    /// Counts `count` logs of `level`; a level outside the six is left out.
+    /// Counts `count` logs of `level`. A level outside the six, which
+    /// ingestion keeps, counts as `info`, as an empty one is stored: the
+    /// chart never holds fewer logs than the list.
     pub fn add(&mut self, level: &str, count: i64) {
         let slot = match level {
             "trace" => &mut self.trace,
             "debug" => &mut self.debug,
-            "info" => &mut self.info,
             "warn" => &mut self.warn,
             "error" => &mut self.error,
             "fatal" => &mut self.fatal,
-            _ => return,
+            _ => &mut self.info,
         };
         *slot += count;
     }

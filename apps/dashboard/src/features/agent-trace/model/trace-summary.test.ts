@@ -202,6 +202,8 @@ describe('waterfallSpans', () => {
         startMs: Date.parse('2026-01-01T00:00:00.000Z'),
         endMs: Date.parse('2026-01-01T00:00:02.000Z'),
         status: undefined,
+        // What the server classified it as, which the colour follows.
+        operationType: 'agent',
       },
       {
         id: 'row-llm',
@@ -211,7 +213,42 @@ describe('waterfallSpans', () => {
         startMs: Date.parse('2026-01-01T00:00:00.500Z'),
         endMs: Date.parse('2026-01-01T00:00:01.500Z'),
         status: 'internal_error',
+        operationType: 'ai_client',
+      },
+      // No time at all: kept, with no width, at the trace's start, so it
+      // can still be opened.
+      {
+        id: 'row-untimed',
+        parentId: null,
+        op: undefined,
+        description: undefined,
+        startMs: Date.parse('2026-01-01T00:00:00.000Z'),
+        endMs: Date.parse('2026-01-01T00:00:00.000Z'),
+        status: undefined,
+        operationType: undefined,
       },
     ]);
+  });
+
+  it('places a span with only its end at that end, under its parent', () => {
+    const rows = waterfallSpans([
+      span({
+        id: 'row-agent',
+        span_id: 'a1',
+        start_timestamp: '2026-01-01T00:00:00.000Z',
+        timestamp: '2026-01-01T00:00:02.000Z',
+      }),
+      span({
+        id: 'row-half',
+        span_id: 'h',
+        parent_span_id: 'a1',
+        timestamp: '2026-01-01T00:00:01.000Z',
+      }),
+    ]);
+    expect(rows[1]).toMatchObject({
+      parentId: 'row-agent',
+      startMs: Date.parse('2026-01-01T00:00:01.000Z'),
+      endMs: Date.parse('2026-01-01T00:00:01.000Z'),
+    });
   });
 });

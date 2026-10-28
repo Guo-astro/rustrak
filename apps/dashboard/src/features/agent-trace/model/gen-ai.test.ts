@@ -287,6 +287,38 @@ describe('a provider that reports the parts but no total', () => {
 });
 
 describe('chatMessages', () => {
+  it('shows the tool calls of a message that has no text', () => {
+    const [message] =
+      chatMessages(
+        JSON.stringify([
+          {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              { function: { name: 'get_order', arguments: '{"id":7}' } },
+            ],
+          },
+        ]),
+      ) ?? [];
+    expect(message?.content).toContain('get_order');
+    expect(message?.content).toContain('{\\"id\\":7}');
+  });
+
+  it('keeps the tool calls of a message that also says something', () => {
+    const [message] =
+      chatMessages(
+        JSON.stringify([
+          {
+            role: 'assistant',
+            content: 'Let me check.',
+            tool_calls: [{ function: { name: 'get_order' } }],
+          },
+        ]),
+      ) ?? [];
+    expect(message?.content).toContain('Let me check.');
+    expect(message?.content).toContain('get_order');
+  });
+
   it('reads an OpenAI-style message array', () => {
     expect(
       chatMessages(

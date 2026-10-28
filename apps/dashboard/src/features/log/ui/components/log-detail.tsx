@@ -9,7 +9,7 @@ import {
 } from '@rustrak/ui';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { LEVEL_TONE, LINE_TIME } from './log-list';
+import { LEVEL_TONE } from '@/features/log/model/log-view';
 
 /**
  * One log line in full, beside the list: the message unwrapped, when it
@@ -51,7 +51,7 @@ export function LogDetail({
           dateTime={log.timestamp}
           className="min-w-0 flex-1 truncate font-mono text-fg-secondary text-mono-sm tabular-nums"
         >
-          {format.dateTime(at, LINE_TIME)}
+          {format.dateTime(at, 'logLine')}
         </time>
         <Button
           variant="ghost"

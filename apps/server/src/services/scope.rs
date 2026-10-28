@@ -65,8 +65,17 @@ pub(crate) fn bucket_hours(period_hours: i64) -> i64 {
 
 /// A search as a case-insensitive `LIKE ... ESCAPE '\'` pattern, its own
 /// `%`, `_` and `\` taken literally. `None` for a blank search.
+///
+/// Lowered by the same rules as the column's `LOWER()`: Unicode on Postgres,
+/// ASCII only on SQLite, where `É` stays `É` on both sides and still matches.
+// ponytail: on SQLite `échec` does not find `Échec`; that takes the ICU
+// extension's `LOWER()`.
 pub(crate) fn like_pattern(query: Option<&str>) -> Option<String> {
-    let query = query?.trim().to_lowercase();
+    let query = query?.trim();
+    #[cfg(feature = "postgres")]
+    let query = query.to_lowercase();
+    #[cfg(not(feature = "postgres"))]
+    let query = query.to_ascii_lowercase();
     if query.is_empty() {
         return None;
     }

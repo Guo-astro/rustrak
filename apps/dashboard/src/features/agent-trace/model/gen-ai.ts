@@ -329,13 +329,21 @@ export function chatMessages(raw: string): ChatMessage[] | null {
     if (item === null || typeof item !== 'object' || !('role' in item)) {
       return null;
     }
-    const { role, content, parts } = item as {
+    const { role, content, parts, tool_calls } = item as {
       role: unknown;
       content?: unknown;
       parts?: unknown;
+      tool_calls?: unknown;
     };
     const body = Array.isArray(parts) ? parts : content;
-    messages.push({ role: String(role), content: messageText(body) });
+    // The tools a model asked for are part of what it said, after any text:
+    // a message may hold only them, or prose and them.
+    const calls =
+      Array.isArray(tool_calls) && tool_calls.length
+        ? JSON.stringify(tool_calls)
+        : '';
+    const text = [messageText(body), calls].filter(Boolean).join('\n');
+    messages.push({ role: String(role), content: text });
   }
   return messages;
 }

@@ -307,7 +307,10 @@ impl MonitorService {
 
         let interval = (period_hours * 3600 / STATS_BUCKETS).max(60);
         let now = Utc::now().timestamp();
-        let first = (now - period_hours * 3600).div_euclid(interval) * interval + interval;
+        let start = now - period_hours * 3600;
+        // The first whole bucket after the window starts, so the last one
+        // reaches now; the part of the window before it counts in the first.
+        let first = start.div_euclid(interval) * interval + interval;
         let epoch = epoch("c.date_added");
         let sql = format!(
             "SELECT c.monitor_environment_id, ({epoch} / {interval}) * {interval} AS at, c.status, \
@@ -321,7 +324,7 @@ impl MonitorService {
                 .bind(project_id)
                 .bind(slug)
                 .bind(slug)
-                .bind(first)
+                .bind(start)
                 .fetch_all(pool)
                 .await?;
 
@@ -348,7 +351,7 @@ impl MonitorService {
             else {
                 continue;
             };
-            let Ok(index) = usize::try_from((at - first) / interval) else {
+            let Ok(index) = usize::try_from(((at - first) / interval).max(0)) else {
                 continue;
             };
             let Some(bucket) = env.buckets.get_mut(index) else {
@@ -370,6 +373,7 @@ impl MonitorService {
             .map(|(mut env, sums)| {
                 for (bucket, (sum, n)) in env.buckets.iter_mut().zip(sums) {
                     bucket.avg_duration_ms = (n > 0).then(|| sum as f64 / n as f64);
+                    bucket.duration_count = n;
                 }
                 env
             })

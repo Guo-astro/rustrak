@@ -63,6 +63,36 @@ describe('conversationTurns', () => {
       agents: ['billing'],
     });
   });
+
+  it('finds the question in a later call when the first holds none', () => {
+    const [turn] = conversationTurns([
+      cspan({
+        input: JSON.stringify([{ role: 'system', content: 'Be brief.' }]),
+      }),
+      cspan({
+        input: JSON.stringify([
+          { role: 'system', content: 'Be brief.' },
+          { role: 'user', content: 'Where is my order?' },
+        ]),
+      }),
+    ]);
+    expect(turn?.question).toBe('Where is my order?');
+  });
+
+  it('reads a plain prompt as the question and a message array as the answer', () => {
+    const [turn] = conversationTurns([
+      cspan({
+        input: 'Where is my order?',
+        output: JSON.stringify([
+          { role: 'assistant', content: 'It ships tomorrow.' },
+        ]),
+      }),
+    ]);
+    expect(turn).toMatchObject({
+      question: 'Where is my order?',
+      answer: 'It ships tomorrow.',
+    });
+  });
 });
 
 function span(over: Partial<SpanResponse>): SpanResponse {
@@ -143,5 +173,28 @@ describe('agentGraph', () => {
     expect(graph.handoffs).toEqual([
       { from: 'support', to: 'billing', count: 1 },
     ]);
+  });
+
+  it('gives up on a parent cycle rather than walking it forever', () => {
+    const graph = agentGraph([
+      span({
+        span_id: 'x',
+        parent_span_id: 'y',
+        gen_ai_operation_type: 'tool',
+        gen_ai_tool_name: 'loop',
+      }),
+      span({
+        span_id: 'y',
+        parent_span_id: 'x',
+        gen_ai_operation_type: 'ai_client',
+      }),
+      span({
+        span_id: 'z',
+        parent_span_id: 'z',
+        gen_ai_operation_type: 'tool',
+        gen_ai_tool_name: 'self',
+      }),
+    ]);
+    expect(graph.agents).toEqual([]);
   });
 });

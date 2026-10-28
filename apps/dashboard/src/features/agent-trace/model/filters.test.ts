@@ -1,5 +1,64 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSelectedSpanId, resolveAgentFilters } from './filters';
+import {
+  defaultSelectedSpanId,
+  fillBuckets,
+  resolveAgentFilters,
+} from './filters';
+
+describe('fillBuckets', () => {
+  const hour = (h: number) => new Date(Date.UTC(2026, 0, 1, h)).toISOString();
+  const point = (h: number, value: number) => ({ bucket: hour(h), value });
+
+  it('puts the empty buckets back between and after the busy ones', () => {
+    const filled = fillBuckets(
+      [point(9, 2), point(11, 5)],
+      1,
+      undefined,
+      (bucket) => ({ bucket, value: 0 }),
+      Date.UTC(2026, 0, 1, 12, 30),
+    );
+    expect(filled.map((p) => p.value)).toEqual([2, 0, 5, 0]);
+    expect(filled[1]?.bucket).toBe(hour(10));
+  });
+
+  it('starts at the window, not at the first busy bucket', () => {
+    const filled = fillBuckets(
+      [point(11, 5)],
+      1,
+      3,
+      (bucket) => ({ bucket, value: 0 }),
+      Date.UTC(2026, 0, 1, 12, 30),
+    );
+    // 09:30 is the window's start, in the 09:00 bucket.
+    expect(filled.map((p) => p.value)).toEqual([0, 0, 5, 0]);
+  });
+
+  it('fills only up to now, but keeps a busy bucket past it', () => {
+    const ahead = '9999-01-01T00:00:00.000Z';
+    const filled = fillBuckets(
+      [point(11, 5), { bucket: ahead, value: 1 }],
+      1,
+      undefined,
+      (bucket) => ({ bucket, value: 0 }),
+      Date.UTC(2026, 0, 1, 12, 30),
+    );
+    // One point for the clock far ahead, not an empty bucket per hour to it.
+    expect(filled.map((p) => p.bucket)).toEqual([hour(11), hour(12), ahead]);
+    expect(filled.map((p) => p.value)).toEqual([5, 0, 1]);
+  });
+
+  it('keeps the newest runs when the browser clock runs behind', () => {
+    const filled = fillBuckets(
+      [point(9, 2), point(12, 5)],
+      1,
+      undefined,
+      (bucket) => ({ bucket, value: 0 }),
+      Date.UTC(2026, 0, 1, 10, 30),
+    );
+    expect(filled.map((p) => p.bucket)).toEqual([hour(9), hour(10), hour(12)]);
+    expect(filled.map((p) => p.value)).toEqual([2, 0, 5]);
+  });
+});
 
 describe('resolveAgentFilters', () => {
   it('widens the bucket with the window', () => {

@@ -64,7 +64,7 @@ impl ReleasesQuery {
     tag = "Releases",
     params(
         ("project_id" = i32, Path, description = "Project ID"),
-        ("environment" = Option<String>, Query, description = "Count only this environment"),
+        ("environment" = Option<String>, Query, description = "Only the releases seen in this environment, and count only it"),
         ("period" = Option<String>, Query, description = "Count only this window (24h, 7d, 14d...); all time if absent"),
         ("query" = Option<String>, Query, description = "Only the versions containing this text, ignoring case"),
         ("page" = Option<i64>, Query, description = "Page number (1-indexed, default: 1)"),
@@ -99,7 +99,12 @@ pub async fn list_releases(
 
     let per_page = query.per_page.clamp(1, 100);
     let page = query.page.max(1);
-    let all = ReleaseService::summaries(pool.get_ref(), project_id, &query.filter()).await?;
+    let filter = query.filter();
+    let mut all = ReleaseService::summaries(pool.get_ref(), project_id, &filter).await?;
+    // As Sentry's list: an environment keeps the releases seen in it.
+    if let Some(environment) = &filter.environment {
+        all.retain(|release| release.environments.contains(environment));
+    }
     let total = all.len() as i64;
     let items: Vec<_> = all
         .into_iter()

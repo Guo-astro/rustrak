@@ -9,8 +9,10 @@
 //!   - everything is scoped to one project
 
 use rustrak::db::DbPool;
+use rustrak::services::release::SummaryFilter;
 use rustrak::services::scope::Scope;
 use rustrak::services::stats::StatsService;
+use rustrak::services::ReleaseService;
 use uuid::Uuid;
 
 use crate::common::TestDb;
@@ -951,4 +953,34 @@ async fn issue_list_shows_only_the_issues_seen_in_the_asked_release() {
 
     assert_eq!(total, 1);
     assert_eq!(issues[0].id, new);
+}
+
+#[actix_web::test]
+async fn releases_include_the_ones_only_sessions_arrived_in() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Healthy release").await;
+    let issue = seed_issue(&db.pool, project_id, 1, 1).await;
+    seed_event(&db.pool, project_id, Some(issue), "error", "error", 1).await;
+    place_in_release(&db.pool, issue, "1.0.0").await;
+    // A release with sessions and not one error.
+    sqlx::query(
+        "INSERT INTO session_counts \
+         (project_id, release, environment, bucket, total, errored, crashed, abnormal) \
+         VALUES ($1, '2.0.0', 'production', '2026-06-10T10:00:00Z', 1, 0, 0, 0)",
+    )
+    .bind(project_id)
+    .execute(&db.pool)
+    .await
+    .unwrap();
+
+    let releases: Vec<String> =
+        ReleaseService::summaries(&db.pool, project_id, &SummaryFilter::default())
+            .await
+            .expect("query failed")
+            .into_iter()
+            .map(|summary| summary.version)
+            .collect();
+
+    assert!(releases.contains(&"2.0.0".to_string()), "{releases:?}");
+    assert!(releases.contains(&"1.0.0".to_string()), "{releases:?}");
 }

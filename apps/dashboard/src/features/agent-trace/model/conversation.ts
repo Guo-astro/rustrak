@@ -7,7 +7,7 @@ export interface ConversationTurn {
   startedAt: string | null;
   /** Every agent that ran in the turn, in order. */
   agents: string[];
-  /** The user's last message in the turn's first model call. */
+  /** The user's last message in the turn's first model call that holds one. */
   question: string | null;
   /** The last thing a model answered in text. */
   answer: string | null;
@@ -18,6 +18,10 @@ export interface ConversationTurn {
 }
 
 const failed = (status: string | null) => status != null && status !== 'ok';
+
+export function conversationHref(projectId: number, conversationId: string) {
+  return `/projects/${projectId}/agents/conversations/${encodeURIComponent(conversationId)}`;
+}
 
 /**
  * A conversation's spans as turns, a trace each, in the order the server
@@ -35,13 +39,13 @@ export function conversationTurns(
 
   return [...turns.entries()].map(([traceId, inTurn]) => {
     const calls = inTurn.filter((s) => s.operation_type === 'ai_client');
-    const prompt = calls.find((s) => s.input)?.input;
-    const asked = prompt
-      ? chatMessages(prompt)
-          ?.filter((m) => m.role === 'user')
-          .at(-1)?.content
-      : undefined;
-    const answer = calls.filter((s) => s.output).at(-1)?.output ?? null;
+    // The first call may carry only a system prompt: the question is in the
+    // first one that says something as the user.
+    const question =
+      calls
+        .map((s) => (s.input ? lastSaid(s.input, 'user') : null))
+        .find((said) => said) ?? null;
+    const output = calls.filter((s) => s.output).at(-1)?.output;
     return {
       traceId,
       startedAt: inTurn[0]?.start_timestamp ?? null,
@@ -52,8 +56,8 @@ export function conversationTurns(
           ),
         ),
       ],
-      question: asked ?? null,
-      answer,
+      question,
+      answer: output ? lastSaid(output, 'assistant') : null,
       tools: inTurn.filter((s) => s.operation_type === 'tool'),
       tokens: inTurn.reduce(
         (sum, s) =>
@@ -63,6 +67,17 @@ export function conversationTurns(
       errors: inTurn.filter((s) => failed(s.status)).length,
     };
   });
+}
+
+/**
+ * What `role` last said in a model call's input or output: a message array's
+ * last such message, or the text itself when it is no message array -- a
+ * plain `ai.prompt`, a `gen_ai.response.text`.
+ */
+function lastSaid(raw: string, role: string): string | null {
+  const messages = chatMessages(raw);
+  if (!messages) return raw;
+  return messages.filter((m) => m.role === role).at(-1)?.content ?? null;
 }
 
 interface Use {
@@ -119,7 +134,11 @@ export function agentGraph(spans: SpanResponse[]): AgentGraph {
     return agent;
   };
   const owner = (span: SpanResponse): string | null => {
-    for (let at: SpanResponse | undefined = span; at; ) {
+    // SDKs send the parent links unchecked: a span may be its own parent, or
+    // a few may parent each other. A span seen twice ends the walk.
+    const seen = new Set<SpanResponse>();
+    for (let at: SpanResponse | undefined = span; at && !seen.has(at); ) {
+      seen.add(at);
       if (at.gen_ai_operation_type === 'agent' && at.gen_ai_agent_name)
         return at.gen_ai_agent_name;
       at = at.parent_span_id ? bySpanId.get(at.parent_span_id) : undefined;

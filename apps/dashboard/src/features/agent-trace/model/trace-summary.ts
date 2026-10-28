@@ -121,34 +121,46 @@ export interface WaterfallRow {
   startMs: number;
   endMs: number;
   status?: string;
+  /** The server's `gen_ai_operation_type`, which names the kind before `op`. */
+  operationType?: string;
 }
 
 /**
  * The trace as waterfall rows: children linked through `parent_span_id` to
  * their parent's row, each named by what it ran -- the agent, the model, the
- * tool -- since the op already says what kind it is. A span without both
- * timestamps has no place on a time axis and is left out.
+ * tool -- since the op already says what kind it is. A span missing a
+ * timestamp is still a row, with no width, so it can be opened: at the one
+ * time it has, else at its parent's start, else at the trace's.
  */
 export function waterfallSpans(spans: SpanResponse[]): WaterfallRow[] {
   const rowOf = new Map(
     spans.flatMap((s) => (s.span_id ? [[s.span_id, s.id] as const] : [])),
   );
-  return spans.flatMap((s) => {
-    const startMs = epochMs(s.start_timestamp);
-    const endMs = epochMs(s.timestamp);
-    if (startMs === null || endMs === null) return [];
-    const name = spanName(s);
-    return [
-      {
-        id: s.id,
-        parentId: (s.parent_span_id && rowOf.get(s.parent_span_id)) || null,
-        op: s.op ?? undefined,
-        description: name ?? s.description ?? undefined,
-        startMs,
-        endMs,
-        status: s.status ?? undefined,
-      },
-    ];
+  const startOf = new Map(
+    spans.flatMap((s) => {
+      const start = epochMs(s.start_timestamp);
+      return s.span_id && start !== null ? [[s.span_id, start] as const] : [];
+    }),
+  );
+  const traceStart = summarizeTrace(spans).startedAt ?? 0;
+  return spans.map((s) => {
+    const start = epochMs(s.start_timestamp);
+    const end = epochMs(s.timestamp);
+    const at =
+      start ??
+      end ??
+      (s.parent_span_id ? startOf.get(s.parent_span_id) : undefined) ??
+      traceStart;
+    return {
+      id: s.id,
+      parentId: (s.parent_span_id && rowOf.get(s.parent_span_id)) || null,
+      op: s.op ?? undefined,
+      description: spanName(s) ?? s.description ?? undefined,
+      startMs: at,
+      endMs: start !== null && end !== null ? end : at,
+      status: s.status ?? undefined,
+      operationType: s.gen_ai_operation_type ?? undefined,
+    };
   });
 }
 
