@@ -135,7 +135,9 @@ pub use project::{
     VALID_PLATFORMS,
 };
 pub use project_member::{ProjectMember, ProjectMemberResponse, ProjectRole, UpsertProjectMember};
-pub use release::{is_valid_version, CreateRelease, Release, ReleaseResponse, UpdateRelease};
+pub use release::{
+    is_valid_version, CreateRelease, Release, ReleaseResponse, ReleaseSummary, UpdateRelease,
+};
 pub use span_v2::{parse_span_v2_container, SpanV2Entry};
 pub use stats::{EventTimeseriesPoint, MetricDelta, ProjectStatsSummary};
 pub use storage::{

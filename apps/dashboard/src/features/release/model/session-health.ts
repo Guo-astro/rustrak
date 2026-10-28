@@ -1,23 +1,8 @@
 /**
- * Selectable time windows for release health, in the order they are offered.
- * Shared by the page (which validates the URL against it) and the filter bar
- * (which renders it), so a value in the URL always maps to a visible button.
- */
-export const RELEASE_PERIODS = ['24h', '7d', '14d', '30d'] as const;
-
-export type ReleasePeriod = (typeof RELEASE_PERIODS)[number];
-
-/** Narrow a raw `?period=` value to a supported window, or undefined ("All"). */
-export function parseReleasePeriod(raw?: string): ReleasePeriod | undefined {
-  return RELEASE_PERIODS.find((p) => p === raw);
-}
-
-/**
  * Selectable time windows for the project overview.
  *
- * Same set as {@link RELEASE_PERIODS} but named separately: the overview
- * spans events, issues and sessions, so it is not tied to release health and
- * should be free to grow its own options.
+ * The overview and the releases pages share them, so a window picked on one
+ * means the same thing on the other.
  */
 export const OVERVIEW_PERIODS = ['24h', '7d', '14d', '30d'] as const;
 
@@ -26,6 +11,9 @@ export type OverviewPeriod = (typeof OVERVIEW_PERIODS)[number];
 /** What `?period=` can hold. Absent is the default window, not all time. */
 export const PERIOD_CHOICES = [...OVERVIEW_PERIODS, 'all'] as const;
 export type PeriodChoice = (typeof PERIOD_CHOICES)[number];
+
+/** The window a page opens on: two weeks, as Sentry's releases do. */
+export const DEFAULT_PERIOD: OverviewPeriod = '14d';
 
 /** Narrow a raw `?period=` value to a supported window, or undefined ("All"). */
 export function parseOverviewPeriod(raw?: string): OverviewPeriod | undefined {
@@ -58,32 +46,26 @@ export function overviewInterval(period?: OverviewPeriod): number {
   }
 }
 
-/** Format a crash-free rate as a percentage string, or an em dash when unknown. */
-export function pct(rate: number | null | undefined): string {
-  if (rate == null) return '—';
-  return `${(rate * 100).toFixed(1)}%`;
-}
-
-/** Text color class for a crash-free rate, tiered at 99%/95%. */
-export function crashFreeClass(rate: number | null | undefined): string {
-  if (rate == null) return 'text-muted-foreground';
-  if (rate >= 0.99) return 'text-green-600 dark:text-green-400';
-  if (rate >= 0.95) return 'text-yellow-600 dark:text-yellow-400';
-  return 'text-red-600 dark:text-red-400';
+/** How a crash-free rate reads: healthy from 99%, worrying under 95%. */
+export function healthTone(
+  rate: number | null | undefined,
+): 'good' | 'warning' | 'bad' | null {
+  if (rate == null) return null;
+  if (rate >= 0.99) return 'good';
+  if (rate >= 0.95) return 'warning';
+  return 'bad';
 }
 
 /**
- * Chart-token colour for a crash-free rate, on the same 99%/95% tiers as
- * {@link crashFreeClass}.
- *
- * Returns a CSS value rather than a class because it paints marks, not text.
- * Healthy deliberately reuses `--chart-3`, the same hue the session-health
- * chart gives its "Healthy" band: the same idea should not wear two greens on
- * one page.
+ * A version split the way SDKs name them, `package@version+build`: the
+ * package is what the reader already knows, the version what they scan for.
  */
-export function crashFreeColor(rate: number | null): string {
-  if (rate === null) return 'var(--sev-info)';
-  if (rate >= 0.99) return 'var(--chart-3)';
-  if (rate >= 0.95) return 'var(--sev-warning)';
-  return 'var(--sev-error)';
+export function splitVersion(raw: string): {
+  package: string | null;
+  version: string;
+} {
+  const at = raw.lastIndexOf('@');
+  // `@scope/pkg` alone is a package name, not a version.
+  if (at <= 0) return { package: null, version: raw };
+  return { package: raw.slice(0, at), version: raw.slice(at + 1) };
 }

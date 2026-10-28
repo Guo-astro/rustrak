@@ -1104,25 +1104,64 @@
     "openInGitHub": "在 GitHub 中打开"
   },
   "releases": {
-    "all": "全部",
-    "empty": {
-      "title": "此时间范围内没有发布版本",
-      "hint": "请尝试更长的时间范围或清除筛选条件。"
-    },
     "columns": {
-      "release": "版本"
+      "release": "版本",
+      "adoption": "采用率",
+      "crashFreeSessions": "无崩溃",
+      "crashFreeUsers": "无崩溃用户",
+      "sessions": "会话",
+      "newIssues": "新问题",
+      "events": "事件",
+      "lastEvent": "最近事件"
     },
-    "sessions": "会话",
-    "crashFree": "无崩溃",
-    "crashFreeSessions": "无崩溃会话",
-    "crashFreeUsers": "无崩溃用户",
-    "crashed": "崩溃",
-    "users": "用户",
-    "healthy": "健康",
-    "noSessionData": "没有会话数据",
-    "enableReleaseHealth": "在 SDK 中启用版本健康（release health）以跟踪无崩溃率",
-    "noTrendHistory": "历史数据不足，无法绘制趋势图",
-    "noSessionDataForPeriod": "此时间范围内没有会话数据"
+    "count": "{count} 个版本",
+    "released": "已发布",
+    "unreleased": "未发布",
+    "loadFailed": "无法加载版本",
+    "emptyWindow": "没有版本",
+    "empty": {
+      "title": "还没有版本",
+      "description": "在事件或会话中发送 <code>release</code>，或在 CI 中用 sentry-cli 创建，即可在此看到每个版本。"
+    },
+    "detail": {
+      "loadFailed": "无法加载此版本",
+      "copy": "复制版本号",
+      "copied": "已复制版本号",
+      "created": "创建于{when}",
+      "releasedOn": "发布于 {when}",
+      "crashFreeSessions": "无崩溃会话",
+      "crashFreeUsers": "无崩溃用户",
+      "adoption": "采用率",
+      "adoptionHint": "占该时段全部会话",
+      "sessions": "会话",
+      "crashedSessions": "{count} 个崩溃",
+      "newIssues": "新问题",
+      "newIssuesHint": "在此版本中首次出现",
+      "events": "事件",
+      "lastEvent": "最近 {when}",
+      "projectAverage": "项目 {rate}",
+      "noSessions": "没有会话",
+      "noSessionsHint": "在 SDK 中启用版本健康度，即可查看崩溃的会话数。",
+      "sessionsPanel": "会话",
+      "sessionsPanelHint": "该时段内的健康与崩溃会话",
+      "healthy": "健康",
+      "crashed": "崩溃",
+      "noNewIssues": "此版本没有新问题",
+      "viewInIssues": "查看其问题",
+      "environments": "环境",
+      "sessionsCount": "{count} 个会话",
+      "details": "详情",
+      "version": "版本",
+      "package": "包",
+      "commit": "提交",
+      "createdAt": "创建时间",
+      "releasedAt": "发布时间",
+      "notReleased": "尚未发布",
+      "firstEvent": "首次事件",
+      "lastEventAt": "最近事件"
+    },
+    "search": "搜索版本…",
+    "environment": "环境"
   },
   "transactions": {
     "columns": {
@@ -1721,22 +1760,13 @@
         "title": "版本 | {project} | Rustrak",
         "description": "{project} 的版本健康"
       },
-      "title": "版本",
-      "subtitle": "{project} 各版本的会话健康",
-      "loadFailed": "无法加载版本健康数据",
-      "emptyTitle": "暂无版本",
-      "emptyDescription": "在事件或会话中附带 <code>release</code> 属性，即可开始跟踪版本健康。"
+      "title": "版本"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "{release} 的版本健康"
-      },
-      "loadFailed": "无法加载此版本",
-      "subtitle": "{project} 的版本健康",
-      "newIssues": "新问题",
-      "newIssuesEmpty": "此版本未引入新问题",
-      "loadNewIssuesFailed": "无法加载新问题"
+      }
     },
     "agents": {
       "meta": {

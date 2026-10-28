@@ -92,26 +92,6 @@ impl StatsService {
         })
     }
 
-    /// The releases a project's events or sessions arrived in, newest first,
-    /// for the overview's release filter: a healthy release has sessions and
-    /// not one error. An event sent without one is in none.
-    pub async fn releases(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
-        // ponytail: the latest 100; a search box when a project has more.
-        let rows: Vec<(String,)> = sqlx::query_as(
-            "SELECT release FROM ( \
-                 SELECT release, MAX(ingested_at) AS seen FROM events \
-                 WHERE project_id = $1 AND release <> '' GROUP BY release \
-                 UNION ALL \
-                 SELECT release, MAX(bucket) AS seen FROM session_counts \
-                 WHERE project_id = $1 AND release <> '' GROUP BY release \
-             ) AS seen_in GROUP BY release ORDER BY MAX(seen) DESC LIMIT 100",
-        )
-        .bind(project_id)
-        .fetch_all(pool)
-        .await?;
-        Ok(rows.into_iter().map(|(release,)| release).collect())
-    }
-
     /// Aggregates for a whole page of the project list, in two queries total.
     ///
     /// The batching is the point: the project list renders up to 100 rows, and

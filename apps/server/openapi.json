@@ -8407,9 +8407,9 @@
     "/api/projects/{project_id}/releases": {
       "get": {
         "tags": [
-          "Stats"
+          "Releases"
         ],
-        "summary": "The releases a project's events arrived in, newest first.",
+        "summary": "Lists a project's releases, newest first, with the events, new issues,\nenvironments and session health of each.",
         "operationId": "releases.list",
         "parameters": [
           {
@@ -8421,17 +8421,200 @@
               "type": "integer",
               "format": "int32"
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only the releases seen in this environment, and count only it",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Count only this window (24h, 7d, 14d...); all time if absent",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the versions containing this text, ignoring case",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed, default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "Items per page (default: 25, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Release names, newest first",
+            "description": "Releases, newest first",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
+                  "type": "object",
+                  "description": "Offset-based paginated response wrapper",
+                  "required": [
+                    "items",
+                    "total_count",
+                    "page",
+                    "per_page",
+                    "total_pages"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "One release as the releases page reads it: its record, if CI created\none, and what it brought -- events, new issues, environments and session\nhealth -- the shape of Sentry's release list with `health=1`.\n\nCounts and rates cover the asked window and environment; the dates do not,\nso a release keeps its age however narrow the window.",
+                        "required": [
+                          "version",
+                          "date_created",
+                          "date_released",
+                          "ref",
+                          "url",
+                          "first_event",
+                          "last_event",
+                          "event_count",
+                          "new_issues",
+                          "environments",
+                          "sessions",
+                          "crashed",
+                          "crash_free_sessions",
+                          "crash_free_users",
+                          "adoption"
+                        ],
+                        "properties": {
+                          "adoption": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "format": "double",
+                            "description": "Its share of every release's sessions in the window, 0 to 1."
+                          },
+                          "crash_free_sessions": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "format": "double"
+                          },
+                          "crash_free_users": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "format": "double"
+                          },
+                          "crashed": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "date_created": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "The record's, else the first time the release was seen."
+                          },
+                          "date_released": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "environments": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Where it ran, from its events and its sessions."
+                          },
+                          "event_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "first_event": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "last_event": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "new_issues": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "Error issues first seen in it."
+                          },
+                          "ref": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "sessions": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "url": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "version": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "per_page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_count": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
                   }
                 }
               }
@@ -8442,6 +8625,83 @@
           },
           "403": {
             "description": "Forbidden"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/releases/{release}": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Gets one release with its events, new issues, environments and session\nhealth.",
+        "operationId": "releases.get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "release",
+            "in": "path",
+            "description": "Release version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Count only this environment",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Count only this window; all time if absent",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "No such release in this project"
           }
         },
         "security": [
@@ -15926,6 +16186,116 @@
               "string",
               "null"
             ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ReleaseSummary": {
+        "type": "object",
+        "description": "One release as the releases page reads it: its record, if CI created\none, and what it brought -- events, new issues, environments and session\nhealth -- the shape of Sentry's release list with `health=1`.\n\nCounts and rates cover the asked window and environment; the dates do not,\nso a release keeps its age however narrow the window.",
+        "required": [
+          "version",
+          "date_created",
+          "date_released",
+          "ref",
+          "url",
+          "first_event",
+          "last_event",
+          "event_count",
+          "new_issues",
+          "environments",
+          "sessions",
+          "crashed",
+          "crash_free_sessions",
+          "crash_free_users",
+          "adoption"
+        ],
+        "properties": {
+          "adoption": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Its share of every release's sessions in the window, 0 to 1."
+          },
+          "crash_free_sessions": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "crash_free_users": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "crashed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "date_created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The record's, else the first time the release was seen."
+          },
+          "date_released": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where it ran, from its events and its sessions."
+          },
+          "event_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "first_event": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_event": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "new_issues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Error issues first seen in it."
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
           },
           "url": {
             "type": [

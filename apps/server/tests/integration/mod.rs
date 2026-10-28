@@ -32,6 +32,7 @@ mod products_test;
 mod projects_api_test;
 mod quota_enforcement_test;
 mod rate_limit_test;
+mod release_summary_test;
 mod releases_api_test;
 mod scheduler_test;
 mod schedules_api_test;

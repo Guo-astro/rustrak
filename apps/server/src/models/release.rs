@@ -62,6 +62,45 @@ pub struct ReleaseResponse {
     pub date_released: Option<DateTime<Utc>>,
 }
 
+/// One release as the releases page reads it: its record, if CI created
+/// one, and what it brought -- events, new issues, environments and session
+/// health -- the shape of Sentry's release list with `health=1`.
+///
+/// Counts and rates cover the asked window and environment; the dates do not,
+/// so a release keeps its age however narrow the window.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ReleaseSummary {
+    pub version: String,
+    /// The record's, else the first time the release was seen.
+    pub date_created: DateTime<Utc>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub date_released: Option<DateTime<Utc>>,
+    #[serde(rename = "ref")]
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub reference: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub url: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub first_event: Option<DateTime<Utc>>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub last_event: Option<DateTime<Utc>>,
+    pub event_count: i64,
+    /// Error issues first seen in it.
+    pub new_issues: i64,
+    /// Where it ran, from its events and its sessions.
+    pub environments: Vec<String>,
+    pub sessions: i64,
+    pub crashed: i64,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub crash_free_sessions: Option<f64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub crash_free_users: Option<f64>,
+    /// Its share of every release's sessions in the window, 0 to 1.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub adoption: Option<f64>,
+}
+
 impl Release {
     pub fn to_response(&self) -> ReleaseResponse {
         ReleaseResponse {

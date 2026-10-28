@@ -14,6 +14,7 @@ import type {
   RustrakError,
   StatsGetEventTimeseriesResponse,
 } from '@rustrak/client';
+import { mapResult } from '@rustrak/client';
 import { createClient } from '@/shared/api/rustrak';
 
 /** What the overview's page filters narrow every read to. */
@@ -103,12 +104,16 @@ export async function getProjectStatsSummary(
   });
 }
 
-/** The releases a project's events arrived in, newest first. */
+/** The newest hundred releases' versions, for the filters that pick one. */
 export async function getProjectReleases(
   projectId: number,
 ): Promise<Result<string[], RustrakError>> {
   const client = await createClient();
-  return client.releases.list({ path: { project_id: projectId } });
+  const page = await client.releases.list({
+    path: { project_id: projectId },
+    query: { per_page: 100 },
+  });
+  return mapResult(page, (p) => p.items.map((release) => release.version));
 }
 
 /** The environments a project's issues have been seen in, by name. */

@@ -4,7 +4,7 @@ import { PlatformIcon } from 'platformicons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { getProject } from '@/features/project/api/queries';
 import {
-  type OverviewPeriod,
+  DEFAULT_PERIOD,
   PERIOD_CHOICES,
 } from '@/features/release/model/session-health';
 import { translator } from '@/shared/i18n/intl';
@@ -19,9 +19,6 @@ import {
   SessionsPanel,
   useOverviewData,
 } from './-components/overview-panels';
-
-/** The window the page opens on, as Sentry's project page does. */
-const DEFAULT_PERIOD: OverviewPeriod = '14d';
 
 export const Route = createFileRoute('/_authenticated/projects/$id/')({
   validateSearch: (search: Record<string, unknown>) => ({

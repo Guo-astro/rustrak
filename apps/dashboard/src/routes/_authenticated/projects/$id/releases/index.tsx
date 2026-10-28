@@ -1,77 +1,122 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
-import { Rocket } from 'lucide-react';
+import {
+  type DataTableQuery,
+  EmptyIcon,
+  type FilterVariants,
+  Page,
+  PageHeader,
+  parseTableQuery,
+  serializeTableQuery,
+  Text,
+} from '@rustrak/ui';
+import {
+  createFileRoute,
+  redirect,
+  useRouterState,
+} from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getProject } from '@/features/project/api/queries';
-import { getReleaseHealth } from '@/features/release/api/queries';
-import { parseReleasePeriod } from '@/features/release/model/session-health';
-import { ReleasesList } from '@/features/release/ui/components/releases-list';
+import {
+  getProject,
+  getProjectEnvironments,
+} from '@/features/project/api/queries';
+import { listReleases } from '@/features/release/api/queries';
+import {
+  DEFAULT_PERIOD,
+  PERIOD_CHOICES,
+  type PeriodChoice,
+} from '@/features/release/model/session-health';
+import { ReleasesTable } from '@/features/release/ui/components/releases-table';
 import { translator } from '@/shared/i18n/intl';
-import { searchPage, searchString } from '@/shared/lib/search-params';
+import { loadAll } from '@/shared/lib/results';
+import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { useAsync } from '@/shared/ui/hooks/use-async';
+import { PeriodFilter } from './-components/release-filters';
 
-/** Canonical URL for a page of the releases list, keeping the active window. */
-function releasesHref(
-  projectId: number,
-  page: number,
-  period?: string,
-): string {
-  const params = new URLSearchParams({ page: String(page) });
-  if (period) params.set('period', period);
-  return `/projects/${projectId}/releases?${params.toString()}`;
+const PAGE_SIZE = 25;
+/** `list_releases`'s own cap on `per_page`. */
+const MAX_PAGE_SIZE = 100;
+
+/** `environment:` is the one key the bar takes; the rest is the version. */
+const VARIANTS: FilterVariants = { environment: 'options' };
+
+/** The search as the table's codecs write it: `q` is the query bar. */
+interface ReleasesSearch {
+  q?: string;
+  period?: PeriodChoice;
+  page?: string;
+  per?: string;
+}
+
+function tableQuery(search: ReleasesSearch): DataTableQuery {
+  const params = new URLSearchParams();
+  for (const key of ['q', 'page', 'per'] as const) {
+    const value = search[key];
+    if (value) params.set(key, value);
+  }
+  const query = parseTableQuery(params, VARIANTS, PAGE_SIZE);
+  // The API pages at most 100 releases; a larger `?per=` would have the
+  // table expect rows it never receives, and no next page to reach them.
+  query.pagination.pageSize = Math.min(
+    query.pagination.pageSize,
+    MAX_PAGE_SIZE,
+  );
+  return query;
+}
+
+/** The environment the bar picked, if any. */
+function environmentOf(query: DataTableQuery): string | undefined {
+  const value = query.filters.find((f) => f.id === 'environment')?.value;
+  return Array.isArray(value) ? value[0] : undefined;
 }
 
 export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
-  validateSearch: (search: Record<string, unknown>) => ({
-    page: searchPage(search.page),
-    // An unrecognized window would otherwise reach the API, which ignores what
-    // it cannot parse and answers with all-time data while no filter button
-    // reads as selected. Drop it instead, so the URL and the UI always agree.
-    period: parseReleasePeriod(searchString(search.period)),
+  validateSearch: (search: Record<string, unknown>): ReleasesSearch => ({
+    q: searchString(search.q),
+    period: searchOneOf(search.period, PERIOD_CHOICES),
+    page: searchString(String(search.page ?? '')) || undefined,
+    per: searchString(String(search.per ?? '')) || undefined,
   }),
-  loaderDeps: ({ search }) => ({
-    page: search.page ?? 1,
-    period: search.period,
-  }),
+  loaderDeps: ({ search }) => search,
   loader: async ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const project = await getProject(projectId);
+    const query = tableQuery(deps);
+    const period = deps.period ?? DEFAULT_PERIOD;
+    const loaded = await loadAll([
+      getProject(projectId),
+      listReleases(projectId, {
+        environment: environmentOf(query),
+        query: query.search || undefined,
+        period: period === 'all' ? undefined : period,
+        page: query.pagination.pageIndex + 1,
+        per_page: query.pagination.pageSize,
+      }),
+    ]);
 
-    if (!project.success) return { project, health: null };
-
-    // Nothing is swallowed: a fetch/auth failure renders an outage surface
-    // rather than the "no releases yet" onboarding state.
-    const health = await getReleaseHealth(projectId, {
-      page: deps.page,
-      per_page: 20,
-      period: deps.period,
-    });
-
-    // A page past the end still carries a positive total, which would render a
-    // nonsensical range ("19961-27 of 27", "Page 999 of 2"). Send the browser
-    // to a page that exists; the target is always within range, so this settles
-    // in one hop.
-    if (health.success) {
-      const { total_pages } = health.data;
-      if (total_pages > 0 && deps.page > total_pages) {
+    // A stale or shared `?page=` past the end lands on the last page, not on
+    // an empty table under a positive count.
+    if (loaded.success) {
+      const { total_pages } = loaded.data[1];
+      if (query.pagination.pageIndex + 1 > Math.max(total_pages, 1)) {
         throw redirect({
-          href: releasesHref(projectId, total_pages, deps.period),
+          to: '/projects/$id/releases',
+          params: { id: params.id },
+          search: {
+            ...deps,
+            page: total_pages > 1 ? String(total_pages) : undefined,
+          },
         });
       }
-      if (total_pages === 0 && deps.page > 1) {
-        throw redirect({ href: releasesHref(projectId, 1, deps.period) });
-      }
     }
-
-    return { project, health };
+    return loaded;
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.project.success) {
+    if (!loaderData?.success) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const project = loaderData.project.data;
+    const [project] = loaderData.data;
     return {
       meta: [
         { title: t('releases.meta.title', { project: project.name }) },
@@ -87,68 +132,94 @@ export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
 
 function ReleasesPage() {
   const t = useTranslations('projectPages');
+  const tReleases = useTranslations('releases');
   const { id } = Route.useParams();
-  const { page, period } = Route.useSearch({
-    select: (search) => ({ page: search.page ?? 1, period: search.period }),
-  });
-  const { project: projectResult, health: healthResult } =
-    Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const loaded = Route.useLoaderData();
+  const loading = useRouterState({ select: (state) => state.isLoading });
   const projectId = Number.parseInt(id, 10);
+  const query = tableQuery(search);
+  const period = search.period ?? DEFAULT_PERIOD;
 
-  if (!projectResult.success) {
-    return (
-      <LoadFailure error={projectResult.error} title={t('loadProjectFailed')} />
-    );
+  // What the bar can suggest; not the list, so the list does not wait for it.
+  const environments = useAsync(
+    () => getProjectEnvironments(projectId),
+    [projectId],
+  );
+
+  if (!loaded.success) {
+    return <LoadFailure error={loaded.error} title={tReleases('loadFailed')} />;
   }
 
-  // `null` only where the project read already failed, and that branch
-  // returned above — so this one is a real failure of its own request.
-  if (healthResult === null) return null;
-
-  if (!healthResult.success) {
-    return (
-      <LoadFailure
-        error={healthResult.error}
-        title={t('releases.loadFailed')}
-        notFoundOnMissing={false}
-      />
-    );
-  }
-
-  const project = projectResult.data;
-  const health = healthResult.data;
+  const [project, page] = loaded.data;
+  const filtered = query.search !== '' || query.filters.length > 0;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="shrink-0 w-full px-4 md:px-8 py-4 md:py-6 border-b">
-        <h1 className="text-lg font-semibold">{t('releases.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {t('releases.subtitle', { project: project.name })}
-        </p>
-      </div>
+    <div className="flex h-full flex-col">
+      <PageHeader
+        title={t('releases.title')}
+        summary={[
+          project.name,
+          tReleases('count', { count: page.total_count }),
+        ]}
+      />
 
-      <div className="flex-1 overflow-hidden w-full px-4 md:px-8 py-4 md:py-6">
-        {health.total_count === 0 && !period ? (
-          <div className="flex flex-col items-center justify-center min-h-full text-center">
-            <Rocket className="size-12 text-muted-foreground/30 mb-4" />
-            <h2 className="text-lg font-semibold mb-1">
-              {t('releases.emptyTitle')}
-            </h2>
-            <p className="text-sm text-muted-foreground max-w-md">
-              {t.rich('releases.emptyDescription', {
-                code: (chunks) => <code>{chunks}</code>,
-              })}
-            </p>
-          </div>
-        ) : (
-          <ReleasesList
+      {page.total_count === 0 && !filtered ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-page-gutter py-16 text-center">
+          <EmptyIcon size="xl" className="mb-2 text-fg-ghost" />
+          <Text variant="body">{tReleases('empty.title')}</Text>
+          <Text variant="meta" tone="subtle" className="max-w-md">
+            {tReleases.rich('empty.description', {
+              code: (chunks) => <code className="font-mono">{chunks}</code>,
+            })}
+          </Text>
+        </div>
+      ) : (
+        <Page scroll={false}>
+          <ReleasesTable
             projectId={projectId}
-            initialHealth={health}
-            currentPage={page}
-            activePeriod={period}
+            page={page}
+            query={query}
+            loading={loading}
+            environments={
+              environments.state === 'ready' && environments.data.success
+                ? environments.data.data
+                : []
+            }
+            onQueryChange={(updater) => {
+              const params = serializeTableQuery(
+                updater(query),
+                VARIANTS,
+                PAGE_SIZE,
+              );
+              navigate({
+                search: (prev) => ({
+                  ...prev,
+                  q: params.get('q') ?? undefined,
+                  page: params.get('page') ?? undefined,
+                  per: params.get('per') ?? undefined,
+                }),
+              });
+            }}
+            scope={{ environment: environmentOf(query), period: search.period }}
+            period={
+              <PeriodFilter
+                period={period}
+                onChange={(next) =>
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      period: next === DEFAULT_PERIOD ? undefined : next,
+                      page: undefined,
+                    }),
+                  })
+                }
+              />
+            }
           />
-        )}
-      </div>
+        </Page>
+      )}
     </div>
   );
 }

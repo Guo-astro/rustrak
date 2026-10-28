@@ -1104,25 +1104,64 @@
     "openInGitHub": "Ouvrir dans GitHub"
   },
   "releases": {
-    "all": "Toutes",
-    "empty": {
-      "title": "Aucune version dans cette fenêtre",
-      "hint": "Essayez une période plus longue ou effacez le filtre."
-    },
     "columns": {
-      "release": "Version"
+      "release": "Version",
+      "adoption": "Adoption",
+      "crashFreeSessions": "Sans plantage",
+      "crashFreeUsers": "Utilisateurs OK",
+      "sessions": "Sessions",
+      "newIssues": "Nouveaux",
+      "events": "Événements",
+      "lastEvent": "Dernier événement"
     },
-    "sessions": "Sessions",
-    "crashFree": "Sans plantage",
-    "crashFreeSessions": "Sessions sans plantage",
-    "crashFreeUsers": "Utilisateurs sans plantage",
-    "crashed": "Plantages",
-    "users": "Utilisateurs",
-    "healthy": "Saine",
-    "noSessionData": "Aucune donnée de session",
-    "enableReleaseHealth": "Activez la santé des versions dans votre SDK pour suivre les taux sans plantage",
-    "noTrendHistory": "Pas assez d’historique pour tracer une tendance",
-    "noSessionDataForPeriod": "Aucune donnée de session sur cette période"
+    "count": "{count, plural, one {# version} other {# versions}}",
+    "released": "Publiée",
+    "unreleased": "Non publiée",
+    "loadFailed": "Impossible de charger les versions",
+    "emptyWindow": "Aucune version",
+    "empty": {
+      "title": "Aucune version pour l’instant",
+      "description": "Envoyez un <code>release</code> avec vos événements ou sessions, ou créez-en un depuis la CI avec sentry-cli, pour voir chaque version ici."
+    },
+    "detail": {
+      "loadFailed": "Impossible de charger cette version",
+      "copy": "Copier la version",
+      "copied": "Version copiée",
+      "created": "Créée {when}",
+      "releasedOn": "Publiée le {when}",
+      "crashFreeSessions": "Sessions sans plantage",
+      "crashFreeUsers": "Utilisateurs sans plantage",
+      "adoption": "Adoption",
+      "adoptionHint": "de toutes les sessions de la période",
+      "sessions": "Sessions",
+      "crashedSessions": "{count} plantées",
+      "newIssues": "Nouveaux tickets",
+      "newIssuesHint": "Vus pour la première fois dans cette version",
+      "events": "Événements",
+      "lastEvent": "Dernier {when}",
+      "projectAverage": "Projet {rate}",
+      "noSessions": "Aucune session",
+      "noSessionsHint": "Activez la santé des versions dans le SDK pour voir combien de sessions plantent.",
+      "sessionsPanel": "Sessions",
+      "sessionsPanelHint": "Sessions saines et plantées sur la période",
+      "healthy": "Saines",
+      "crashed": "Plantées",
+      "noNewIssues": "Aucun nouveau ticket dans cette version",
+      "viewInIssues": "Voir ses tickets",
+      "environments": "Environnements",
+      "sessionsCount": "{count} sessions",
+      "details": "Détails",
+      "version": "Version",
+      "package": "Paquet",
+      "commit": "Commit",
+      "createdAt": "Créée",
+      "releasedAt": "Publiée",
+      "notReleased": "Pas encore",
+      "firstEvent": "Premier événement",
+      "lastEventAt": "Dernier événement"
+    },
+    "search": "Rechercher des versions…",
+    "environment": "Environnement"
   },
   "transactions": {
     "columns": {
@@ -1721,22 +1760,13 @@
         "title": "Versions | {project} | Rustrak",
         "description": "Santé des versions de {project}"
       },
-      "title": "Versions",
-      "subtitle": "Santé des sessions par version pour {project}",
-      "loadFailed": "Impossible de charger la santé des versions",
-      "emptyTitle": "Aucune version pour le moment",
-      "emptyDescription": "Envoyez un attribut <code>release</code> avec vos événements ou sessions pour commencer à suivre la santé des versions."
+      "title": "Versions"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "Santé des versions de {release}"
-      },
-      "loadFailed": "Impossible de charger cette version",
-      "subtitle": "Santé des versions de {project}",
-      "newIssues": "Nouveaux problèmes",
-      "newIssuesEmpty": "Aucun nouveau problème introduit dans cette version",
-      "loadNewIssuesFailed": "Impossible de charger les nouveaux problèmes"
+      }
     },
     "agents": {
       "meta": {

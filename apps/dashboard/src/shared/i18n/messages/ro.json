@@ -1104,25 +1104,64 @@
     "openInGitHub": "Deschide în GitHub"
   },
   "releases": {
-    "all": "Toate",
-    "empty": {
-      "title": "Nicio lansare în această fereastră",
-      "hint": "Încearcă o perioadă mai lungă sau șterge filtrul."
-    },
     "columns": {
-      "release": "Lansare"
+      "release": "Versiune",
+      "adoption": "Adopție",
+      "crashFreeSessions": "Fără erori",
+      "crashFreeUsers": "Utilizatori OK",
+      "sessions": "Sesiuni",
+      "newIssues": "Noi",
+      "events": "Evenimente",
+      "lastEvent": "Ultimul eveniment"
     },
-    "sessions": "Sesiuni",
-    "crashFree": "Fără crash-uri",
-    "crashFreeSessions": "Sesiuni fără crash-uri",
-    "crashFreeUsers": "Utilizatori fără crash-uri",
-    "crashed": "Cu crash-uri",
-    "users": "Utilizatori",
-    "healthy": "Sănătos",
-    "noSessionData": "Fără date de sesiune",
-    "enableReleaseHealth": "Activează starea lansărilor în SDK-ul tău pentru a urmări ratele fără crash-uri",
-    "noTrendHistory": "Istoric insuficient pentru a desena o tendință",
-    "noSessionDataForPeriod": "Fără date de sesiune pentru această perioadă"
+    "count": "{count, plural, one {# versiune} few {# versiuni} other {# de versiuni}}",
+    "released": "Lansată",
+    "unreleased": "Nelansată",
+    "loadFailed": "Versiunile nu au putut fi încărcate",
+    "emptyWindow": "Nicio versiune",
+    "empty": {
+      "title": "Încă nu există versiuni",
+      "description": "Trimite un <code>release</code> cu evenimentele sau sesiunile tale, sau creează unul din CI cu sentry-cli, ca să vezi aici fiecare versiune."
+    },
+    "detail": {
+      "loadFailed": "Această versiune nu a putut fi încărcată",
+      "copy": "Copiază versiunea",
+      "copied": "Versiune copiată",
+      "created": "Creată {when}",
+      "releasedOn": "Lansată pe {when}",
+      "crashFreeSessions": "Sesiuni fără erori fatale",
+      "crashFreeUsers": "Utilizatori fără erori fatale",
+      "adoption": "Adopție",
+      "adoptionHint": "din toate sesiunile din perioadă",
+      "sessions": "Sesiuni",
+      "crashedSessions": "{count} cu eroare fatală",
+      "newIssues": "Probleme noi",
+      "newIssuesHint": "Văzute prima dată în această versiune",
+      "events": "Evenimente",
+      "lastEvent": "Ultimul {when}",
+      "projectAverage": "Proiect {rate}",
+      "noSessions": "Nicio sesiune",
+      "noSessionsHint": "Activează sănătatea versiunilor în SDK ca să vezi câte sesiuni se blochează.",
+      "sessionsPanel": "Sesiuni",
+      "sessionsPanelHint": "Sesiuni sănătoase și cu erori fatale în perioadă",
+      "healthy": "Sănătoase",
+      "crashed": "Cu erori fatale",
+      "noNewIssues": "Nicio problemă nouă în această versiune",
+      "viewInIssues": "Vezi problemele ei",
+      "environments": "Medii",
+      "sessionsCount": "{count} sesiuni",
+      "details": "Detalii",
+      "version": "Versiune",
+      "package": "Pachet",
+      "commit": "Commit",
+      "createdAt": "Creată",
+      "releasedAt": "Lansată",
+      "notReleased": "Încă nu",
+      "firstEvent": "Primul eveniment",
+      "lastEventAt": "Ultimul eveniment"
+    },
+    "search": "Caută versiuni…",
+    "environment": "Mediu"
   },
   "transactions": {
     "columns": {
@@ -1721,22 +1760,13 @@
         "title": "Lansări | {project} | Rustrak",
         "description": "Starea lansărilor pentru {project}"
       },
-      "title": "Lansări",
-      "subtitle": "Starea sesiunilor per lansare pentru {project}",
-      "loadFailed": "Starea lansărilor nu a putut fi încărcată",
-      "emptyTitle": "Încă nu există lansări",
-      "emptyDescription": "Trimite un atribut <code>release</code> odată cu evenimentele sau sesiunile tale pentru a începe urmărirea stării lansărilor."
+      "title": "Lansări"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "Starea lansării pentru {release}"
-      },
-      "loadFailed": "Această lansare nu a putut fi încărcată",
-      "subtitle": "Starea lansărilor pentru {project}",
-      "newIssues": "Probleme noi",
-      "newIssuesEmpty": "Nicio problemă nouă introdusă în această lansare",
-      "loadNewIssuesFailed": "Problemele noi nu au putut fi încărcate"
+      }
     },
     "agents": {
       "meta": {
