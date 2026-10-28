@@ -226,18 +226,35 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "Niveau",
-      "message": "Message",
-      "trace": "Trace",
-      "time": "Heure"
-    },
     "emptyValue": "(vide)",
+    "volumeFailed": "Impossible de charger le graphique de volume",
+    "lineFailed": "Impossible d’ouvrir cette ligne. Elle a peut-être été supprimée.",
     "attributes": "Attributs",
-    "allLevels": "Tous",
     "empty": {
-      "title": "Aucun journal ne correspond à ce filtre",
-      "hint": "Essayez un autre niveau ou effacez le filtre."
+      "title": "Aucun journal ne correspond à cette recherche sur cette période"
+    },
+    "lines": "Lignes de journal",
+    "pageOf": "Page {page} sur {total}",
+    "newer": "Journaux plus récents",
+    "older": "Journaux plus anciens",
+    "back": "Retour aux journaux",
+    "close": "Fermer",
+    "time": "Heure",
+    "severity": "Sévérité",
+    "trace": "Trace",
+    "span": "Span",
+    "sameTrace": "Journaux de cette trace",
+    "level": "Niveau",
+    "search": "Rechercher dans les messages, ou filtrer par level: ou trace:",
+    "volume": "Journaux dans le temps par niveau",
+    "count": "{count, plural, one {# journal} other {# journaux}}",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Avertissement",
+      "error": "Erreur",
+      "fatal": "Fatal"
     }
   },
   "issues": {
@@ -1685,7 +1702,6 @@
         "description": "Journaux structurés de {project}"
       },
       "title": "Logs",
-      "subtitle": "Journaux structurés de {project}, du plus récent au plus ancien",
       "loadFailed": "Impossible de charger les journaux",
       "emptyTitle": "Aucun journal pour le moment",
       "emptyDescription": "Envoyez des journaux structurés depuis votre SDK (ex. <code>Sentry.logger.info(...)</code>) pour commencer à les collecter ici."

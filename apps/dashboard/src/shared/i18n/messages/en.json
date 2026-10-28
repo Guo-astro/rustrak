@@ -226,18 +226,35 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "Level",
-      "message": "Message",
-      "trace": "Trace",
-      "time": "Time"
-    },
     "emptyValue": "(empty)",
+    "volumeFailed": "Could not load the volume chart",
+    "lineFailed": "This line could not be opened. It may have been deleted.",
     "attributes": "Attributes",
-    "allLevels": "All",
     "empty": {
-      "title": "No logs match this filter",
-      "hint": "Try a different level or clear the filter."
+      "title": "No logs match this search in this window"
+    },
+    "lines": "Log lines",
+    "pageOf": "Page {page} of {total}",
+    "newer": "Newer logs",
+    "older": "Older logs",
+    "back": "Back to the logs",
+    "close": "Close",
+    "time": "Time",
+    "severity": "Severity",
+    "trace": "Trace",
+    "span": "Span",
+    "sameTrace": "Logs in this trace",
+    "level": "Level",
+    "search": "Search messages, or filter by level: or trace:",
+    "volume": "Logs over time by level",
+    "count": "{count, plural, one {# log} other {# logs}}",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Warning",
+      "error": "Error",
+      "fatal": "Fatal"
     }
   },
   "issues": {
@@ -1685,7 +1702,6 @@
         "description": "Structured logs for {project}"
       },
       "title": "Logs",
-      "subtitle": "Structured logs for {project}, newest first",
       "loadFailed": "Could not load logs",
       "emptyTitle": "No logs yet",
       "emptyDescription": "Send structured logs from your SDK (e.g. <code>Sentry.logger.info(...)</code>) to start collecting them here."

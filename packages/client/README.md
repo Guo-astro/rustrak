@@ -358,7 +358,9 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `logs.list({ path, query? })` | `GET /api/projects/{project_id}/logs` | Lists logs for a project with offset-based pagination (newest first by log timestamp), optionally filtered by level/trace_id. |
+| `logs.get({ path })` | `GET /api/projects/{project_id}/logs/{log_id}` | Returns one of a project's logs, wherever it falls in the list. |
+| `logs.list({ path, query? })` | `GET /api/projects/{project_id}/logs` | Lists logs for a project with offset-based pagination (newest first by log timestamp), optionally filtered by level, trace id, message and window. |
+| `logs.volume({ path, query? })` | `GET /api/projects/{project_id}/logs/volume` | Counts a project's logs per level over time, with the list's filters. |
 
 ### Members
 

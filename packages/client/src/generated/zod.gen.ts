@@ -889,6 +889,19 @@ export const zLogResponse = z.object({
     trace_id: z.string().nullable()
 });
 
+/**
+ * One bucket of the log volume: how many logs of each level it holds.
+ */
+export const zLogVolumePoint = z.object({
+    bucket: z.iso.datetime({ offset: true }),
+    debug: z.int(),
+    error: z.int(),
+    fatal: z.int(),
+    info: z.int(),
+    trace: z.int(),
+    warn: z.int()
+});
+
 export const zLoginRequest = z.object({
     email: z.string(),
     password: z.string()
@@ -3146,7 +3159,9 @@ export const zLogsListQuery = z.object({
     page: z.int().gte(1).optional(),
     per_page: z.int().gte(1).lte(100).optional(),
     level: z.string().nullish(),
-    trace_id: z.string().nullish()
+    trace_id: z.string().nullish(),
+    query: z.string().nullish(),
+    period: z.string().nullish()
 });
 
 /**
@@ -3169,6 +3184,32 @@ export const zLogsListResponse = z.object({
     total_count: z.int(),
     total_pages: z.int()
 });
+
+export const zLogsVolumePath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zLogsVolumeQuery = z.object({
+    level: z.string().nullish(),
+    trace_id: z.string().nullish(),
+    query: z.string().nullish(),
+    period: z.string().nullish()
+});
+
+/**
+ * Log counts per level, bucket by bucket
+ */
+export const zLogsVolumeResponse = z.array(zLogVolumePoint);
+
+export const zLogsGetPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    log_id: z.uuid()
+});
+
+/**
+ * The log
+ */
+export const zLogsGetResponse = zLogResponse;
 
 export const zMembersListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })

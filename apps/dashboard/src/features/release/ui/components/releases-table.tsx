@@ -207,9 +207,10 @@ export function ReleasesTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center gap-2">
+      {/* Narrow, the bar takes a row and the window and columns the next. */}
+      <div className="flex flex-wrap items-center gap-2">
         <QueryBar
-          className="min-w-0 flex-1"
+          className="min-w-0 max-sm:basis-full"
           fields={fields}
           filters={query.filters}
           search={query.search}
@@ -223,8 +224,10 @@ export function ReleasesTable({
             }))
           }
         />
-        {period}
-        <DataTableColumnsButton table={table} />
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+          {period}
+          <DataTableColumnsButton table={table} />
+        </div>
       </div>
       <DataTable
         table={table}

@@ -10,7 +10,7 @@ use crate::models::{
     SpanResponse, TransactionDetailResponse, TransactionResponse, TransactionStatsResponse,
     TransactionTimeseriesPoint,
 };
-use crate::services::scope::since;
+use crate::services::scope::{bucket_hours, like_pattern, since};
 
 pub struct TransactionService;
 
@@ -536,18 +536,6 @@ fn is_failure(status: Option<&str>) -> bool {
 /// How many samples failed, as an aggregate.
 const FAILS: &str = "SUM(CASE WHEN status IS NOT NULL AND status <> 'ok' THEN 1 ELSE 0 END)";
 
-/// Bucket width for a window, in hours: about 24 to 60 buckets for any of
-/// the dashboard's windows.
-fn bucket_hours(period_hours: i64) -> i64 {
-    match period_hours {
-        ..=24 => 1,
-        25..=168 => 3,
-        169..=336 => 6,
-        337..=720 => 12,
-        _ => 24,
-    }
-}
-
 /// How the endpoints are ranked.
 #[derive(Debug, Default, Clone, Copy, serde::Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -598,15 +586,7 @@ impl StatsFilter {
 
     /// The query as a LIKE pattern, its own `%`, `_` and `\` taken literally.
     fn like(&self) -> Option<String> {
-        let query = self.query.as_deref()?.trim().to_lowercase();
-        if query.is_empty() {
-            return None;
-        }
-        let escaped = query
-            .replace('\\', "\\\\")
-            .replace('%', "\\%")
-            .replace('_', "\\_");
-        Some(format!("%{escaped}%"))
+        like_pattern(self.query.as_deref())
     }
 }
 

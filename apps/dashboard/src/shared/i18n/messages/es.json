@@ -226,18 +226,35 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "Nivel",
-      "message": "Mensaje",
-      "trace": "Traza",
-      "time": "Hora"
-    },
     "emptyValue": "(vacío)",
+    "volumeFailed": "No se pudo cargar el gráfico de volumen",
+    "lineFailed": "No se pudo abrir esta línea. Puede que se haya eliminado.",
     "attributes": "Atributos",
-    "allLevels": "Todos",
     "empty": {
-      "title": "Ningún registro coincide con este filtro",
-      "hint": "Prueba con otro nivel o borra el filtro."
+      "title": "Ningún registro coincide con esta búsqueda en este periodo"
+    },
+    "lines": "Líneas de registro",
+    "pageOf": "Página {page} de {total}",
+    "newer": "Registros más recientes",
+    "older": "Registros más antiguos",
+    "back": "Volver a los registros",
+    "close": "Cerrar",
+    "time": "Hora",
+    "severity": "Severidad",
+    "trace": "Traza",
+    "span": "Span",
+    "sameTrace": "Registros de esta traza",
+    "level": "Nivel",
+    "search": "Busca en los mensajes o filtra por level: o trace:",
+    "volume": "Registros a lo largo del tiempo por nivel",
+    "count": "{count, plural, one {# registro} other {# registros}}",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Aviso",
+      "error": "Error",
+      "fatal": "Fatal"
     }
   },
   "issues": {
@@ -1685,7 +1702,6 @@
         "description": "Registros estructurados de {project}"
       },
       "title": "Logs",
-      "subtitle": "Registros estructurados de {project}, del más reciente al más antiguo",
       "loadFailed": "No se pudieron cargar los registros",
       "emptyTitle": "Aún no hay registros",
       "emptyDescription": "Envía registros estructurados desde tu SDK (p. ej. <code>Sentry.logger.info(...)</code>) para empezar a recopilarlos aquí."

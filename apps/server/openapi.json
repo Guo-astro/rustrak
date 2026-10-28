@@ -7446,7 +7446,7 @@
         "tags": [
           "Logs"
         ],
-        "summary": "GET /api/projects/{project_id}/logs\nLists logs for a project with offset-based pagination (newest first by\nlog timestamp), optionally filtered by level/trace_id.",
+        "summary": "GET /api/projects/{project_id}/logs\nLists logs for a project with offset-based pagination (newest first by\nlog timestamp), optionally filtered by level, trace id, message and window.",
         "operationId": "logs.list",
         "parameters": [
           {
@@ -7498,6 +7498,30 @@
             "name": "trace_id",
             "in": "query",
             "description": "Filter by trace id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the logs whose message contains this, ignoring case.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
             "required": false,
             "schema": {
               "type": [
@@ -7602,6 +7626,183 @@
                       "format": "int64"
                     }
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/logs/volume": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "GET /api/projects/{project_id}/logs/volume\nCounts a project's logs per level over time, with the list's filters.",
+        "operationId": "logs.volume",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Filter by log level (trace/debug/info/warn/error/fatal).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "trace_id",
+            "in": "query",
+            "description": "Filter by trace id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the logs whose message contains this, ignoring case.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); since the oldest log if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log counts per level, bucket by bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogVolumePoint"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/logs/{log_id}": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "GET /api/projects/{project_id}/logs/{log_id}\nReturns one of a project's logs, wherever it falls in the list.",
+        "operationId": "logs.get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "log_id",
+            "in": "path",
+            "description": "Log ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogResponse"
                 }
               }
             }
@@ -15438,6 +15639,50 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "LogVolumePoint": {
+        "type": "object",
+        "description": "One bucket of the log volume: how many logs of each level it holds.",
+        "required": [
+          "bucket",
+          "trace",
+          "debug",
+          "info",
+          "warn",
+          "error",
+          "fatal"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Where the bucket starts."
+          },
+          "debug": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fatal": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "info": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trace": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "warn": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

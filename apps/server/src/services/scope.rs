@@ -42,3 +42,38 @@ pub(crate) fn since_day(column: &str, hours: Option<i64>) -> String {
     #[cfg(not(feature = "postgres"))]
     return format!("{column} >= date('now', '-{hours} hours')");
 }
+
+/// Bucket width for a window, in hours: about 24 to 60 buckets for any of
+/// the dashboard's windows.
+pub(crate) fn bucket_hours(period_hours: i64) -> i64 {
+    match period_hours {
+        ..=24 => 1,
+        25..=168 => 3,
+        169..=336 => 6,
+        337..=720 => 12,
+        _ => 24,
+    }
+}
+
+/// A search as a case-insensitive `LIKE ... ESCAPE '\'` pattern, its own
+/// `%`, `_` and `\` taken literally. `None` for a blank search.
+///
+/// Lowered by the same rules as the column's `LOWER()`: Unicode on Postgres,
+/// ASCII only on SQLite, where `É` stays `É` on both sides and still matches.
+// ponytail: on SQLite `échec` does not find `Échec`; that takes the ICU
+// extension's `LOWER()`.
+pub(crate) fn like_pattern(query: Option<&str>) -> Option<String> {
+    let query = query?.trim();
+    #[cfg(feature = "postgres")]
+    let query = query.to_lowercase();
+    #[cfg(not(feature = "postgres"))]
+    let query = query.to_ascii_lowercase();
+    if query.is_empty() {
+        return None;
+    }
+    let escaped = query
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    Some(format!("%{escaped}%"))
+}

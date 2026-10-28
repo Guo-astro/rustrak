@@ -81,6 +81,7 @@ struct Seed {
     sdk_event_id: Uuid,
     transaction_id: Uuid,
     span_row_id: Uuid,
+    log_id: Uuid,
     rule_id: i32,
     integration_id: i32,
 }
@@ -249,6 +250,18 @@ async fn seed(db: &TestDb) -> (Seed, String) {
     .execute(&db.pool)
     .await
     .unwrap();
+    let log_id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO logs (id, project_id, level, body, attributes, timestamp) \
+         VALUES ($1, $2, 'info', 'contract', $3, $4)",
+    )
+    .bind(log_id)
+    .bind(project.id)
+    .bind(json!({}))
+    .bind(now)
+    .execute(&db.pool)
+    .await
+    .unwrap();
 
     let seed = Seed {
         project_id: project.id,
@@ -260,6 +273,7 @@ async fn seed(db: &TestDb) -> (Seed, String) {
         sdk_event_id,
         transaction_id,
         span_row_id,
+        log_id,
         rule_id: 0,
         integration_id: 0,
     };
@@ -281,6 +295,7 @@ fn param_value(name: &str, path: &str, schema: &Value, seed: &Seed) -> String {
         "event_id" => seed.event_row_id.to_string(),
         "transaction_id" => seed.transaction_id.to_string(),
         "span_id" => seed.span_row_id.to_string(),
+        "log_id" => seed.log_id.to_string(),
         "rule_id" => seed.rule_id.to_string(),
         "slug" => "contract".into(),
         "release" => CONTRACT_RELEASE.into(),
