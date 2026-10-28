@@ -12,6 +12,7 @@ import type {
 import {
   Button,
   CollapsePanelIcon,
+  cn,
   ExpandPanelIcon,
   Tooltip,
 } from '@rustrak/ui';
@@ -310,7 +311,7 @@ function EventView({
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
         <main className="min-w-0 flex-1 lg:overflow-y-auto">
           <div className="flex flex-col gap-5 px-page-gutter pb-8 pt-5">
-            <EventTrends stats={stats30d} aggregates={aggregates} />
+            <EventTrends stats={stats30d} />
 
             <EventNavigator
               projectId={projectId}
@@ -368,40 +369,65 @@ function IssueRail({
   const tCommon = useTranslations('common');
   const [folded, setFolded] = useState(railFolded);
 
-  const toggle = () =>
-    setFolded((previous) => {
-      const next = !previous;
-      try {
-        window.localStorage.setItem(
-          'rustrak:issue-rail',
-          next ? 'folded' : 'open',
-        );
-      } catch {
-        // Storage unavailable: the fold lasts as long as the page.
-      }
-      return next;
-    });
+  // Remembered in the handler, not in the state updater: React may run an
+  // updater twice, and writing storage is not something to do twice.
+  const toggle = () => {
+    const next = !folded;
+    setFolded(next);
+    try {
+      window.localStorage.setItem(
+        'rustrak:issue-rail',
+        next ? 'folded' : 'open',
+      );
+    } catch {
+      // Storage unavailable: the fold lasts as long as the page.
+    }
+  };
 
-  if (folded) {
-    return (
-      <div className="hidden w-12 shrink-0 justify-center border-border-divider border-l bg-panel pt-3 lg:flex">
-        <Tooltip content={tCommon('showSidebar')} side="left">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={CollapsePanelIcon}
-            aria-label={tCommon('openSidebar')}
-            onClick={toggle}
-          />
-        </Tooltip>
-      </div>
-    );
-  }
+  return (
+    <>
+      {/* Folding is a desktop layout: below `lg` the rail is a section under
+          the reading column with no way to unfold it, so there it is always
+          shown, whatever was folded on a wider screen. */}
+      {folded ? (
+        <div className="hidden w-12 shrink-0 justify-center border-border-divider border-l bg-panel pt-3 lg:flex">
+          <Tooltip content={tCommon('showSidebar')} side="left">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={CollapsePanelIcon}
+              aria-label={tCommon('openSidebar')}
+              onClick={toggle}
+            />
+          </Tooltip>
+        </div>
+      ) : null}
+      <RailBody title={title} folded={folded} onFold={toggle}>
+        {children}
+      </RailBody>
+    </>
+  );
+}
 
+function RailBody({
+  title,
+  folded,
+  onFold,
+  children,
+}: {
+  title: string;
+  folded: boolean;
+  onFold: () => void;
+  children: ReactNode;
+}) {
+  const tCommon = useTranslations('common');
   return (
     <aside
       aria-label={title}
-      className="border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88"
+      className={cn(
+        'border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88',
+        folded && 'lg:hidden',
+      )}
     >
       <div className="sticky top-0 z-10 hidden h-11 items-center justify-between border-border-divider border-b bg-panel ps-5 pe-3 lg:flex">
         <span className="text-card-title text-fg">{title}</span>
@@ -411,7 +437,7 @@ function IssueRail({
             size="sm"
             icon={ExpandPanelIcon}
             aria-label={tCommon('closeSidebar')}
-            onClick={toggle}
+            onClick={onFold}
           />
         </Tooltip>
       </div>

@@ -43,7 +43,9 @@ function DataSettingsPage() {
         description={t('data.subtitle')}
       />
 
-      <ProductsSettings project={project.data} />
+      {/* Keyed: its state seeds once, and the next project must not inherit
+          this one's switches. */}
+      <ProductsSettings key={project.data.id} project={project.data} />
 
       <RateLimitSettings
         project={project.data}

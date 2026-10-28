@@ -4,9 +4,11 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslations } from 'use-intl';
+import { getProjects } from '@/features/project/api/queries';
 import { TimeZoneSync } from '@/features/user/ui/components/time-zone-sync';
 import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
+import { COMMAND_BAR_PROJECT_LIMIT } from '@/shared/config/commands';
 import { Link } from '@/shared/ui/components/link';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
 import { Button } from '@/shared/ui/components/shadcn/button';
@@ -50,6 +52,9 @@ export const Route = createFileRoute('/_authenticated')({
 
     return answer;
   },
+  // The sidebar's switcher and the command bar. A loader rather than a read in
+  // the sidebar, so it re-runs on navigation and on `router.refresh()`.
+  loader: () => getProjects({ per_page: COMMAND_BAR_PROJECT_LIMIT }),
   component: AuthenticatedLayout,
   errorComponent: MainError,
 });

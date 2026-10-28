@@ -2329,8 +2329,9 @@ export class Transactions extends HeyApiClient {
     
     /**
      * GET /api/projects/{project_id}/transactions/stats
-     * Returns paginated aggregate performance stats (count, p50/p95/p99 latency,
-     * failure rate) grouped by transaction name + op, most frequent first.
+     * Returns paginated aggregate performance stats (count, time spent, p50/p95/p99
+     * latency, failure rate) grouped by transaction name + op, the most time spent
+     * first unless `sort` asks otherwise.
      */
     public getStats<ThrowOnError extends boolean = false>(options: Options<TransactionsGetStatsData, ThrowOnError>): RequestResult<TransactionsGetStatsResponses, TransactionsGetStatsErrors, ThrowOnError> {
         return (options.client ?? this.client).get<TransactionsGetStatsResponses, TransactionsGetStatsErrors, ThrowOnError>({
@@ -2367,8 +2368,9 @@ export class Transactions extends HeyApiClient {
     
     /**
      * Returns one endpoint's trend over the window, every bucket present:
-     * how often it ran and failed, and its p50 and p95. Without a window, the
-     * last 14 days.
+     * how often it ran and failed, and its p50 and p95. Without a window, back
+     * to its oldest call and never less than the last 24 hours, which is also
+     * what an endpoint with no calls gets.
      */
     public getStatGroupTimeseries<ThrowOnError extends boolean = false>(options: Options<TransactionsGetStatGroupTimeseriesData, ThrowOnError>): RequestResult<TransactionsGetStatGroupTimeseriesResponses, TransactionsGetStatGroupTimeseriesErrors, ThrowOnError> {
         return (options.client ?? this.client).get<TransactionsGetStatGroupTimeseriesResponses, TransactionsGetStatGroupTimeseriesErrors, ThrowOnError>({

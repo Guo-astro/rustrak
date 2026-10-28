@@ -23,8 +23,13 @@ export interface AppRouter {
   push(href: string): void;
   replace(href: string): void;
   back(): void;
-  /** Re-run the loaders for the routes currently on screen. */
-  refresh(): Promise<void>;
+  /**
+   * Re-run the loaders for the routes currently on screen. A loaded route
+   * revalidates in the background, so the promise settles before the new data
+   * unless `sync` is set: then it waits for the loaders, which is what an
+   * optimistic update awaiting it inside a transition needs.
+   */
+  refresh(options?: { sync?: boolean }): Promise<void>;
 }
 
 export function useRouter(): AppRouter {
@@ -42,7 +47,7 @@ export function useRouter(): AppRouter {
       back: () => {
         router.history.back();
       },
-      refresh: () => router.invalidate(),
+      refresh: (options) => router.invalidate({ sync: options?.sync }),
     }),
     [navigate, router],
   );

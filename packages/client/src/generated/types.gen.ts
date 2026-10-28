@@ -2139,6 +2139,11 @@ export type SubscriptionResponse = {
 export type TagSummary = {
     key: string;
     top_values: Array<TagValueCount>;
+    /**
+     * The scanned events carrying the tag, whatever its value: Sentry's
+     * `totalValues` (`GroupTagKey.count`), so each top value's share is its
+     * `count` over this.
+     */
     total_values: number;
 };
 
@@ -6830,7 +6835,7 @@ export type ReleasesListData = {
     };
     query?: {
         /**
-         * Count only this environment
+         * Only the releases seen in this environment, and count only it
          */
         environment?: string;
         /**
@@ -7396,6 +7401,10 @@ export type TransactionsListData = {
          * Filter by release.
          */
         release?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
         /**
          * `slowest` for the longest first; newest first otherwise.
          */

@@ -16,6 +16,7 @@ import {
   deleteIntegration,
   testIntegration,
 } from '@/features/alert/api/mutations';
+import { slackDefaults } from '@/features/alert/model/integration-forms';
 import { ConfirmDeleteDialog } from '@/features/alert/ui/components/confirm-delete-dialog';
 import { ProviderForm } from '@/features/alert/ui/components/integration-config-dialog/provider-form';
 import { ProviderIcon } from '@/features/alert/ui/components/provider-icon';
@@ -133,7 +134,11 @@ export function ProviderSettings({
               integration={integration}
               provider={provider}
               onConfigure={() => onEdit(integration.id)}
-              onTest={() => handleTest(integration)}
+              onTest={() =>
+                asksForDestination(provider, integration)
+                  ? onEdit(integration.id)
+                  : handleTest(integration)
+              }
               onDelete={() => setDeleting(integration)}
             />
           ))}
@@ -159,6 +164,20 @@ export function ProviderSettings({
         onClose={() => setDeleting(null)}
       />
     </>
+  );
+}
+
+/**
+ * Email and a Slack bot are told where a test goes, and their form is where
+ * that is asked: from the list, Test opens it rather than sending nowhere.
+ */
+function asksForDestination(
+  provider: ProviderType,
+  integration: AlertIntegration,
+): boolean {
+  return (
+    provider === 'email' ||
+    (provider === 'slack' && slackDefaults(integration).method === 'bot_token')
   );
 }
 

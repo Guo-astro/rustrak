@@ -43,15 +43,33 @@ async fn event(pool: &DbPool, project_id: i32, release: &str, env: &str, hours_a
     .unwrap();
 }
 
-async fn new_issue(pool: &DbPool, project_id: i32, release: &str, digest_order: i32) {
+async fn new_issue(pool: &DbPool, project_id: i32, release: &str, digest_order: i32) -> Uuid {
+    let id = Uuid::new_v4();
     let now = Utc::now();
     sqlx::query(
         "INSERT INTO issues (id, project_id, digest_order, first_seen, last_seen, status, first_release) \
          VALUES ($1, $2, $3, $4, $4, 'unresolved', $5)",
     )
-    .bind(Uuid::new_v4())
+    .bind(id)
     .bind(project_id)
     .bind(digest_order)
+    .bind(now)
+    .bind(release)
+    .execute(pool)
+    .await
+    .unwrap();
+    id
+}
+
+async fn issue_seen_in(pool: &DbPool, project_id: i32, issue_id: Uuid, env: &str, release: &str) {
+    let now = Utc::now();
+    sqlx::query(
+        "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen, first_release) \
+         VALUES ($1, $2, $3, $4, $4, $5)",
+    )
+    .bind(issue_id)
+    .bind(project_id)
+    .bind(env)
     .bind(now)
     .bind(release)
     .execute(pool)
@@ -106,7 +124,8 @@ async fn seed(pool: &DbPool) -> i32 {
     event(pool, p, "1.0.0", "production", 2).await;
     event(pool, p, "1.0.0", "production", 48).await;
     event(pool, p, "1.0.0", "staging", 3).await;
-    new_issue(pool, p, "1.0.0", 1).await;
+    let issue = new_issue(pool, p, "1.0.0", 1).await;
+    issue_seen_in(pool, p, issue, "production", "1.0.0").await;
     sessions(pool, p, "1.0.0", "production", 1, 80, 20).await;
     sessions(pool, p, "0.9.0", "production", 72, 20, 0).await;
     user(pool, p, "1.0.0", "a", false).await;
@@ -191,6 +210,31 @@ async fn an_environment_narrows_events_and_sessions() {
 
     assert_eq!(busy.event_count, 1);
     assert_eq!(busy.sessions, 0);
+    // Sentry's per-environment count: the issue was only ever in production.
+    assert_eq!(busy.new_issues, 0);
+}
+
+#[actix_web::test]
+async fn an_environment_narrows_the_numbers_not_the_releases() {
+    let db = TestDb::new().await;
+    let p = seed(&db.pool).await;
+    let all = ReleaseService::summaries(&db.pool, p, &SummaryFilter::default())
+        .await
+        .unwrap();
+
+    let filter = SummaryFilter {
+        environment: Some("staging".to_string()),
+        ..Default::default()
+    };
+    let rows = ReleaseService::summaries(&db.pool, p, &filter)
+        .await
+        .unwrap();
+
+    let versions: Vec<_> = rows.iter().map(|r| r.version.as_str()).collect();
+    assert_eq!(versions, ["2.0.0", "1.0.0", "0.9.0"]);
+    // Its age is the release's, not the environment's.
+    assert_eq!(rows[1].date_created, all[1].date_created);
+    assert_eq!(rows[1].first_event, all[1].first_event);
 }
 
 #[actix_web::test]
@@ -244,4 +288,23 @@ async fn the_api_pages_the_list_and_answers_one_release() {
 
     let missing = test::call_service(&app, get(format!("/api/projects/{p}/releases/9.9.9"))).await;
     assert_eq!(missing.status(), 404);
+
+    // As Sentry's list: an environment keeps the releases seen in it...
+    let staging: Value = test::call_and_read_body_json(
+        &app,
+        get(format!("/api/projects/{p}/releases?environment=staging")),
+    )
+    .await;
+    assert_eq!(staging["total_count"], 1);
+    assert_eq!(staging["items"][0]["version"], "1.0.0");
+
+    // ...while a release is still itself there, with nothing to count.
+    let idle: Value = test::call_and_read_body_json(
+        &app,
+        get(format!(
+            "/api/projects/{p}/releases/0.9.0?environment=staging"
+        )),
+    )
+    .await;
+    assert_eq!(idle["sessions"], 0);
 }

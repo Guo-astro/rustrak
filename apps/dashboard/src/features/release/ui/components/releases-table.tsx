@@ -16,9 +16,22 @@ import { AdoptionBar, HealthRate, VersionName } from './release-figures';
 
 const column = createDataTableColumnHelper<ReleaseSummary>();
 
-/** A release's own page; the version is a path segment. */
-export function releaseHref(projectId: number, version: string) {
-  return `/projects/${projectId}/releases/${encodeURIComponent(version)}`;
+/** What the list is scoped to, carried into a release's own page. */
+interface ReleaseScope {
+  environment?: string;
+  period?: string;
+}
+
+/**
+ * A release's own page; the version is a path segment. It opens on the list's
+ * scope, so its figures are the ones its row showed.
+ */
+function releaseHref(projectId: number, version: string, scope: ReleaseScope) {
+  const search = new URLSearchParams();
+  if (scope.environment) search.set('environment', scope.environment);
+  if (scope.period) search.set('period', scope.period);
+  const query = search.size > 0 ? `?${search}` : '';
+  return `/projects/${projectId}/releases/${encodeURIComponent(version)}${query}`;
 }
 
 /**
@@ -35,6 +48,7 @@ export function ReleasesTable({
   loading,
   environments,
   period,
+  scope,
 }: {
   projectId: number;
   page: ReleasesListResponse;
@@ -47,6 +61,7 @@ export function ReleasesTable({
   environments: string[];
   /** The window, beside the query bar. */
   period: ReactNode;
+  scope: ReleaseScope;
 }) {
   const t = useTranslations('releases');
   const format = useFormatter();
@@ -219,7 +234,7 @@ export function ReleasesTable({
         loading={loading}
         className="min-h-0 flex-1"
         onRowClick={(row) =>
-          router.push(releaseHref(projectId, row.original.version))
+          router.push(releaseHref(projectId, row.original.version, scope))
         }
         empty={{ title: t('emptyWindow') }}
       />

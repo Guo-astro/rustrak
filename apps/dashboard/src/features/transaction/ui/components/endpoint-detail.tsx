@@ -22,7 +22,6 @@ import {
 import { Link } from '@/shared/ui/components/link';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 import type { Async } from '@/shared/ui/hooks/use-async';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 /*
  * The pieces of an endpoint's page. The page lays them out the way the
@@ -291,7 +290,6 @@ export function SlowestSamples({
 }) {
   const t = useTranslations('performance.detail');
   const format = useFormatter();
-  const router = useRouter();
   if (rows.length === 0) {
     return <p className="px-5 text-fg-subtle text-meta">{t('noSamples')}</p>;
   }
@@ -317,18 +315,14 @@ export function SlowestSamples({
           const failed = row.status != null && row.status !== 'ok';
           const href = `/projects/${projectId}/performance/${row.id}`;
           return (
-            // The whole row opens the trace; the duration stays the link,
-            // so the keyboard and a middle click still have one.
-            <tr
-              key={row.id}
-              onClick={() => router.push(href)}
-              className="cursor-pointer hover:bg-surface-hover"
-            >
+            // The whole row opens the trace: the duration's link stretches
+            // over it, so a click, the keyboard and a middle click all reach
+            // the one link.
+            <tr key={row.id} className="relative hover:bg-surface-hover">
               <td className="w-2/5 px-5 py-2.5">
                 <Link
                   href={href}
-                  onClick={(event) => event.stopPropagation()}
-                  className="flex items-center gap-3"
+                  className="flex items-center gap-3 after:absolute after:inset-0"
                 >
                   <span className="w-16 shrink-0 text-right font-mono text-fg text-mono-sm tabular-nums">
                     {row.duration_ms == null

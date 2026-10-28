@@ -1,5 +1,4 @@
 import type {
-  IssuePriority,
   IssueResponse,
   Result,
   RustrakError,
@@ -24,6 +23,7 @@ import {
 import {
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useTransition,
@@ -72,11 +72,18 @@ export function useIssueChange(projectId: number, issue: IssueResponse) {
   };
 }
 
-/** True while the reader is typing, when single-key shortcuts stand down. */
+/**
+ * True while a key belongs to something else, when single-key shortcuts stand
+ * down: a field being typed in, and a dialog or menu with focus -- an `r` in
+ * the delete confirmation must not resolve the issue behind it, and a menu's
+ * typeahead must not also run the page's action.
+ */
 function typing(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
   return Boolean(
-    element?.closest('input, textarea, select, [contenteditable="true"]'),
+    element?.closest(
+      'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
+    ),
   );
 }
 
@@ -86,8 +93,12 @@ function typing(target: EventTarget | null): boolean {
  * shortcuts are untouched.
  */
 export function useShortcuts(keys: Record<string, () => void>) {
+  // The listener is added once and reads the latest keys through this ref,
+  // written after each commit -- never during a render React may discard.
   const latest = useRef(keys);
-  latest.current = keys;
+  useLayoutEffect(() => {
+    latest.current = keys;
+  });
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -139,12 +150,10 @@ export function IssueActionBar({
 
   const resolve = () =>
     update({ status: resolved ? 'unresolved' : 'resolved' });
+  // Plain `ignored`: nothing on the server brings an archived issue back when
+  // it escalates yet, so the page does not offer to wait for that.
   const archive = () =>
-    update(
-      archived
-        ? { status: 'unresolved' }
-        : { status: 'ignored', substatus: 'archived_until_escalating' },
-    );
+    update(archived ? { status: 'unresolved' } : { status: 'ignored' });
   const bookmark = () =>
     run(
       () => setIssueBookmark(projectId, issue.id, !issue.is_bookmarked),
@@ -198,6 +207,9 @@ export function IssueActionBar({
         : t('actions.bookmark'),
       icon: StarIcon,
       shortcut: 'B',
+      // A toggle chosen again before the first settles would send the same
+      // value twice instead of toggling back, as the shortcuts already avoid.
+      disabled: isPending,
       onSelect: bookmark,
     },
     {
@@ -206,6 +218,7 @@ export function IssueActionBar({
         ? t('actions.unsubscribe')
         : t('actions.subscribe'),
       icon: NotificationIcon,
+      disabled: isPending,
       onSelect: subscribe,
     },
     {
@@ -227,7 +240,7 @@ export function IssueActionBar({
       label: t('table.assignToMe'),
       shortcut: 'I',
       separated: true,
-      disabled: issue.assigned_to === me,
+      disabled: isPending || issue.assigned_to === me,
       onSelect: () => update({ assigned_to: me }),
     },
     {
@@ -279,46 +292,23 @@ export function IssueActionBar({
         </SplitButton>
       )}
 
-      {feedback || archived ? (
-        <Button
-          variant="secondary"
-          icon={MuteIcon}
-          disabled={isPending}
-          onClick={archive}
-          shortcut="E"
-        >
-          {feedback
-            ? archived
-              ? t('actions.moveToInbox')
-              : t('actions.markSpam')
-            : t('actions.unarchive')}
-        </Button>
-      ) : (
-        <SplitButton
-          variant="secondary"
-          icon={MuteIcon}
-          onClick={archive}
-          disabled={isPending}
-          menuLabel={t('detail.moreArchiveOptions')}
-          actions={[
-            {
-              id: 'escalating',
-              label: t('detail.archiveUntilEscalating'),
-              hint: t('detail.archiveUntilEscalatingHint'),
-              shortcut: 'E',
-              onSelect: archive,
-            },
-            {
-              id: 'forever',
-              label: t('detail.archiveForever'),
-              onSelect: () =>
-                update({ status: 'ignored', substatus: 'archived_forever' }),
-            },
-          ]}
-        >
-          {t('actions.archive')}
-        </SplitButton>
-      )}
+      {/* One archive, with no "until escalating" beside it: that variant
+          waits for the server to reopen issues that escalate. */}
+      <Button
+        variant="secondary"
+        icon={MuteIcon}
+        disabled={isPending}
+        onClick={archive}
+        shortcut="E"
+      >
+        {feedback
+          ? archived
+            ? t('actions.moveToInbox')
+            : t('actions.markSpam')
+          : archived
+            ? t('actions.unarchive')
+            : t('actions.archive')}
+      </Button>
 
       <span
         aria-hidden="true"
@@ -388,6 +378,3 @@ export function IssueActionBar({
     </div>
   );
 }
-
-/** The priorities, highest first, for the rail's picker. */
-export const PRIORITIES: IssuePriority[] = ['high', 'medium', 'low'];

@@ -8558,7 +8558,7 @@
           {
             "name": "environment",
             "in": "query",
-            "description": "Count only this environment",
+            "description": "Only the releases seen in this environment, and count only it",
             "required": false,
             "schema": {
               "type": "string"
@@ -9839,6 +9839,18 @@
             }
           },
           {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "sort",
             "in": "query",
             "description": "`slowest` for the longest first; newest first otherwise.",
@@ -10002,7 +10014,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, p50/p95/p99 latency,\nfailure rate) grouped by transaction name + op, most frequent first.",
+        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, time spent, p50/p95/p99\nlatency, failure rate) grouped by transaction name + op, the most time spent\nfirst unless `sort` asks otherwise.",
         "operationId": "transactions.getStats",
         "parameters": [
           {
@@ -10335,7 +10347,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, the\nlast 14 days.",
+        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, back\nto its oldest call and never less than the last 24 hours, which is also\nwhat an endpoint with no calls gets.",
         "operationId": "transactions.getStatGroupTimeseries",
         "parameters": [
           {
@@ -17982,6 +17994,7 @@
           },
           "total_values": {
             "type": "integer",
+            "description": "The scanned events carrying the tag, whatever its value: Sentry's\n`totalValues` (`GroupTagKey.count`), so each top value's share is its\n`count` over this.",
             "minimum": 0
           }
         }

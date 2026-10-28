@@ -107,8 +107,15 @@ pub async fn list_issues(
     // Bulk-compute per-issue user_count/trend for this page in one request
     // (avoids the list UI firing one aggregates/stats call per visible row).
     let issue_ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();
-    let list_stats =
-        IssueService::list_stats(pool.get_ref(), &issue_ids, query.environment.as_deref()).await?;
+    let list_stats = IssueService::list_stats(
+        pool.get_ref(),
+        &issue_ids,
+        Scope {
+            environment: query.environment.as_deref(),
+            release: query.release.as_deref(),
+        },
+    )
+    .await?;
 
     // Build responses
     let responses: Vec<_> = issues
