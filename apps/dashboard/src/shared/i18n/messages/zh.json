@@ -715,7 +715,9 @@
       "templateRequired": "模板不能为空",
       "headerNameRequired": "请求头名称不能为空",
       "headerNameInvalid": "不是有效的 HTTP 请求头名称：不能包含空格或 :、@ 等符号",
-      "headerNameDuplicate": "该请求头已设置"
+      "headerNameDuplicate": "该请求头已设置",
+      "cooldownMinutes": "请输入 0 或更大的整数分钟数",
+      "minEvents": "请输入 1 或更大的整数"
     },
     "routing": {
       "slackChannelRequired": "必须为 “{name}” 指定 Slack 频道",
@@ -1045,7 +1047,9 @@
       "name": "名称",
       "namePlaceholder": "例如：生产环境新问题发邮件",
       "environmentsHint": "必须发生在哪里。",
-      "summary": "摘要"
+      "summary": "摘要",
+      "newEnvironment": "新环境",
+      "addEnvironment": "添加"
     },
     "list": {
       "paused": "已暂停",

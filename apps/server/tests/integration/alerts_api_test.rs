@@ -1526,11 +1526,8 @@ async fn test_history_by_day_counts_every_delivery_in_the_window() {
     )
     .await
     .expect("rule creation must succeed");
-    let today = Utc::now()
-        .date_naive()
-        .and_hms_opt(12, 0, 0)
-        .unwrap()
-        .and_utc();
+    let now = Utc::now();
+    let today = now.date_naive().and_hms_opt(12, 0, 0).unwrap().and_utc();
     // 150 sent today, 2 failed and 1 skipped two days ago, one sent outside
     // the window, and one for no rule at all.
     let mut rows = vec![("sent", today, Some(rule.id)); 150];
@@ -1555,7 +1552,7 @@ async fn test_history_by_day_counts_every_delivery_in_the_window() {
         .expect("history insert must succeed");
     }
 
-    let days = AlertService::history_by_day(&db.pool, project_id, Some(rule.id), 14)
+    let days = AlertService::history_by_day(&db.pool, project_id, Some(rule.id), 14, now)
         .await
         .expect("daily history must load");
 
@@ -1569,4 +1566,97 @@ async fn test_history_by_day_counts_every_delivery_in_the_window() {
     let two_ago = &days[11];
     assert_eq!((two_ago.sent, two_ago.failed, two_ago.skipped), (0, 2, 1));
     assert_eq!(days.iter().map(|d| d.sent).sum::<i64>(), 150);
+}
+
+/// An event delivered before alert ids carried the project left a key of the
+/// form `event-{event_id}-{type}-…`. Replayed now, it must still read as done.
+#[tokio::test]
+async fn test_legacy_event_keys_still_block_a_replay() {
+    let db = TestDb::new().await;
+    let project_id = create_test_project(&db.pool).await;
+    let project = ProjectService::get_by_id(&db.pool, project_id)
+        .await
+        .expect("project lookup must succeed");
+    let channel = AlertService::create_channel(
+        &db.pool,
+        CreateNotificationChannel {
+            name: "Legacy Webhook".to_string(),
+            provider_type: ChannelType::Webhook,
+            credentials: json!({ "url": "https://example.com/webhook" }),
+            is_enabled: true,
+        },
+    )
+    .await
+    .expect("channel creation must succeed");
+    let rule = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        CreateAlertRule {
+            name: "Regressions".to_string(),
+            alert_type: AlertType::Regression,
+            channels: vec![AlertRuleChannelInput {
+                integration_id: channel.id,
+                routing_override: json!({}),
+            }],
+            conditions: json!({}),
+            cooldown_minutes: 60,
+        },
+    )
+    .await
+    .expect("rule creation must succeed");
+    sqlx::query("UPDATE alert_rules SET last_triggered_at = $1 WHERE id = $2")
+        .bind(Utc::now())
+        .bind(rule.id)
+        .execute(&db.pool)
+        .await
+        .expect("cooldown setup must succeed");
+    let event_id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO alert_history (alert_rule_id, project_id, alert_type, channel_type, channel_name, status, idempotency_key) VALUES ($1, $2, 'regression', 'webhook', 'legacy', 'sent', $3)",
+    )
+    .bind(rule.id)
+    .bind(project_id)
+    .bind(format!("event-{event_id}-regression-{}", channel.id))
+    .execute(&db.pool)
+    .await
+    .expect("legacy history insert must succeed");
+    let issue = IssueService::create(
+        &db.pool,
+        project_id,
+        Utc::now(),
+        &DenormalizedFields {
+            calculated_type: "Error".to_string(),
+            calculated_value: "legacy replay".to_string(),
+            transaction: "/test".to_string(),
+            last_frame_filename: "test.rs".to_string(),
+            last_frame_module: "test".to_string(),
+            last_frame_function: "test".to_string(),
+            culprit: "test".to_string(),
+            logger: String::new(),
+            release: String::new(),
+        },
+        Some("error"),
+        Some("rust"),
+    )
+    .await
+    .expect("issue creation must succeed");
+
+    AlertService::trigger_event_alert(
+        &db.pool,
+        &project,
+        &issue,
+        AlertType::Regression,
+        event_id,
+        Default::default(),
+        "https://dashboard.example.com",
+    )
+    .await
+    .expect("replay must succeed");
+
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM alert_history WHERE project_id = $1")
+        .bind(project_id)
+        .fetch_one(&db.pool)
+        .await
+        .expect("history count must succeed");
+    assert_eq!(rows, 1);
 }

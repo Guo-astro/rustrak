@@ -775,6 +775,7 @@ fn default_limit() -> i64 {
     ),
     responses(
         (status = 200, description = "Alert history", body = Vec<crate::models::AlertHistory>),
+        (status = 400, description = "Invalid query parameter"),
         (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
         (status = 404, description = "Project not found", body = crate::error::ErrorResponse),
     ),
@@ -832,6 +833,7 @@ fn default_days() -> i64 {
     ),
     responses(
         (status = 200, description = "Deliveries per UTC day, oldest first", body = Vec<crate::models::AlertHistoryDay>),
+        (status = 400, description = "Invalid query parameter"),
         (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
         (status = 404, description = "Project not found", body = crate::error::ErrorResponse),
     ),
@@ -857,8 +859,14 @@ pub async fn history_by_day(
     let _ = ProjectService::get_by_id(pool.get_ref(), project_id).await?;
 
     let days = query.days.clamp(1, 90);
-    let history =
-        AlertService::history_by_day(pool.get_ref(), project_id, query.rule_id, days).await?;
+    let history = AlertService::history_by_day(
+        pool.get_ref(),
+        project_id,
+        query.rule_id,
+        days,
+        chrono::Utc::now(),
+    )
+    .await?;
     Ok(HttpResponse::Ok().json(history))
 }
 

@@ -170,7 +170,8 @@ export type AlertHistory = {
 };
 
 /**
- * One UTC day of a rule's deliveries, by outcome.
+ * One UTC day of deliveries, by outcome: one rule's when the request named
+ * a rule, the whole project's otherwise.
  */
 export type AlertHistoryDay = {
     /**
@@ -4880,6 +4881,10 @@ export type AlertRulesListHistoryData = {
 
 export type AlertRulesListHistoryErrors = {
     /**
+     * Invalid query parameter
+     */
+    400: unknown;
+    /**
      * Unauthorized
      */
     401: ErrorResponse;
@@ -4922,6 +4927,10 @@ export type AlertRulesHistoryByDayData = {
 };
 
 export type AlertRulesHistoryByDayErrors = {
+    /**
+     * Invalid query parameter
+     */
+    400: unknown;
     /**
      * Unauthorized
      */

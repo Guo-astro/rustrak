@@ -715,7 +715,9 @@
       "templateRequired": "La plantilla es obligatoria",
       "headerNameRequired": "El nombre de la cabecera es obligatorio",
       "headerNameInvalid": "No es un nombre de cabecera HTTP válido: sin espacios ni símbolos como : o @",
-      "headerNameDuplicate": "Esta cabecera ya está definida"
+      "headerNameDuplicate": "Esta cabecera ya está definida",
+      "cooldownMinutes": "Introduce un número entero de minutos, 0 o más",
+      "minEvents": "Introduce un número entero, 1 o más"
     },
     "routing": {
       "slackChannelRequired": "Se requiere un canal de Slack para «{name}»",
@@ -1045,7 +1047,9 @@
       "name": "Nombre",
       "namePlaceholder": "p. ej. Problemas nuevos en producción por email",
       "environmentsHint": "Dónde tiene que ocurrir.",
-      "summary": "Resumen"
+      "summary": "Resumen",
+      "newEnvironment": "Nuevo entorno",
+      "addEnvironment": "Añadir"
     },
     "list": {
       "paused": "En pausa",

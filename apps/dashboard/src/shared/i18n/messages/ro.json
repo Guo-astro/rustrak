@@ -715,7 +715,9 @@
       "templateRequired": "Șablonul este obligatoriu",
       "headerNameRequired": "Numele antetului este obligatoriu",
       "headerNameInvalid": "Nume de antet HTTP invalid: fără spații sau simboluri precum : sau @",
-      "headerNameDuplicate": "Acest antet este deja setat"
+      "headerNameDuplicate": "Acest antet este deja setat",
+      "cooldownMinutes": "Introdu un număr întreg de minute, 0 sau mai mult",
+      "minEvents": "Introdu un număr întreg, 1 sau mai mult"
     },
     "routing": {
       "slackChannelRequired": "Canalul Slack este obligatoriu pentru „{name}”",
@@ -1045,7 +1047,9 @@
       "name": "Nume",
       "namePlaceholder": "ex. Probleme noi în producție prin email",
       "environmentsHint": "Unde trebuie să se întâmple.",
-      "summary": "Rezumat"
+      "summary": "Rezumat",
+      "newEnvironment": "Mediu nou",
+      "addEnvironment": "Adaugă"
     },
     "list": {
       "paused": "În pauză",

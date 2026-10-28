@@ -3,7 +3,10 @@ import type {
   AlertRuleResponse,
   AlertType,
 } from '@rustrak/client';
-import { formFromConditions } from '@/shared/lib/rule-conditions';
+import {
+  environmentsOf,
+  formFromConditions,
+} from '@/shared/lib/rule-conditions';
 
 /** The cooldowns offered as one click: every time, 5 minutes, an hour, a day. */
 export const COOLDOWN_PRESETS = [0, 5, 60, 1440] as const;
@@ -21,7 +24,10 @@ export function cooldownUnit(
   return { unit: 'minute', value: minutes };
 }
 
-/** A rule as the sentence reads it. */
+/**
+ * A rule as the sentence reads it. A disabled integration is left out of
+ * whom it notifies: dispatch skips it, so nothing is sent through it.
+ */
 export function ruleShape(
   rule: AlertRuleResponse,
   integrations: AlertIntegration[],
@@ -30,14 +36,13 @@ export function ruleShape(
   const linked = new Set(rule.integration_ids);
   return {
     type: rule.alert_type,
-    environments: filters.environments
-      .split(',')
-      .map((e) => e.trim())
-      .filter(Boolean),
+    environments: environmentsOf(rule.conditions),
     minLevel: filters.min_level,
     minEvents: filters.min_events,
     cooldownMinutes: rule.cooldown_minutes,
-    channels: integrations.filter((i) => linked.has(i.id)).map((i) => i.name),
+    channels: integrations
+      .filter((i) => i.is_enabled && linked.has(i.id))
+      .map((i) => i.name),
   };
 }
 

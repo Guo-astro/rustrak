@@ -5,7 +5,7 @@ import type {
   AlertType,
 } from '@rustrak/client';
 import { Button, cn, Input, TestIcon, Text } from '@rustrak/ui';
-import { type ReactNode, useMemo, useTransition } from 'react';
+import { type ReactNode, useMemo, useState, useTransition } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -29,6 +29,7 @@ import { useChannelRouting } from '@/features/alert/ui/hooks/use-channel-routing
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import {
   conditionsFromForm,
+  environmentsOf,
   formFromConditions,
   levels,
 } from '@/shared/lib/rule-conditions';
@@ -76,6 +77,7 @@ export function RuleEditor({
       is_enabled: rule?.is_enabled ?? true,
       cooldown_minutes: rule?.cooldown_minutes ?? DEFAULT_COOLDOWN,
       ...formFromConditions(rule?.conditions ?? {}),
+      environments: environmentsOf(rule?.conditions ?? {}),
     },
   });
 
@@ -184,8 +186,10 @@ export function RuleEditor({
                 type="number"
                 min={1}
                 boxClassName="w-28"
+                invalid={Boolean(form.formState.errors.min_events)}
                 {...form.register('min_events', { valueAsNumber: true })}
               />
+              <FieldError name="min_events" />
             </Row>
           ) : null}
 
@@ -227,7 +231,7 @@ export function RuleEditor({
             <RuleSentence
               rule={{
                 type: values.alert_type,
-                environments: splitEnvs(values.environments),
+                environments: values.environments,
                 // Feedback has no level; one left in the form is not saved.
                 minLevel:
                   values.alert_type === 'new_feedback'
@@ -263,11 +267,14 @@ export function RuleEditor({
 
 const dirty = { shouldDirty: true } as const;
 
-const splitEnvs = (line: string) =>
-  line
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
+/** A field's validation message, under it. */
+function FieldError({ name }: { name: 'cooldown_minutes' | 'min_events' }) {
+  const { formState } = useFormContext<AlertRuleFormData>();
+  const message = formState.errors[name]?.message;
+  return message ? (
+    <span className="text-sev-error-fg text-meta">{message}</span>
+  ) : null;
+}
 
 /** What the alert fires on, one card per trigger. */
 function TriggerRow() {
@@ -282,7 +289,19 @@ function TriggerRow() {
             key={type}
             type="button"
             aria-pressed={current === type}
-            onClick={() => form.setValue('alert_type', type, dirty)}
+            onClick={() => {
+              form.setValue('alert_type', type, dirty);
+              // Only new issues show the event count; one left invalid
+              // there would block the save from a field no longer on screen.
+              const minEvents = form.getValues('min_events');
+              if (
+                type !== 'new_issue' &&
+                !(Number.isInteger(minEvents) && minEvents >= 1)
+              ) {
+                form.setValue('min_events', 1);
+                form.clearErrors('min_events');
+              }
+            }}
             className={cn(
               'flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-surface-hover',
               current === type
@@ -303,18 +322,28 @@ function TriggerRow() {
   );
 }
 
-/** Which environments count: all, or the ones picked. */
+/**
+ * Which environments count: all, or the ones picked -- from those the project
+ * has seen, or a name typed in, so a rule can wait for an environment that has
+ * not sent anything yet.
+ */
 function EnvironmentsRow({ environments }: { environments: string[] }) {
   const t = useTranslations('alerts');
   const form = useFormContext<AlertRuleFormData>();
-  const chosenEnvs = splitEnvs(form.watch('environments'));
+  const [draft, setDraft] = useState('');
+  const chosenEnvs = form.watch('environments');
   const chosen = new Set(chosenEnvs);
   const envOptions = [...new Set([...environments, ...chosenEnvs])];
   const setEnvs = (next: string[]) =>
-    form.setValue('environments', next.join(', '), dirty);
+    form.setValue('environments', next, dirty);
+  const add = () => {
+    const name = draft.trim();
+    if (name && !chosen.has(name)) setEnvs([...chosenEnvs, name]);
+    setDraft('');
+  };
   return (
     <Row label={t('editor.environments')} hint={t('editor.environmentsHint')}>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Chip selected={chosen.size === 0} onClick={() => setEnvs([])}>
           {t('editor.allEnvironments')}
         </Chip>
@@ -334,6 +363,24 @@ function EnvironmentsRow({ environments }: { environments: string[] }) {
             {env}
           </Chip>
         ))}
+        <Input
+          value={draft}
+          placeholder={t('editor.newEnvironment')}
+          aria-label={t('editor.newEnvironment')}
+          boxClassName="w-40"
+          className="font-mono"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            add();
+          }}
+          action={
+            <Button size="sm" variant="ghost" onClick={add}>
+              {t('editor.addEnvironment')}
+            </Button>
+          }
+        />
       </div>
     </Row>
   );
@@ -396,9 +443,11 @@ function FrequencyRow() {
               {t('ruleDialog.minutesUnit')}
             </span>
           }
+          invalid={Boolean(form.formState.errors.cooldown_minutes)}
           {...form.register('cooldown_minutes', { valueAsNumber: true })}
         />
       </div>
+      <FieldError name="cooldown_minutes" />
     </Row>
   );
 }

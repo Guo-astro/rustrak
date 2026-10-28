@@ -715,7 +715,9 @@
       "templateRequired": "Template is required",
       "headerNameRequired": "Header name is required",
       "headerNameInvalid": "Not a valid HTTP header name: no spaces or symbols like : or @",
-      "headerNameDuplicate": "This header is already set"
+      "headerNameDuplicate": "This header is already set",
+      "cooldownMinutes": "Enter a whole number of minutes, 0 or more",
+      "minEvents": "Enter a whole number, 1 or more"
     },
     "routing": {
       "slackChannelRequired": "Slack channel is required for \"{name}\"",
@@ -1045,7 +1047,9 @@
       "name": "Name",
       "namePlaceholder": "e.g. New issues in production by email",
       "environmentsHint": "Where it has to happen.",
-      "summary": "Summary"
+      "summary": "Summary",
+      "newEnvironment": "New environment",
+      "addEnvironment": "Add"
     },
     "list": {
       "paused": "Paused",

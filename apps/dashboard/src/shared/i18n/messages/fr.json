@@ -715,7 +715,9 @@
       "templateRequired": "Le modèle est requis",
       "headerNameRequired": "Le nom de l'en-tête est requis",
       "headerNameInvalid": "Nom d'en-tête HTTP invalide : pas d'espaces ni de symboles comme : ou @",
-      "headerNameDuplicate": "Cet en-tête est déjà défini"
+      "headerNameDuplicate": "Cet en-tête est déjà défini",
+      "cooldownMinutes": "Saisissez un nombre entier de minutes, 0 ou plus",
+      "minEvents": "Saisissez un nombre entier, 1 ou plus"
     },
     "routing": {
       "slackChannelRequired": "Un canal Slack est requis pour « {name} »",
@@ -1045,7 +1047,9 @@
       "name": "Nom",
       "namePlaceholder": "ex. Nouveaux problèmes en production par email",
       "environmentsHint": "Où cela doit se produire.",
-      "summary": "Résumé"
+      "summary": "Résumé",
+      "newEnvironment": "Nouvel environnement",
+      "addEnvironment": "Ajouter"
     },
     "list": {
       "paused": "En pause",

@@ -4418,6 +4418,9 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid query parameter"
+          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -4498,6 +4501,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid query parameter"
           },
           "401": {
             "description": "Unauthorized",
@@ -13907,7 +13913,7 @@
       },
       "AlertHistoryDay": {
         "type": "object",
-        "description": "One UTC day of a rule's deliveries, by outcome.",
+        "description": "One UTC day of deliveries, by outcome: one rule's when the request named\na rule, the whole project's otherwise.",
         "required": [
           "day",
           "sent",

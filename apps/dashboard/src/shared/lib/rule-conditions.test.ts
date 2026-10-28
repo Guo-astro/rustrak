@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { conditionsFromForm, formFromConditions } from './rule-conditions';
+import {
+  conditionsFromForm,
+  environmentsOf,
+  formFromConditions,
+} from './rule-conditions';
 
 describe('conditionsFromForm', () => {
   it('saves no level for feedback, which has no level to filter on', () => {
@@ -40,6 +44,26 @@ describe('conditionsFromForm', () => {
     expect(conditionsFromForm({ alert_type: 'regression', ...filled })).toEqual(
       { min_level: 'error', environments: ['production', 'staging'] },
     );
+  });
+
+  it('keeps a picked environment whole, commas and all', () => {
+    // The alert editor picks names rather than typing a line; a name with a
+    // comma is one environment, not two.
+    expect(
+      conditionsFromForm({
+        alert_type: 'regression',
+        min_level: 'any',
+        environments: ['eu,west', ' prod '],
+        min_events: 1,
+      }),
+    ).toEqual({ environments: ['eu,west', 'prod'] });
+  });
+});
+
+describe('environmentsOf', () => {
+  it('reads the stored list, or none', () => {
+    expect(environmentsOf({ environments: ['eu,west'] })).toEqual(['eu,west']);
+    expect(environmentsOf({})).toEqual([]);
   });
 });
 

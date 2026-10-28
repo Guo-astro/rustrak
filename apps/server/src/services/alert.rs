@@ -671,12 +671,21 @@ impl AlertService {
         }
         // A replayed event fires only the rules that have not recorded it:
         // rules commit one by one, so a crash can leave some done and some not.
+        // Keys written before alert ids carried the project
+        // (`event-{event_id}-{type}-…`) were one per trigger and still count.
         if let Some(alert_id) = &stable_alert_id {
+            let legacy = alert_id
+                .strip_prefix(&format!("event-{}-", project.id))
+                .map(|rest| format!("event-{rest}-%"));
             let recorded: bool = sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM alert_history WHERE alert_rule_id = $1 AND idempotency_key LIKE $2)",
+                "SELECT EXISTS(SELECT 1 FROM alert_history WHERE \
+                 (alert_rule_id = $1 AND idempotency_key LIKE $2) \
+                 OR (project_id = $3 AND idempotency_key LIKE $4))",
             )
             .bind(rule.id)
             .bind(format!("{alert_id}-%"))
+            .bind(project.id)
+            .bind(legacy)
             .fetch_one(pool)
             .await?;
             if recorded {
@@ -988,16 +997,17 @@ impl AlertService {
         Ok(history)
     }
 
-    /// Deliveries per UTC day over the last `days` days, oldest first, the
-    /// empty days included; with `rule_id`, only that rule's.
+    /// Deliveries per UTC day over the `days` days up to `now`, oldest first,
+    /// the empty days included; with `rule_id`, only that rule's.
     pub async fn history_by_day(
         pool: &DbPool,
         project_id: i32,
         rule_id: Option<i32>,
         days: i64,
+        now: DateTime<Utc>,
     ) -> AppResult<Vec<AlertHistoryDay>> {
         const DAY: i64 = 86_400;
-        let first = Utc::now().timestamp().div_euclid(DAY) * DAY - (days - 1) * DAY;
+        let first = now.timestamp().div_euclid(DAY) * DAY - (days - 1) * DAY;
         let epoch = super::scope::epoch("created_at");
         let sql = format!(
             "SELECT ({epoch} / {DAY}) * {DAY} AS day, status, COUNT(*) \

@@ -495,7 +495,8 @@ pub struct AlertHistory {
     pub sent_at: Option<DateTime<Utc>>,
 }
 
-/// One UTC day of a rule's deliveries, by outcome.
+/// One UTC day of deliveries, by outcome: one rule's when the request named
+/// a rule, the whole project's otherwise.
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AlertHistoryDay {

@@ -104,7 +104,8 @@ export const zAgentTraceSummary = z.object({
 });
 
 /**
- * One UTC day of a rule's deliveries, by outcome.
+ * One UTC day of deliveries, by outcome: one rule's when the request named
+ * a rule, the whole project's otherwise.
  */
 export const zAlertHistoryDay = z.object({
     day: z.iso.datetime({ offset: true }),

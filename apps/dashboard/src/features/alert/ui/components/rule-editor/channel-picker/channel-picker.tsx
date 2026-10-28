@@ -1,4 +1,5 @@
 import type { AlertIntegration } from '@rustrak/client';
+import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { routingNeedsOf } from '@/features/alert/lib/routing';
 import type { AlertRuleFormData } from '@/features/alert/model/alert-rule-form';
@@ -31,6 +32,9 @@ export function ChannelPicker({
   // two lists grow together, so a linear lookup per row is quadratic in the
   // number of integrations a project has configured.
   const selected = new Set(selectedIds);
+  // A disabled channel the rule had when the editor opened stays on screen,
+  // so one deselected by mistake can be picked again before saving.
+  const [linked] = useState(() => new Set(selectedIds));
 
   const toggle = (id: number, selected: boolean) => {
     const current = getValues('selected_integration_ids');
@@ -52,9 +56,9 @@ export function ChannelPicker({
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-2">
         {/* A disabled channel never delivers, so it is not offered; one the
-            rule already uses stays, marked, so it can be removed. */}
+            rule already used stays, marked, so it can be removed. */}
         {integrations
-          .filter((i) => i.is_enabled || selected.has(i.id))
+          .filter((i) => i.is_enabled || linked.has(i.id))
           .map((integration) => {
             const isSelected = selected.has(integration.id);
             const error = routing.errors[integration.id];
