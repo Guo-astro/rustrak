@@ -39,6 +39,48 @@ const SORTS: Record<string, NonNullable<ListQuery['sort']>> = {
   priority: 'priority',
 };
 
+/** The largest page the list endpoint serves (`per_page` 1..=100). */
+const MAX_PAGE_SIZE = 100;
+
+/** The filters whose values are a fixed set the server reads. */
+const SEEN = new Set<string>(SEEN_WINDOWS);
+const FIXED_VALUES: Record<string, ReadonlySet<string>> = {
+  firstSeen: SEEN,
+  lastSeen: SEEN,
+};
+
+/**
+ * The query as the server will actually apply it. Whatever it would ignore
+ * or refuse -- a second sort, a sort on a column it cannot sort, a window it
+ * cannot parse, a page larger than it serves -- is dropped here, because the
+ * address would otherwise keep it and claim a list the request never asked
+ * for.
+ */
+export function withServerQuery(
+  query: DataTableQuery,
+  pageSize = 50,
+): DataTableQuery {
+  const sort = query.sorting.find((s) => Object.hasOwn(SORTS, s.id));
+  const filters = query.filters.flatMap((filter) => {
+    const allowed = FIXED_VALUES[filter.id];
+    if (!allowed || !Array.isArray(filter.value)) return [filter];
+    const value = filter.value.filter((v) => allowed.has(String(v)));
+    return value.length ? [{ ...filter, value }] : [];
+  });
+  return {
+    ...query,
+    sorting: sort ? [sort] : [],
+    filters,
+    pagination: {
+      ...query.pagination,
+      pageSize:
+        query.pagination.pageSize > MAX_PAGE_SIZE
+          ? pageSize
+          : query.pagination.pageSize,
+    },
+  };
+}
+
 type ListQuery = NonNullable<IssuesListData['query']>;
 
 const STATUS: Record<IssueView, NonNullable<ListQuery['filter']>> = {
@@ -94,7 +136,8 @@ export function issueListParams(
   }
 
   const sort = query.sorting[0];
-  params.sort = (sort && SORTS[sort.id]) || 'last_seen';
+  params.sort =
+    (sort && Object.hasOwn(SORTS, sort.id) && SORTS[sort.id]) || 'last_seen';
   params.order = sort && !sort.desc ? 'asc' : 'desc';
   params.page = query.pagination.pageIndex + 1;
   params.per_page = query.pagination.pageSize;

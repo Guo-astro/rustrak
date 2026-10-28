@@ -1,6 +1,7 @@
 import type { AttachmentInfo, FeedbackResponse } from '@rustrak/client';
 import {
   ArrowRightIcon,
+  AttachmentIcon,
   Avatar,
   BackIcon,
   Button,
@@ -16,9 +17,11 @@ import {
 } from '@rustrak/ui';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { feedbackSender } from '@/features/issue/model/feedback-mailbox';
+import {
+  feedbackSender,
+  isWebUrl,
+} from '@/features/issue/model/feedback-mailbox';
 import { Link } from '@/shared/ui/components/link';
-import { AttachmentIcon } from './feedback-list';
 
 const STATUS_TONE: Record<string, TagTone> = {
   resolved: 'brand',
@@ -73,7 +76,7 @@ export function FeedbackDetail({
           <div className="flex min-w-0 flex-col gap-0.5">
             <div className="flex min-w-0 items-center gap-2">
               <h2 className="truncate text-fg text-title">
-                {feedback.name || t('anonymous')}
+                {sender || t('anonymous')}
               </h2>
               {STATUS_TONE[feedback.status] ? (
                 <Tag variant="soft" tone={STATUS_TONE[feedback.status]}>
@@ -165,15 +168,21 @@ export function FeedbackDetail({
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 rounded-lg border border-border bg-panel p-4 text-body">
           {feedback.url ? (
             <Fact label={t('page')}>
-              <a
-                href={feedback.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex max-w-full items-center gap-1.5 font-mono text-fg-secondary text-mono-sm hover:text-fg hover:underline"
-              >
-                <span className="truncate">{feedback.url}</span>
-                <ExternalLinkIcon size="sm" aria-hidden="true" />
-              </a>
+              {isWebUrl(feedback.url) ? (
+                <a
+                  href={feedback.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex max-w-full items-center gap-1.5 font-mono text-fg-secondary text-mono-sm hover:text-fg hover:underline"
+                >
+                  <span className="truncate">{feedback.url}</span>
+                  <ExternalLinkIcon size="sm" aria-hidden="true" />
+                </a>
+              ) : (
+                <span className="block truncate font-mono text-fg-secondary text-mono-sm">
+                  {feedback.url}
+                </span>
+              )}
             </Fact>
           ) : null}
           <Fact label={t('linkedError')}>

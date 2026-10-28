@@ -5,6 +5,7 @@ import {
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -230,6 +231,9 @@ export function DataTable<TData extends RowData>({
     event: KeyboardEvent<HTMLTableRowElement>,
     row: Row<DataTableFeatures, TData>,
   ) {
+    // Cmd+K, Ctrl+J, Cmd+ArrowDown belong to the browser or the app, not to
+    // the row: the plain keys are the row's.
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
     const step = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }[event.key];
     if (step) {
       event.preventDefault();
@@ -496,6 +500,8 @@ function Resizer<TData extends RowData>({
   const labels = useDataTableLabels();
   const [dragging, setDragging] = useState(false);
   const handle = useRef<HTMLDivElement>(null);
+  const endDrag = useRef<(() => void) | null>(null);
+  useEffect(() => () => endDrag.current?.(), []);
   // The flexible column has no width in state; what it is drawn at is still
   // its value, and a separator a screen reader can move must say one.
   const [drawn, setDrawn] = useState(width ?? 0);
@@ -516,21 +522,30 @@ function Resizer<TData extends RowData>({
     handle.parentElement?.getBoundingClientRect().width ?? width ?? 0;
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
+    // The primary button only: a right-click opens a menu, it does not drag.
+    if (event.button !== 0) return;
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = drawnWidth(event.currentTarget);
 
     const move = (moved: globalThis.PointerEvent) =>
       resize(startWidth + moved.clientX - startX);
+    // A drag ends on release, on a cancelled touch or pen, or when the handle
+    // goes away mid-drag; any of them, or the column keeps following the
+    // pointer.
     const end = () => {
       setDragging(false);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      endDrag.current = null;
     };
 
     setDragging(true);
+    endDrag.current = end;
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
   }
 
   return (

@@ -45,4 +45,12 @@ describe('matchParts', () => {
     ]);
     expect(matchParts('text', '  ')).toEqual([{ text: 'text', match: false }]);
   });
+
+  it('marks the match itself when a letter before it lowercases longer', () => {
+    // `İ` lowercases to two code units, which shifted every later position.
+    expect(matchParts('İ error', 'error')).toEqual([
+      { text: 'İ ', match: false },
+      { text: 'error', match: true },
+    ]);
+  });
 });

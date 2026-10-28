@@ -5,14 +5,15 @@ import { useFormatter, useTranslations } from 'use-intl';
 import { formatRunDuration } from '@/features/monitor/lib/duration';
 import { monitorHref } from '@/features/monitor/lib/href';
 import {
+  HEALTH_MARK,
   lastCheckIn,
   monitorHealth,
+  lastRun as newestRun,
   nextCheckIn,
 } from '@/features/monitor/lib/status';
 import { Link } from '@/shared/ui/components/link';
 import { ScheduleText } from '@/shared/ui/components/schedule-text';
 import { CheckInStrip, StripAxis } from './check-in-strip';
-import { HEALTH_MARK } from './monitor-status';
 
 const COLUMNS =
   'md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_8rem_8rem] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,2fr)_8rem_8rem]';
@@ -85,9 +86,7 @@ function MonitorRow({
   const [now] = useState(() => Date.now());
   const last = lastCheckIn(monitor);
   const next = nextCheckIn(monitor);
-  const lastRun = monitor.environments
-    .flatMap((env) => env.recent_checkins)
-    .find((c) => c.status !== 'in_progress' && c.duration_ms !== null);
+  const lastRun = newestRun(monitor);
   const late = next !== null && Date.parse(next) < now;
 
   return (

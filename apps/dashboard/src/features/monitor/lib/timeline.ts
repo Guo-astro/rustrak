@@ -33,17 +33,15 @@ export function successRate(buckets: MonitorStatsBucket[]): number | null {
 
 /**
  * The mean duration over the window. A bucket's mean only covers its runs
- * that reported one, which a missed run never does; its finished runs other
- * than missed ones are the weight.
+ * that reported one, and those are its weight: a run may finish without one.
  */
 export function windowDuration(buckets: MonitorStatsBucket[]): number | null {
   let sum = 0;
   let weight = 0;
   for (const b of buckets) {
     if (b.avg_duration_ms === null) continue;
-    const runs = b.ok + b.error + b.timeout;
-    sum += b.avg_duration_ms * runs;
-    weight += runs;
+    sum += b.avg_duration_ms * b.duration_count;
+    weight += b.duration_count;
   }
   return weight ? sum / weight : null;
 }

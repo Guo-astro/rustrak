@@ -310,6 +310,9 @@ pub struct ListTransactionsQuery {
     /// Filter by release.
     pub release: Option<String>,
 
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+
     /// `slowest` for the longest first; newest first otherwise.
     #[cfg_attr(feature = "openapi", param(inline))]
     pub sort: Option<TransactionListSort>,

@@ -1,12 +1,5 @@
 import type { TransactionDetailResponse } from '@rustrak/client';
-import {
-  CopyIcon,
-  cn,
-  formatSpanDuration,
-  Tag,
-  Waterfall,
-  type WaterfallSpan,
-} from '@rustrak/ui';
+import { CopyIcon, cn, formatSpanDuration, Tag, Waterfall } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
@@ -17,6 +10,7 @@ import {
   type MeasurementRow,
   readMeasurements,
   readTransactionPayload,
+  type WaterfallRow,
   waterfallSpans,
 } from '@/features/transaction/lib/transaction-payload';
 import { endpointHref } from '@/features/transaction/model/endpoints';
@@ -225,7 +219,7 @@ function measurement(row: MeasurementRow): string {
 }
 
 /** The trace, the selected span's facts opening under its row. */
-function Trace({ rows, name }: { rows: WaterfallSpan[]; name: string }) {
+function Trace({ rows, name }: { rows: WaterfallRow[]; name: string }) {
   const t = useTranslations('performance.transaction');
   const [selected, setSelected] = useState<string | null>(null);
   return (
@@ -241,7 +235,11 @@ function Trace({ rows, name }: { rows: WaterfallSpan[]; name: string }) {
           spans={rows}
           selectedId={selected}
           onSelect={(span) => setSelected(span?.id ?? null)}
-          renderDetail={(span) => <SpanFacts span={span} />}
+          renderDetail={(span) => {
+            // The waterfall hands back its own span type; ours has self time.
+            const row = rows.find((r) => r.id === span.id);
+            return row ? <SpanFacts span={row} /> : null;
+          }}
           showMissingInstrumentation
           label={t('traceOf', { name })}
         />
@@ -252,12 +250,13 @@ function Trace({ rows, name }: { rows: WaterfallSpan[]; name: string }) {
   );
 }
 
-function SpanFacts({ span }: { span: WaterfallSpan }) {
+function SpanFacts({ span }: { span: WaterfallRow }) {
   const t = useTranslations('performance.transaction');
   const facts: [string, ReactNode][] = [
     [t('op'), span.op],
     [t('description'), span.description],
     [t('duration'), formatSpanDuration(span.endMs - span.startMs)],
+    [t('selfTime'), formatSpanDuration(span.selfMs)],
     [t('start'), `+${formatSpanDuration(span.startMs)}`],
     [t('status'), span.status],
     [t('spanId'), span.id],

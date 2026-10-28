@@ -1364,6 +1364,11 @@ export type MonitorStatsBucket = {
      * Where the bucket starts.
      */
     bucket: string;
+    /**
+     * How many check-ins reported a duration: the mean's weight when buckets
+     * are averaged together.
+     */
+    duration_count: number;
     error: number;
     in_progress: number;
     missed: number;
@@ -2218,6 +2223,11 @@ export type SubscriptionResponse = {
 export type TagSummary = {
     key: string;
     top_values: Array<TagValueCount>;
+    /**
+     * The scanned events carrying the tag, whatever its value: Sentry's
+     * `totalValues` (`GroupTagKey.count`), so each top value's share is its
+     * `count` over this.
+     */
     total_values: number;
 };
 
@@ -6648,6 +6658,44 @@ export type LogsVolumeResponses = {
 
 export type LogsVolumeResponse = LogsVolumeResponses[keyof LogsVolumeResponses];
 
+export type LogsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * Log ID
+         */
+        log_id: string;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/logs/{log_id}';
+};
+
+export type LogsGetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type LogsGetError = LogsGetErrors[keyof LogsGetErrors];
+
+export type LogsGetResponses = {
+    /**
+     * The log
+     */
+    200: LogResponse;
+};
+
+export type LogsGetResponse = LogsGetResponses[keyof LogsGetResponses];
+
 export type MembersListData = {
     body?: never;
     path: {
@@ -7086,7 +7134,7 @@ export type ReleasesListData = {
     };
     query?: {
         /**
-         * Count only this environment
+         * Only the releases seen in this environment, and count only it
          */
         environment?: string;
         /**
@@ -7652,6 +7700,10 @@ export type TransactionsListData = {
          * Filter by release.
          */
         release?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
         /**
          * `slowest` for the longest first; newest first otherwise.
          */

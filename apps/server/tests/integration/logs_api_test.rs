@@ -378,3 +378,100 @@ async fn test_log_volume_without_a_window_starts_at_the_oldest_log() {
         .sum();
     assert_eq!(total, 5);
 }
+
+fn volume_total(body: &Value) -> i64 {
+    body.as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            ["trace", "debug", "info", "warn", "error", "fatal"]
+                .iter()
+                .map(|l| p[*l].as_i64().unwrap())
+                .sum::<i64>()
+        })
+        .sum()
+}
+
+#[actix_web::test]
+async fn test_log_volume_counts_a_log_from_a_clock_ahead() {
+    let (db, project, token) = recent_and_old_logs().await;
+    let ahead = Utc::now().timestamp() as f64 + 3600.0;
+    store_logs(
+        &db.pool,
+        project,
+        serde_json::json!([{"timestamp": ahead, "level": "info", "body": "from tomorrow"}]),
+    )
+    .await;
+
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs/volume?period=24h"),
+        &token,
+    )
+    .await;
+    // The three recent logs and the one ahead, as the list counts them.
+    assert_eq!(volume_total(&body), 4);
+}
+
+#[actix_web::test]
+async fn test_list_logs_finds_an_accented_message() {
+    let (db, project, token) = recent_and_old_logs().await;
+    store_logs(
+        &db.pool,
+        project,
+        serde_json::json!([{"timestamp": Utc::now().timestamp() as f64, "level": "error", "body": "Échec du paiement"}]),
+    )
+    .await;
+
+    let body = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs?query=%C3%89chec"),
+        &token,
+    )
+    .await;
+    assert_eq!(body["total_count"], 1);
+}
+
+#[actix_web::test]
+async fn test_get_log_answers_for_its_project_only() {
+    let (db, project, token) = recent_and_old_logs().await;
+    let list = get_json(&db.pool, &format!("/api/projects/{project}/logs"), &token).await;
+    let id = list["items"][0]["id"].as_str().unwrap().to_string();
+
+    let log = get_json(
+        &db.pool,
+        &format!("/api/projects/{project}/logs/{id}"),
+        &token,
+    )
+    .await;
+    assert_eq!(log["id"], id.as_str());
+    assert_eq!(log["body"], list["items"][0]["body"]);
+
+    let other = ProjectService::create(
+        &db.pool,
+        CreateProject {
+            name: "Elsewhere".to_string(),
+            slug: None,
+            platform: None,
+        },
+    )
+    .await
+    .unwrap();
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db.pool.clone()))
+            .app_data(web::Data::new(create_test_config()))
+            .configure(routes::logs::configure),
+    )
+    .await;
+    for uri in [
+        format!("/api/projects/{}/logs/{id}", other.id),
+        format!("/api/projects/{project}/logs/{}", Uuid::new_v4()),
+    ] {
+        let req = test::TestRequest::get()
+            .uri(&uri)
+            .insert_header(("Authorization", format!("Bearer {}", token)))
+            .to_request();
+        assert_eq!(test::call_service(&app, req).await.status(), 404, "{uri}");
+    }
+}

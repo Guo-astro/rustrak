@@ -25,7 +25,14 @@ import {
   useDataTable,
 } from '@rustrak/ui';
 import type { Row } from '@tanstack/react-table';
-import { useCallback, useMemo, useRef, useState, useTransition } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import {
@@ -34,6 +41,7 @@ import {
   deleteIssue,
   updateIssueState,
 } from '@/features/issue/api/mutations';
+import type { IssueView } from '@/features/issue/model/issue-table';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 import { DeleteIssuesDialog } from './delete-issues-dialog';
 import { type Assignable, issueColumns } from './issue-columns';
@@ -46,10 +54,14 @@ type Change =
   | { priority: IssuePriority }
   | { assigned_to: number | null };
 
+/** Some issues, read when the menu item is chosen rather than when built. */
+type Pick = () => IssueResponse[];
+
 interface IssuesTableProps {
   projectId: number;
   page: IssuesListResponse;
   query: DataTableQuery;
+  view: IssueView;
   onQueryChange: (
     updater: (previous: DataTableQuery) => DataTableQuery,
   ) => void;
@@ -71,6 +83,7 @@ export function IssuesTable({
   projectId,
   page,
   query,
+  view,
   onQueryChange,
   loading,
   members,
@@ -87,8 +100,8 @@ export function IssuesTable({
   const [now] = useState(() => Date.now());
 
   const columns = useMemo(
-    () => issueColumns({ t, format, members, me, now }),
-    [t, format, members, me, now],
+    () => issueColumns({ projectId, t, format, members, me, now }),
+    [projectId, t, format, members, me, now],
   );
 
   const fields = useMemo<QueryField[]>(
@@ -132,9 +145,11 @@ export function IssuesTable({
         toast.error(t('toasts.updateFailed'), {
           description: result.error.message,
         });
-        return;
+      } else {
+        table.resetRowSelection();
       }
-      table.resetRowSelection();
+      // On a failure too: in a batch assignment the others went through, and
+      // the rows have to show what the server now holds.
       router.refresh();
     });
 
@@ -162,16 +177,117 @@ export function IssuesTable({
       router.refresh();
     });
 
-  /*
-   * The menus are built once per column set rather than once per render, so
-   * they reach this render's handlers through a ref whose identity never
-   * changes.
-   */
+  const { priorityItems, assignItems, rowMenu } = useIssueMenus({
+    members,
+    me,
+    apply,
+    setDeleting,
+  });
+
+  const table = useDataTable({
+    data: page.items,
+    columns,
+    rowCount: page.total_count,
+    query,
+    onQueryChange,
+    getRowId: (issue) => issue.id,
+    enableSelection: true,
+    rowMenu,
+    storageKey: 'issues',
+    initialVisibility: { level: false },
+  });
+
+  const selected = () =>
+    table.getSelectedRowModel().rows.map((row) => row.original);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <QueryBar
+          className="min-w-0 flex-1"
+          fields={fields}
+          filters={query.filters}
+          search={query.search}
+          onChange={(next) =>
+            onQueryChange((previous) => ({
+              ...previous,
+              filters: next.filters,
+              search: next.search,
+              pagination: { ...previous.pagination, pageIndex: 0 },
+            }))
+          }
+        />
+        <DataTableColumnsButton table={table} />
+      </div>
+
+      <DataTable
+        table={table}
+        loading={loading || isPending}
+        className="min-h-0 flex-1"
+        onRowClick={(row) =>
+          router.push(`/projects/${projectId}/issues/${row.original.id}`)
+        }
+        empty={{
+          title: t('empty.title'),
+          // True only of an empty Open view with nothing narrowing it: an
+          // empty Resolved view says nothing about what is still open.
+          description:
+            view === 'open' && !query.filters.length && !query.search
+              ? t('empty.allResolved')
+              : undefined,
+        }}
+        bulkActions={
+          <BulkActions
+            selected={selected}
+            disabled={isPending}
+            apply={apply}
+            onDelete={setDeleting}
+            priorityItems={priorityItems}
+            assignItems={assignItems}
+          />
+        }
+      />
+
+      <DeleteIssuesDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        count={deleting?.length ?? 0}
+        isPending={isPending}
+        onConfirm={confirmDelete}
+      />
+    </div>
+  );
+}
+
+/**
+ * The menus a row and a ticked batch share: priority, assignee, and the row's
+ * own list of actions.
+ *
+ * They are built once per column set rather than once per render, so they
+ * reach the latest handlers through a ref whose identity never changes. It is
+ * written after each render, never during one.
+ */
+function useIssueMenus({
+  members,
+  me,
+  apply,
+  setDeleting,
+}: {
+  members: Assignable[];
+  me: number;
+  apply: (issues: IssueResponse[], change: Change) => void;
+  setDeleting: (issues: IssueResponse[]) => void;
+}) {
+  const t = useTranslations('issues');
   const handlers = useRef({ apply, setDeleting });
-  handlers.current = { apply, setDeleting };
+  useLayoutEffect(() => {
+    handlers.current = { apply, setDeleting };
+  });
 
   const priorityItems = useCallback(
-    (issues: () => IssueResponse[], current?: string | null): MenuAction[] =>
+    (issues: Pick, current?: string | null): MenuAction[] =>
       PRIORITIES.map((priority) => ({
         id: priority,
         label: t(`issueStatus.${priority}`),
@@ -182,7 +298,7 @@ export function IssuesTable({
   );
 
   const assignItems = useCallback(
-    (issues: () => IssueResponse[], current?: number | null): MenuAction[] => [
+    (issues: Pick, current?: number | null): MenuAction[] => [
       {
         id: 'me',
         label: t('table.assignToMe'),
@@ -270,120 +386,77 @@ export function IssuesTable({
     [t, priorityItems, assignItems],
   );
 
-  const table = useDataTable({
-    data: page.items,
-    columns,
-    rowCount: page.total_count,
-    query,
-    onQueryChange,
-    getRowId: (issue) => issue.id,
-    enableSelection: true,
-    rowMenu,
-    storageKey: 'issues',
-    initialVisibility: { level: false },
-  });
+  return { priorityItems, assignItems, rowMenu };
+}
 
-  const selected = () =>
-    table.getSelectedRowModel().rows.map((row) => row.original);
-
+/** What a ticked batch can have done to it, in the table's header. */
+function BulkActions({
+  selected,
+  disabled,
+  apply,
+  onDelete,
+  priorityItems,
+  assignItems,
+}: {
+  selected: Pick;
+  disabled: boolean;
+  apply: (issues: IssueResponse[], change: Change) => void;
+  onDelete: (issues: IssueResponse[]) => void;
+  priorityItems: (issues: Pick) => MenuAction[];
+  assignItems: (issues: Pick) => MenuAction[];
+}) {
+  const t = useTranslations('issues');
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <QueryBar
-          className="min-w-0 flex-1"
-          fields={fields}
-          filters={query.filters}
-          search={query.search}
-          onChange={(next) =>
-            onQueryChange((previous) => ({
-              ...previous,
-              filters: next.filters,
-              search: next.search,
-              pagination: { ...previous.pagination, pageIndex: 0 },
-            }))
-          }
-        />
-        <DataTableColumnsButton table={table} />
-      </div>
-
-      <DataTable
-        table={table}
-        loading={loading || isPending}
-        className="min-h-0 flex-1"
-        onRowClick={(row) =>
-          router.push(`/projects/${projectId}/issues/${row.original.id}`)
-        }
-        empty={{
-          title: t('empty.title'),
-          description:
-            query.filters.length || query.search
-              ? undefined
-              : t('empty.allResolved'),
-        }}
-        bulkActions={
-          <>
-            <Button
-              size="xs"
-              variant="primary"
-              icon={ResolveIcon}
-              disabled={isPending}
-              onClick={() => apply(selected(), { status: 'resolved' })}
-            >
-              {t('actions.resolve')}
-            </Button>
-            <Button
-              size="xs"
-              variant="secondary"
-              icon={MuteIcon}
-              disabled={isPending}
-              onClick={() => apply(selected(), { status: 'ignored' })}
-            >
-              {t('actions.mute')}
-            </Button>
-            <Menu
-              actions={priorityItems(selected)}
-              trigger={
-                <Button size="xs" variant="secondary" menu disabled={isPending}>
-                  {t('priority')}
-                </Button>
-              }
-            />
-            <Menu
-              actions={assignItems(selected)}
-              trigger={
-                <Button
-                  size="xs"
-                  variant="secondary"
-                  icon={AssignIcon}
-                  menu
-                  disabled={isPending}
-                >
-                  {t('table.assign')}
-                </Button>
-              }
-            />
-            <Button
-              size="xs"
-              variant="danger"
-              icon={DeleteIcon}
-              disabled={isPending}
-              onClick={() => setDeleting(selected())}
-            >
-              {t('actions.delete')}
-            </Button>
-          </>
+    <>
+      <Button
+        size="xs"
+        variant="primary"
+        icon={ResolveIcon}
+        disabled={disabled}
+        onClick={() => apply(selected(), { status: 'resolved' })}
+      >
+        {t('actions.resolve')}
+      </Button>
+      <Button
+        size="xs"
+        variant="secondary"
+        icon={MuteIcon}
+        disabled={disabled}
+        onClick={() => apply(selected(), { status: 'ignored' })}
+      >
+        {t('actions.mute')}
+      </Button>
+      <Menu
+        actions={priorityItems(selected)}
+        trigger={
+          <Button size="xs" variant="secondary" menu disabled={disabled}>
+            {t('priority')}
+          </Button>
         }
       />
-
-      <DeleteIssuesDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
-        }}
-        count={deleting?.length ?? 0}
-        isPending={isPending}
-        onConfirm={confirmDelete}
+      <Menu
+        actions={assignItems(selected)}
+        trigger={
+          <Button
+            size="xs"
+            variant="secondary"
+            icon={AssignIcon}
+            menu
+            disabled={disabled}
+          >
+            {t('table.assign')}
+          </Button>
+        }
       />
-    </div>
+      <Button
+        size="xs"
+        variant="danger"
+        icon={DeleteIcon}
+        disabled={disabled}
+        onClick={() => onDelete(selected())}
+      >
+        {t('actions.delete')}
+      </Button>
+    </>
   );
 }

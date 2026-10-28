@@ -1,5 +1,6 @@
 import type { FeedbackListResponse, FeedbackResponse } from '@rustrak/client';
 import {
+  AttachmentIcon,
   Avatar,
   Button,
   ChevronLeftIcon,
@@ -7,19 +8,15 @@ import {
   cn,
   ErrorIcon,
   focusRingInset,
-  fromLucide,
   LinkIcon,
   Text,
 } from '@rustrak/ui';
-import { Paperclip } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import {
   feedbackSender,
   shortUrl,
 } from '@/features/issue/model/feedback-mailbox';
-
-export const AttachmentIcon = fromLucide('AttachmentIcon', Paperclip);
 
 /**
  * The inbox's left column: who wrote, when, and the start of what they said,

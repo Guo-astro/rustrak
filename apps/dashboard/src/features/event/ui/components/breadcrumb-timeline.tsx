@@ -73,7 +73,10 @@ export function BreadcrumbTimeline({
                 <span className="ms-1 text-fg-ghost">×{count}</span>
               ) : null}
             </span>
-            <span className="min-w-0 flex-1 truncate text-value text-fg-secondary">
+            {/* Wraps rather than truncates: a log line or a request is often
+                the whole point of the crumb, and a row without data has no
+                expanded state to show the rest in. */}
+            <span className="min-w-0 flex-1 break-words text-value text-fg-secondary">
               {crumb.message ?? ''}
             </span>
             {crumb.timestamp ? (

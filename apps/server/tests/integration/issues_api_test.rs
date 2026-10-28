@@ -1666,6 +1666,18 @@ async fn test_list_issues_filters_by_level_and_priority() {
 }
 
 #[actix_web::test]
+async fn test_an_issue_without_a_level_is_filtered_as_error() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "Levelless Project").await;
+    let levelless = create_test_issue(&db.pool, project.id, "Levelless", "a").await;
+    set_issue(&db.pool, levelless.id, "level = NULL").await;
+
+    // The list shows it as an error, so the Error filter has to find it.
+    let by_level = list_titles(&db.pool, project.id, "level=error").await;
+    assert_eq!(by_level, vec!["Levelless: a"]);
+}
+
+#[actix_web::test]
 async fn test_list_issues_filters_by_assignee() {
     let db = TestDb::new().await;
     let project = create_test_project(&db.pool, "Assignee Filter Project").await;

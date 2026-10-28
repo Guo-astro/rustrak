@@ -52,7 +52,7 @@ export interface DataTableLabels {
   clearAll: string;
 }
 
-export const ENGLISH_LABELS: DataTableLabels = {
+const ENGLISH_LABELS: DataTableLabels = {
   locale: 'en-US',
   selected: (count) => `${count} selected`,
   clearSelection: 'Clear',

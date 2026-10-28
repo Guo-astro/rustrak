@@ -8,7 +8,11 @@ import {
   serializeTableQuery,
   Text,
 } from '@rustrak/ui';
-import { createFileRoute, useRouterState } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  redirect,
+  useRouterState,
+} from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import {
   getProject,
@@ -29,6 +33,8 @@ import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { useAsync } from '@/shared/ui/hooks/use-async';
 
 const PAGE_SIZE = 25;
+/** `list_releases`'s own cap on `per_page`. */
+const MAX_PAGE_SIZE = 100;
 
 /** `environment:` is the one key the bar takes; the rest is the version. */
 const VARIANTS: FilterVariants = { environment: 'options' };
@@ -47,7 +53,14 @@ function tableQuery(search: ReleasesSearch): DataTableQuery {
     const value = search[key];
     if (value) params.set(key, value);
   }
-  return parseTableQuery(params, VARIANTS, PAGE_SIZE);
+  const query = parseTableQuery(params, VARIANTS, PAGE_SIZE);
+  // The API pages at most 100 releases; a larger `?per=` would have the
+  // table expect rows it never receives, and no next page to reach them.
+  query.pagination.pageSize = Math.min(
+    query.pagination.pageSize,
+    MAX_PAGE_SIZE,
+  );
+  return query;
 }
 
 /** The environment the bar picked, if any. */
@@ -64,11 +77,11 @@ export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
     per: searchString(String(search.per ?? '')) || undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ params, deps }) => {
+  loader: async ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
     const query = tableQuery(deps);
     const period = deps.period ?? DEFAULT_PERIOD;
-    return loadAll([
+    const loaded = await loadAll([
       getProject(projectId),
       listReleases(projectId, {
         environment: environmentOf(query),
@@ -78,6 +91,23 @@ export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
         per_page: query.pagination.pageSize,
       }),
     ]);
+
+    // A stale or shared `?page=` past the end lands on the last page, not on
+    // an empty table under a positive count.
+    if (loaded.success) {
+      const { total_pages } = loaded.data[1];
+      if (query.pagination.pageIndex + 1 > Math.max(total_pages, 1)) {
+        throw redirect({
+          to: '/projects/$id/releases',
+          params: { id: params.id },
+          search: {
+            ...deps,
+            page: total_pages > 1 ? String(total_pages) : undefined,
+          },
+        });
+      }
+    }
+    return loaded;
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
@@ -172,6 +202,7 @@ function ReleasesPage() {
                 }),
               });
             }}
+            scope={{ environment: environmentOf(query), period: search.period }}
             period={
               <PeriodFilter
                 period={period}
