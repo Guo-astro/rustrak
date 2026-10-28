@@ -715,7 +715,9 @@
       "templateRequired": "Șablonul este obligatoriu",
       "headerNameRequired": "Numele antetului este obligatoriu",
       "headerNameInvalid": "Nume de antet HTTP invalid: fără spații sau simboluri precum : sau @",
-      "headerNameDuplicate": "Acest antet este deja setat"
+      "headerNameDuplicate": "Acest antet este deja setat",
+      "cooldownMinutes": "Introdu un număr întreg de minute, 0 sau mai mult",
+      "minEvents": "Introdu un număr întreg, 1 sau mai mult"
     },
     "routing": {
       "slackChannelRequired": "Canalul Slack este obligatoriu pentru „{name}”",
@@ -756,7 +758,7 @@
       "increaseCooldown": "Crește perioada de așteptare cu {count} minute",
       "minutesUnit": "min",
       "noCooldownLimit": "Fără limită — alerta se declanșează de fiecare dată",
-      "cooldownLimit": "{count, plural, =1 {Cel mult o alertă pe minut per problemă} other {Cel mult o alertă la fiecare # minute per problemă}}",
+      "cooldownLimit": "{count, plural, =1 {Cel mult o alertă pe minut} other {Cel mult o alertă la fiecare # minute}}",
       "fieldAlertType": "Acest tip de alertă",
       "saveFailed": "Salvarea regulii a eșuat",
       "updated": "Regulă de alertă actualizată",
@@ -948,30 +950,6 @@
       "addProvider": "Adaugă {name}",
       "more": "Mai multe acțiuni pentru {name}"
     },
-    "table": {
-      "rule": "Regulă",
-      "trigger": "Declanșator",
-      "channels": "Canale",
-      "enabled": "Activat",
-      "actionsAria": "Acțiuni",
-      "enableAria": "Activează {name}",
-      "editAria": "Editează {name}",
-      "deleteAria": "Șterge {name}"
-    },
-    "settings": {
-      "title": "Setări alerte",
-      "description": "Configurează când se trimit notificări pentru acest proiect.",
-      "addRule": "Adaugă regulă de alertă",
-      "noIntegrationsTitle": "Nicio integrare configurată",
-      "noIntegrationsHint": "Mergi la <link>Setări → Integrări</link> pentru a adăuga întâi integrări.",
-      "noRulesTitle": "Încă nu există reguli de alertă",
-      "noRulesHint": "Creează una pentru a începe să primești notificări.",
-      "updateFailed": "Actualizarea regulii a eșuat",
-      "deleteFailed": "Ștergerea regulii a eșuat",
-      "deleted": "Regulă de alertă ștearsă",
-      "deleteRuleTitle": "Șterge regula de alertă",
-      "deleteRuleDescription": "Sigur ștergi „{name}”? Acțiunea nu poate fi anulată."
-    },
     "providers": {
       "slack": {
         "description": "Trimite alerte către canale Slack prin webhook sau token de bot."
@@ -985,22 +963,6 @@
       "customWebhook": {
         "description": "Trimite un corp scris de tine, în forma pe care o așteaptă endpointul."
       }
-    },
-    "newIssue": {
-      "name": "Problemă nouă",
-      "description": "O problemă nouă este detectată prima dată"
-    },
-    "regression": {
-      "name": "Regresie",
-      "description": "O problemă rezolvată reapare"
-    },
-    "unmute": {
-      "name": "Reactivează",
-      "description": "O problemă amuțită este reactivată"
-    },
-    "newFeedback": {
-      "name": "Feedback nou",
-      "description": "Un utilizator trimite feedback"
     },
     "page": {
       "general": "General",
@@ -1019,6 +981,155 @@
       "deleteDescription": "Regulile de alertă care trimit prin ea nu vor mai livra aici.",
       "unsaved": "Modificări nesalvate",
       "back": "Toate integrările {name}"
+    },
+    "types": {
+      "new_issue": {
+        "name": "Problemă nouă",
+        "description": "Apare o eroare pe care Rustrak nu a mai văzut-o."
+      },
+      "regression": {
+        "name": "Regresie",
+        "description": "O problemă rezolvată revine."
+      },
+      "unmute": {
+        "name": "Reactivare",
+        "description": "O problemă arhivată reapare."
+      },
+      "new_feedback": {
+        "name": "Feedback nou",
+        "description": "Un utilizator trimite feedback din aplicație."
+      }
+    },
+    "sentence": {
+      "when": {
+        "new_issue": "Când apare <strong>o problemă nouă</strong>",
+        "regression": "Când <strong>revine o problemă rezolvată</strong>",
+        "unmute": "Când <strong>se reactivează o problemă arhivată</strong>",
+        "new_feedback": "Când <strong>un utilizator trimite feedback</strong>"
+      },
+      "inEnvironments": " în <strong>{envs}</strong>",
+      "atLevel": ", de nivel <strong>{level}</strong> sau mai sus",
+      "afterEvents": ", după ce ajunge la <strong>{count} evenimente</strong>",
+      "notify": ", anunță <strong>{channels}</strong>",
+      "notifyNobody": ", <strong>încă nu anunță pe nimeni</strong>",
+      "atMostOnce": {
+        "minute": ", cel mult o dată la <strong>{count, plural, one {un minut} few {# minute} other {# de minute}}</strong>.",
+        "hour": ", cel mult o dată la <strong>{count, plural, one {o oră} few {# ore} other {# de ore}}</strong>.",
+        "day": ", cel mult o dată la <strong>{count, plural, one {o zi} few {# zile} other {# de zile}}</strong>."
+      },
+      "everyTime": ", de fiecare dată."
+    },
+    "editor": {
+      "when": "Când",
+      "environments": "Medii",
+      "allEnvironments": "Toate",
+      "level": "Nivel",
+      "anyLevel": "Orice nivel",
+      "levelOrHigher": "{level} sau mai sus",
+      "minEvents": "După acest număr de evenimente",
+      "minEventsHint": "Așteaptă ca o problemă nouă să apară de atâtea ori, pentru a ignora erorile izolate.",
+      "notify": "Anunță",
+      "notifyHint": "Canalele sunt comune tuturor proiectelor; <link>gestionează canalele</link>.",
+      "noChannels": "Încă nu există canale. Adaugă unul în Setări → Integrări.",
+      "frequency": "Cel mult",
+      "frequencyHint": "Cât de des poate notifica această alertă, ca o rafală de erori să trimită o singură alertă.",
+      "every": {
+        "minute": "{count, plural, one {O dată pe minut} few {La # minute} other {La # de minute}}",
+        "hour": "{count, plural, one {O dată pe oră} few {La # ore} other {La # de ore}}",
+        "day": "{count, plural, one {O dată pe zi} few {La # zile} other {La # de zile}}"
+      },
+      "everyTime": "De fiecare dată",
+      "customMinutes": "Personalizat, în minute",
+      "test": "Trimite un test",
+      "testSent": "Test trimis la {channel}",
+      "testFailed": "Testul către {channel} a eșuat",
+      "create": "Creează alerta",
+      "name": "Nume",
+      "namePlaceholder": "ex. Probleme noi în producție prin email",
+      "environmentsHint": "Unde trebuie să se întâmple.",
+      "summary": "Rezumat",
+      "newEnvironment": "Mediu nou",
+      "addEnvironment": "Adaugă"
+    },
+    "list": {
+      "paused": "În pauză",
+      "lastTriggered": "Ultima declanșare {when}",
+      "neverTriggered": "Nu s-a declanșat încă",
+      "enabled": "Activează sau pune pe pauză {name}",
+      "resumed": "Alertă reluată",
+      "pausedToast": "Alertă în pauză"
+    },
+    "overview": {
+      "metaTitle": "Alerte | Rustrak",
+      "ruleMetaTitle": "{name} | Alerte | Rustrak",
+      "title": "Alerte",
+      "loadFailed": "Alertele nu au putut fi încărcate",
+      "activeCount": "{count, plural, =0 {Nicio alertă activă} one {# alertă activă} few {# alerte active} other {# de alerte active}}",
+      "channels": "{count, plural, =0 {Canale} one {# canal} few {# canale} other {# de canale}}",
+      "noChannelsTitle": "Adaugă mai întâi un canal",
+      "noChannelsDescription": "Alertele se trimit prin canale: email, Slack sau un webhook. <link>Adaugă unul în Setări → Integrări</link>, apoi alege-l aici.",
+      "active": "Activă",
+      "delete": "Șterge",
+      "deleted": "Alertă ștearsă",
+      "deleteFailed": "Alerta nu a putut fi ștearsă",
+      "deleteTitle": "Ștergi {name}?",
+      "deleteDescription": "Nu se mai trimite nimic pentru ea. Istoricul trimiterilor se păstrează.",
+      "new": "Alertă nouă",
+      "newSummary": "Ce detectează, pe cine anunță și cât de des.",
+      "newMetaTitle": "Alertă nouă | Rustrak",
+      "edit": "Editează",
+      "editTitle": "Editează {name}",
+      "editMetaTitle": "Editează {name} | Alerte | Rustrak",
+      "emptyTitle": "Încă nu există alerte",
+      "emptyDescription": "Alege despre ce vrei să afli ca să începi. Poți avea oricâte alerte: de exemplu, probleme noi din producție prin email și toate problemele noi pe Slack.",
+      "failedCount": "{count, plural, one {# trimitere eșuată} few {# trimiteri eșuate} other {# de trimiteri eșuate}}",
+      "tabRules": "Alerte",
+      "tabDeliveries": "Trimiteri"
+    },
+    "history": {
+      "title": "Trimiteri",
+      "last14": "Ultimele 14 zile",
+      "chart": "Trimiteri pe zi",
+      "empty": "Nimic trimis încă.",
+      "openIssue": "Deschide problema",
+      "status": {
+        "sent": "Trimisă",
+        "failed": "Eșuată",
+        "pending": "În așteptare",
+        "skipped": "Omisă"
+      },
+      "lastTriggered": "Ultima declanșare",
+      "chartHint": "Trimiteri pe zi: trimise, omise din cauza frecvenței maxime și eșuate",
+      "ruleHint": "Fiecare trimitere a acestei alerte, cu motivul când a eșuat sau a fost omisă",
+      "columns": {
+        "status": "Stare",
+        "alert": "Alertă",
+        "channel": "Canal",
+        "detail": "Problemă și motiv",
+        "when": "Când"
+      },
+      "deletedAlert": "Alertă ștearsă"
+    },
+    "starters": {
+      "new_issue": "Să aflu de probleme noi",
+      "regression": "Să aflu de regresii",
+      "unmute": "Să aflu de probleme reactivate",
+      "new_feedback": "Să aflu de feedback-ul utilizatorilor"
+    },
+    "table": {
+      "alert": "Alertă",
+      "when": "Când",
+      "conditions": "Doar dacă",
+      "notifies": "Anunță",
+      "frequency": "Cel mult",
+      "lastSent": "Ultima declanșare",
+      "active": "Activă",
+      "afterEvents": "după {count} evenimente"
+    },
+    "detail": {
+      "created": "Creată",
+      "setup": "Configurare",
+      "channelFailing": "Eșuează"
     }
   },
   "events": {
@@ -1982,7 +2093,7 @@
       },
       "title": "Integrări",
       "subtitle": "Conectează Rustrak cu uneltele și serviciile tale pentru a automatiza fluxurile de lucru și a fi la curent cu erorile.",
-      "backToAlerts": "Înapoi la setările alertelor",
+      "backToAlerts": "Înapoi la alerte",
       "backToProjects": "Înapoi la proiecte",
       "loadFailed": "Integrările nu au putut fi încărcate",
       "githubLoadFailed": "Conexiunea GitHub nu a putut fi încărcată"

@@ -170,6 +170,20 @@ export type AlertHistory = {
 };
 
 /**
+ * One UTC day of deliveries, by outcome: one rule's when the request named
+ * a rule, the whole project's otherwise.
+ */
+export type AlertHistoryDay = {
+    /**
+     * Midnight UTC.
+     */
+    day: string;
+    failed: number;
+    sent: number;
+    skipped: number;
+};
+
+/**
  * Global alert integration record — stores credentials only, no routing.
  */
 export type AlertIntegration = {
@@ -2421,6 +2435,7 @@ export type UpdateAlertIntegration = {
  * DTO for updating an alert rule
  */
 export type UpdateAlertRule = {
+    alert_type?: AlertType | null;
     channels?: Array<AlertRuleChannelInput> | null;
     conditions?: {
         [key: string]: unknown;
@@ -4856,11 +4871,19 @@ export type AlertRulesListHistoryData = {
          * Max records to return (default 50, max 100)
          */
         limit?: number;
+        /**
+         * Only this alert rule's deliveries
+         */
+        rule_id?: number;
     };
     url: '/api/projects/{project_id}/alert-history';
 };
 
 export type AlertRulesListHistoryErrors = {
+    /**
+     * Invalid query parameter
+     */
+    400: string;
     /**
      * Unauthorized
      */
@@ -4881,6 +4904,53 @@ export type AlertRulesListHistoryResponses = {
 };
 
 export type AlertRulesListHistoryResponse = AlertRulesListHistoryResponses[keyof AlertRulesListHistoryResponses];
+
+export type AlertRulesHistoryByDayData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Days back, today included (default 14, max 90)
+         */
+        days?: number;
+        /**
+         * Only this alert rule's deliveries
+         */
+        rule_id?: number;
+    };
+    url: '/api/projects/{project_id}/alert-history/daily';
+};
+
+export type AlertRulesHistoryByDayErrors = {
+    /**
+     * Invalid query parameter
+     */
+    400: string;
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Project not found
+     */
+    404: ErrorResponse;
+};
+
+export type AlertRulesHistoryByDayError = AlertRulesHistoryByDayErrors[keyof AlertRulesHistoryByDayErrors];
+
+export type AlertRulesHistoryByDayResponses = {
+    /**
+     * Deliveries per UTC day, oldest first
+     */
+    200: Array<AlertHistoryDay>;
+};
+
+export type AlertRulesHistoryByDayResponse = AlertRulesHistoryByDayResponses[keyof AlertRulesHistoryByDayResponses];
 
 export type AlertRulesListData = {
     body?: never;

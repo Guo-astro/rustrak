@@ -1,12 +1,11 @@
 import type { AlertIntegration } from '@rustrak/client';
+import { Input, Textarea } from '@rustrak/ui';
 import { useId } from 'react';
 import { useTranslations } from 'use-intl';
 import {
   routesByUrlOverride,
   routingNeedsOf,
 } from '@/features/alert/lib/routing';
-import { Input } from '@/shared/ui/components/shadcn/input';
-import { Textarea } from '@/shared/ui/components/shadcn/textarea';
 
 /**
  * One labelled routing input, so the three below differ only in their control.
@@ -35,21 +34,18 @@ function Row({
   const hintId = `${id}-hint`;
 
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-fg-secondary text-meta">
         {label}
         {required ? (
-          <span className="text-destructive"> *</span>
+          <span className="text-sev-error-fg"> *</span>
         ) : (
-          <span className="text-muted-foreground/60">
-            {' '}
-            {t('routing.optional')}
-          </span>
+          <span className="text-fg-ghost"> {t('routing.optional')}</span>
         )}
       </label>
       {children({ id, 'aria-describedby': hint ? hintId : undefined })}
       {hint && (
-        <p id={hintId} className="text-[10px] text-muted-foreground">
+        <p id={hintId} className="text-fg-subtle text-hint">
           {hint}
         </p>
       )}
@@ -82,7 +78,7 @@ export function ChannelRoutingFields({
     routingNeedsOf(integration);
 
   return (
-    <div className="mx-3 rounded-b-lg border border-t-0 border-primary/20 bg-muted/40 px-3 py-3 space-y-3">
+    <div className="mx-3 flex flex-col gap-3 rounded-b-lg border border-border border-t-0 bg-panel px-3 py-3">
       {needsChannel && (
         <Row
           label={t('routing.channelLabel')}
@@ -98,7 +94,6 @@ export function ChannelRoutingFields({
               value={routing.channel ?? ''}
               onChange={(e) => onChange('channel', e.target.value)}
               disabled={disabled}
-              className="h-8 text-sm"
               autoComplete="off"
             />
           )}
@@ -118,7 +113,6 @@ export function ChannelRoutingFields({
               value={routing.recipients ?? ''}
               onChange={(e) => onChange('recipients', e.target.value)}
               disabled={disabled}
-              className="text-sm min-h-15 resize-none"
               autoComplete="off"
             />
           )}
@@ -138,14 +132,13 @@ export function ChannelRoutingFields({
               value={routing.url ?? ''}
               onChange={(e) => onChange('url', e.target.value)}
               disabled={disabled}
-              className="h-8 text-sm"
               autoComplete="off"
             />
           )}
         </Row>
       )}
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-sev-error-fg text-meta">{error}</p>}
     </div>
   );
 }

@@ -675,3 +675,113 @@ async fn new_issue_alert_links_to_the_dashboard_the_processors_were_given() {
         "issue_url was {issue_url}"
     );
 }
+
+/// A replayed event fires every rule that has not recorded it yet. Rules
+/// commit one by one, so a crash between two leaves the first recorded and
+/// the second not; the replay must not read the first's history as the
+/// whole trigger's.
+#[actix_web::test]
+async fn replayed_event_fires_the_rules_that_had_not_recorded_it() {
+    use rustrak::digest::processors::{Processor, ProcessorCtx};
+    use rustrak::models::{
+        AlertRuleChannelInput, AlertType, ChannelType, CreateAlertRule, CreateNotificationChannel,
+    };
+    use rustrak::services::AlertService;
+
+    let db = TestDb::new().await;
+    let (project, _) = create_test_project(&db.pool, "Alert Replay").await;
+    let channel = AlertService::create_channel(
+        &db.pool,
+        CreateNotificationChannel {
+            name: "Replay Webhook".to_string(),
+            provider_type: ChannelType::Webhook,
+            credentials: json!({ "url": "https://example.com/webhook" }),
+            is_enabled: true,
+        },
+    )
+    .await
+    .unwrap();
+    // In cooldown, so rows are recorded and nothing is delivered.
+    let rule_in_cooldown = |name: &str| CreateAlertRule {
+        name: name.to_string(),
+        alert_type: AlertType::NewIssue,
+        channels: vec![AlertRuleChannelInput {
+            integration_id: channel.id,
+            routing_override: json!({}),
+        }],
+        conditions: json!({}),
+        cooldown_minutes: 60,
+    };
+    let cool = |id: i32| {
+        sqlx::query("UPDATE alert_rules SET last_triggered_at = $1 WHERE id = $2")
+            .bind(chrono::Utc::now())
+            .bind(id)
+            .execute(&db.pool)
+    };
+    let first = AlertService::create_rule(&db.pool, project, rule_in_cooldown("First"))
+        .await
+        .unwrap();
+    cool(first.id).await.unwrap();
+
+    let temp_dir = TempDir::new().unwrap();
+    let processors = rustrak::digest::processors::Processors::new(
+        temp_dir.path().to_path_buf(),
+        create_test_config().rate_limit,
+        crate::common::null_sourcemap_provider(),
+        None,
+    );
+    let metadata = store_scoped_event(temp_dir.path(), project).await;
+    let ctx = ProcessorCtx {
+        pool: db.pool.clone(),
+        project_id: project,
+        event_id: Uuid::parse_str(&metadata.event_id).unwrap(),
+        ingested_at: metadata.ingested_at,
+        remote_addr: None,
+        keep_ai_spans: true,
+    };
+    processors
+        .errors
+        .process(metadata.clone(), &ctx)
+        .await
+        .unwrap();
+
+    // The second rule is the one the crash cut off.
+    let second = AlertService::create_rule(&db.pool, project, rule_in_cooldown("Second"))
+        .await
+        .unwrap();
+    cool(second.id).await.unwrap();
+    let event_data = serde_json::json!({
+        "event_id": metadata.event_id,
+        "timestamp": 1704801600.0_f64,
+        "platform": "rust",
+        "level": "error",
+        "exception": {"values": [{"type": "Owned", "value": "by a task"}]}
+    });
+    // The replay reads its own copy: the first run's file is deleted from a
+    // queue, which could take a copy written to the same place with it.
+    let replay_dir = TempDir::new().unwrap();
+    let replay = rustrak::digest::processors::Processors::new(
+        replay_dir.path().to_path_buf(),
+        create_test_config().rate_limit,
+        crate::common::null_sourcemap_provider(),
+        None,
+    );
+    store_event_with_metadata(
+        replay_dir.path(),
+        &metadata.event_id,
+        &serde_json::to_vec(&event_data).unwrap(),
+        &metadata,
+    )
+    .await
+    .unwrap();
+    replay.errors.process(metadata, &ctx).await.unwrap();
+
+    let rows: Vec<i32> = sqlx::query_scalar(
+        "SELECT alert_rule_id FROM alert_history WHERE project_id = $1 ORDER BY alert_rule_id",
+    )
+    .bind(project)
+    .fetch_all(&db.pool)
+    .await
+    .unwrap();
+    assert_eq!(rows, vec![first.id, second.id]);
+}

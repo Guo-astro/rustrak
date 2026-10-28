@@ -128,7 +128,7 @@ const PROJECT_SETTINGS_PAGES: ProjectPage[] = [
   },
   {
     labelKey: 'commands.alerts',
-    segment: '/settings/alerts',
+    segment: '/alerts',
     descriptionKey: 'commands.alertsDescription',
     icon: BellIcon,
     keywords: ['rules', 'notifications'],

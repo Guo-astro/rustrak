@@ -175,9 +175,7 @@ const GROUPS: { label: 'groupTriage' | 'groupMonitor'; routes: NavRoute[] }[] =
         { key: 'performance', icon: PerformanceIcon, path: '/performance' },
         { key: 'logs', icon: LogsIcon, path: '/logs' },
         { key: 'crons', icon: CronsIcon, path: '/crons' },
-        // Rules live with the project's settings for now; the route is here
-        // because alerts are something you monitor, not something you set once.
-        { key: 'alerts', icon: NotificationIcon, path: '/settings/alerts' },
+        { key: 'alerts', icon: NotificationIcon, path: '/alerts' },
         { key: 'agents', icon: AgentsIcon, path: '/agents' },
       ],
     },

@@ -142,6 +142,8 @@ export function formatsFor(timeZone: string) {
       },
       /** A chart tick where the bucket is a day or wider. */
       axisDay: { month: 'short', day: 'numeric' },
+      /** A tick for a bucket that is a UTC day, read as that day anywhere. */
+      axisDayUtc: { month: 'short', day: 'numeric', timeZone: 'UTC' },
       /** A chart tick where the bucket is narrower than a day. */
       axisTime: {
         month: 'short',

@@ -24,28 +24,40 @@ export interface FilterFields {
 
 /**
  * The conditions a rule is saved with. A filter left at its default is not
- * sent, and the event count only means something for new issues.
+ * sent, the event count only means something for new issues, and the level
+ * nothing for feedback.
  */
 export function conditionsFromForm(
-  form: FilterFields & { alert_type: AlertType },
+  form: Omit<FilterFields, 'environments'> & {
+    alert_type: AlertType;
+    /** A typed line splits on commas; a picked list is taken name by name. */
+    environments: string | string[];
+  },
 ): Conditions {
-  const environments = form.environments
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
+  const names =
+    typeof form.environments === 'string'
+      ? form.environments.split(',')
+      : form.environments;
+  const environments = names.map((e) => e.trim()).filter(Boolean);
   return {
-    ...(form.min_level !== 'any' && { min_level: form.min_level }),
+    ...(form.min_level !== 'any' &&
+      form.alert_type !== 'new_feedback' && { min_level: form.min_level }),
     ...(environments.length > 0 && { environments }),
     ...(form.alert_type === 'new_issue' &&
       form.min_events > 1 && { min_events: form.min_events }),
   };
 }
 
+/** The environments a rule is narrowed to, as stored. */
+export function environmentsOf(conditions: Conditions): string[] {
+  return (conditions as KnownConditions).environments ?? [];
+}
+
 export function formFromConditions(conditions: Conditions): FilterFields {
   const known = conditions as KnownConditions;
   return {
     min_level: known.min_level ?? 'any',
-    environments: (known.environments ?? []).join(', '),
+    environments: environmentsOf(conditions).join(', '),
     min_events: known.min_events ?? 1,
   };
 }

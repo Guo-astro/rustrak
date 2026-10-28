@@ -83,6 +83,7 @@ pub mod user;
 
 pub use alert::{
     AlertHistory,
+    AlertHistoryDay,
     AlertIntegration,
     AlertPayload,
     AlertRule,

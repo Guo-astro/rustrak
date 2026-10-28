@@ -6,9 +6,9 @@ import {
 
 // A project-origin search value must survive TanStack's numeric query parsing.
 describe('integrationProjectId', () => {
-  it('keeps a project id from the alert settings link', () => {
+  it('keeps a project id from the alerts link', () => {
     expect(integrationsBackHref(integrationProjectId('3'))).toBe(
-      '/projects/3/settings/alerts',
+      '/projects/3/alerts',
     );
     expect(integrationProjectId('3')).toBe(3);
     expect(integrationProjectId(3)).toBe(3);
