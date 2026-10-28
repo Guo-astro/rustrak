@@ -8,7 +8,7 @@ use rustrak::db::DbPool;
 use rustrak::models::monitor::{
     CheckIn, CheckInStatus, FailureReason, MonitorConfigInput, MonitorEnvironmentStatus, Schedule,
 };
-use rustrak::models::CreateProject;
+use rustrak::models::{CreateProject, Product, UpdateProject};
 use rustrak::services::monitor::MonitorService;
 use rustrak::services::ProjectService;
 use uuid::Uuid;
@@ -386,6 +386,41 @@ async fn sweep_after_downtime_records_one_miss_and_resumes_from_now() {
         monitor.environments[0].next_checkin,
         Some(at("2026-01-01T11:00:00Z"))
     );
+}
+
+#[actix_web::test]
+async fn sweep_with_crons_off_raises_nothing_and_keeps_the_schedule_current() {
+    let db = TestDb::new().await;
+    let pid = project(&db.pool).await;
+    upsert(&db.pool, pid, 1, at("2026-01-01T05:00:00Z")).await;
+    let crons = |disabled| UpdateProject {
+        disabled_products: Some(disabled),
+        ..Default::default()
+    };
+    ProjectService::update(&db.pool, pid, crons(vec![Product::Crons]))
+        .await
+        .unwrap();
+
+    // Check-ins are dropped at ingest, so a due slot is no failure.
+    assert!(MonitorService::sweep(&db.pool, at("2026-01-01T10:30:00Z"))
+        .await
+        .unwrap()
+        .is_empty());
+
+    // Turned back on, the slots slept through are not one late miss either.
+    ProjectService::update(&db.pool, pid, crons(vec![]))
+        .await
+        .unwrap();
+    assert!(MonitorService::sweep(&db.pool, at("2026-01-01T10:31:00Z"))
+        .await
+        .unwrap()
+        .is_empty());
+    let monitor = MonitorService::get_by_slug(&db.pool, pid, "backup")
+        .await
+        .unwrap();
+    let env = &monitor.environments[0];
+    assert_eq!(env.status, MonitorEnvironmentStatus::Ok);
+    assert_eq!(env.next_checkin, Some(at("2026-01-01T11:00:00Z")));
 }
 
 #[actix_web::test]

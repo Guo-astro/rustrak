@@ -272,6 +272,26 @@ async fn timeseries_honours_a_wider_interval() {
     assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 1);
 }
 
+#[actix_web::test]
+async fn timeseries_all_time_fills_from_the_first_event_to_now() {
+    let db = TestDb::new().await;
+    let project_id = create_project(&db.pool, "Stats All Time").await;
+
+    seed_event(&db.pool, project_id, None, "error", "error", 1).await;
+    seed_event(&db.pool, project_id, None, "error", "error", 100).await;
+
+    let points = StatsService::event_timeseries(&db.pool, project_id, None, 24, Scope::default())
+        .await
+        .expect("query failed");
+
+    // A daily bar for every day in between, so a quiet day reads as one.
+    for pair in points.windows(2) {
+        assert_eq!((pair[1].bucket - pair[0].bucket).num_hours(), 24);
+    }
+    assert!(points.len() >= 4);
+    assert_eq!(points.iter().map(|p| p.total).sum::<i64>(), 2);
+}
+
 // ── summary ──────────────────────────────────────────────────────────────────
 
 #[actix_web::test]

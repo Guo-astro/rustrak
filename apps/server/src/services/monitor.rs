@@ -19,6 +19,7 @@ use crate::models::monitor::{
     MonitorEnvironmentStats, MonitorEnvironmentStatus, MonitorFailure, MonitorResponse,
     MonitorStatsBucket, UpdateMonitor, MAX_MAX_RUNTIME,
 };
+use crate::models::Product;
 use crate::services::hash_grouping_key;
 use crate::services::scope::epoch;
 
@@ -521,6 +522,14 @@ async fn sweep_missed(
     }
     let monitor = load_monitor(&mut tx, monitor_id).await?;
     let config = &monitor.config.0;
+    // Crons off drops check-ins at ingest, so a due slot is no miss. The
+    // schedule still moves, or turning crons back on would miss at once.
+    if crons_off(&mut tx, project_id).await? {
+        let most_recent = config.prev_checkin(expected, now);
+        update_environment(&mut tx, &env, config, env.last_checkin, most_recent, None).await?;
+        tx.commit().await?;
+        return Ok(Vec::new());
+    }
     let missed = sqlx::query_as::<_, CheckInRow>(
         r#"
         INSERT INTO monitor_checkins (
@@ -578,13 +587,26 @@ async fn sweep_timeout(
         return Ok(Vec::new());
     };
     let mut failures = Vec::new();
-    if !has_newer_result(&mut tx, env_id, timed_out.date_added).await? {
+    // Crons off: the closing check-in was dropped at ingest, not late.
+    if !crons_off(&mut tx, project_id).await?
+        && !has_newer_result(&mut tx, env_id, timed_out.date_added).await?
+    {
         let monitor = load_monitor(&mut tx, monitor_id).await?;
         let env = reload_environment(&mut tx, env_id).await?;
         failures = mark_failed(&mut tx, &monitor, &env, &timed_out, FailureReason::Timeout).await?;
     }
     tx.commit().await?;
     Ok(failures)
+}
+
+/// Whether the project has turned crons off (`Project::keeps`).
+async fn crons_off(tx: &mut Tx<'_>, project_id: i32) -> AppResult<bool> {
+    let (disabled,): (Json<Vec<Product>>,) =
+        sqlx::query_as("SELECT disabled_products FROM projects WHERE id = $1")
+            .bind(project_id)
+            .fetch_one(&mut **tx)
+            .await?;
+    Ok(disabled.0.contains(&Product::Crons))
 }
 
 fn not_found(slug: &str) -> AppError {

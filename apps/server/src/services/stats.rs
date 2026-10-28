@@ -37,8 +37,8 @@ impl StatsService {
     ///
     /// Buckets are zero-filled across the whole window, so a quiet hour renders
     /// as a bar of height zero rather than a gap the chart would interpolate
-    /// across. All-time requests (`period_hours` is `None`) are returned sparse:
-    /// there is no lower bound to fill from.
+    /// across. All-time requests (`period_hours` is `None`) fill from the
+    /// first event's bucket.
     pub async fn event_timeseries(
         pool: &DbPool,
         project_id: i32,
@@ -50,11 +50,14 @@ impl StatsService {
         let points =
             query_event_timeseries(pool, project_id, period_hours, interval_secs, scope).await?;
 
-        let Some(hours) = period_hours else {
+        let now = Utc::now();
+        // Points come back oldest first; the first is the all-time lower bound.
+        let first = points.first().map(|p| (now - p.bucket).num_hours());
+        let Some(hours) = period_hours.or(first) else {
             return Ok(points);
         };
 
-        Ok(zero_fill(points, hours, interval_secs, Utc::now()))
+        Ok(zero_fill(points, hours, interval_secs, now))
     }
 
     /// Project-wide counters for the window, each paired with the same counter
