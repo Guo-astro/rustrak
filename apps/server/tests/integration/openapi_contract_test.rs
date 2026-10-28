@@ -250,6 +250,21 @@ async fn seed(db: &TestDb) -> (Seed, String) {
     .execute(&db.pool)
     .await
     .unwrap();
+    // An agent run in a conversation, so the agents endpoints answer with rows.
+    sqlx::query(
+        "INSERT INTO spans (id, project_id, span_id, trace_id, op, start_timestamp, timestamp, \
+         duration_ms, data, gen_ai_operation_type, gen_ai_agent_name, gen_ai_conversation_id) \
+         VALUES ($1, $2, $3, $4, 'gen_ai.invoke_agent', $5, $5, 3.0, $6, 'agent', 'contract', 'contract')",
+    )
+    .bind(Uuid::new_v4())
+    .bind(project.id)
+    .bind("1".repeat(16))
+    .bind("1".repeat(32))
+    .bind(now)
+    .bind(json!({"gen_ai.response.text": "done"}))
+    .execute(&db.pool)
+    .await
+    .unwrap();
     let log_id = Uuid::new_v4();
     sqlx::query(
         "INSERT INTO logs (id, project_id, level, body, attributes, timestamp) \
@@ -297,7 +312,7 @@ fn param_value(name: &str, path: &str, schema: &Value, seed: &Seed) -> String {
         "span_id" => seed.span_row_id.to_string(),
         "log_id" => seed.log_id.to_string(),
         "rule_id" => seed.rule_id.to_string(),
-        "slug" => "contract".into(),
+        "slug" | "conversation_id" => "contract".into(),
         "release" => CONTRACT_RELEASE.into(),
         "project_slug" => seed.project_slug.clone(),
         "org_slug" => "rustrak".into(),

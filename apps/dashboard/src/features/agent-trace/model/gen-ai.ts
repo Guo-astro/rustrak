@@ -303,3 +303,64 @@ export function hasTokenMismatch(attributes: SpanAttributes): boolean {
     Math.abs(netNewInput + usage.cached + output - usage.total) > tolerance
   );
 }
+
+export interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+/**
+ * A conversation as messages, for drawing as a chat rather than a JSON
+ * dump. Reads the two shapes the SDKs send -- OpenAI's `content` and OTel's
+ * `parts` -- joining text parts and keeping any other part as JSON. `null`
+ * when the payload is not a list of messages: tool arguments, plain text.
+ */
+export function chatMessages(raw: string): ChatMessage[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) return null;
+
+  const messages: ChatMessage[] = [];
+  for (const item of parsed) {
+    if (item === null || typeof item !== 'object' || !('role' in item)) {
+      return null;
+    }
+    const { role, content, parts, tool_calls } = item as {
+      role: unknown;
+      content?: unknown;
+      parts?: unknown;
+      tool_calls?: unknown;
+    };
+    const body = Array.isArray(parts) ? parts : content;
+    // The tools a model asked for are part of what it said, after any text:
+    // a message may hold only them, or prose and them.
+    const calls =
+      Array.isArray(tool_calls) && tool_calls.length
+        ? JSON.stringify(tool_calls)
+        : '';
+    const text = [messageText(body), calls].filter(Boolean).join('\n');
+    messages.push({ role: String(role), content: text });
+  }
+  return messages;
+}
+
+function messageText(body: unknown): string {
+  if (typeof body === 'string') return body;
+  if (Array.isArray(body)) {
+    return body
+      .map((part) =>
+        part &&
+        typeof part === 'object' &&
+        'text' in part &&
+        typeof part.text === 'string'
+          ? part.text
+          : JSON.stringify(part),
+      )
+      .join('\n');
+  }
+  return body == null ? '' : JSON.stringify(body);
+}

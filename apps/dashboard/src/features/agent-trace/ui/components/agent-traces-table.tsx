@@ -1,142 +1,245 @@
-import type { AgentTraceSummary } from '@rustrak/client';
-import { useTransition } from 'react';
+import type { AgentsTracesResponse, AgentTraceSummary } from '@rustrak/client';
+import {
+  createDataTableColumnHelper,
+  DataTable,
+  type DataTableQuery,
+  formatSpanDuration,
+  QueryBar,
+  type QueryField,
+  Tag,
+  useDataTable,
+} from '@rustrak/ui';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { cn } from '@/shared/lib/utils';
-import { Link } from '@/shared/ui/components/link';
-import { Badge } from '@/shared/ui/components/shadcn/badge';
-import { TablePagination } from '@/shared/ui/components/table-pagination';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
-interface AgentTracesTableProps {
-  projectId: number;
-  traces: AgentTraceSummary[];
-  currentPage: number;
-  totalPages: number;
-  totalCount: number;
-  perPage: number;
-  /** The dashboard's active filters, carried through pagination. */
-  filters: { period?: string; environment?: string };
-}
-
-function formatMs(ms: number | null | undefined): string {
-  if (ms == null) return '—';
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
+const column = createDataTableColumnHelper<AgentTraceSummary>();
 
 /**
- * The AI Agent Monitoring "Traces" table: one row per trace_id, aggregating
- * every AI span in that trace regardless of origin (standalone or
- * transaction-embedded), offset-paginated.
+ * Every agent trace, a row each: which agents ran, then its totals -- how
+ * long, how many model and tool calls, how many tokens, how many failed --
+ * each a ranking the header sorts by, largest first.
  */
 export function AgentTracesTable({
-  projectId,
-  traces,
-  currentPage,
-  totalPages,
-  totalCount,
-  perPage,
-  filters,
-}: AgentTracesTableProps) {
-  const format = useFormatter();
+  page,
+  query,
+  onQueryChange,
+  loading,
+  onOpen,
+  models,
+  tools,
+  scope,
+}: {
+  page: AgentsTracesResponse;
+  query: DataTableQuery;
+  onQueryChange: (
+    updater: (previous: DataTableQuery) => DataTableQuery,
+  ) => void;
+  loading: boolean;
+  onOpen: (trace: AgentTraceSummary) => void;
+  /** For the query bar's `model:` and `tool:` suggestions. */
+  models: string[];
+  tools: string[];
+  /** The environment and window, beside the query bar. */
+  scope: ReactNode;
+}) {
   const t = useTranslations('agents');
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const format = useFormatter();
+  // The clock the relative times are read against, taken once per page.
+  const [now] = useState(() => Date.now());
 
-  const handlePageChange = (page: number) => {
-    // The dashboard's filters live in the same query string. Navigating with
-    // only `page` would drop them, so a reader who paged through a filtered
-    // view would silently get unfiltered traces back.
-    const query = new URLSearchParams();
-    if (filters.period) query.set('period', filters.period);
-    if (filters.environment) query.set('environment', filters.environment);
-    query.set('page', String(page));
+  const columns = useMemo(() => {
+    const figure = { align: 'end' as const };
+    const most = { asc: t('table.most'), desc: t('table.most') };
+    const count = (value: number) => (
+      <span
+        className={
+          value === 0 ? 'text-fg-ghost' : 'text-fg-secondary tabular-nums'
+        }
+      >
+        {format.number(value, 'compact')}
+      </span>
+    );
+    return column.columns([
+      column.accessor('agent_names', {
+        id: 'agents',
+        header: t('columns.agents'),
+        enableHiding: false,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const trace = row.original;
+          return (
+            <div className="flex min-w-0 flex-col gap-1 py-1">
+              {/* With handoffs, the agents in the order they ran. */}
+              <span className="truncate font-medium text-fg text-value">
+                {trace.agent_names.length
+                  ? trace.agent_names.join(' → ')
+                  : t('unnamedAgent')}
+              </span>
+              <span className="truncate font-mono text-fg-subtle text-mono-sm">
+                {trace.trace_id}
+              </span>
+            </div>
+          );
+        },
+        meta: { label: t('columns.agents') },
+      }),
+      column.accessor('duration_ms', {
+        id: 'duration',
+        header: t('columns.duration'),
+        cell: ({ getValue }) => {
+          const ms = getValue();
+          return (
+            <span className="text-fg-secondary tabular-nums">
+              {ms == null ? '—' : formatSpanDuration(ms)}
+            </span>
+          );
+        },
+        meta: {
+          label: t('columns.duration'),
+          width: 104,
+          sortLabels: most,
+          ...figure,
+        },
+      }),
+      column.accessor('llm_call_count', {
+        id: 'llm_calls',
+        header: t('columns.llmCalls'),
+        cell: ({ getValue }) => count(getValue()),
+        meta: {
+          label: t('columns.llmCalls'),
+          width: 88,
+          sortLabels: most,
+          ...figure,
+        },
+      }),
+      column.accessor('tool_call_count', {
+        id: 'tool_calls',
+        header: t('columns.tools'),
+        cell: ({ getValue }) => count(getValue()),
+        meta: {
+          label: t('columns.tools'),
+          width: 120,
+          sortLabels: most,
+          ...figure,
+        },
+      }),
+      column.accessor('total_tokens', {
+        id: 'tokens',
+        header: t('columns.tokens'),
+        cell: ({ getValue }) => count(getValue()),
+        meta: {
+          label: t('columns.tokens'),
+          width: 96,
+          sortLabels: most,
+          ...figure,
+        },
+      }),
+      column.accessor('error_count', {
+        id: 'errors',
+        header: t('columns.errors'),
+        cell: ({ getValue }) => {
+          const errors = getValue();
+          return errors === 0 ? (
+            <span className="text-fg-ghost">0</span>
+          ) : (
+            <Tag variant="soft" tone="error">
+              {errors}
+            </Tag>
+          );
+        },
+        meta: {
+          label: t('columns.errors'),
+          width: 88,
+          sortLabels: most,
+          ...figure,
+        },
+      }),
+      column.accessor('started_at', {
+        id: 'newest',
+        header: t('columns.started'),
+        cell: ({ getValue }) => (
+          <span
+            className="text-fg-subtle tabular-nums"
+            title={format.dateTime(new Date(getValue()), 'dateTime')}
+          >
+            {format.relativeTime(new Date(getValue()), { now: new Date(now) })}
+          </span>
+        ),
+        meta: {
+          label: t('columns.started'),
+          width: 128,
+          sortLabels: { asc: t('table.newest'), desc: t('table.newest') },
+          ...figure,
+        },
+      }),
+    ]);
+  }, [t, format, now]);
 
-    startTransition(() => {
-      router.push(`/projects/${projectId}/agents?${query}`);
-    });
-  };
+  const fields = useMemo<QueryField[]>(
+    () => [
+      { key: 'agent', label: t('filters.agent'), variant: 'text' },
+      {
+        key: 'model',
+        label: t('filters.model'),
+        variant: 'options',
+        multiple: false,
+        options: models.map((value) => ({ value, label: value })),
+      },
+      {
+        key: 'tool',
+        label: t('filters.tool'),
+        variant: 'options',
+        multiple: false,
+        options: tools.map((value) => ({ value, label: value })),
+      },
+      {
+        key: 'status',
+        label: t('filters.status'),
+        variant: 'options',
+        multiple: false,
+        options: [{ value: 'failing', label: t('filters.failing') }],
+      },
+    ],
+    [models, tools, t],
+  );
+
+  const table = useDataTable({
+    data: page.items,
+    columns,
+    rowCount: page.total_count,
+    query,
+    onQueryChange,
+    getRowId: (row) => row.trace_id,
+    storageKey: 'agent-traces',
+  });
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg">
-        <div className="shrink-0 flex items-center gap-4 px-4 py-3 bg-muted/50 border-b text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          <span className="flex-1">{t('columns.agents')}</span>
-          <span className="w-24 text-right">{t('columns.started')}</span>
-          <span className="w-24 text-right">{t('columns.duration')}</span>
-          <span className="w-16 text-right">{t('columns.llmCalls')}</span>
-          <span className="w-16 text-right">{t('columns.tools')}</span>
-          <span className="w-20 text-right">{t('columns.tokens')}</span>
-          <span className="w-16 text-right">{t('columns.errors')}</span>
-        </div>
-        <div className="flex-1 overflow-auto divide-y">
-          {traces.map((trace) => (
-            <Link
-              key={trace.trace_id}
-              href={`/projects/${projectId}/agents/${trace.trace_id}`}
-              className="flex items-center gap-4 px-4 py-3 text-sm hover:bg-muted/30 transition-colors group"
-            >
-              <div className="flex-1 min-w-0">
-                {trace.agent_names.length > 0 ? (
-                  <span className="flex flex-wrap items-center gap-1">
-                    {trace.agent_names.map((name) => (
-                      <Badge
-                        key={name}
-                        variant="secondary"
-                        className="font-mono font-normal"
-                      >
-                        {name}
-                      </Badge>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="block font-mono truncate text-muted-foreground">
-                    {t('unnamedAgent')}
-                  </span>
-                )}
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {trace.trace_id}
-                </span>
-              </div>
-              <span className="w-24 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                {format.relativeTime(new Date(trace.started_at))}
-              </span>
-              <span className="w-24 text-right font-mono tabular-nums text-muted-foreground">
-                {formatMs(trace.duration_ms)}
-              </span>
-              <span className="w-16 text-right font-mono tabular-nums text-muted-foreground">
-                {format.number(trace.llm_call_count)}
-              </span>
-              <span className="w-16 text-right font-mono tabular-nums text-muted-foreground">
-                {format.number(trace.tool_call_count)}
-              </span>
-              <span className="w-20 text-right font-mono tabular-nums text-muted-foreground">
-                {format.number(trace.total_tokens, 'compact')}
-              </span>
-              {/* The only column that colours itself, and only when non-zero:
-                  a table where every cell competes for attention has none. */}
-              <span
-                className={cn(
-                  'w-16 text-right font-mono tabular-nums',
-                  trace.error_count > 0
-                    ? 'font-semibold text-destructive'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {format.number(trace.error_count)}
-              </span>
-            </Link>
-          ))}
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* Narrow, the bar takes a row and the scope the next. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <QueryBar
+          className="min-w-0 max-sm:basis-full"
+          fields={fields}
+          filters={query.filters}
+          search={query.search}
+          placeholder={t('filters.search')}
+          onChange={(next) =>
+            onQueryChange((previous) => ({
+              ...previous,
+              filters: next.filters,
+              search: next.search,
+              pagination: { ...previous.pagination, pageIndex: 0 },
+            }))
+          }
+        />
+        {scope}
       </div>
-
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        perPage={perPage}
-        disabled={isPending}
-        onPageChange={handlePageChange}
+      <DataTable
+        table={table}
+        loading={loading}
+        className="min-h-0 flex-1"
+        onRowClick={(row) => onOpen(row.original)}
+        empty={{ title: t('table.empty') }}
       />
     </div>
   );

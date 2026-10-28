@@ -3041,6 +3041,272 @@
         ]
       }
     },
+    "/api/projects/{project_id}/agents/conversations": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "GET /api/projects/{project_id}/agents/conversations\nLists conversations -- traces sharing a `gen_ai.conversation.id` -- the most recently active first.",
+        "operationId": "agents.conversations",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "period_hours",
+            "in": "query",
+            "description": "Lookback window in hours (default: all time, no filter).",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Restrict to spans reporting this environment (default: all).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed, default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "Items per page (default: 20, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated agent conversations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Offset-based paginated response wrapper",
+                  "required": [
+                    "items",
+                    "total_count",
+                    "page",
+                    "per_page",
+                    "total_pages"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "One conversation: every trace sharing a `gen_ai.conversation.id`, each a\nturn, with the totals of all of them -- a row of Sentry's conversations.",
+                        "required": [
+                          "conversation_id",
+                          "turn_count",
+                          "agent_names",
+                          "llm_call_count",
+                          "tool_call_count",
+                          "total_tokens",
+                          "error_count",
+                          "first_seen",
+                          "last_seen"
+                        ],
+                        "properties": {
+                          "agent_names": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Every agent that ran in it, earliest first."
+                          },
+                          "conversation_id": {
+                            "type": "string"
+                          },
+                          "error_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "first_seen": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "From the spans' start times, else their end times; `null` when no span\nof the conversation carries either, as a transaction's child can."
+                          },
+                          "last_seen": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "llm_call_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "tool_call_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "total_tokens": {
+                            "type": "number",
+                            "format": "double",
+                            "description": "`agent` spans excluded, as everywhere: their usage rolls up their children."
+                          },
+                          "turn_count": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "Traces in the conversation."
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "per_page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_count": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/agents/conversations/{conversation_id}": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "GET /api/projects/{project_id}/agents/conversations/{conversation_id}\nReturns every AI span of a conversation's turns, oldest first, with its input and output.",
+        "operationId": "agents.conversation",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "description": "The gen_ai.conversation.id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The conversation's AI spans across its turns",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConversation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/agents/duration": {
       "get": {
         "tags": [
@@ -3909,6 +4175,69 @@
               "format": "int64",
               "maximum": 100,
               "minimum": 1
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "description": "Only the traces where this agent ran.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "description": "Only the traces that called this model (response model, else request).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tool",
+            "in": "query",
+            "description": "Only the traces that used this tool.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "errors",
+            "in": "query",
+            "description": "Only the traces with a failing AI span.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "How to rank them; newest first by default.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "How the agent traces are ranked; every ranking but newest is largest first.",
+              "enum": [
+                "newest",
+                "duration",
+                "tokens",
+                "llm_calls",
+                "tool_calls",
+                "errors"
+              ]
             }
           }
         ],
@@ -13123,6 +13452,25 @@
           }
         }
       },
+      "AgentConversation": {
+        "type": "object",
+        "description": "A conversation in full: its AI spans across every turn, oldest first,\neach with what went in and came out, for a transcript.",
+        "required": [
+          "conversation_id",
+          "spans"
+        ],
+        "properties": {
+          "conversation_id": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationSpan"
+            }
+          }
+        }
+      },
       "AgentDurationPoint": {
         "type": "object",
         "description": "avg/p95 duration for one time bucket.",
@@ -13253,12 +13601,18 @@
         "description": "One time-bucketed value (count or sum) — mirrors `SessionTimeseriesPoint`.",
         "required": [
           "bucket",
-          "value"
+          "value",
+          "errors"
         ],
         "properties": {
           "bucket": {
             "type": "string",
             "format": "date-time"
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Of the bucket's spans, those whose status is set and not `ok`."
           },
           "value": {
             "type": "number",
@@ -14359,6 +14713,118 @@
         ],
         "properties": {
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ConversationSpan": {
+        "type": "object",
+        "required": [
+          "id",
+          "trace_id",
+          "span_id",
+          "parent_span_id",
+          "operation_type",
+          "agent_name",
+          "model",
+          "tool_name",
+          "status",
+          "start_timestamp",
+          "duration_ms",
+          "total_tokens",
+          "input",
+          "output",
+          "tool_calls"
+        ],
+        "properties": {
+          "agent_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "input": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The prompt or the tool's arguments, verbatim."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The response model, else the request model."
+          },
+          "operation_type": {
+            "type": "string",
+            "description": "`agent`, `ai_client`, `tool` or `handoff`."
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The answer or the tool's result, verbatim."
+          },
+          "parent_span_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "span_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start_timestamp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_calls": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The tool calls the model asked for."
+          },
+          "tool_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total_tokens": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "trace_id": {
             "type": "string"
           }
         }

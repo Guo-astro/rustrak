@@ -1208,34 +1208,17 @@
     "unnamedAgent": "(unnamed agent)",
     "charts": {
       "noData": "No data yet",
-      "durationTooltip": "avg {avg} · p95 {p95}"
-    },
-    "waterfall": {
-      "expand": "Expand",
-      "collapse": "Collapse",
-      "spanFallback": "span"
+      "durationTooltip": "avg {avg} · p95 {p95}",
+      "runs": "Agent runs",
+      "runsHint": "Runs started per interval",
+      "duration": "Duration",
+      "durationHint": "Average and p95 time of agent runs and model calls",
+      "avg": "Average",
+      "runsOk": "Runs",
+      "runsFailed": "Failed"
     },
     "empty": {
       "noSpans": "This trace has no spans."
-    },
-    "detail": {
-      "op": "op",
-      "description": "description",
-      "status": "status",
-      "duration": "duration",
-      "selfTime": "self time",
-      "spanId": "span_id",
-      "parentSpanId": "parent_span_id",
-      "operationType": "operation type",
-      "agentName": "agent name",
-      "toolName": "tool name",
-      "requestModel": "request model",
-      "responseModel": "response model",
-      "conversationId": "conversation id",
-      "inputTokens": "input tokens",
-      "outputTokens": "output tokens",
-      "totalTokens": "total tokens",
-      "genAiSection": "gen_ai"
     },
     "spanDetail": {
       "agentName": "Agent",
@@ -1264,11 +1247,28 @@
       "totalTokens": "Tokens",
       "avgDuration": "Avg duration",
       "p95Duration": "P95 duration",
-      "errors": "Errors"
+      "errors": "Errors",
+      "avg": "avg {duration}",
+      "errorRate": "{rate} of AI spans"
     },
     "filters": {
       "allTime": "All time",
-      "allEnvironments": "All environments"
+      "allEnvironments": "All environments",
+      "agent": "Agent",
+      "model": "Model",
+      "tool": "Tool",
+      "status": "Status",
+      "failing": "Failing",
+      "search": "Filter by agent:, model:, tool: or status:",
+      "environment": "Environment",
+      "noEnvironments": "No environments yet",
+      "allTimeShort": "All",
+      "periods": {
+        "1h": "Last hour",
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days"
+      }
     },
     "modelsTable": {
       "empty": "No model calls in this window.",
@@ -1280,7 +1280,9 @@
       "input": "Input",
       "cached": "Cached",
       "output": "Output",
-      "reasoning": "Reasoning"
+      "reasoning": "Reasoning",
+      "title": "Models",
+      "hint": "Calls, failures, tokens and latency per model; a row opens its traces"
     },
     "toolsTable": {
       "empty": "No tool calls in this window.",
@@ -1288,7 +1290,62 @@
       "calls": "Calls",
       "errors": "Errors",
       "avg": "Avg",
-      "p95": "P95"
+      "p95": "P95",
+      "title": "Tools",
+      "hint": "Calls, failures and latency per tool; a row opens its traces"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "traces": "Traces",
+      "conversations": "Conversations"
+    },
+    "runsCount": "{count, plural, one {# agent run} other {# agent runs}}",
+    "errorsCount": "{count, plural, one {# failed span} other {# failed spans}}",
+    "spanCount": "{count, plural, one {# span} other {# spans}}",
+    "table": {
+      "most": "Largest first",
+      "newest": "Newest first",
+      "empty": "No trace matches these filters"
+    },
+    "trace": {
+      "models": "Models",
+      "waterfallOf": "Spans of trace {traceId}",
+      "conversation": "Conversation"
+    },
+    "graph": {
+      "viewLabel": "How to show the trace",
+      "waterfall": "Waterfall",
+      "graph": "Agents",
+      "empty": "No agent ran in this trace.",
+      "handoff": "{count, plural, one {handoff} other {# handoffs}}",
+      "then": "then",
+      "runs": "{count, plural, one {# run} other {# runs}}",
+      "models": "Models",
+      "tools": "Tools"
+    },
+    "conversations": {
+      "title": "Conversations",
+      "metaTitle": "{conversation} | Conversations | Rustrak",
+      "loadFailed": "Could not load this conversation",
+      "empty": "No conversations in this window. Send gen_ai.conversation.id on your agent spans to group their turns.",
+      "pageOf": "Page {page} of {total}",
+      "newer": "Newer conversations",
+      "older": "Older conversations",
+      "unnamed": "(unnamed agent)",
+      "turns": "{count, plural, one {# turn} other {# turns}}",
+      "calls": "{count, plural, one {# LLM call} other {# LLM calls}}",
+      "tools": "{count, plural, one {# tool call} other {# tool calls}}",
+      "tokens": "{count} tokens",
+      "errors": "{count, plural, one {# failed} other {# failed}}",
+      "turn": "Turn {number}",
+      "openTrace": "Open trace",
+      "user": "User",
+      "assistant": "Assistant",
+      "noAnswer": "The turn failed before answering.",
+      "turnsLabel": "Turns",
+      "tokensLabel": "Tokens",
+      "errorsLabel": "Errors",
+      "started": "Started"
     }
   },
   "tokens": {
@@ -1744,40 +1801,17 @@
         "description": "AI agent monitoring for {project}"
       },
       "title": "Agents",
-      "subtitle": "AI agent runs, tokens, and tool usage for {project}",
       "loadFailed": "Could not load agent activity",
       "emptyTitle": "No agent activity yet",
-      "emptyDescription": "Instrument your AI agent with a Sentry SDK using OpenTelemetry GenAI semantic conventions to start capturing agent runs.",
-      "cardRuns": "Agent Runs",
-      "cardRunsDescription": "Runs started per interval",
-      "cardDuration": "Duration",
-      "cardDurationDescription": "Avg and p95 agent run time",
-      "cardModelsByCalls": "LLM Calls by Model",
-      "cardModelsByCallsDescription": "Top models by call count",
-      "cardModelsByTokens": "Tokens Used by Model",
-      "cardModelsByTokensDescription": "Top models by token volume",
-      "cardTools": "Tool Calls by Tool",
-      "cardToolsDescription": "Top tools by call count",
-      "cardTraces": "Traces",
-      "cardTracesDescription": "One row per trace, aggregating every AI span it contains",
-      "cardModelsTable": "Models",
-      "cardModelsTableDescription": "Volume, failures, latency and token split per model.",
-      "cardToolsTable": "Tools",
-      "cardToolsTableDescription": "Call volume and failure rate per tool."
+      "emptyDescription": "Instrument your AI agent with a Sentry SDK using OpenTelemetry GenAI semantic conventions to start capturing agent runs."
     },
     "trace": {
       "meta": {
         "title": "{traceId} | Agents | Rustrak"
       },
       "loadFailed": "Could not load trace",
-      "backLink": "Agents",
       "unnamed": "(unnamed agent)",
-      "tokens": "{count} tokens",
-      "toolCalls": "{count, plural, =1 {# tool call} other {# tool calls}}",
       "spans": "Spans",
-      "llmCalls": "{count} LLM calls",
-      "errors": "{count} errors",
-      "spanDetail": "Span detail",
       "selectSpan": "Select a span to see its prompt, response and attributes.",
       "spanUnavailable": "That span is no longer available."
     },

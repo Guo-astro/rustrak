@@ -32,6 +32,15 @@ export type ActivityEntry = {
 };
 
 /**
+ * A conversation in full: its AI spans across every turn, oldest first,
+ * each with what went in and came out, for a transcript.
+ */
+export type AgentConversation = {
+    conversation_id: string;
+    spans: Array<ConversationSpan>;
+};
+
+/**
  * avg/p95 duration for one time bucket.
  */
 export type AgentDurationPoint = {
@@ -88,6 +97,10 @@ export type AgentSummary = {
  */
 export type AgentTimeseriesPoint = {
     bucket: string;
+    /**
+     * Of the bucket's spans, those whose status is set and not `ok`.
+     */
+    errors: number;
     value: number;
 };
 
@@ -547,6 +560,39 @@ export type Compaction = {
 
 export type ConfirmSsoLinkRequest = {
     password: string;
+};
+
+export type ConversationSpan = {
+    agent_name: string | null;
+    duration_ms: number | null;
+    id: string;
+    /**
+     * The prompt or the tool's arguments, verbatim.
+     */
+    input: string | null;
+    /**
+     * The response model, else the request model.
+     */
+    model: string | null;
+    /**
+     * `agent`, `ai_client`, `tool` or `handoff`.
+     */
+    operation_type: string;
+    /**
+     * The answer or the tool's result, verbatim.
+     */
+    output: string | null;
+    parent_span_id: string | null;
+    span_id: string | null;
+    start_timestamp: string | null;
+    status: string | null;
+    /**
+     * The tool calls the model asked for.
+     */
+    tool_calls: string | null;
+    tool_name: string | null;
+    total_tokens: number | null;
+    trace_id: string;
 };
 
 /**
@@ -4179,6 +4225,124 @@ export type ProjectsUpdateResponses = {
 
 export type ProjectsUpdateResponse = ProjectsUpdateResponses[keyof ProjectsUpdateResponses];
 
+export type AgentsConversationsData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Lookback window in hours (default: all time, no filter).
+         */
+        period_hours?: number | null;
+        /**
+         * Restrict to spans reporting this environment (default: all).
+         */
+        environment?: string | null;
+        /**
+         * Page number (1-indexed, default: 1)
+         */
+        page?: number;
+        /**
+         * Items per page (default: 20, max: 100)
+         */
+        per_page?: number;
+    };
+    url: '/api/projects/{project_id}/agents/conversations';
+};
+
+export type AgentsConversationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type AgentsConversationsError = AgentsConversationsErrors[keyof AgentsConversationsErrors];
+
+export type AgentsConversationsResponses = {
+    /**
+     * Offset-based paginated response wrapper
+     */
+    200: {
+        items: Array<{
+            /**
+             * Every agent that ran in it, earliest first.
+             */
+            agent_names: Array<string>;
+            conversation_id: string;
+            error_count: number;
+            /**
+             * From the spans' start times, else their end times; `null` when no span
+             * of the conversation carries either, as a transaction's child can.
+             */
+            first_seen: string | null;
+            last_seen: string | null;
+            llm_call_count: number;
+            tool_call_count: number;
+            /**
+             * `agent` spans excluded, as everywhere: their usage rolls up their children.
+             */
+            total_tokens: number;
+            /**
+             * Traces in the conversation.
+             */
+            turn_count: number;
+        }>;
+        page: number;
+        per_page: number;
+        total_count: number;
+        total_pages: number;
+    };
+};
+
+export type AgentsConversationsResponse = AgentsConversationsResponses[keyof AgentsConversationsResponses];
+
+export type AgentsConversationData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * The gen_ai.conversation.id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/agents/conversations/{conversation_id}';
+};
+
+export type AgentsConversationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type AgentsConversationError = AgentsConversationErrors[keyof AgentsConversationErrors];
+
+export type AgentsConversationResponses = {
+    /**
+     * The conversation's AI spans across its turns
+     */
+    200: AgentConversation;
+};
+
+export type AgentsConversationResponse = AgentsConversationResponses[keyof AgentsConversationResponses];
+
 export type AgentsDurationData = {
     body?: never;
     path: {
@@ -4603,6 +4767,26 @@ export type AgentsTracesData = {
          * Items per page (default: 20, max: 100)
          */
         per_page?: number;
+        /**
+         * Only the traces where this agent ran.
+         */
+        agent?: string | null;
+        /**
+         * Only the traces that called this model (response model, else request).
+         */
+        model?: string | null;
+        /**
+         * Only the traces that used this tool.
+         */
+        tool?: string | null;
+        /**
+         * Only the traces with a failing AI span.
+         */
+        errors?: boolean;
+        /**
+         * How the agent traces are ranked; every ranking but newest is largest first.
+         */
+        sort?: 'newest' | 'duration' | 'tokens' | 'llm_calls' | 'tool_calls' | 'errors';
     };
     url: '/api/projects/{project_id}/agents/traces';
 };

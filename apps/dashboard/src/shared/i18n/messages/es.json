@@ -1208,34 +1208,17 @@
     "unnamedAgent": "(agente sin nombre)",
     "charts": {
       "noData": "Aún no hay datos",
-      "durationTooltip": "media {avg} · p95 {p95}"
-    },
-    "waterfall": {
-      "expand": "Expandir",
-      "collapse": "Contraer",
-      "spanFallback": "span"
+      "durationTooltip": "media {avg} · p95 {p95}",
+      "runs": "Ejecuciones de agente",
+      "runsHint": "Ejecuciones iniciadas por intervalo",
+      "duration": "Duración",
+      "durationHint": "Tiempo medio y p95 de ejecuciones de agente y llamadas al modelo",
+      "avg": "Media",
+      "runsOk": "Ejecuciones",
+      "runsFailed": "Fallidas"
     },
     "empty": {
       "noSpans": "Esta traza no tiene spans."
-    },
-    "detail": {
-      "op": "op",
-      "description": "descripción",
-      "status": "estado",
-      "duration": "duración",
-      "selfTime": "tiempo propio",
-      "spanId": "span_id",
-      "parentSpanId": "parent_span_id",
-      "operationType": "tipo de operación",
-      "agentName": "nombre del agente",
-      "toolName": "nombre de la herramienta",
-      "requestModel": "modelo de la petición",
-      "responseModel": "modelo de la respuesta",
-      "conversationId": "id de conversación",
-      "inputTokens": "tokens de entrada",
-      "outputTokens": "tokens de salida",
-      "totalTokens": "tokens totales",
-      "genAiSection": "gen_ai"
     },
     "spanDetail": {
       "agentName": "Agente",
@@ -1264,11 +1247,28 @@
       "totalTokens": "Tokens",
       "avgDuration": "Duración media",
       "p95Duration": "Duración p95",
-      "errors": "Errores"
+      "errors": "Errores",
+      "avg": "media {duration}",
+      "errorRate": "{rate} de los spans de IA"
     },
     "filters": {
       "allTime": "Todo el histórico",
-      "allEnvironments": "Todos los entornos"
+      "allEnvironments": "Todos los entornos",
+      "agent": "Agente",
+      "model": "Modelo",
+      "tool": "Herramienta",
+      "status": "Estado",
+      "failing": "Con fallos",
+      "search": "Filtra por agent:, model:, tool: o status:",
+      "environment": "Entorno",
+      "noEnvironments": "Aún no hay entornos",
+      "allTimeShort": "Todo",
+      "periods": {
+        "1h": "Última hora",
+        "24h": "Últimas 24 horas",
+        "7d": "Últimos 7 días",
+        "30d": "Últimos 30 días"
+      }
     },
     "modelsTable": {
       "empty": "No hay llamadas a modelos en esta ventana.",
@@ -1280,7 +1280,9 @@
       "input": "Entrada",
       "cached": "Caché",
       "output": "Salida",
-      "reasoning": "Razonamiento"
+      "reasoning": "Razonamiento",
+      "title": "Modelos",
+      "hint": "Llamadas, fallos, tokens y latencia por modelo; una fila abre sus trazas"
     },
     "toolsTable": {
       "empty": "No hay llamadas a herramientas en esta ventana.",
@@ -1288,7 +1290,62 @@
       "calls": "Llamadas",
       "errors": "Errores",
       "avg": "Media",
-      "p95": "P95"
+      "p95": "P95",
+      "title": "Herramientas",
+      "hint": "Llamadas, fallos y latencia por herramienta; una fila abre sus trazas"
+    },
+    "tabs": {
+      "overview": "Resumen",
+      "traces": "Trazas",
+      "conversations": "Conversaciones"
+    },
+    "runsCount": "{count, plural, one {# ejecución de agente} other {# ejecuciones de agente}}",
+    "errorsCount": "{count, plural, one {# span fallido} other {# spans fallidos}}",
+    "spanCount": "{count, plural, one {# span} other {# spans}}",
+    "table": {
+      "most": "Mayor primero",
+      "newest": "Más recientes primero",
+      "empty": "Ninguna traza coincide con estos filtros"
+    },
+    "trace": {
+      "models": "Modelos",
+      "waterfallOf": "Spans de la traza {traceId}",
+      "conversation": "Conversación"
+    },
+    "graph": {
+      "viewLabel": "Cómo mostrar la traza",
+      "waterfall": "Cascada",
+      "graph": "Agentes",
+      "empty": "Ningún agente se ejecutó en esta traza.",
+      "handoff": "{count, plural, one {cesión} other {# cesiones}}",
+      "then": "después",
+      "runs": "{count, plural, one {# ejecución} other {# ejecuciones}}",
+      "models": "Modelos",
+      "tools": "Herramientas"
+    },
+    "conversations": {
+      "title": "Conversaciones",
+      "metaTitle": "{conversation} | Conversaciones | Rustrak",
+      "loadFailed": "No se pudo cargar esta conversación",
+      "empty": "No hay conversaciones en este periodo. Envía gen_ai.conversation.id en los spans de tus agentes para agrupar sus turnos.",
+      "pageOf": "Página {page} de {total}",
+      "newer": "Conversaciones más recientes",
+      "older": "Conversaciones más antiguas",
+      "unnamed": "(agente sin nombre)",
+      "turns": "{count, plural, one {# turno} other {# turnos}}",
+      "calls": "{count, plural, one {# llamada LLM} other {# llamadas LLM}}",
+      "tools": "{count, plural, one {# herramienta} other {# herramientas}}",
+      "tokens": "{count} tokens",
+      "errors": "{count, plural, one {# fallo} other {# fallos}}",
+      "turn": "Turno {number}",
+      "openTrace": "Abrir traza",
+      "user": "Usuario",
+      "assistant": "Asistente",
+      "noAnswer": "El turno falló antes de responder.",
+      "turnsLabel": "Turnos",
+      "tokensLabel": "Tokens",
+      "errorsLabel": "Errores",
+      "started": "Inicio"
     }
   },
   "tokens": {
@@ -1744,40 +1801,17 @@
         "description": "Supervisión de agentes de IA para {project}"
       },
       "title": "Agentes",
-      "subtitle": "Ejecuciones de agentes, tokens y uso de herramientas para {project}",
       "loadFailed": "No se pudo cargar la actividad de agentes",
       "emptyTitle": "Aún no hay actividad de agentes",
-      "emptyDescription": "Instrumenta tu agente de IA con un SDK de Sentry usando las convenciones semánticas OpenTelemetry GenAI para empezar a capturar ejecuciones de agentes.",
-      "cardRuns": "Ejecuciones de agente",
-      "cardRunsDescription": "Ejecuciones iniciadas por intervalo",
-      "cardDuration": "Duración",
-      "cardDurationDescription": "Tiempo medio y p95 de las ejecuciones de agente",
-      "cardModelsByCalls": "Llamadas LLM por modelo",
-      "cardModelsByCallsDescription": "Modelos principales por número de llamadas",
-      "cardModelsByTokens": "Tokens usados por modelo",
-      "cardModelsByTokensDescription": "Modelos principales por volumen de tokens",
-      "cardTools": "Llamadas a herramientas por herramienta",
-      "cardToolsDescription": "Herramientas principales por número de llamadas",
-      "cardTraces": "Trazas",
-      "cardTracesDescription": "Una fila por traza, agregando cada span de IA que contiene",
-      "cardModelsTable": "Modelos",
-      "cardModelsTableDescription": "Volumen, fallos, latencia y reparto de tokens por modelo.",
-      "cardToolsTable": "Herramientas",
-      "cardToolsTableDescription": "Volumen de llamadas y tasa de fallo por herramienta."
+      "emptyDescription": "Instrumenta tu agente de IA con un SDK de Sentry usando las convenciones semánticas OpenTelemetry GenAI para empezar a capturar ejecuciones de agentes."
     },
     "trace": {
       "meta": {
         "title": "{traceId} | Agentes | Rustrak"
       },
       "loadFailed": "No se pudo cargar la traza",
-      "backLink": "Agentes",
       "unnamed": "(agente sin nombre)",
-      "tokens": "{count} tokens",
-      "toolCalls": "{count, plural, =1 {# llamada a herramienta} other {# llamadas a herramientas}}",
       "spans": "Spans",
-      "llmCalls": "{count} llamadas LLM",
-      "errors": "{count} errores",
-      "spanDetail": "Detalle del span",
       "selectSpan": "Selecciona un span para ver su prompt, su respuesta y sus atributos.",
       "spanUnavailable": "Ese span ya no está disponible."
     },

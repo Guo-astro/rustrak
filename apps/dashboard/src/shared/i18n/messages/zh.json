@@ -1208,34 +1208,17 @@
     "unnamedAgent": "（未命名智能体）",
     "charts": {
       "noData": "暂无数据",
-      "durationTooltip": "平均 {avg} · p95 {p95}"
-    },
-    "waterfall": {
-      "expand": "展开",
-      "collapse": "折叠",
-      "spanFallback": "跨度"
+      "durationTooltip": "平均 {avg} · p95 {p95}",
+      "runs": "智能体运行",
+      "runsHint": "每个时间段启动的运行",
+      "duration": "耗时",
+      "durationHint": "智能体运行和模型调用的平均耗时与 p95",
+      "avg": "平均",
+      "runsOk": "运行",
+      "runsFailed": "失败"
     },
     "empty": {
       "noSpans": "此追踪没有跨度。"
-    },
-    "detail": {
-      "op": "op",
-      "description": "描述",
-      "status": "状态",
-      "duration": "耗时",
-      "selfTime": "自身耗时",
-      "spanId": "span_id",
-      "parentSpanId": "parent_span_id",
-      "operationType": "操作类型",
-      "agentName": "智能体名称",
-      "toolName": "工具名称",
-      "requestModel": "请求模型",
-      "responseModel": "响应模型",
-      "conversationId": "会话 ID",
-      "inputTokens": "输入令牌",
-      "outputTokens": "输出令牌",
-      "totalTokens": "总令牌数",
-      "genAiSection": "gen_ai"
     },
     "spanDetail": {
       "agentName": "智能体",
@@ -1264,11 +1247,28 @@
       "totalTokens": "令牌",
       "avgDuration": "平均耗时",
       "p95Duration": "P95 耗时",
-      "errors": "错误"
+      "errors": "错误",
+      "avg": "平均 {duration}",
+      "errorRate": "占 AI span 的 {rate}"
     },
     "filters": {
       "allTime": "全部时间",
-      "allEnvironments": "全部环境"
+      "allEnvironments": "全部环境",
+      "agent": "智能体",
+      "model": "模型",
+      "tool": "工具",
+      "status": "状态",
+      "failing": "有失败",
+      "search": "按 agent:、model:、tool: 或 status: 筛选",
+      "environment": "环境",
+      "noEnvironments": "暂无环境",
+      "allTimeShort": "全部",
+      "periods": {
+        "1h": "最近 1 小时",
+        "24h": "最近 24 小时",
+        "7d": "最近 7 天",
+        "30d": "最近 30 天"
+      }
     },
     "modelsTable": {
       "empty": "该时间段内没有模型调用。",
@@ -1280,7 +1280,9 @@
       "input": "输入",
       "cached": "缓存",
       "output": "输出",
-      "reasoning": "推理"
+      "reasoning": "推理",
+      "title": "模型",
+      "hint": "每个模型的调用、失败、token 和延迟；点击一行打开其追踪"
     },
     "toolsTable": {
       "empty": "该时间段内没有工具调用。",
@@ -1288,7 +1290,62 @@
       "calls": "调用数",
       "errors": "错误",
       "avg": "平均",
-      "p95": "P95"
+      "p95": "P95",
+      "title": "工具",
+      "hint": "每个工具的调用、失败和延迟；点击一行打开其追踪"
+    },
+    "tabs": {
+      "overview": "概览",
+      "traces": "追踪",
+      "conversations": "对话"
+    },
+    "runsCount": "{count} 次智能体运行",
+    "errorsCount": "{count} 个失败的 span",
+    "spanCount": "{count} 个 span",
+    "table": {
+      "most": "从大到小",
+      "newest": "最新在前",
+      "empty": "没有符合这些筛选条件的追踪"
+    },
+    "trace": {
+      "models": "模型",
+      "waterfallOf": "追踪 {traceId} 的 span",
+      "conversation": "对话"
+    },
+    "graph": {
+      "viewLabel": "追踪的显示方式",
+      "waterfall": "瀑布图",
+      "graph": "智能体",
+      "empty": "此追踪中没有运行任何智能体。",
+      "handoff": "{count} 次交接",
+      "then": "然后",
+      "runs": "{count} 次运行",
+      "models": "模型",
+      "tools": "工具"
+    },
+    "conversations": {
+      "title": "对话",
+      "metaTitle": "{conversation} | 对话 | Rustrak",
+      "loadFailed": "无法加载此对话",
+      "empty": "此时间范围内没有对话。在智能体 span 上发送 gen_ai.conversation.id 以将其轮次分组。",
+      "pageOf": "第 {page} 页，共 {total} 页",
+      "newer": "较新的对话",
+      "older": "较早的对话",
+      "unnamed": "（未命名智能体）",
+      "turns": "{count} 轮",
+      "calls": "{count} 次 LLM 调用",
+      "tools": "{count} 次工具调用",
+      "tokens": "{count} 个 token",
+      "errors": "{count} 次失败",
+      "turn": "第 {number} 轮",
+      "openTrace": "打开追踪",
+      "user": "用户",
+      "assistant": "助手",
+      "noAnswer": "该轮在回答前失败。",
+      "turnsLabel": "轮次",
+      "tokensLabel": "Token",
+      "errorsLabel": "错误",
+      "started": "开始"
     }
   },
   "tokens": {
@@ -1744,40 +1801,17 @@
         "description": "{project} 的 AI 智能体监控"
       },
       "title": "智能体",
-      "subtitle": "{project} 的 AI 智能体运行、令牌与工具使用情况",
       "loadFailed": "无法加载智能体活动",
       "emptyTitle": "暂无智能体活动",
-      "emptyDescription": "使用遵循 OpenTelemetry GenAI 语义约定的 Sentry SDK 为您的 AI 智能体接入监控，即可开始采集智能体运行数据。",
-      "cardRuns": "智能体运行",
-      "cardRunsDescription": "每个时间间隔启动的运行",
-      "cardDuration": "耗时",
-      "cardDurationDescription": "智能体运行的平均耗时与 p95 耗时",
-      "cardModelsByCalls": "各模型的 LLM 调用次数",
-      "cardModelsByCallsDescription": "按调用次数排名靠前的模型",
-      "cardModelsByTokens": "各模型的令牌用量",
-      "cardModelsByTokensDescription": "按令牌用量排名靠前的模型",
-      "cardTools": "各工具的调用次数",
-      "cardToolsDescription": "按调用次数排名靠前的工具",
-      "cardTraces": "追踪",
-      "cardTracesDescription": "每个追踪一行，汇总其包含的所有 AI 跨度",
-      "cardModelsTable": "模型",
-      "cardModelsTableDescription": "每个模型的调用量、失败、耗时与 Token 构成。",
-      "cardToolsTable": "工具",
-      "cardToolsTableDescription": "每个工具的调用量与失败率。"
+      "emptyDescription": "使用遵循 OpenTelemetry GenAI 语义约定的 Sentry SDK 为您的 AI 智能体接入监控，即可开始采集智能体运行数据。"
     },
     "trace": {
       "meta": {
         "title": "{traceId} | 智能体 | Rustrak"
       },
       "loadFailed": "无法加载追踪",
-      "backLink": "智能体",
       "unnamed": "（未命名智能体）",
-      "tokens": "{count} 个令牌",
-      "toolCalls": "{count} 次工具调用",
       "spans": "跨度",
-      "llmCalls": "{count} 次 LLM 调用",
-      "errors": "{count} 个错误",
-      "spanDetail": "跨度详情",
       "selectSpan": "选择一个跨度以查看其提示词、响应和属性。",
       "spanUnavailable": "该跨度已不可用。"
     },

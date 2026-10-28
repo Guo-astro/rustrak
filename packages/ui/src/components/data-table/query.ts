@@ -156,8 +156,13 @@ const optionsCodec: FilterCodec = {
     return values.length ? { kind: 'filter', value: values } : { kind: 'drop' };
   },
 
+  // Quoted as one when a name holds a space or a quote, so `tool:customer
+  // lookup` does not read back as a tool and a word of search.
+  // ponytail: a comma inside a name still splits it; the tokenizer drops the
+  // quotes before this parse sees them, so telling the two apart would need
+  // per-value quoting through the tokenizer.
   format: (value) =>
-    Array.isArray(value) && value.length ? value.join(',') : null,
+    Array.isArray(value) && value.length ? quoted(value.join(',')) : null,
 };
 
 const rangeCodec: FilterCodec = {

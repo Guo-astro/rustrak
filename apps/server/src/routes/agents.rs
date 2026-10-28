@@ -16,12 +16,12 @@ use crate::db::DbPool;
 use crate::error::AppResult;
 #[cfg(feature = "openapi")]
 use crate::models::{
-    AgentDurationPoint, AgentModelRow, AgentSummary, AgentTimeseriesPoint, AgentToolRow,
-    AgentTraceSummary, GenAiBreakdownRow,
+    AgentConversation, AgentConversationSummary, AgentDurationPoint, AgentModelRow, AgentSummary,
+    AgentTimeseriesPoint, AgentToolRow, AgentTraceSummary, GenAiBreakdownRow,
 };
 use crate::pagination::{
-    AgentBreakdownQuery, AgentTimeseriesQuery, AgentTracesQuery, AgentWindowQuery,
-    OffsetPaginatedResponse,
+    AgentBreakdownQuery, AgentConversationsQuery, AgentTimeseriesQuery, AgentTracesQuery,
+    AgentWindowQuery, OffsetPaginatedResponse,
 };
 use crate::services::access::{self, Action};
 use crate::services::span::{AgentFilters, SpanService};
@@ -268,6 +268,7 @@ pub async fn agent_traces(
         per_page,
         query.period_hours,
         &filters,
+        &query.trace_filters(),
     )
     .await?;
 
@@ -407,6 +408,86 @@ pub async fn agent_environments(
     Ok(HttpResponse::Ok().json(envs))
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/agents/conversations",
+    operation_id = "agents.conversations",
+    tag = "Agents",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        AgentConversationsQuery,
+    ),
+    responses(
+        (status = 200, description = "Paginated agent conversations", body = inline(crate::pagination::OffsetPaginatedResponse<AgentConversationSummary>)),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// GET /api/projects/{project_id}/agents/conversations
+/// Lists conversations -- traces sharing a `gen_ai.conversation.id` -- the most recently active first.
+pub async fn agent_conversations(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    query: web::Query<AgentConversationsQuery>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+    require_view_access(pool.get_ref(), project_id, &actor).await?;
+
+    let page = query.page.max(1);
+    let per_page = query.per_page.clamp(1, 100);
+    let filters = AgentFilters {
+        environment: query.environment.clone(),
+    };
+    let (conversations, total_count) = SpanService::agent_conversations(
+        pool.get_ref(),
+        project_id,
+        page,
+        per_page,
+        query.period_hours,
+        &filters,
+    )
+    .await?;
+
+    Ok(HttpResponse::Ok().json(OffsetPaginatedResponse::new(
+        conversations,
+        total_count,
+        page,
+        per_page,
+    )))
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/agents/conversations/{conversation_id}",
+    operation_id = "agents.conversation",
+    tag = "Agents",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        ("conversation_id" = String, Path, description = "The gen_ai.conversation.id"),
+    ),
+    responses(
+        (status = 200, description = "The conversation's AI spans across its turns", body = AgentConversation),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// GET /api/projects/{project_id}/agents/conversations/{conversation_id}
+/// Returns every AI span of a conversation's turns, oldest first, with its input and output.
+pub async fn agent_conversation(
+    pool: web::Data<DbPool>,
+    path: web::Path<(i32, String)>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let (project_id, conversation_id) = path.into_inner();
+    require_view_access(pool.get_ref(), project_id, &actor).await?;
+    let conversation =
+        SpanService::agent_conversation(pool.get_ref(), project_id, &conversation_id).await?;
+    Ok(HttpResponse::Ok().json(conversation))
+}
+
 #[cfg(feature = "openapi")]
 #[derive(OpenApi)]
 #[openapi(paths(
@@ -420,6 +501,8 @@ pub async fn agent_environments(
     agent_models_table,
     agent_tools_table,
     agent_environments,
+    agent_conversations,
+    agent_conversation,
 ))]
 pub struct AgentsApi;
 
@@ -436,6 +519,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/traces", web::get().to(agent_traces))
             .route("/summary", web::get().to(agent_summary))
             .route("/models", web::get().to(agent_models_table))
-            .route("/environments", web::get().to(agent_environments)),
+            .route("/environments", web::get().to(agent_environments))
+            .route("/conversations", web::get().to(agent_conversations))
+            .route(
+                "/conversations/{conversation_id}",
+                web::get().to(agent_conversation),
+            ),
     );
 }

@@ -71,6 +71,7 @@ export const zAgentSummary = z.object({
  */
 export const zAgentTimeseriesPoint = z.object({
     bucket: z.iso.datetime({ offset: true }),
+    errors: z.int(),
     value: z.number()
 });
 
@@ -423,6 +424,33 @@ export const zCompaction = z.object({
 
 export const zConfirmSsoLinkRequest = z.object({
     password: z.string()
+});
+
+export const zConversationSpan = z.object({
+    agent_name: z.string().nullable(),
+    duration_ms: z.number().nullable(),
+    id: z.uuid(),
+    input: z.string().nullable(),
+    model: z.string().nullable(),
+    operation_type: z.string(),
+    output: z.string().nullable(),
+    parent_span_id: z.string().nullable(),
+    span_id: z.string().nullable(),
+    start_timestamp: z.iso.datetime({ offset: true }).nullable(),
+    status: z.string().nullable(),
+    tool_calls: z.string().nullable(),
+    tool_name: z.string().nullable(),
+    total_tokens: z.number().nullable(),
+    trace_id: z.string()
+});
+
+/**
+ * A conversation in full: its AI spans across every turn, oldest first,
+ * each with what went in and came out, for a transcript.
+ */
+export const zAgentConversation = z.object({
+    conversation_id: z.string(),
+    spans: z.array(zConversationSpan)
 });
 
 /**
@@ -2480,6 +2508,48 @@ export const zProjectsUpdatePath = z.object({
  */
 export const zProjectsUpdateResponse = zProjectResponse;
 
+export const zAgentsConversationsPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zAgentsConversationsQuery = z.object({
+    period_hours: z.int().nullish(),
+    environment: z.string().nullish(),
+    page: z.int().gte(1).optional(),
+    per_page: z.int().gte(1).lte(100).optional()
+});
+
+/**
+ * Offset-based paginated response wrapper
+ */
+export const zAgentsConversationsResponse = z.object({
+    items: z.array(z.object({
+        agent_names: z.array(z.string()),
+        conversation_id: z.string(),
+        error_count: z.int(),
+        first_seen: z.iso.datetime({ offset: true }).nullable(),
+        last_seen: z.iso.datetime({ offset: true }).nullable(),
+        llm_call_count: z.int(),
+        tool_call_count: z.int(),
+        total_tokens: z.number(),
+        turn_count: z.int()
+    })),
+    page: z.int(),
+    per_page: z.int(),
+    total_count: z.int(),
+    total_pages: z.int()
+});
+
+export const zAgentsConversationPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    conversation_id: z.string()
+});
+
+/**
+ * The conversation's AI spans across its turns
+ */
+export const zAgentsConversationResponse = zAgentConversation;
+
 export const zAgentsDurationPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
 });
@@ -2614,7 +2684,19 @@ export const zAgentsTracesQuery = z.object({
     period_hours: z.int().nullish(),
     environment: z.string().nullish(),
     page: z.int().gte(1).optional(),
-    per_page: z.int().gte(1).lte(100).optional()
+    per_page: z.int().gte(1).lte(100).optional(),
+    agent: z.string().nullish(),
+    model: z.string().nullish(),
+    tool: z.string().nullish(),
+    errors: z.boolean().optional(),
+    sort: z.enum([
+        'newest',
+        'duration',
+        'tokens',
+        'llm_calls',
+        'tool_calls',
+        'errors'
+    ]).optional()
 });
 
 /**

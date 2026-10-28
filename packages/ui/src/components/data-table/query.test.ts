@@ -120,6 +120,13 @@ describe('formatFilterQuery', () => {
     expect(formatFilterQuery(filters, search, variants)).toBe(input);
   });
 
+  it('quotes option values with spaces, so they read back whole', () => {
+    const filters = [{ id: 'level', value: ['customer lookup', 'b'] }];
+    const text = formatFilterQuery(filters, '', variants);
+    expect(text).toBe('level:"customer lookup,b"');
+    expect(parseFilterQuery(text, variants)).toEqual({ filters, search: '' });
+  });
+
   it('quotes a text value with spaces', () => {
     expect(
       formatFilterQuery(

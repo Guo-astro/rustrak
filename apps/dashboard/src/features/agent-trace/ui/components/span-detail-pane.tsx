@@ -30,16 +30,12 @@ export function SpanDetailPane({
   // whole trace view with a failure surface.
   if (requestedMissing || notFound) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {t('trace.spanUnavailable')}
-      </p>
+      <p className="text-fg-subtle text-meta">{t('trace.spanUnavailable')}</p>
     );
   }
 
   if (selected == null) {
-    return (
-      <p className="text-sm text-muted-foreground">{t('trace.selectSpan')}</p>
-    );
+    return <p className="text-fg-subtle text-meta">{t('trace.selectSpan')}</p>;
   }
 
   if (!selected.success) {
