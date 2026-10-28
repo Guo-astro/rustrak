@@ -221,6 +221,10 @@ Before submitting a pull request, consider creating an issue first:
 5. **Update documentation** as needed
 6. **Submit a pull request** with a clear description
 
+### Contributor License Agreement
+
+Before your first pull request can be merged, you sign the [Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md). It is a few lines long and says you give permission to license your contribution on any terms. A bot comments on the pull request with the sentence to reply with; you sign once and it covers every later pull request.
+
 ### Code Review Process
 
 - All submissions require review before merging
