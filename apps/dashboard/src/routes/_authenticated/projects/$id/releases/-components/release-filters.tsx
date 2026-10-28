@@ -1,10 +1,8 @@
-import { EnvironmentIcon, TimeIcon } from '@rustrak/ui';
+import { EnvironmentIcon } from '@rustrak/ui';
 import { useTranslations } from 'use-intl';
 import { getProjectEnvironments } from '@/features/project/api/queries';
-import {
-  PERIOD_CHOICES,
-  type PeriodChoice,
-} from '@/features/release/model/session-health';
+import type { PeriodChoice } from '@/features/release/model/session-health';
+import { PeriodSegment } from '@/features/release/ui/components/period-filter';
 import { scopeActions } from '@/shared/lib/scope-actions';
 import { ScopeBar, ScopeSegment } from '@/shared/ui/components/scope-bar';
 import { useAsync } from '@/shared/ui/hooks/use-async';
@@ -51,40 +49,5 @@ export function ReleaseFilters({
         onChange={(period) => onChange({ period })}
       />
     </ScopeBar>
-  );
-}
-
-/** The window alone, beside the list's query bar. */
-export function PeriodFilter(props: {
-  period: PeriodChoice;
-  onChange: (period: PeriodChoice) => void;
-}) {
-  return (
-    <ScopeBar>
-      <PeriodSegment {...props} />
-    </ScopeBar>
-  );
-}
-
-function PeriodSegment({
-  period,
-  onChange,
-}: {
-  period: PeriodChoice;
-  onChange: (period: PeriodChoice) => void;
-}) {
-  const t = useTranslations('projectPages.overview');
-  return (
-    <ScopeSegment
-      icon={TimeIcon}
-      label={period === 'all' ? t('periods.allShort') : period}
-      actions={PERIOD_CHOICES.map((value) => ({
-        id: value,
-        label: t(`periods.${value}`),
-        selected: value === period,
-        separated: value === 'all',
-        onSelect: () => onChange(value),
-      }))}
-    />
   );
 }

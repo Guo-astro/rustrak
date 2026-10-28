@@ -1164,18 +1164,6 @@
     "environment": "Entorno"
   },
   "transactions": {
-    "columns": {
-      "transaction": "Transacción",
-      "duration": "Duración",
-      "lastSeen": "Vista por última vez",
-      "count": "Recuento",
-      "failures": "Fallos"
-    },
-    "unnamed": "(sin nombre)",
-    "empty": {
-      "title": "Aún no hay transacciones",
-      "sdkHint": "Configura tu SDK con <code>tracesSampleRate</code> para empezar a capturar datos de rendimiento."
-    },
     "measurements": {
       "lcp": "LCP",
       "fcp": "FCP",
@@ -1183,21 +1171,6 @@
       "inp": "INP",
       "ttfb": "TTFB",
       "cls": "CLS"
-    },
-    "waterfall": {
-      "rootFallback": "transacción",
-      "spanFallback": "span",
-      "expand": "Expandir",
-      "collapse": "Contraer",
-      "detail": {
-        "op": "op",
-        "description": "descripción",
-        "status": "estado",
-        "duration": "duración",
-        "selfTime": "tiempo propio",
-        "spanId": "span_id",
-        "parentSpanId": "parent_span_id"
-      }
     },
     "p95": {
       "barTitle": "{name} — {count, plural, =1 {# evento} other {# eventos}}",
@@ -1624,7 +1597,6 @@
     "projectTitle": "{project} | Rustrak",
     "loadProjectFailed": "No se pudo cargar el proyecto",
     "loadIssueFailed": "No se pudo cargar el problema",
-    "spanCount": "{count, plural, =1 {# span} other {# spans}}",
     "projectsList": {
       "meta": {
         "title": "Proyectos | Rustrak",
@@ -1723,37 +1695,19 @@
         "title": "Rendimiento | {project} | Rustrak",
         "description": "Rendimiento de transacciones de {project}"
       },
-      "title": "Rendimiento",
-      "subtitle": "Transacciones de {project}, agrupadas por nombre y operación",
-      "loadFailed": "No se pudieron cargar las transacciones",
-      "emptyTitle": "Aún no hay transacciones",
-      "emptyDescription": "Configura tu SDK con <code>tracesSampleRate</code> para empezar a capturar datos de rendimiento.",
-      "backLink": "Rendimiento"
+      "title": "Rendimiento"
     },
     "transaction": {
       "meta": {
         "title": "{name} | Rendimiento | Rustrak",
         "fallbackTitle": "Transacción | Rustrak"
-      },
-      "loadFailed": "No se pudo cargar la transacción",
-      "unnamed": "(transacción sin nombre)",
-      "spans": "Spans",
-      "noSpans": "Esta transacción no tiene spans.",
-      "tags": "Tags",
-      "request": "Petición",
-      "user": "Usuario"
+      }
     },
     "summary": {
       "meta": {
         "title": "{name} | Rendimiento | Rustrak",
         "fallbackName": "Transacción"
-      },
-      "metricCount": "Recuento",
-      "metricP50": "p50",
-      "metricP95": "p95",
-      "metricP99": "p99",
-      "metricFailureRate": "Tasa de fallo",
-      "samples": "Muestras"
+      }
     },
     "releases": {
       "meta": {
@@ -1886,7 +1840,8 @@
       "received": "Recibido",
       "openIssue": "Abrir como issue",
       "back": "Volver a la lista"
-    }
+    },
+    "spanCount": "{count, plural, =1 {# span} other {# spans}}"
   },
   "settings": {
     "meta": {
@@ -2515,5 +2470,76 @@
     "decideFailed": "No se pudo completar la autorización",
     "failedTitle": "No se puede completar esta solicitud",
     "failedDescription": "El asistente envió una solicitud de autorización que Rustrak no pudo verificar, así que no se ha compartido nada. Vuelve a iniciar la conexión desde el asistente."
+  },
+  "performance": {
+    "count": "{count, plural, one {# endpoint} other {# endpoints}}",
+    "search": "Buscar endpoints…",
+    "environment": "Entorno",
+    "loadFailed": "No se pudieron cargar los endpoints",
+    "emptyWindow": "No hay endpoints",
+    "empty": {
+      "title": "Aún no hay transacciones",
+      "description": "Configura <code>tracesSampleRate</code> en tu SDK para ver cuánto tarda cada endpoint."
+    },
+    "columns": {
+      "endpoint": "Endpoint",
+      "timeSpent": "Tiempo total",
+      "calls": "Llamadas",
+      "avg": "Media",
+      "failures": "Fallos",
+      "lastSeen": "Última vez"
+    },
+    "table": {
+      "most": "Mayor primero"
+    },
+    "detail": {
+      "figures": "Cifras",
+      "noSamples": "No hay muestras en este periodo",
+      "latency": "Latencia",
+      "latencyHint": "p50 y p95 a lo largo del periodo",
+      "calls": "Llamadas",
+      "callsHint": "Cuántas veces se llamó y cuántas falló",
+      "ok": "Correctas",
+      "failed": "Con fallo",
+      "slowest": "Muestras más lentas",
+      "slowestHint": "Abre una para ver su traza",
+      "callsFigure": "Llamadas",
+      "perMinute": "{rate} por minuto",
+      "failures": "Fallos",
+      "timeSpent": "Tiempo total",
+      "totalTime": "{time} en total",
+      "p50": "p50 {time}",
+      "failedCalls": "{count} con fallo",
+      "operation": "Operación",
+      "environment": "Entorno",
+      "allEnvironments": "Todos",
+      "average": "Media",
+      "lastSeen": "Última vez",
+      "details": "Detalles",
+      "duration": "Duración",
+      "release": "Versión",
+      "status": "Estado",
+      "when": "Cuándo"
+    },
+    "transaction": {
+      "loadFailed": "No se pudo cargar esta transacción",
+      "unnamed": "(sin nombre)",
+      "idCopied": "Id del evento copiado",
+      "copyId": "Copiar id del evento",
+      "request": "Petición",
+      "tags": "Etiquetas",
+      "user": "Usuario",
+      "trace": "Traza",
+      "spans": "{count, plural, one {# span} other {# spans}}",
+      "traceOf": "Traza de {name}",
+      "noSpans": "Esta transacción no envió spans",
+      "op": "Operación",
+      "description": "Descripción",
+      "duration": "Duración",
+      "selfTime": "Tiempo propio",
+      "start": "Inicio",
+      "status": "Estado",
+      "spanId": "Id del span"
+    }
   }
 }

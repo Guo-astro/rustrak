@@ -30,9 +30,8 @@ function routeLabel(name: string): string {
 }
 
 /**
- * Link to the group's samples, the same drill-down the performance table uses
- * (`summaryHref` in performance/transaction-stats-table.tsx): a row should land
- * on the transaction it names, not on the unfiltered list.
+ * The endpoint's own page, as a click on the performance list's row opens
+ * it: a bar lands on the endpoint it names, not on the unfiltered list.
  */
 function summaryHref(projectId: number, row: TransactionStatsResponse): string {
   const params = new URLSearchParams({ name: row.transaction_name });

@@ -9704,6 +9704,39 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "`slowest` for the longest first; newest first otherwise.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "The order of a transaction list.",
+                  "enum": [
+                    "recent",
+                    "slowest"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
           }
         ],
         "responses": {
@@ -9737,7 +9770,8 @@
                           "platform",
                           "environment",
                           "release",
-                          "ingested_at"
+                          "ingested_at",
+                          "status"
                         ],
                         "properties": {
                           "duration_ms": {
@@ -9775,6 +9809,13 @@
                               "null"
                             ],
                             "format": "date-time"
+                          },
+                          "status": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Trace status (`ok`, `internal_error`...), if the SDK sent one."
                           },
                           "timestamp": {
                             "type": "string",
@@ -9840,7 +9881,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, p50/p95/p99 latency,\nfailure rate) grouped by transaction name + op, most frequent first.",
+        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, time spent, p50/p95/p99\nlatency, failure rate) grouped by transaction name + op, the most time spent\nfirst unless `sort` asks otherwise.",
         "operationId": "transactions.getStats",
         "parameters": [
           {
@@ -9875,6 +9916,58 @@
               "maximum": 100,
               "minimum": 1
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only this environment.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the endpoints whose name contains this, ignoring case.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "How to rank them; most time spent in all by default.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "How the endpoints are ranked.",
+              "enum": [
+                "time_spent",
+                "count",
+                "avg",
+                "failure_rate"
+              ]
+            }
           }
         ],
         "responses": {
@@ -9905,9 +9998,17 @@
                           "p50_ms",
                           "p95_ms",
                           "p99_ms",
-                          "failure_rate"
+                          "failure_rate",
+                          "avg_ms",
+                          "total_ms",
+                          "time_share",
+                          "last_seen"
                         ],
                         "properties": {
+                          "avg_ms": {
+                            "type": "number",
+                            "format": "double"
+                          },
                           "count": {
                             "type": "integer",
                             "format": "int64",
@@ -9917,6 +10018,10 @@
                             "type": "number",
                             "format": "double",
                             "description": "Fraction (0.0–1.0) of transactions whose trace status is set and not \"ok\"."
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time"
                           },
                           "op": {
                             "type": [
@@ -9935,6 +10040,16 @@
                           "p99_ms": {
                             "type": "number",
                             "format": "double"
+                          },
+                          "time_share": {
+                            "type": "number",
+                            "format": "double",
+                            "description": "Its share, 0 to 1, of the time every endpoint in the same read takes."
+                          },
+                          "total_ms": {
+                            "type": "number",
+                            "format": "double",
+                            "description": "Every sample's duration added up: how much time the endpoint takes in all."
                           },
                           "transaction_name": {
                             "type": "string"
@@ -10029,6 +10144,30 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only this environment.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -10054,6 +10193,112 @@
           },
           "404": {
             "description": "Group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/transactions/stats/group/timeseries": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, back\nto its oldest call and never less than the last 24 hours, which is also\nwhat an endpoint with no calls gets.",
+        "operationId": "transactions.getStatGroupTimeseries",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Exact transaction name of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "description": "Trace operation of the group (omit for groups with no op).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only this environment.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The endpoint's runs, failures, p50 and p95 per bucket, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionTimeseriesPoint"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -17796,7 +18041,8 @@
           "platform",
           "environment",
           "release",
-          "ingested_at"
+          "ingested_at",
+          "status"
         ],
         "properties": {
           "duration_ms": {
@@ -17835,6 +18081,13 @@
             ],
             "format": "date-time"
           },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Trace status (`ok`, `internal_error`...), if the SDK sent one."
+          },
           "timestamp": {
             "type": "string",
             "format": "date-time"
@@ -17854,9 +18107,17 @@
           "p50_ms",
           "p95_ms",
           "p99_ms",
-          "failure_rate"
+          "failure_rate",
+          "avg_ms",
+          "total_ms",
+          "time_share",
+          "last_seen"
         ],
         "properties": {
+          "avg_ms": {
+            "type": "number",
+            "format": "double"
+          },
           "count": {
             "type": "integer",
             "format": "int64",
@@ -17866,6 +18127,10 @@
             "type": "number",
             "format": "double",
             "description": "Fraction (0.0–1.0) of transactions whose trace status is set and not \"ok\"."
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
           },
           "op": {
             "type": [
@@ -17885,8 +18150,51 @@
             "type": "number",
             "format": "double"
           },
+          "time_share": {
+            "type": "number",
+            "format": "double",
+            "description": "Its share, 0 to 1, of the time every endpoint in the same read takes."
+          },
+          "total_ms": {
+            "type": "number",
+            "format": "double",
+            "description": "Every sample's duration added up: how much time the endpoint takes in all."
+          },
           "transaction_name": {
             "type": "string"
+          }
+        }
+      },
+      "TransactionTimeseriesPoint": {
+        "type": "object",
+        "description": "One bucket of an endpoint's trend: how often it ran, how often it failed\nand how long it took.",
+        "required": [
+          "bucket",
+          "count",
+          "failures",
+          "p50_ms",
+          "p95_ms"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "p50_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p95_ms": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

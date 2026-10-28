@@ -20,6 +20,7 @@ import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { useAsync } from '@/shared/ui/hooks/use-async';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 import { ReleaseFilters } from './-components/release-filters';
 import {
   NewIssuesPanel,
@@ -91,6 +92,7 @@ function ReleaseDetailPage() {
   const environment = search.environment;
   const version = loaded.success ? loaded.data[1].version : '';
   const interval = overviewInterval(period);
+  usePageTrail(version ? [{ label: version, mono: true }] : []);
 
   // The panels around the release, each landing on its own.
   const project = useAsync(

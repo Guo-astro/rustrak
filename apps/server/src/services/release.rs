@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::models::{is_valid_version, CreateRelease, Release, ReleaseSummary, UpdateRelease};
+use crate::services::scope::{since, since_day};
 
 const RELEASE_COLUMNS: &str = "id, project_id, version, ref, url, date_created, date_released";
 
@@ -20,29 +21,6 @@ pub struct SummaryFilter {
     pub period_hours: Option<i64>,
     /// Keeps the versions containing it, ignoring case.
     pub query: Option<String>,
-}
-
-/// `column` falls in the last `hours`, as a SQL condition; true without a
-/// window. `hours` is a parsed integer, never request text.
-fn since(column: &str, hours: Option<i64>) -> String {
-    let Some(hours) = hours else {
-        return "1 = 1".to_string();
-    };
-    #[cfg(feature = "postgres")]
-    return format!("{column} >= NOW() - INTERVAL '{hours} hours'");
-    #[cfg(not(feature = "postgres"))]
-    return format!("datetime({column}) >= datetime('now', '-{hours} hours')");
-}
-
-/// [`since`] for a `DATE` column.
-fn since_day(column: &str, hours: Option<i64>) -> String {
-    let Some(hours) = hours else {
-        return "1 = 1".to_string();
-    };
-    #[cfg(feature = "postgres")]
-    return format!("{column} >= (NOW() - INTERVAL '{hours} hours')::date");
-    #[cfg(not(feature = "postgres"))]
-    return format!("{column} >= date('now', '-{hours} hours')");
 }
 
 type RecordRow = (

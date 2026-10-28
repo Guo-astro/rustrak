@@ -1164,18 +1164,6 @@
     "environment": "环境"
   },
   "transactions": {
-    "columns": {
-      "transaction": "事务",
-      "duration": "耗时",
-      "lastSeen": "最近出现",
-      "count": "次数",
-      "failures": "失败"
-    },
-    "unnamed": "（未命名）",
-    "empty": {
-      "title": "暂无事务",
-      "sdkHint": "配置 SDK，设置 <code>tracesSampleRate</code> 即可开始捕获性能数据。"
-    },
     "measurements": {
       "lcp": "LCP",
       "fcp": "FCP",
@@ -1183,21 +1171,6 @@
       "inp": "INP",
       "ttfb": "TTFB",
       "cls": "CLS"
-    },
-    "waterfall": {
-      "rootFallback": "事务",
-      "spanFallback": "跨度",
-      "expand": "展开",
-      "collapse": "折叠",
-      "detail": {
-        "op": "op",
-        "description": "描述",
-        "status": "状态",
-        "duration": "耗时",
-        "selfTime": "自身耗时",
-        "spanId": "span_id",
-        "parentSpanId": "parent_span_id"
-      }
     },
     "p95": {
       "barTitle": "{name} — {count} 个事件",
@@ -1624,7 +1597,6 @@
     "projectTitle": "{project} | Rustrak",
     "loadProjectFailed": "无法加载项目",
     "loadIssueFailed": "无法加载问题",
-    "spanCount": "{count} 个跨度",
     "projectsList": {
       "meta": {
         "title": "项目 | Rustrak",
@@ -1723,37 +1695,19 @@
         "title": "性能 | {project} | Rustrak",
         "description": "{project} 的事务性能"
       },
-      "title": "性能",
-      "subtitle": "{project} 的事务，按名称和操作分组",
-      "loadFailed": "无法加载事务",
-      "emptyTitle": "暂无事务",
-      "emptyDescription": "在 SDK 中配置 <code>tracesSampleRate</code> 以开始采集性能数据。",
-      "backLink": "性能"
+      "title": "性能"
     },
     "transaction": {
       "meta": {
         "title": "{name} | 性能 | Rustrak",
         "fallbackTitle": "事务 | Rustrak"
-      },
-      "loadFailed": "无法加载事务",
-      "unnamed": "（未命名事务）",
-      "spans": "跨度",
-      "noSpans": "此事务没有跨度。",
-      "tags": "标签",
-      "request": "请求",
-      "user": "用户"
+      }
     },
     "summary": {
       "meta": {
         "title": "{name} | 性能 | Rustrak",
         "fallbackName": "事务"
-      },
-      "metricCount": "次数",
-      "metricP50": "p50",
-      "metricP95": "p95",
-      "metricP99": "p99",
-      "metricFailureRate": "失败率",
-      "samples": "样本"
+      }
     },
     "releases": {
       "meta": {
@@ -1886,7 +1840,8 @@
       "received": "收到时间",
       "openIssue": "作为问题打开",
       "back": "返回列表"
-    }
+    },
+    "spanCount": "{count} 个跨度"
   },
   "settings": {
     "meta": {
@@ -2515,5 +2470,76 @@
     "decideFailed": "无法完成授权",
     "failedTitle": "无法完成此请求",
     "failedDescription": "助手发送的授权请求无法被 Rustrak 验证，因此没有共享任何内容。请从助手重新发起连接。"
+  },
+  "performance": {
+    "count": "{count} 个端点",
+    "search": "搜索端点…",
+    "environment": "环境",
+    "loadFailed": "无法加载端点",
+    "emptyWindow": "没有端点",
+    "empty": {
+      "title": "还没有事务",
+      "description": "在 SDK 中设置 <code>tracesSampleRate</code>，即可查看每个端点的耗时。"
+    },
+    "columns": {
+      "endpoint": "端点",
+      "timeSpent": "总耗时",
+      "calls": "调用",
+      "avg": "平均",
+      "failures": "失败",
+      "lastSeen": "最近"
+    },
+    "table": {
+      "most": "从大到小"
+    },
+    "detail": {
+      "figures": "指标",
+      "noSamples": "此时段内没有样本",
+      "latency": "延迟",
+      "latencyHint": "时段内的 p50 和 p95",
+      "calls": "调用",
+      "callsHint": "调用次数及失败次数",
+      "ok": "成功",
+      "failed": "失败",
+      "slowest": "最慢的样本",
+      "slowestHint": "打开一个查看其追踪",
+      "callsFigure": "调用",
+      "perMinute": "每分钟 {rate} 次",
+      "failures": "失败",
+      "timeSpent": "总耗时",
+      "totalTime": "共 {time}",
+      "p50": "p50 {time}",
+      "failedCalls": "{count} 个失败",
+      "operation": "操作",
+      "environment": "环境",
+      "allEnvironments": "全部",
+      "average": "平均",
+      "lastSeen": "最近",
+      "details": "详情",
+      "duration": "耗时",
+      "release": "版本",
+      "status": "状态",
+      "when": "时间"
+    },
+    "transaction": {
+      "loadFailed": "无法加载此事务",
+      "unnamed": "(未命名)",
+      "idCopied": "已复制事件 ID",
+      "copyId": "复制事件 ID",
+      "request": "请求",
+      "tags": "标签",
+      "user": "用户",
+      "trace": "追踪",
+      "spans": "{count} 个 span",
+      "traceOf": "{name} 的追踪",
+      "noSpans": "此事务没有发送 span",
+      "op": "操作",
+      "description": "描述",
+      "duration": "耗时",
+      "selfTime": "自身耗时",
+      "start": "开始",
+      "status": "状态",
+      "spanId": "Span ID"
+    }
   }
 }

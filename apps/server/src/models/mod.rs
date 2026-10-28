@@ -148,6 +148,6 @@ pub use storage::{
 };
 pub use transaction::{
     span_attributes, SpanDetailResponse, SpanResponse, TransactionDetailResponse,
-    TransactionResponse, TransactionStatsResponse,
+    TransactionResponse, TransactionStatsResponse, TransactionTimeseriesPoint,
 };
 pub use user::{ChangePasswordRequest, CreateUserRequest, LoginRequest, User, UserRole};

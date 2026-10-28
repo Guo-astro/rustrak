@@ -1,53 +1,49 @@
 import { createFileRoute, notFound } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
-import { useFormatter, useTranslations } from 'use-intl';
-import { getProject } from '@/features/project/api/queries';
+import type { ReactNode } from 'react';
+import { useTranslations } from 'use-intl';
 import {
+  DEFAULT_PERIOD,
+  PERIOD_CHOICES,
+} from '@/features/release/model/session-health';
+import { PeriodFilter } from '@/features/release/ui/components/period-filter';
+import {
+  getEndpointTrend,
   getTransactionStatForGroup,
   listTransactions,
 } from '@/features/transaction/api/queries';
-import { TransactionsList } from '@/features/transaction/ui/components/transactions-list';
+import { windowHours } from '@/features/transaction/model/endpoints';
+import {
+  CallsChart,
+  EndpointFacts,
+  EndpointFigures,
+  LatencyChart,
+  Loaded,
+  Panel,
+  SlowestSamples,
+} from '@/features/transaction/ui/components/endpoint-detail';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
-import { searchPage, searchString } from '@/shared/lib/search-params';
-import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { Badge } from '@/shared/ui/components/shadcn/badge';
+import { searchOneOf, searchString } from '@/shared/lib/search-params';
+import { useAsync } from '@/shared/ui/hooks/use-async';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
+/**
+ * One endpoint, laid out as the release page is: its name and window in the
+ * header, how it is doing and how it moved in the reading column, the facts
+ * that describe it in the rail. A row of the performance list opens it,
+ * keeping the window and environment it was read in.
+ */
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/performance/summary',
 )({
   validateSearch: (search: Record<string, unknown>) => ({
     name: searchString(search.name),
     op: searchString(search.op),
-    page: searchPage(search.page),
+    period: searchOneOf(search.period, PERIOD_CHOICES),
+    environment: searchString(search.environment),
   }),
-  loaderDeps: ({ search }) => ({
-    name: search.name,
-    op: search.op,
-    page: search.page ?? 1,
-  }),
-  loader: ({ params, deps }) => {
-    // The transaction name *is* the address of this page: without it there is
-    // no group to summarise, which is a wrong address rather than an outage.
-    if (!deps.name) throw notFound();
-
-    const projectId = Number.parseInt(params.id, 10);
-
-    // Direct group lookup — correct regardless of how many groups exist (no
-    // "fetch page 1 and hope the group is on it").
-    // `getTransactionStatForGroup` already turns "this group has no rows" into
-    // a successful `null`, so a failure here is a real one.
-    return loadAll([
-      getProject(projectId),
-      listTransactions(projectId, {
-        page: deps.page,
-        per_page: 20,
-        name: deps.name,
-        op: deps.op,
-      }),
-      getTransactionStatForGroup(projectId, deps.name, deps.op),
-    ]);
+  // The name *is* the address: without it there is no endpoint to show.
+  beforeLoad: ({ search }) => {
+    if (!search.name) throw notFound();
   },
   head: ({ match }) => {
     const t = translator('projectPages');
@@ -61,110 +57,139 @@ export const Route = createFileRoute(
       ],
     };
   },
-  component: TransactionSummaryPage,
+  component: EndpointPage,
 });
 
-function formatMs(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
-
-function TransactionSummaryPage() {
-  const t = useTranslations('projectPages');
-  const format = useFormatter();
+function EndpointPage() {
+  const t = useTranslations('performance.detail');
   const { id } = Route.useParams();
-  const { name, op, currentPage } = Route.useSearch({
-    select: (search) => ({
-      name: search.name,
-      op: search.op,
-      currentPage: search.page ?? 1,
-    }),
-  });
-  const loaded = Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const projectId = Number.parseInt(id, 10);
-  const filters = { name, op };
+  const period = search.period ?? DEFAULT_PERIOD;
+  const name = search.name ?? '';
+  const op = search.op ?? null;
+  usePageTrail([{ label: name, mono: true }]);
+  const scope = {
+    period: period === 'all' ? undefined : period,
+    environment: search.environment,
+  };
 
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('transaction.loadFailed')} />
-    );
-  }
-
-  const [, samples, group] = loaded.data;
-
-  const metrics: { id: string; label: string; value: string }[] = group
-    ? [
-        {
-          id: 'count',
-          label: t('summary.metricCount'),
-          value: format.number(group.count),
-        },
-        {
-          id: 'p50',
-          label: t('summary.metricP50'),
-          value: formatMs(group.p50_ms),
-        },
-        {
-          id: 'p95',
-          label: t('summary.metricP95'),
-          value: formatMs(group.p95_ms),
-        },
-        {
-          id: 'p99',
-          label: t('summary.metricP99'),
-          value: formatMs(group.p99_ms),
-        },
-        {
-          id: 'failureRate',
-          label: t('summary.metricFailureRate'),
-          value: `${(group.failure_rate * 100).toFixed(1)}%`,
-        },
-      ]
-    : [];
+  // Three panels, each landing on its own.
+  const deps = [projectId, name, op, period, search.environment];
+  const stats = useAsync(
+    () => getTransactionStatForGroup(projectId, name, op ?? undefined, scope),
+    deps,
+  );
+  const trend = useAsync(
+    () => getEndpointTrend(projectId, name, op ?? undefined, scope),
+    deps,
+  );
+  const samples = useAsync(
+    () =>
+      listTransactions(projectId, {
+        name,
+        op,
+        environment: scope.environment,
+        period: scope.period,
+        sort: 'slowest',
+        per_page: 10,
+      }),
+    deps,
+  );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="shrink-0 w-full px-4 md:px-8 py-4 md:py-6 border-b">
-        <Link
-          href={`/projects/${projectId}/performance`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
-        >
-          <ArrowLeft className="size-4" />
-          {t('performance.backLink')}
-        </Link>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="font-mono text-lg font-semibold break-all">{name}</h1>
-          {op && <Badge variant="secondary">{op}</Badge>}
+    <div className="flex h-full flex-col">
+      <header className="@container shrink-0 border-border-divider border-b px-page-gutter pt-6 pb-5">
+        <div className="flex flex-col gap-4 @4xl:flex-row @4xl:items-start @4xl:justify-between @4xl:gap-8">
+          <div className="flex min-w-0 flex-col gap-1">
+            {op ? <span className="text-fg-meta text-meta">{op}</span> : null}
+            <h1 className="break-all font-mono text-fg text-page-title">
+              {name}
+            </h1>
+          </div>
+          <PeriodFilter
+            period={period}
+            onChange={(next) =>
+              navigate({
+                search: (prev) => ({
+                  ...prev,
+                  period: next === DEFAULT_PERIOD ? undefined : next,
+                }),
+                replace: true,
+              })
+            }
+          />
         </div>
+      </header>
 
-        {metrics.length > 0 && (
-          <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-            {metrics.map((m) => (
-              <div key={m.id}>
-                <dt className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {m.label}
-                </dt>
-                <dd className="font-mono text-sm font-semibold tabular-nums">
-                  {m.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-hidden w-full px-4 md:px-8 py-4 md:py-6 flex flex-col gap-3">
-        <h2 className="shrink-0 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          {t('summary.samples')}
-        </h2>
-        <TransactionsList
-          projectId={projectId}
-          initialTransactions={samples}
-          currentPage={currentPage}
-          basePath={`/projects/${projectId}/performance/summary`}
-          filters={filters}
-        />
+      <div className="flex min-h-0 flex-1 max-lg:flex-col max-lg:overflow-y-auto">
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">
+          <div className="flex flex-col gap-5 px-page-gutter pt-5 pb-8">
+            <Loaded read={stats} height={104} title={t('figures')}>
+              {(group) =>
+                group ? (
+                  <EndpointFigures
+                    group={group}
+                    windowHours={windowHours(period)}
+                  />
+                ) : (
+                  <p className="text-fg-subtle text-meta">{t('noSamples')}</p>
+                )
+              }
+            </Loaded>
+            <Panel title={t('latency')} hint={t('latencyHint')}>
+              <Loaded read={trend} height={220} title={t('latency')}>
+                {(points) => <LatencyChart points={points} />}
+              </Loaded>
+            </Panel>
+            <Panel title={t('calls')} hint={t('callsHint')}>
+              <Loaded read={trend} height={220} title={t('calls')}>
+                {(points) => <CallsChart points={points} />}
+              </Loaded>
+            </Panel>
+            <Panel flush title={t('slowest')} hint={t('slowestHint')}>
+              <Loaded read={samples} height={240} title={t('slowest')}>
+                {(page) => (
+                  <SlowestSamples projectId={projectId} rows={page.items} />
+                )}
+              </Loaded>
+            </Panel>
+          </div>
+        </main>
+        <aside className="border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88">
+          <RailBlock title={t('details')}>
+            <Loaded read={stats} height={160} title={t('details')}>
+              {(group) =>
+                group ? (
+                  <EndpointFacts
+                    group={group}
+                    op={op}
+                    environment={search.environment}
+                  />
+                ) : null
+              }
+            </Loaded>
+          </RailBlock>
+        </aside>
       </div>
     </div>
+  );
+}
+
+function RailBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-border-divider border-b px-5 py-4 last:border-b-0">
+      <h2 className="mb-3 font-mono text-column text-fg-meta uppercase">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }

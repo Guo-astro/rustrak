@@ -21,6 +21,9 @@ pub struct TransactionResponse {
     pub environment: String,
     pub release: String,
     pub ingested_at: DateTime<Utc>,
+    /// Trace status (`ok`, `internal_error`...), if the SDK sent one.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub status: Option<String>,
 }
 
 /// Response model for a single transaction detail view.
@@ -194,4 +197,22 @@ pub struct TransactionStatsResponse {
     pub p99_ms: f64,
     /// Fraction (0.0–1.0) of transactions whose trace status is set and not "ok".
     pub failure_rate: f64,
+    pub avg_ms: f64,
+    /// Every sample's duration added up: how much time the endpoint takes in all.
+    pub total_ms: f64,
+    /// Its share, 0 to 1, of the time every endpoint in the same read takes.
+    pub time_share: f64,
+    pub last_seen: DateTime<Utc>,
+}
+
+/// One bucket of an endpoint's trend: how often it ran, how often it failed
+/// and how long it took.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct TransactionTimeseriesPoint {
+    pub bucket: DateTime<Utc>,
+    pub count: i64,
+    pub failures: i64,
+    pub p50_ms: f64,
+    pub p95_ms: f64,
 }

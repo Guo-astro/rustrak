@@ -1,6 +1,10 @@
 import type { TransactionDetailResponse } from '@rustrak/client';
 import { describe, expect, it } from 'vitest';
-import { readTransactionPayload } from './transaction-payload';
+import {
+  readMeasurements,
+  readTransactionPayload,
+  waterfallSpans,
+} from './transaction-payload';
 
 function txn(
   over: Partial<TransactionDetailResponse> = {},
@@ -262,5 +266,119 @@ describe('readTransactionPayload', () => {
     expect(payload.transactionStart).toBe(
       Date.parse('2026-01-01T00:00:10.000Z') / 1000,
     );
+  });
+});
+
+describe('waterfallSpans', () => {
+  it('puts the transaction at the root and its spans on its clock', () => {
+    const payload = readTransactionPayload(
+      txn({
+        data: {
+          start_timestamp: 100,
+          timestamp: 100.5,
+          contexts: { trace: { span_id: 'r', op: 'http.server' } },
+          spans: [
+            {
+              span_id: 'a',
+              parent_span_id: 'r',
+              op: 'db',
+              description: 'SELECT 1',
+              start_timestamp: 100.1,
+              timestamp: 100.2,
+            },
+            // Its parent was never sent: it hangs off the root, not nowhere.
+            {
+              span_id: 'b',
+              parent_span_id: 'gone',
+              start_timestamp: 100.3,
+              timestamp: 100.4,
+              status: 'internal_error',
+            },
+          ],
+        },
+      }),
+    );
+
+    const rows = waterfallSpans(payload, 'GET /');
+    expect(rows[0]).toMatchObject({
+      id: 'r',
+      parentId: null,
+      op: 'http.server',
+      description: 'GET /',
+      startMs: 0,
+    });
+    expect(rows[0]?.endMs).toBeCloseTo(500);
+    expect(rows[1]).toMatchObject({ id: 'a', parentId: 'r', op: 'db' });
+    expect(rows[1]?.startMs).toBeCloseTo(100);
+    expect(rows[2]).toMatchObject({ parentId: 'r', status: 'internal_error' });
+    // Self time: its own duration less its children's, 500 - 100 - 100.
+    expect(rows[0]?.selfMs).toBeCloseTo(300);
+    expect(rows[1]?.selfMs).toBeCloseTo(100);
+  });
+
+  it("takes a span's self time from the SDK when it sent one", () => {
+    const payload = readTransactionPayload(
+      txn({
+        data: {
+          start_timestamp: 100,
+          timestamp: 101,
+          spans: [
+            {
+              span_id: 'a',
+              start_timestamp: 100,
+              timestamp: 100.5,
+              exclusive_time: 42,
+            },
+          ],
+        },
+      }),
+    );
+    expect(waterfallSpans(payload, 'GET /')[1]?.selfMs).toBe(42);
+  });
+
+  it('counts time children share only once', () => {
+    const payload = readTransactionPayload(
+      txn({
+        data: {
+          start_timestamp: 100,
+          timestamp: 101,
+          contexts: { trace: { span_id: 'r' } },
+          // Two in parallel over the same 400 ms, one after them for 100 ms.
+          spans: [
+            { span_id: 'a', start_timestamp: 100.1, timestamp: 100.5 },
+            { span_id: 'b', start_timestamp: 100.1, timestamp: 100.5 },
+            { span_id: 'c', start_timestamp: 100.5, timestamp: 100.6 },
+          ],
+        },
+      }),
+    );
+    expect(waterfallSpans(payload, 'GET /')[0]?.selfMs).toBeCloseTo(500);
+  });
+
+  it('skips a span with no clock', () => {
+    const payload = readTransactionPayload(
+      txn({ data: { spans: [{ span_id: 'x' }] } }),
+    );
+    expect(waterfallSpans(payload, 'GET /')).toHaveLength(1);
+  });
+});
+
+describe('readMeasurements', () => {
+  it('rates the web vitals first and keeps the rest', () => {
+    const rows = readMeasurements({
+      custom: { value: 3, unit: 'none' },
+      lcp: { value: 4200, unit: 'millisecond' },
+      cls: { value: 0.05, unit: '' },
+      junk: 'x',
+    });
+    expect(rows.map((r) => r.key)).toEqual(['lcp', 'cls', 'custom']);
+    expect(rows[0]).toMatchObject({ vital: true, rating: 'poor' });
+    expect(rows[1]).toMatchObject({ rating: 'good' });
+    expect(rows[2]).toMatchObject({ vital: false, rating: null });
+  });
+
+  it('never reads an inherited name as a vital', () => {
+    const [row] = readMeasurements({ constructor: { value: 1 } });
+    expect(row).toMatchObject({ vital: false, rating: null });
   });
 });

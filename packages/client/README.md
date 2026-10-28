@@ -519,7 +519,8 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 | `transactions.get({ path })` | `GET /api/projects/{project_id}/transactions/{transaction_id}` | Returns a single transaction with its full Sentry payload (spans, contexts, measurements, tags) for the performance detail view. |
 | `transactions.getSpans({ path })` | `GET /api/projects/{project_id}/transactions/{transaction_id}/spans` | Returns the indexed spans extracted from a transaction, ordered for the waterfall view (by start_timestamp ascending). |
 | `transactions.getStatGroup({ path, query })` | `GET /api/projects/{project_id}/transactions/stats/group` | Returns the aggregate stats for a single transaction group — a direct lookup so the summary header works regardless of how many groups the project has. |
-| `transactions.getStats({ path, query? })` | `GET /api/projects/{project_id}/transactions/stats` | Returns paginated aggregate performance stats (count, p50/p95/p99 latency, failure rate) grouped by transaction name + op, most frequent first. |
+| `transactions.getStatGroupTimeseries({ path, query })` | `GET /api/projects/{project_id}/transactions/stats/group/timeseries` | Returns one endpoint's trend over the window, every bucket present: how often it ran and failed, and its p50 and p95. |
+| `transactions.getStats({ path, query? })` | `GET /api/projects/{project_id}/transactions/stats` | Returns paginated aggregate performance stats (count, time spent, p50/p95/p99 latency, failure rate) grouped by transaction name + op, the most time spent first unless `sort` asks otherwise. |
 | `transactions.list({ path, query? })` | `GET /api/projects/{project_id}/transactions` | Lists transactions for a project with offset-based pagination (newest first). |
 
 <!-- api:end -->

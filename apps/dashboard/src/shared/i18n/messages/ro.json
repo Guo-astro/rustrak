@@ -1164,18 +1164,6 @@
     "environment": "Mediu"
   },
   "transactions": {
-    "columns": {
-      "transaction": "Tranzacție",
-      "duration": "Durată",
-      "lastSeen": "Ultima apariție",
-      "count": "Număr",
-      "failures": "Eșecuri"
-    },
-    "unnamed": "(fără nume)",
-    "empty": {
-      "title": "Încă nu există tranzacții",
-      "sdkHint": "Configurează SDK-ul cu <code>tracesSampleRate</code> pentru a începe capturarea datelor de performanță."
-    },
     "measurements": {
       "lcp": "LCP",
       "fcp": "FCP",
@@ -1183,21 +1171,6 @@
       "inp": "INP",
       "ttfb": "TTFB",
       "cls": "CLS"
-    },
-    "waterfall": {
-      "rootFallback": "tranzacție",
-      "spanFallback": "span",
-      "expand": "Extinde",
-      "collapse": "Restrânge",
-      "detail": {
-        "op": "op",
-        "description": "descriere",
-        "status": "stare",
-        "duration": "durată",
-        "selfTime": "timp propriu",
-        "spanId": "span_id",
-        "parentSpanId": "parent_span_id"
-      }
     },
     "p95": {
       "barTitle": "{name} — {count, plural, one {# eveniment} few {# evenimente} other {# de evenimente}}",
@@ -1624,7 +1597,6 @@
     "projectTitle": "{project} | Rustrak",
     "loadProjectFailed": "Proiectul nu a putut fi încărcat",
     "loadIssueFailed": "Problema nu a putut fi încărcată",
-    "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}",
     "projectsList": {
       "meta": {
         "title": "Proiecte | Rustrak",
@@ -1723,37 +1695,19 @@
         "title": "Performanță | {project} | Rustrak",
         "description": "Performanța tranzacțiilor pentru {project}"
       },
-      "title": "Performanță",
-      "subtitle": "Tranzacțiile pentru {project}, grupate după nume și operațiune",
-      "loadFailed": "Tranzacțiile nu au putut fi încărcate",
-      "emptyTitle": "Încă nu există tranzacții",
-      "emptyDescription": "Configurează SDK-ul cu <code>tracesSampleRate</code> pentru a începe capturarea datelor de performanță.",
-      "backLink": "Performanță"
+      "title": "Performanță"
     },
     "transaction": {
       "meta": {
         "title": "{name} | Performanță | Rustrak",
         "fallbackTitle": "Tranzacție | Rustrak"
-      },
-      "loadFailed": "Tranzacția nu a putut fi încărcată",
-      "unnamed": "(tranzacție fără nume)",
-      "spans": "Span-uri",
-      "noSpans": "Această tranzacție nu are span-uri.",
-      "tags": "Tag-uri",
-      "request": "Cerere",
-      "user": "Utilizator"
+      }
     },
     "summary": {
       "meta": {
         "title": "{name} | Performanță | Rustrak",
         "fallbackName": "Tranzacție"
-      },
-      "metricCount": "Număr",
-      "metricP50": "p50",
-      "metricP95": "p95",
-      "metricP99": "p99",
-      "metricFailureRate": "Rata de eșec",
-      "samples": "Eșantioane"
+      }
     },
     "releases": {
       "meta": {
@@ -1886,7 +1840,8 @@
       "received": "Primit",
       "openIssue": "Deschide ca problemă",
       "back": "Înapoi la listă"
-    }
+    },
+    "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}"
   },
   "settings": {
     "meta": {
@@ -2515,5 +2470,76 @@
     "decideFailed": "Autorizarea nu a putut fi finalizată",
     "failedTitle": "Această cerere nu poate fi finalizată",
     "failedDescription": "Asistentul a trimis o cerere de autorizare pe care Rustrak nu a putut-o verifica, deci nu s-a partajat nimic. Pornește din nou conexiunea din asistent."
+  },
+  "performance": {
+    "count": "{count, plural, one {# endpoint} few {# endpointuri} other {# de endpointuri}}",
+    "search": "Caută endpointuri…",
+    "environment": "Mediu",
+    "loadFailed": "Endpointurile nu au putut fi încărcate",
+    "emptyWindow": "Niciun endpoint",
+    "empty": {
+      "title": "Încă nu există tranzacții",
+      "description": "Setează <code>tracesSampleRate</code> în SDK ca să vezi cât durează fiecare endpoint."
+    },
+    "columns": {
+      "endpoint": "Endpoint",
+      "timeSpent": "Timp total",
+      "calls": "Apeluri",
+      "avg": "Medie",
+      "failures": "Eșecuri",
+      "lastSeen": "Ultima dată"
+    },
+    "table": {
+      "most": "Cele mai mari întâi"
+    },
+    "detail": {
+      "figures": "Cifre",
+      "noSamples": "Nicio mostră în această perioadă",
+      "latency": "Latență",
+      "latencyHint": "p50 și p95 în perioadă",
+      "calls": "Apeluri",
+      "callsHint": "De câte ori a rulat și de câte ori a eșuat",
+      "ok": "Reușite",
+      "failed": "Eșuate",
+      "slowest": "Cele mai lente mostre",
+      "slowestHint": "Deschide una ca să vezi traseul",
+      "callsFigure": "Apeluri",
+      "perMinute": "{rate} pe minut",
+      "failures": "Eșecuri",
+      "timeSpent": "Timp total",
+      "totalTime": "{time} în total",
+      "p50": "p50 {time}",
+      "failedCalls": "{count} eșuate",
+      "operation": "Operație",
+      "environment": "Mediu",
+      "allEnvironments": "Toate",
+      "average": "Medie",
+      "lastSeen": "Ultima dată",
+      "details": "Detalii",
+      "duration": "Durată",
+      "release": "Versiune",
+      "status": "Stare",
+      "when": "Când"
+    },
+    "transaction": {
+      "loadFailed": "Această tranzacție nu a putut fi încărcată",
+      "unnamed": "(fără nume)",
+      "idCopied": "Id-ul evenimentului copiat",
+      "copyId": "Copiază id-ul evenimentului",
+      "request": "Cerere",
+      "tags": "Etichete",
+      "user": "Utilizator",
+      "trace": "Traseu",
+      "spans": "{count, plural, one {# span} few {# spanuri} other {# de spanuri}}",
+      "traceOf": "Traseul {name}",
+      "noSpans": "Această tranzacție nu a trimis spanuri",
+      "op": "Operație",
+      "description": "Descriere",
+      "duration": "Durată",
+      "selfTime": "Timp propriu",
+      "start": "Început",
+      "status": "Stare",
+      "spanId": "Id span"
+    }
   }
 }
