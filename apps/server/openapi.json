@@ -10214,7 +10214,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, back\nto its oldest call.",
+        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, back\nto its oldest call and never less than the last 24 hours, which is also\nwhat an endpoint with no calls gets.",
         "operationId": "transactions.getStatGroupTimeseries",
         "parameters": [
           {

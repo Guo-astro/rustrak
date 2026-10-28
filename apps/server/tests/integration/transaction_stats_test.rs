@@ -213,6 +213,28 @@ async fn an_all_time_trend_reaches_back_to_the_oldest_call() {
     .unwrap();
 
     assert_eq!(points.iter().map(|p| p.count).sum::<i64>(), 1);
+    // 73 hours in 3-hour buckets, every one present: 25 or 26.
+    assert!(points.len() >= 25);
+}
+
+#[actix_web::test]
+async fn a_sample_from_a_clock_ahead_lands_in_the_current_bucket() {
+    let db = TestDb::new().await;
+    let p = project(&db.pool).await;
+    txn(&db.pool, p, "GET /ahead", 10.0, "ok", "production", -2).await;
+
+    let points = TransactionService::group_timeseries(
+        &db.pool,
+        p,
+        "GET /ahead",
+        Some("http.server"),
+        None,
+        Some(24),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(points.last().map(|p| p.count), Some(1));
 }
 
 #[actix_web::test]

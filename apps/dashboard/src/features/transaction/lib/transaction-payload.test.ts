@@ -336,6 +336,25 @@ describe('waterfallSpans', () => {
     expect(waterfallSpans(payload, 'GET /')[1]?.selfMs).toBe(42);
   });
 
+  it('counts time children share only once', () => {
+    const payload = readTransactionPayload(
+      txn({
+        data: {
+          start_timestamp: 100,
+          timestamp: 101,
+          contexts: { trace: { span_id: 'r' } },
+          // Two in parallel over the same 400 ms, one after them for 100 ms.
+          spans: [
+            { span_id: 'a', start_timestamp: 100.1, timestamp: 100.5 },
+            { span_id: 'b', start_timestamp: 100.1, timestamp: 100.5 },
+            { span_id: 'c', start_timestamp: 100.5, timestamp: 100.6 },
+          ],
+        },
+      }),
+    );
+    expect(waterfallSpans(payload, 'GET /')[0]?.selfMs).toBeCloseTo(500);
+  });
+
   it('skips a span with no clock', () => {
     const payload = readTransactionPayload(
       txn({ data: { spans: [{ span_id: 'x' }] } }),

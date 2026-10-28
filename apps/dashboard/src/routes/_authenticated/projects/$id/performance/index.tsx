@@ -57,6 +57,13 @@ function tableQuery(search: PerformanceSearch): DataTableQuery {
     if (value) params.set(key, value);
   }
   const query = parseTableQuery(params, VARIANTS, PAGE_SIZE);
+  // The API reads one environment: a typed `environment:a,b` keeps its first,
+  // so the bar never names one the table is not showing.
+  for (const filter of query.filters) {
+    if (filter.id === 'environment' && Array.isArray(filter.value)) {
+      filter.value = filter.value.slice(0, 1);
+    }
+  }
   // The ranking the page is about, shown as the sort it is.
   if (query.sorting.length === 0) {
     query.sorting = [{ id: 'time_spent', desc: true }];

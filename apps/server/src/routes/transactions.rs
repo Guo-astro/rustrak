@@ -270,7 +270,8 @@ pub async fn get_transaction_stat_group(
 ))]
 /// Returns one endpoint's trend over the window, every bucket present:
 /// how often it ran and failed, and its p50 and p95. Without a window, back
-/// to its oldest call.
+/// to its oldest call and never less than the last 24 hours, which is also
+/// what an endpoint with no calls gets.
 pub async fn get_transaction_stat_group_timeseries(
     pool: web::Data<DbPool>,
     path: web::Path<i32>,

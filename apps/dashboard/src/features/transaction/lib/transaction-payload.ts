@@ -166,11 +166,21 @@ export function waterfallSpans(
     ...spans,
   ];
   return rows.map(({ exclusive, ...row }): WaterfallRow => {
+    // The time its children cover, inside it, with overlaps counted once:
+    // children running in parallel share their time.
+    let covered = 0;
+    let reached = row.startMs;
     const children = rows
       .filter((child) => child.parentId === row.id)
-      .reduce((sum, child) => sum + (child.endMs - child.startMs), 0);
+      .sort((a, b) => a.startMs - b.startMs);
+    for (const child of children) {
+      const start = Math.max(child.startMs, reached);
+      const end = Math.min(child.endMs, row.endMs);
+      if (end > start) covered += end - start;
+      reached = Math.max(reached, end);
+    }
     const own = row.endMs - row.startMs;
-    return { ...row, selfMs: exclusive ?? Math.max(0, own - children) };
+    return { ...row, selfMs: exclusive ?? Math.max(0, own - covered) };
   });
 }
 

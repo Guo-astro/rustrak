@@ -499,7 +499,10 @@ impl TransactionService {
             at += interval;
         }
         for (timestamp, duration, status) in rows {
-            if let Some((durations, failures)) = buckets.get_mut(&align(timestamp.timestamp())) {
+            // A clock running ahead still counts, in the current bucket, as
+            // the stats count it.
+            let at = align(timestamp.timestamp().min(now));
+            if let Some((durations, failures)) = buckets.get_mut(&at) {
                 durations.push(duration);
                 *failures += i64::from(is_failure(status.as_deref()));
             }
