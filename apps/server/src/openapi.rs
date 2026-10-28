@@ -132,6 +132,7 @@ impl Modify for SecurityAddon {
         crate::routes::transactions::get_transaction_stat_group_timeseries,
         crate::routes::logs::list_logs,
         crate::routes::logs::get_log_volume,
+        crate::routes::logs::get_log,
         crate::routes::mcp::get_settings,
         crate::routes::mcp::update_settings,
         crate::routes::oauth::get_authorization,

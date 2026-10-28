@@ -227,6 +227,7 @@
   },
   "logs": {
     "emptyValue": "（空）",
+    "volumeFailed": "无法加载日志量图表",
     "attributes": "属性",
     "empty": {
       "title": "此时间范围内没有符合搜索条件的日志"

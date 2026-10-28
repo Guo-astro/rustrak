@@ -227,6 +227,7 @@
   },
   "logs": {
     "emptyValue": "(gol)",
+    "volumeFailed": "Graficul de volum nu a putut fi încărcat",
     "attributes": "Atribute",
     "empty": {
       "title": "Niciun jurnal nu corespunde acestei căutări în această perioadă"

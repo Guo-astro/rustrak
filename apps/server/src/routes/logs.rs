@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse};
 
 use crate::auth::ApiActor;
 use crate::db::DbPool;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 #[cfg(feature = "openapi")]
 use crate::models::{LogResponse, LogVolumePoint};
 use crate::pagination::{ListLogsQuery, LogVolumeQuery, OffsetPaginatedResponse};
@@ -103,9 +103,49 @@ pub async fn get_log_volume(
     Ok(HttpResponse::Ok().json(points))
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/logs/{log_id}",
+    operation_id = "logs.get",
+    tag = "Logs",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        ("log_id" = uuid::Uuid, Path, description = "Log ID"),
+    ),
+    responses(
+        (status = 200, description = "The log", body = LogResponse),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// GET /api/projects/{project_id}/logs/{log_id}
+/// Returns one of a project's logs, wherever it falls in the list.
+pub async fn get_log(
+    pool: web::Data<DbPool>,
+    path: web::Path<(i32, uuid::Uuid)>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let (project_id, log_id) = path.into_inner();
+
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+
+    let log = LogService::get(pool.get_ref(), project_id, log_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Log {log_id}")))?;
+    Ok(HttpResponse::Ok().json(log))
+}
+
 #[cfg(feature = "openapi")]
 #[derive(OpenApi)]
-#[openapi(paths(list_logs, get_log_volume))]
+#[openapi(paths(list_logs, get_log_volume, get_log))]
 pub struct LogsApi;
 
 /// Configure log routes
@@ -113,6 +153,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/projects/{project_id}/logs")
             .route("", web::get().to(list_logs))
-            .route("/volume", web::get().to(get_log_volume)),
+            .route("/volume", web::get().to(get_log_volume))
+            .route("/{log_id}", web::get().to(get_log)),
     );
 }

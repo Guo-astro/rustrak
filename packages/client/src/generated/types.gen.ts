@@ -6440,6 +6440,44 @@ export type LogsVolumeResponses = {
 
 export type LogsVolumeResponse = LogsVolumeResponses[keyof LogsVolumeResponses];
 
+export type LogsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * Log ID
+         */
+        log_id: string;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/logs/{log_id}';
+};
+
+export type LogsGetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type LogsGetError = LogsGetErrors[keyof LogsGetErrors];
+
+export type LogsGetResponses = {
+    /**
+     * The log
+     */
+    200: LogResponse;
+};
+
+export type LogsGetResponse = LogsGetResponses[keyof LogsGetResponses];
+
 export type MembersListData = {
     body?: never;
     path: {

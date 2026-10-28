@@ -1,8 +1,15 @@
+import type {
+  LogResponse,
+  LogsVolumeResponse,
+  Result,
+  RustrakError,
+} from '@rustrak/client';
 import { cn, EmptyIcon, Page, PageHeader, Text } from '@rustrak/ui';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
 import { useShortcuts } from '@/features/issue/ui/components/issue-actions';
-import { getLogVolume, listLogs } from '@/features/log/api/queries';
+import { getLog, getLogVolume, listLogs } from '@/features/log/api/queries';
 import { LOG_LEVELS } from '@/features/log/model/log-view';
 import { LogDetail } from '@/features/log/ui/components/log-detail';
 import { LogList } from '@/features/log/ui/components/log-list';
@@ -26,6 +33,7 @@ import {
   searchString,
 } from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { useAsync } from '@/shared/ui/hooks/use-async';
 
 const PAGE_SIZE = 50;
 
@@ -54,7 +62,7 @@ export const Route = createFileRoute('/_authenticated/projects/$id/logs')({
     period: search.period,
     page: search.page,
   }),
-  loader: ({ params, deps }) => {
+  loader: async ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
     const period = deps.period ?? DEFAULT_PERIOD;
     const filters = {
@@ -63,24 +71,28 @@ export const Route = createFileRoute('/_authenticated/projects/$id/logs')({
       trace_id: deps.trace,
       period: period === 'all' ? undefined : period,
     };
-    return loadAll([
-      getProject(projectId),
-      listLogs(projectId, {
-        ...filters,
-        page: deps.page ?? 1,
-        per_page: PAGE_SIZE,
-      }),
+    // The chart on its own: a volume that fails leaves the lines readable.
+    const [main, volume] = await Promise.all([
+      loadAll([
+        getProject(projectId),
+        listLogs(projectId, {
+          ...filters,
+          page: deps.page ?? 1,
+          per_page: PAGE_SIZE,
+        }),
+      ]),
       getLogVolume(projectId, filters),
     ]);
+    return { main, volume };
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.success) {
+    if (!loaderData?.main.success) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const [project] = loaderData.data;
+    const [project] = loaderData.main.data;
     return {
       meta: [
         { title: t('logs.meta.title', { project: project.name }) },
@@ -100,12 +112,17 @@ function LogsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const isPending = useRouterState({ select: (s) => s.status === 'pending' });
-  const loaded = Route.useLoaderData();
+  const { id } = Route.useParams();
+  const { main: loaded, volume } = Route.useLoaderData();
   const period = search.period ?? DEFAULT_PERIOD;
   const page = search.page ?? 1;
 
   const items = loaded.success ? loaded.data[1].items : [];
-  const current = items.find((log) => log.id === search.selected);
+  const current = useSelectedLog(
+    Number.parseInt(id, 10),
+    items,
+    search.selected,
+  );
 
   const select = (selected: string | undefined) =>
     navigate({ search: (prev) => ({ ...prev, selected }), replace: true });
@@ -137,8 +154,11 @@ function LogsPage() {
     return <LoadFailure error={loaded.error} title={t('logs.loadFailed')} />;
   }
 
-  const [project, logs, volume] = loaded.data;
+  const [project, logs] = loaded.data;
   const filtered = Boolean(search.q || search.level || search.trace);
+  const howToSend = t.rich('logs.emptyDescription', {
+    code: (chunks) => <code className="font-mono">{chunks}</code>,
+  });
 
   return (
     <div className="flex h-full flex-col">
@@ -148,15 +168,7 @@ function LogsPage() {
       />
 
       {logs.total_count === 0 && !filtered && period === 'all' ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-page-gutter py-16 text-center">
-          <EmptyIcon size="xl" className="mb-2 text-fg-ghost" />
-          <Text variant="body">{t('logs.emptyTitle')}</Text>
-          <Text variant="meta" tone="subtle" className="max-w-md">
-            {t.rich('logs.emptyDescription', {
-              code: (chunks) => <code className="font-mono">{chunks}</code>,
-            })}
-          </Text>
-        </div>
+        <NoLogsYet title={t('logs.emptyTitle')} hint={howToSend} />
       ) : (
         <Page scroll={false}>
           {/* Narrow, the bar takes a row and the window the next; with a
@@ -179,17 +191,7 @@ function LogsPage() {
             />
           </div>
 
-          {/* On a phone the lines need the height more than the chart does. */}
-          {volume.length > 0 ? (
-            <div
-              className={cn(
-                'shrink-0 rounded-lg border border-border bg-panel px-2 pt-3 pb-1 max-sm:hidden',
-                current && 'max-lg:hidden',
-              )}
-            >
-              <LogVolume points={volume} />
-            </div>
-          ) : null}
+          <VolumePanel volume={volume} lineOpen={Boolean(current)} />
 
           <div className="flex min-h-0 flex-1 gap-4">
             {/* Narrow, the pane replaces the list once a line is open. */}
@@ -203,6 +205,9 @@ function LogsPage() {
                 logs={logs}
                 search={search.q ?? ''}
                 selectedId={current?.id}
+                // Nothing narrows it, so the window holds no logs: say how to
+                // send some, in words that fit "none lately" as well as "none".
+                emptyHint={filtered ? undefined : howToSend}
                 page={page}
                 isPending={isPending}
                 onSelect={(id) => select(id === current?.id ? undefined : id)}
@@ -232,4 +237,72 @@ function LogsPage() {
       )}
     </div>
   );
+}
+
+/** A project that has never sent a log: how to send the first. */
+function NoLogsYet({ title, hint }: { title: string; hint: ReactNode }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-page-gutter py-16 text-center">
+      <EmptyIcon size="xl" className="mb-2 text-fg-ghost" />
+      <Text variant="body">{title}</Text>
+      <Text variant="meta" tone="subtle" className="max-w-md">
+        {hint}
+      </Text>
+    </div>
+  );
+}
+
+/**
+ * The volume above the lines, or a line saying it failed: the chart failing
+ * never takes the lines with it. On a phone, and beside an open line, the
+ * lines need the height more than the chart does.
+ */
+function VolumePanel({
+  volume,
+  lineOpen,
+}: {
+  volume: Result<LogsVolumeResponse, RustrakError>;
+  lineOpen: boolean;
+}) {
+  const tLogs = useTranslations('logs');
+  if (volume.success && volume.data.length === 0) return null;
+  return (
+    <div
+      className={cn(
+        'shrink-0 rounded-lg border border-border bg-panel px-2 pt-3 pb-1 max-sm:hidden',
+        lineOpen && 'max-lg:hidden',
+      )}
+    >
+      {volume.success ? (
+        <LogVolume points={volume.data} />
+      ) : (
+        <Text variant="meta" tone="subtle" className="px-2 pb-2">
+          {tLogs('volumeFailed')}
+        </Text>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The line `?selected=` names: from the page when it is on it, fetched on its
+ * own when newer lines have pushed it off, so a linked line still opens.
+ */
+function useSelectedLog(
+  projectId: number,
+  items: LogResponse[],
+  selected: string | undefined,
+): LogResponse | undefined {
+  const onPage = items.find((log) => log.id === selected);
+  const fetched = useAsync(
+    () =>
+      selected && !onPage
+        ? getLog(projectId, selected)
+        : Promise.resolve(undefined),
+    [projectId, selected, Boolean(onPage)],
+  );
+  if (onPage) return onPage;
+  return fetched.state === 'ready' && fetched.data?.success
+    ? fetched.data.data
+    : undefined;
 }

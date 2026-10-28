@@ -227,6 +227,7 @@
   },
   "logs": {
     "emptyValue": "(vide)",
+    "volumeFailed": "Impossible de charger le graphique de volume",
     "attributes": "Attributs",
     "empty": {
       "title": "Aucun journal ne correspond à cette recherche sur cette période"

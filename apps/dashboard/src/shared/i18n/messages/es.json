@@ -227,6 +227,7 @@
   },
   "logs": {
     "emptyValue": "(vacío)",
+    "volumeFailed": "No se pudo cargar el gráfico de volumen",
     "attributes": "Atributos",
     "empty": {
       "title": "Ningún registro coincide con esta búsqueda en este periodo"

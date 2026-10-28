@@ -227,6 +227,7 @@
   },
   "logs": {
     "emptyValue": "(empty)",
+    "volumeFailed": "Could not load the volume chart",
     "attributes": "Attributes",
     "empty": {
       "title": "No logs match this search in this window"
