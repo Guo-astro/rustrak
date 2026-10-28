@@ -4,17 +4,22 @@
 -- events, so the count outlives retention.
 ALTER TABLE issue_environments ADD COLUMN first_release VARCHAR(250) NOT NULL DEFAULT '';
 
--- What the count read from events until now, frozen: the issue's own first
--- release, where a retained event shows it in the environment. Never the
--- earliest retained event's release, which may be a later one; what
--- retention already took is left unknown.
+-- What the writer would have kept, as far as retained events show it: the
+-- issue's own first release, where the environment's earliest retained event
+-- with a release has it. An issue that reached the environment on a later
+-- release, even if it came back there on its first one, is not new there;
+-- what retention already took is left unknown.
 UPDATE issue_environments SET first_release = (
     SELECT issues.first_release FROM issues WHERE issues.id = issue_environments.issue_id
 )
-WHERE EXISTS (
-    SELECT 1 FROM events JOIN issues ON issues.id = events.issue_id
+WHERE (
+    SELECT events.release FROM events
     WHERE events.issue_id = issue_environments.issue_id
       AND events.environment = issue_environments.environment
-      AND issues.first_release <> ''
-      AND events.release = issues.first_release
+      AND events.release <> ''
+    ORDER BY events.ingested_at
+    LIMIT 1
+) = (
+    SELECT issues.first_release FROM issues
+    WHERE issues.id = issue_environments.issue_id AND issues.first_release <> ''
 );
