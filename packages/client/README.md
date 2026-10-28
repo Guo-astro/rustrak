@@ -262,6 +262,7 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 | `alertRules.create({ path, body })` | `POST /api/projects/{project_id}/alert-rules` |  |
 | `alertRules.delete({ path })` | `DELETE /api/projects/{project_id}/alert-rules/{rule_id}` |  |
 | `alertRules.get({ path })` | `GET /api/projects/{project_id}/alert-rules/{rule_id}` |  |
+| `alertRules.historyByDay({ path, query? })` | `GET /api/projects/{project_id}/alert-history/daily` | Count a project's alert deliveries per day, by outcome. |
 | `alertRules.list({ path })` | `GET /api/projects/{project_id}/alert-rules` |  |
 | `alertRules.listHistory({ path, query? })` | `GET /api/projects/{project_id}/alert-history` |  |
 | `alertRules.update({ path, body })` | `PATCH /api/projects/{project_id}/alert-rules/{rule_id}` |  |

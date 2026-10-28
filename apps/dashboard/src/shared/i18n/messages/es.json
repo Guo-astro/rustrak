@@ -756,7 +756,7 @@
       "increaseCooldown": "Aumentar el tiempo mínimo en {count} minutos",
       "minutesUnit": "min",
       "noCooldownLimit": "Sin límite — la alerta se dispara cada vez",
-      "cooldownLimit": "{count, plural, =1 {Como máximo una alerta por minuto y por problema} other {Como máximo una alerta cada # minutos por problema}}",
+      "cooldownLimit": "{count, plural, =1 {Como máximo una alerta por minuto} other {Como máximo una alerta cada # minutos}}",
       "fieldAlertType": "ese tipo de alerta",
       "saveFailed": "No se pudo guardar la regla",
       "updated": "Regla de alerta actualizada",
@@ -1011,9 +1011,9 @@
       "notify": ", avisa a <strong>{channels}</strong>",
       "notifyNobody": ", <strong>todavía no avisa a nadie</strong>",
       "atMostOnce": {
-        "minute": ", como mucho una vez cada <strong>{count, plural, one {minuto} other {# minutos}}</strong> por problema.",
-        "hour": ", como mucho una vez cada <strong>{count, plural, one {hora} other {# horas}}</strong> por problema.",
-        "day": ", como mucho una vez cada <strong>{count, plural, one {día} other {# días}}</strong> por problema."
+        "minute": ", como mucho una vez cada <strong>{count, plural, one {minuto} other {# minutos}}</strong>.",
+        "hour": ", como mucho una vez cada <strong>{count, plural, one {hora} other {# horas}}</strong>.",
+        "day": ", como mucho una vez cada <strong>{count, plural, one {día} other {# días}}</strong>."
       },
       "everyTime": ", cada vez."
     },
@@ -1030,7 +1030,7 @@
       "notifyHint": "Los canales son comunes a todos los proyectos; <link>gestionar canales</link>.",
       "noChannels": "Aún no hay canales. Añade uno en Configuración → Integraciones.",
       "frequency": "Como mucho",
-      "frequencyHint": "Cada cuánto puede avisar el mismo problema, para que una ráfaga de errores envíe una sola alerta.",
+      "frequencyHint": "Con qué frecuencia puede avisar esta alerta, para que una ráfaga de errores envíe una sola alerta.",
       "every": {
         "minute": "{count, plural, one {Una vez por minuto} other {Cada # minutos}}",
         "hour": "{count, plural, one {Una vez por hora} other {Cada # horas}}",
@@ -1049,7 +1049,7 @@
     },
     "list": {
       "paused": "En pausa",
-      "lastTriggered": "Último envío {when}",
+      "lastTriggered": "Último disparo {when}",
       "neverTriggered": "Aún no se ha disparado",
       "enabled": "Activar o pausar {name}",
       "resumed": "Alerta reanudada",
@@ -1094,7 +1094,7 @@
         "pending": "Pendiente",
         "skipped": "Omitida"
       },
-      "lastSent": "Último envío",
+      "lastTriggered": "Último disparo",
       "chartHint": "Envíos por día: enviados, omitidos por el tiempo mínimo y fallidos",
       "ruleHint": "Cada envío de esta alerta, con el motivo cuando falló o se omitió",
       "columns": {
@@ -1118,7 +1118,7 @@
       "conditions": "Solo si",
       "notifies": "Avisa a",
       "frequency": "Como mucho",
-      "lastSent": "Último envío",
+      "lastSent": "Último disparo",
       "active": "Activa",
       "afterEvents": "tras {count} eventos"
     },

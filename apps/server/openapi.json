@@ -4446,6 +4446,87 @@
         ]
       }
     },
+    "/api/projects/{project_id}/alert-history/daily": {
+      "get": {
+        "tags": [
+          "Alert Rules"
+        ],
+        "summary": "Count a project's alert deliveries per day, by outcome.",
+        "operationId": "alertRules.historyByDay",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Days back, today included (default 14, max 90)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "query",
+            "description": "Only this alert rule's deliveries",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deliveries per UTC day, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlertHistoryDay"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/alert-rules": {
       "get": {
         "tags": [
@@ -13821,6 +13902,35 @@
           },
           "status": {
             "$ref": "#/components/schemas/AlertStatus"
+          }
+        }
+      },
+      "AlertHistoryDay": {
+        "type": "object",
+        "description": "One UTC day of a rule's deliveries, by outcome.",
+        "required": [
+          "day",
+          "sent",
+          "failed",
+          "skipped"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Midnight UTC."
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

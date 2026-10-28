@@ -6,44 +6,20 @@ import type {
 import { cn, focusRingInset, Switch, Text } from '@rustrak/ui';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { cooldownUnit } from '@/features/alert/model/rule-summary';
-import { formFromConditions } from '@/shared/lib/rule-conditions';
+import {
+  alertHref,
+  cooldownUnit,
+  newAlertHref,
+  ruleShape,
+} from '@/features/alert/model/rule-summary';
 import { Link } from '@/shared/ui/components/link';
 import { AlertTypeIcon } from './alert-type-icon';
 import { ProviderIcon } from './provider-icon';
 
-/** A rule as the sentence reads it. */
-export function ruleShape(
-  rule: AlertRuleResponse,
-  integrations: AlertIntegration[],
-) {
-  const filters = formFromConditions(rule.conditions);
-  return {
-    type: rule.alert_type,
-    environments: filters.environments
-      .split(',')
-      .map((e) => e.trim())
-      .filter(Boolean),
-    minLevel: filters.min_level,
-    minEvents: filters.min_events,
-    cooldownMinutes: rule.cooldown_minutes,
-    channels: integrations
-      .filter((i) => rule.integration_ids.includes(i.id))
-      .map((i) => i.name),
-  };
-}
-
-export const alertsHref = (projectId: number) =>
-  `/projects/${projectId}/alerts`;
-export const alertHref = (projectId: number, ruleId: number) =>
-  `${alertsHref(projectId)}/${ruleId}`;
-export const newAlertHref = (projectId: number, type?: AlertType) =>
-  `${alertsHref(projectId)}/new${type ? `?type=${type}` : ''}`;
-
 const COLUMNS =
   'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_8rem_8rem_3rem]';
 
-/** How often an alert may repeat for one issue, in a word or two. */
+/** How often an alert may repeat, in a word or two. */
 export function useFrequency() {
   const t = useTranslations('alerts');
   return (minutes: number) => {

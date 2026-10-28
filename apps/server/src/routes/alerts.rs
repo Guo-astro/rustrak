@@ -17,6 +17,7 @@
 //!
 //! ## Alert History
 //! - GET /api/projects/{project_id}/alert-history - List history
+//! - GET /api/projects/{project_id}/alert-history/daily - Deliveries per day
 
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
@@ -807,6 +808,60 @@ pub async fn list_history(
     Ok(HttpResponse::Ok().json(history))
 }
 
+#[derive(Deserialize)]
+pub struct HistoryByDayQuery {
+    #[serde(default = "default_days")]
+    pub days: i64,
+    /// Only this rule's deliveries.
+    pub rule_id: Option<i32>,
+}
+
+fn default_days() -> i64 {
+    14
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/alert-history/daily",
+    operation_id = "alertRules.historyByDay",
+    tag = "Alert Rules",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        ("days" = Option<i64>, Query, description = "Days back, today included (default 14, max 90)"),
+        ("rule_id" = Option<i32>, Query, description = "Only this alert rule's deliveries"),
+    ),
+    responses(
+        (status = 200, description = "Deliveries per UTC day, oldest first", body = Vec<crate::models::AlertHistoryDay>),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// Count a project's alert deliveries per day, by outcome.
+pub async fn history_by_day(
+    pool: web::Data<DbPool>,
+    actor: ApiActor,
+    path: web::Path<i32>,
+    query: web::Query<HistoryByDayQuery>,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+    let _ = ProjectService::get_by_id(pool.get_ref(), project_id).await?;
+
+    let days = query.days.clamp(1, 90);
+    let history =
+        AlertService::history_by_day(pool.get_ref(), project_id, query.rule_id, days).await?;
+    Ok(HttpResponse::Ok().json(history))
+}
+
 // =============================================================================
 // Route Configuration
 // =============================================================================
@@ -828,6 +883,7 @@ pub async fn list_history(
         update_rule,
         delete_rule,
         list_history,
+        history_by_day,
     ),
     components(schemas(
         crate::models::NotificationChannel,
@@ -840,6 +896,7 @@ pub async fn list_history(
         crate::models::AlertType,
         crate::models::AlertStatus,
         crate::models::AlertHistory,
+        crate::models::AlertHistoryDay,
     ))
 )]
 pub struct AlertsApi;
@@ -876,6 +933,10 @@ pub fn configure_history(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("/api/projects/{project_id}/alert-history")
             .route(web::get().to(list_history)),
+    )
+    .service(
+        web::resource("/api/projects/{project_id}/alert-history/daily")
+            .route(web::get().to(history_by_day)),
     );
 }
 

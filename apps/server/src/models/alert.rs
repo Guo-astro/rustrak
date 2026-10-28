@@ -495,6 +495,17 @@ pub struct AlertHistory {
     pub sent_at: Option<DateTime<Utc>>,
 }
 
+/// One UTC day of a rule's deliveries, by outcome.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AlertHistoryDay {
+    /// Midnight UTC.
+    pub day: DateTime<Utc>,
+    pub sent: i64,
+    pub failed: i64,
+    pub skipped: i64,
+}
+
 // =============================================================================
 // Alert Payload (for notifications)
 // =============================================================================

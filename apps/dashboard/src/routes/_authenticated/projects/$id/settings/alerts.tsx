@@ -5,6 +5,10 @@ export const Route = createFileRoute(
   '/_authenticated/projects/$id/settings/alerts',
 )({
   beforeLoad: ({ params }) => {
-    throw redirect({ to: '/projects/$id/alerts', params, search: { view: undefined } });
+    throw redirect({
+      to: '/projects/$id/alerts',
+      params,
+      search: { view: undefined },
+    });
   },
 });

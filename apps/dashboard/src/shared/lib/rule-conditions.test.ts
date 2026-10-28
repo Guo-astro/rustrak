@@ -2,6 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { conditionsFromForm, formFromConditions } from './rule-conditions';
 
 describe('conditionsFromForm', () => {
+  it('saves no level for feedback, which has no level to filter on', () => {
+    // A rule switched from new issues to feedback keeps the level it had in
+    // the form, hidden; saved, it would reject feedback at its default `info`.
+    expect(
+      conditionsFromForm({
+        alert_type: 'new_feedback',
+        min_level: 'error',
+        environments: '',
+        min_events: 1,
+      }),
+    ).toEqual({});
+  });
+
   it('sends nothing for filters left at their defaults', () => {
     expect(
       conditionsFromForm({

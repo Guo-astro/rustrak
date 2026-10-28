@@ -1,4 +1,9 @@
-import type { AlertHistory } from '@rustrak/client';
+import type {
+  AlertIntegration,
+  AlertRuleResponse,
+  AlertType,
+} from '@rustrak/client';
+import { formFromConditions } from '@/shared/lib/rule-conditions';
 
 /** The cooldowns offered as one click: every time, 5 minutes, an hour, a day. */
 export const COOLDOWN_PRESETS = [0, 5, 60, 1440] as const;
@@ -16,31 +21,29 @@ export function cooldownUnit(
   return { unit: 'minute', value: minutes };
 }
 
-const DAY = 86_400_000;
-
-/**
- * Deliveries per UTC day over the last `days` days, oldest first, with the
- * empty days present -- the bars under a rule's history.
- */
-export function historyByDay(
-  history: Pick<AlertHistory, 'created_at' | 'status'>[],
-  days: number,
-  now: number,
+/** A rule as the sentence reads it. */
+export function ruleShape(
+  rule: AlertRuleResponse,
+  integrations: AlertIntegration[],
 ) {
-  const today = Math.floor(now / DAY) * DAY;
-  const buckets = Array.from({ length: days }, (_, i) => ({
-    t: today - (days - 1 - i) * DAY,
-    sent: 0,
-    failed: 0,
-    skipped: 0,
-  }));
-  for (const row of history) {
-    const day = Math.floor(Date.parse(row.created_at) / DAY) * DAY;
-    const bucket = buckets.find((b) => b.t === day);
-    if (!bucket) continue;
-    if (row.status === 'sent') bucket.sent += 1;
-    else if (row.status === 'failed') bucket.failed += 1;
-    else if (row.status === 'skipped') bucket.skipped += 1;
-  }
-  return buckets;
+  const filters = formFromConditions(rule.conditions);
+  const linked = new Set(rule.integration_ids);
+  return {
+    type: rule.alert_type,
+    environments: filters.environments
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean),
+    minLevel: filters.min_level,
+    minEvents: filters.min_events,
+    cooldownMinutes: rule.cooldown_minutes,
+    channels: integrations.filter((i) => linked.has(i.id)).map((i) => i.name),
+  };
 }
+
+export const alertsHref = (projectId: number) =>
+  `/projects/${projectId}/alerts`;
+export const alertHref = (projectId: number, ruleId: number) =>
+  `${alertsHref(projectId)}/${ruleId}`;
+export const newAlertHref = (projectId: number, type?: AlertType) =>
+  `${alertsHref(projectId)}/new${type ? `?type=${type}` : ''}`;

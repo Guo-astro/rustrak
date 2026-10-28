@@ -5,6 +5,7 @@
  */
 import type {
   AlertHistory,
+  AlertHistoryDay,
   AlertIntegration,
   AlertRuleResponse,
   Result,
@@ -39,6 +40,18 @@ export async function listAlertHistory(
   return client.alertRules.listHistory({
     path: { project_id: projectId },
     query: { rule_id: options?.ruleId, limit: options?.limit },
+  });
+}
+
+/** Deliveries per UTC day over the last `days`, every delivery counted. */
+export async function getAlertHistoryByDay(
+  projectId: number,
+  options: { ruleId?: number; days: number },
+): Promise<Result<AlertHistoryDay[], RustrakError>> {
+  const client = await createClient();
+  return client.alertRules.historyByDay({
+    path: { project_id: projectId },
+    query: { rule_id: options.ruleId, days: options.days },
   });
 }
 

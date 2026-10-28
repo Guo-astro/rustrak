@@ -4,11 +4,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { listIntegrations } from '@/features/alert/api/queries';
 import { alertTypes } from '@/features/alert/model/alert-types';
+import { alertHref, alertsHref } from '@/features/alert/model/rule-summary';
 import { RuleEditor } from '@/features/alert/ui/components/rule-editor/rule-editor';
-import {
-  alertHref,
-  alertsHref,
-} from '@/features/alert/ui/components/rule-list';
 import { getProjectEnvironments } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';

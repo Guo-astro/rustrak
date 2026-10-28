@@ -20,11 +20,10 @@ import {
   listAlertRules,
   listIntegrations,
 } from '@/features/alert/api/queries';
+import { alertHref, newAlertHref } from '@/features/alert/model/rule-summary';
 import { HistoryTable } from '@/features/alert/ui/components/alert-history';
 import {
   AlertStarters,
-  alertHref,
-  newAlertHref,
   RulesTable,
 } from '@/features/alert/ui/components/rule-list';
 import { getProject } from '@/features/project/api/queries';

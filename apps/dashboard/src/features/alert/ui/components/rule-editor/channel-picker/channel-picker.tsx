@@ -51,41 +51,45 @@ export function ChannelPicker({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-2">
-        {integrations.map((integration) => {
-          const isSelected = selected.has(integration.id);
-          const error = routing.errors[integration.id];
-          const { hasRoutingFields } = routingNeedsOf(integration);
+        {/* A disabled channel never delivers, so it is not offered; one the
+            rule already uses stays, marked, so it can be removed. */}
+        {integrations
+          .filter((i) => i.is_enabled || selected.has(i.id))
+          .map((integration) => {
+            const isSelected = selected.has(integration.id);
+            const error = routing.errors[integration.id];
+            const { hasRoutingFields } = routingNeedsOf(integration);
 
-          return (
-            <div key={integration.id}>
-              <ChannelCard
-                integration={integration}
-                selected={isSelected}
-                disabled={disabled}
-                onSelect={(next) => toggle(integration.id, next)}
-              />
-
-              {isSelected && hasRoutingFields && (
-                <ChannelRoutingFields
+            return (
+              <div key={integration.id}>
+                <ChannelCard
                   integration={integration}
-                  routing={routing.routingMap[integration.id] ?? {}}
-                  error={error}
+                  selected={isSelected}
                   disabled={disabled}
-                  onChange={(field, value) =>
-                    routing.setField(integration.id, field, value)
-                  }
+                  onSelect={(next) => toggle(integration.id, next)}
                 />
-              )}
 
-              {/* A channel with nothing to route can still fail validation,
+                {isSelected && hasRoutingFields && (
+                  <ChannelRoutingFields
+                    integration={integration}
+                    routing={routing.routingMap[integration.id] ?? {}}
+                    error={error}
+                    disabled={disabled}
+                    onChange={(field, value) =>
+                      routing.setField(integration.id, field, value)
+                    }
+                  />
+                )}
+
+                {/* A channel with nothing to route can still fail validation,
                   and with no block underneath it there is nowhere for that
                   message to land. */}
-              {isSelected && error && !hasRoutingFields && (
-                <p className="mx-3 text-sev-error-fg text-meta">{error}</p>
-              )}
-            </div>
-          );
-        })}
+                {isSelected && error && !hasRoutingFields && (
+                  <p className="mx-3 text-sev-error-fg text-meta">{error}</p>
+                )}
+              </div>
+            );
+          })}
       </div>
 
       {formState.errors.selected_integration_ids && (

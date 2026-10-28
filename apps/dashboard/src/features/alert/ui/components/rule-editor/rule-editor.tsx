@@ -6,7 +6,7 @@ import type {
 } from '@rustrak/client';
 import { Button, cn, Input, TestIcon, Text } from '@rustrak/ui';
 import { type ReactNode, useMemo, useTransition } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import {
@@ -80,17 +80,8 @@ export function RuleEditor({
   });
 
   const values = form.watch();
-  const chosenEnvs = values.environments
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
-  const envOptions = [...new Set([...environments, ...chosenEnvs])];
-  const channelNames = integrations
-    .filter((i) => values.selected_integration_ids.includes(i.id))
-    .map((i) => i.name);
-  const dirty = { shouldDirty: true } as const;
-  const setEnvs = (next: string[]) =>
-    form.setValue('environments', next.join(', '), dirty);
+  const selected = new Set(values.selected_integration_ids);
+  const chosen = integrations.filter((i) => selected.has(i.id));
 
   const onSubmit = (data: AlertRuleFormData) => {
     if (!routing.validate(data.selected_integration_ids)) return;
@@ -132,27 +123,35 @@ export function RuleEditor({
     });
   };
 
-  // A test sends through every chosen channel, routed as the rule would.
+  // A test sends through every chosen channel, routed as the saved rule
+  // would be: the same payload, so an email gets its recipients as a list.
   const sendTest = () =>
     startTest(async () => {
-      const chosen = integrations.filter((i) =>
-        values.selected_integration_ids.includes(i.id),
+      if (!routing.validate(values.selected_integration_ids)) return;
+      const payload = buildChannelsPayload(
+        values.selected_integration_ids,
+        routing.routingMap,
+        integrations,
       );
-      for (const integration of chosen) {
-        const result = await testIntegration(
-          integration.id,
-          routing.routingMap[integration.id],
-        );
-        if (result.success && result.data.success) {
-          toast.success(t('editor.testSent', { channel: integration.name }));
-        } else {
-          toast.error(t('editor.testFailed', { channel: integration.name }), {
-            description: result.success
-              ? result.data.message
-              : result.error.message,
-          });
-        }
-      }
+      const names = new Map(integrations.map((i) => [i.id, i.name]));
+      await Promise.all(
+        payload.map(async ({ integration_id, routing_override }) => {
+          const channel = names.get(integration_id) ?? String(integration_id);
+          const result = await testIntegration(
+            integration_id,
+            routing_override,
+          );
+          if (result.success && result.data.success) {
+            toast.success(t('editor.testSent', { channel }));
+          } else {
+            toast.error(t('editor.testFailed', { channel }), {
+              description: result.success
+                ? result.data.message
+                : result.error.message,
+            });
+          }
+        }),
+      );
     });
 
   return (
@@ -175,79 +174,9 @@ export function RuleEditor({
             ) : null}
           </Row>
 
-          <Row label={t('editor.when')}>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {alertTypes.map(({ type }) => (
-                <button
-                  key={type}
-                  type="button"
-                  aria-pressed={values.alert_type === type}
-                  onClick={() => form.setValue('alert_type', type, dirty)}
-                  className={cn(
-                    'flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-surface-hover',
-                    values.alert_type === type
-                      ? 'border-border-brand bg-success-surface'
-                      : 'border-border',
-                  )}
-                >
-                  <span className="font-medium text-body text-fg">
-                    {t(`types.${type}.name`)}
-                  </span>
-                  <span className="text-fg-subtle text-hint">
-                    {t(`types.${type}.description`)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Row>
-
-          <Row
-            label={t('editor.environments')}
-            hint={t('editor.environmentsHint')}
-          >
-            <div className="flex flex-wrap gap-1.5">
-              <Chip
-                selected={chosenEnvs.length === 0}
-                onClick={() => setEnvs([])}
-              >
-                {t('editor.allEnvironments')}
-              </Chip>
-              {envOptions.map((env) => (
-                <Chip
-                  key={env}
-                  mono
-                  selected={chosenEnvs.includes(env)}
-                  onClick={() =>
-                    setEnvs(
-                      chosenEnvs.includes(env)
-                        ? chosenEnvs.filter((e) => e !== env)
-                        : [...chosenEnvs, env],
-                    )
-                  }
-                >
-                  {env}
-                </Chip>
-              ))}
-            </div>
-          </Row>
-
-          {values.alert_type === 'new_feedback' ? null : (
-            <Row label={t('editor.level')}>
-              <div className="flex flex-wrap gap-1.5">
-                {(['any', ...levels] as const).map((level) => (
-                  <Chip
-                    key={level}
-                    selected={values.min_level === level}
-                    onClick={() => form.setValue('min_level', level, dirty)}
-                  >
-                    {level === 'any'
-                      ? t('editor.anyLevel')
-                      : t('editor.levelOrHigher', { level })}
-                  </Chip>
-                ))}
-              </div>
-            </Row>
-          )}
+          <TriggerRow />
+          <EnvironmentsRow environments={environments} />
+          <LevelRow />
 
           {values.alert_type === 'new_issue' ? (
             <Row label={t('editor.minEvents')} hint={t('editor.minEventsHint')}>
@@ -286,36 +215,7 @@ export function RuleEditor({
             )}
           </Row>
 
-          <Row label={t('editor.frequency')} hint={t('editor.frequencyHint')}>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {COOLDOWN_PRESETS.map((minutes) => {
-                const unit = cooldownUnit(minutes);
-                return (
-                  <Chip
-                    key={minutes}
-                    selected={values.cooldown_minutes === minutes}
-                    onClick={() =>
-                      form.setValue('cooldown_minutes', minutes, dirty)
-                    }
-                  >
-                    {unit
-                      ? t(`editor.every.${unit.unit}`, { count: unit.value })
-                      : t('editor.everyTime')}
-                  </Chip>
-                );
-              })}
-              <Input
-                type="number"
-                min={0}
-                aria-label={t('editor.customMinutes')}
-                boxClassName="w-28"
-                action={
-                  <span className="pe-2 text-fg-subtle text-meta">min</span>
-                }
-                {...form.register('cooldown_minutes', { valueAsNumber: true })}
-              />
-            </div>
-          </Row>
+          <FrequencyRow />
         </div>
 
         {/* The rail: the sentence the form adds up to, and what to do with it. */}
@@ -327,11 +227,15 @@ export function RuleEditor({
             <RuleSentence
               rule={{
                 type: values.alert_type,
-                environments: chosenEnvs,
-                minLevel: values.min_level,
+                environments: splitEnvs(values.environments),
+                // Feedback has no level; one left in the form is not saved.
+                minLevel:
+                  values.alert_type === 'new_feedback'
+                    ? 'any'
+                    : values.min_level,
                 minEvents: values.min_events,
                 cooldownMinutes: values.cooldown_minutes,
-                channels: channelNames,
+                channels: chosen.map((i) => i.name),
               }}
             />
           </p>
@@ -354,6 +258,148 @@ export function RuleEditor({
         </aside>
       </form>
     </FormProvider>
+  );
+}
+
+const dirty = { shouldDirty: true } as const;
+
+const splitEnvs = (line: string) =>
+  line
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+
+/** What the alert fires on, one card per trigger. */
+function TriggerRow() {
+  const t = useTranslations('alerts');
+  const form = useFormContext<AlertRuleFormData>();
+  const current = form.watch('alert_type');
+  return (
+    <Row label={t('editor.when')}>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {alertTypes.map(({ type }) => (
+          <button
+            key={type}
+            type="button"
+            aria-pressed={current === type}
+            onClick={() => form.setValue('alert_type', type, dirty)}
+            className={cn(
+              'flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-surface-hover',
+              current === type
+                ? 'border-border-brand bg-success-surface'
+                : 'border-border',
+            )}
+          >
+            <span className="font-medium text-body text-fg">
+              {t(`types.${type}.name`)}
+            </span>
+            <span className="text-fg-subtle text-hint">
+              {t(`types.${type}.description`)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </Row>
+  );
+}
+
+/** Which environments count: all, or the ones picked. */
+function EnvironmentsRow({ environments }: { environments: string[] }) {
+  const t = useTranslations('alerts');
+  const form = useFormContext<AlertRuleFormData>();
+  const chosenEnvs = splitEnvs(form.watch('environments'));
+  const chosen = new Set(chosenEnvs);
+  const envOptions = [...new Set([...environments, ...chosenEnvs])];
+  const setEnvs = (next: string[]) =>
+    form.setValue('environments', next.join(', '), dirty);
+  return (
+    <Row label={t('editor.environments')} hint={t('editor.environmentsHint')}>
+      <div className="flex flex-wrap gap-1.5">
+        <Chip selected={chosen.size === 0} onClick={() => setEnvs([])}>
+          {t('editor.allEnvironments')}
+        </Chip>
+        {envOptions.map((env) => (
+          <Chip
+            key={env}
+            mono
+            selected={chosen.has(env)}
+            onClick={() =>
+              setEnvs(
+                chosen.has(env)
+                  ? chosenEnvs.filter((e) => e !== env)
+                  : [...chosenEnvs, env],
+              )
+            }
+          >
+            {env}
+          </Chip>
+        ))}
+      </div>
+    </Row>
+  );
+}
+
+/** The lowest level that counts; feedback has none. */
+function LevelRow() {
+  const t = useTranslations('alerts');
+  const form = useFormContext<AlertRuleFormData>();
+  const [type, minLevel] = form.watch(['alert_type', 'min_level']);
+  if (type === 'new_feedback') return null;
+  return (
+    <Row label={t('editor.level')}>
+      <div className="flex flex-wrap gap-1.5">
+        {(['any', ...levels] as const).map((level) => (
+          <Chip
+            key={level}
+            selected={minLevel === level}
+            onClick={() => form.setValue('min_level', level, dirty)}
+          >
+            {level === 'any'
+              ? t('editor.anyLevel')
+              : t('editor.levelOrHigher', { level })}
+          </Chip>
+        ))}
+      </div>
+    </Row>
+  );
+}
+
+/** How often the alert may notify: a preset, or minutes typed in. */
+function FrequencyRow() {
+  const t = useTranslations('alerts');
+  const form = useFormContext<AlertRuleFormData>();
+  const cooldown = form.watch('cooldown_minutes');
+  return (
+    <Row label={t('editor.frequency')} hint={t('editor.frequencyHint')}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {COOLDOWN_PRESETS.map((minutes) => {
+          const unit = cooldownUnit(minutes);
+          return (
+            <Chip
+              key={minutes}
+              selected={cooldown === minutes}
+              onClick={() => form.setValue('cooldown_minutes', minutes, dirty)}
+            >
+              {unit
+                ? t(`editor.every.${unit.unit}`, { count: unit.value })
+                : t('editor.everyTime')}
+            </Chip>
+          );
+        })}
+        <Input
+          type="number"
+          min={0}
+          aria-label={t('editor.customMinutes')}
+          boxClassName="w-28"
+          action={
+            <span className="pe-2 text-fg-subtle text-meta">
+              {t('ruleDialog.minutesUnit')}
+            </span>
+          }
+          {...form.register('cooldown_minutes', { valueAsNumber: true })}
+        />
+      </div>
+    </Row>
   );
 }
 

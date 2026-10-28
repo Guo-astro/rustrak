@@ -104,6 +104,16 @@ export const zAgentTraceSummary = z.object({
 });
 
 /**
+ * One UTC day of a rule's deliveries, by outcome.
+ */
+export const zAlertHistoryDay = z.object({
+    day: z.iso.datetime({ offset: true }),
+    failed: z.int(),
+    sent: z.int(),
+    skipped: z.int()
+});
+
+/**
  * DTO for a channel with routing override in rule create/update
  */
 export const zAlertRuleChannelInput = z.object({
@@ -2733,6 +2743,20 @@ export const zAlertRulesListHistoryQuery = z.object({
  * Alert history
  */
 export const zAlertRulesListHistoryResponse = z.array(zAlertHistory);
+
+export const zAlertRulesHistoryByDayPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zAlertRulesHistoryByDayQuery = z.object({
+    days: z.int().optional(),
+    rule_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }).optional()
+});
+
+/**
+ * Deliveries per UTC day, oldest first
+ */
+export const zAlertRulesHistoryByDayResponse = z.array(zAlertHistoryDay);
 
 export const zAlertRulesListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })

@@ -170,6 +170,19 @@ export type AlertHistory = {
 };
 
 /**
+ * One UTC day of a rule's deliveries, by outcome.
+ */
+export type AlertHistoryDay = {
+    /**
+     * Midnight UTC.
+     */
+    day: string;
+    failed: number;
+    sent: number;
+    skipped: number;
+};
+
+/**
  * Global alert integration record — stores credentials only, no routing.
  */
 export type AlertIntegration = {
@@ -4886,6 +4899,49 @@ export type AlertRulesListHistoryResponses = {
 };
 
 export type AlertRulesListHistoryResponse = AlertRulesListHistoryResponses[keyof AlertRulesListHistoryResponses];
+
+export type AlertRulesHistoryByDayData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Days back, today included (default 14, max 90)
+         */
+        days?: number;
+        /**
+         * Only this alert rule's deliveries
+         */
+        rule_id?: number;
+    };
+    url: '/api/projects/{project_id}/alert-history/daily';
+};
+
+export type AlertRulesHistoryByDayErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Project not found
+     */
+    404: ErrorResponse;
+};
+
+export type AlertRulesHistoryByDayError = AlertRulesHistoryByDayErrors[keyof AlertRulesHistoryByDayErrors];
+
+export type AlertRulesHistoryByDayResponses = {
+    /**
+     * Deliveries per UTC day, oldest first
+     */
+    200: Array<AlertHistoryDay>;
+};
+
+export type AlertRulesHistoryByDayResponse = AlertRulesHistoryByDayResponses[keyof AlertRulesHistoryByDayResponses];
 
 export type AlertRulesListData = {
     body?: never;

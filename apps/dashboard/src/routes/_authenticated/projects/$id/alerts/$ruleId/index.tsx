@@ -8,10 +8,16 @@ import {
   updateAlertRule,
 } from '@/features/alert/api/mutations';
 import {
+  getAlertHistoryByDay,
   getAlertRule,
   listAlertHistory,
   listIntegrations,
 } from '@/features/alert/api/queries';
+import {
+  alertHref,
+  alertsHref,
+  ruleShape,
+} from '@/features/alert/model/rule-summary';
 import {
   HistoryChart,
   HistoryTable,
@@ -19,12 +25,7 @@ import {
 import { AlertTypeIcon } from '@/features/alert/ui/components/alert-type-icon';
 import { ConfirmDeleteDialog } from '@/features/alert/ui/components/confirm-delete-dialog';
 import { ProviderIcon } from '@/features/alert/ui/components/provider-icon';
-import {
-  alertHref,
-  alertsHref,
-  ruleShape,
-  useFrequency,
-} from '@/features/alert/ui/components/rule-list';
+import { useFrequency } from '@/features/alert/ui/components/rule-list';
 import { RuleSentence } from '@/features/alert/ui/components/rule-sentence';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
@@ -50,6 +51,8 @@ export const Route = createFileRoute(
       getAlertRule(projectId, ruleId),
       listIntegrations(),
       listAlertHistory(projectId, { ruleId, limit: 100 }),
+      // Counted on the server: the table above is only the newest page.
+      getAlertHistoryByDay(projectId, { ruleId, days: 14 }),
     ]);
   },
   head: ({ loaderData }) => ({
@@ -82,13 +85,12 @@ function AlertPage() {
     );
   }
 
-  const [rule, integrations, history] = loaded.data;
+  const [rule, integrations, history, days] = loaded.data;
   const shape = ruleShape(rule, integrations);
-  const channels = integrations.filter((i) =>
-    rule.integration_ids.includes(i.id),
-  );
-  const count = (status: string) =>
-    history.filter((h) => h.status === status).length;
+  const linked = new Set(rule.integration_ids);
+  const channels = integrations.filter((i) => linked.has(i.id));
+  const count = (status: 'sent' | 'skipped' | 'failed') =>
+    days.reduce((sum, day) => sum + day[status], 0);
 
   const setEnabled = (enabled: boolean) =>
     startTransition(async () => {
@@ -121,7 +123,7 @@ function AlertPage() {
 
   const figures: [string, ReactNode][] = [
     [
-      t('history.lastSent'),
+      t('history.lastTriggered'),
       rule.last_triggered_at
         ? format.relativeTime(new Date(rule.last_triggered_at))
         : '—',
@@ -236,7 +238,7 @@ function AlertPage() {
               ))}
             </dl>
             <Panel title={t('history.last14')} hint={t('history.chartHint')}>
-              <HistoryChart history={history} />
+              <HistoryChart days={days} />
             </Panel>
             <Panel
               flush

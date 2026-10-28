@@ -756,7 +756,7 @@
       "increaseCooldown": "冷却时间增加 {count} 分钟",
       "minutesUnit": "分钟",
       "noCooldownLimit": "无限制——每次都会触发告警",
-      "cooldownLimit": "{count, plural, =1 {每个问题每分钟最多一条告警} other {每个问题每 # 分钟最多一条告警}}",
+      "cooldownLimit": "{count, plural, =1 {每分钟最多一条告警} other {每 # 分钟最多一条告警}}",
       "fieldAlertType": "该告警类型",
       "saveFailed": "保存规则失败",
       "updated": "告警规则已更新",
@@ -1011,9 +1011,9 @@
       "notify": "，通知 <strong>{channels}</strong>",
       "notifyNobody": "，<strong>暂不通知任何人</strong>",
       "atMostOnce": {
-        "minute": "，每个问题最多每 <strong>{count} 分钟</strong>一次。",
-        "hour": "，每个问题最多每 <strong>{count} 小时</strong>一次。",
-        "day": "，每个问题最多每 <strong>{count} 天</strong>一次。"
+        "minute": "，最多每 <strong>{count} 分钟</strong>一次。",
+        "hour": "，最多每 <strong>{count} 小时</strong>一次。",
+        "day": "，最多每 <strong>{count} 天</strong>一次。"
       },
       "everyTime": "，每次都通知。"
     },
@@ -1030,7 +1030,7 @@
       "notifyHint": "渠道由所有项目共享；<link>管理渠道</link>。",
       "noChannels": "还没有渠道。请先在 设置 → 集成 中添加。",
       "frequency": "最多",
-      "frequencyHint": "同一问题多久可以通知一次，让一波错误只发送一条告警。",
+      "frequencyHint": "此告警多久可以通知一次，这样一连串错误只会发送一条告警。",
       "every": {
         "minute": "每 {count} 分钟",
         "hour": "每 {count} 小时",
@@ -1049,7 +1049,7 @@
     },
     "list": {
       "paused": "已暂停",
-      "lastTriggered": "上次发送于 {when}",
+      "lastTriggered": "上次触发于 {when}",
       "neverTriggered": "尚未触发",
       "enabled": "启用或暂停 {name}",
       "resumed": "告警已恢复",
@@ -1094,7 +1094,7 @@
         "pending": "待发送",
         "skipped": "已跳过"
       },
-      "lastSent": "上次发送",
+      "lastTriggered": "上次触发",
       "chartHint": "每日发送：已发送、因频率限制跳过和失败",
       "ruleHint": "此告警的每次发送，失败或跳过时附带原因",
       "columns": {
@@ -1118,7 +1118,7 @@
       "conditions": "仅当",
       "notifies": "通知",
       "frequency": "最多",
-      "lastSent": "上次发送",
+      "lastSent": "上次触发",
       "active": "启用",
       "afterEvents": "{count} 个事件后"
     },

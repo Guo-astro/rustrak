@@ -756,7 +756,7 @@
       "increaseCooldown": "Increase cooldown by {count} minutes",
       "minutesUnit": "min",
       "noCooldownLimit": "No limit — alert fires every time",
-      "cooldownLimit": "{count, plural, =1 {At most one alert every minute per issue} other {At most one alert every # minutes per issue}}",
+      "cooldownLimit": "{count, plural, =1 {At most one alert per minute} other {At most one alert every # minutes}}",
       "fieldAlertType": "That alert type",
       "saveFailed": "Failed to save rule",
       "updated": "Alert rule updated",
@@ -1011,9 +1011,9 @@
       "notify": ", notify <strong>{channels}</strong>",
       "notifyNobody": ", notify <strong>nobody yet</strong>",
       "atMostOnce": {
-        "minute": ", at most once every <strong>{count, plural, one {minute} other {# minutes}}</strong> per issue.",
-        "hour": ", at most once every <strong>{count, plural, one {hour} other {# hours}}</strong> per issue.",
-        "day": ", at most once every <strong>{count, plural, one {day} other {# days}}</strong> per issue."
+        "minute": ", at most once every <strong>{count, plural, one {minute} other {# minutes}}</strong>.",
+        "hour": ", at most once every <strong>{count, plural, one {hour} other {# hours}}</strong>.",
+        "day": ", at most once every <strong>{count, plural, one {day} other {# days}}</strong>."
       },
       "everyTime": ", every time."
     },
@@ -1030,7 +1030,7 @@
       "notifyHint": "Channels are shared by every project; <link>manage channels</link>.",
       "noChannels": "No channels yet. Add one in Settings → Integrations first.",
       "frequency": "At most",
-      "frequencyHint": "How often the same issue can notify, so a burst of errors sends one alert.",
+      "frequencyHint": "How often this alert can notify, so a burst of errors sends one alert.",
       "every": {
         "minute": "{count, plural, one {Once a minute} other {Every # minutes}}",
         "hour": "{count, plural, one {Once an hour} other {Every # hours}}",
@@ -1049,7 +1049,7 @@
     },
     "list": {
       "paused": "Paused",
-      "lastTriggered": "Last sent {when}",
+      "lastTriggered": "Last triggered {when}",
       "neverTriggered": "Has not fired yet",
       "enabled": "Turn {name} on or off",
       "resumed": "Alert resumed",
@@ -1094,7 +1094,7 @@
         "pending": "Pending",
         "skipped": "Skipped"
       },
-      "lastSent": "Last sent",
+      "lastTriggered": "Last triggered",
       "chartHint": "Deliveries per day: sent, skipped by the cooldown, and failed",
       "ruleHint": "Every delivery of this alert, with the reason when one failed or was skipped",
       "columns": {
@@ -1118,7 +1118,7 @@
       "conditions": "Only if",
       "notifies": "Notifies",
       "frequency": "At most",
-      "lastSent": "Last sent",
+      "lastSent": "Last triggered",
       "active": "Active",
       "afterEvents": "after {count} events"
     },

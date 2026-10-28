@@ -256,26 +256,18 @@ impl ErrorProcessor {
                         existing.alert_type.into_iter().collect()
                     }
                 };
+                // Each rule skips what it already recorded for this event.
                 for &alert_type in &types {
-                    if !AlertService::event_alert_exists(
+                    AlertService::trigger_event_alert(
                         pool,
-                        metadata.project_id,
-                        event_id,
+                        &project,
+                        &issue,
                         alert_type,
+                        event_id,
+                        facts,
+                        &self.dashboard_url,
                     )
-                    .await?
-                    {
-                        AlertService::trigger_event_alert(
-                            pool,
-                            &project,
-                            &issue,
-                            alert_type,
-                            event_id,
-                            facts,
-                            &self.dashboard_url,
-                        )
-                        .await?;
-                    }
+                    .await?;
                 }
                 // Opens nothing when the first run already linked one.
                 if types.contains(&AlertType::NewIssue) {

@@ -53,6 +53,7 @@ export function ChannelCard({
           <span className="truncate text-fg-subtle text-hint capitalize">
             {integration.provider_type.replace('_', ' ')}
             {isSlackBot ? ` · ${t('channelCard.botToken')}` : ''}
+            {integration.is_enabled ? '' : ` · ${t('integrations.disabled')}`}
           </span>
         </span>
       </span>

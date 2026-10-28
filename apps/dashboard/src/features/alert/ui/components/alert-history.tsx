@@ -1,8 +1,7 @@
-import type { AlertHistory } from '@rustrak/client';
+import type { AlertHistory, AlertHistoryDay } from '@rustrak/client';
 import { BarsChart, cn, Tag, type TagTone, Text } from '@rustrak/ui';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { historyByDay } from '@/features/alert/model/rule-summary';
 import { Link } from '@/shared/ui/components/link';
 import { ProviderIcon } from './provider-icon';
 
@@ -15,14 +14,13 @@ const STATUS_TONE: Record<AlertHistory['status'], TagTone> = {
   skipped: 'warning',
 };
 
-/** Deliveries per day over the last two weeks, failures in red. */
-export function HistoryChart({ history }: { history: AlertHistory[] }) {
+/** Deliveries per UTC day, failures in red. */
+export function HistoryChart({ days }: { days: AlertHistoryDay[] }) {
   const t = useTranslations('alerts.history');
   const format = useFormatter();
-  const [now] = useState(() => Date.now());
   return (
     <BarsChart
-      data={historyByDay(history, 14, now)}
+      data={days.map((d) => ({ ...d, t: Date.parse(d.day) }))}
       series={[
         { key: 'sent', label: t('status.sent'), color: 'var(--chart-1)' },
         {
@@ -34,9 +32,7 @@ export function HistoryChart({ history }: { history: AlertHistory[] }) {
       ]}
       xKey="t"
       height={180}
-      formatX={(value) =>
-        format.dateTime(new Date(value), { month: 'short', day: 'numeric' })
-      }
+      formatX={(value) => format.dateTime(new Date(value), 'axisDayUtc')}
       formatY={(value) => format.number(value)}
       label={t('chart')}
     />

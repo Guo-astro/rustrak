@@ -5,14 +5,14 @@
 //! - CRUD operations for alert rules (per-project)
 //! - Alert triggering and dispatching
 
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult, FieldErrorCode};
 use crate::models::alert::RuleConditions;
 use crate::models::{
-    AlertHistory, AlertIntegration, AlertPayload, AlertRule, AlertRuleChannel,
+    AlertHistory, AlertHistoryDay, AlertIntegration, AlertPayload, AlertRule, AlertRuleChannel,
     AlertRuleChannelInput, AlertType, CreateAlertIntegration, CreateAlertRule, Issue, IssueInfo,
     Project, ProjectInfo, UpdateAlertIntegration, UpdateAlertRule,
 };
@@ -621,8 +621,12 @@ impl AlertService {
                 project.id
             );
         }
+        // One rule's failure must not cost the others their alert; the first
+        // error still reaches the caller, so the event is retried.
+        let mut first_error = None;
         for rule in rules {
-            Self::fire_rule(
+            let rule_id = rule.id;
+            if let Err(error) = Self::fire_rule(
                 pool,
                 project,
                 issue,
@@ -632,9 +636,13 @@ impl AlertService {
                 stable_alert_id.clone(),
                 facts,
             )
-            .await?;
+            .await
+            {
+                log::error!("Alert rule {rule_id} failed to fire: {error}");
+                first_error.get_or_insert(error);
+            }
         }
-        Ok(())
+        first_error.map_or(Ok(()), Err)
     }
 
     /// One rule's share of a trigger: its filters, its cooldown, its
@@ -660,6 +668,20 @@ impl AlertService {
             issue.digested_event_count,
         ) {
             return Ok(());
+        }
+        // A replayed event fires only the rules that have not recorded it:
+        // rules commit one by one, so a crash can leave some done and some not.
+        if let Some(alert_id) = &stable_alert_id {
+            let recorded: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM alert_history WHERE alert_rule_id = $1 AND idempotency_key LIKE $2)",
+            )
+            .bind(rule.id)
+            .bind(format!("{alert_id}-%"))
+            .fetch_one(pool)
+            .await?;
+            if recorded {
+                return Ok(());
+            }
         }
         // A rule fires once per new issue. Retention lowers an issue's count,
         // so a later event can bring it back to `min_events`; its history
@@ -832,26 +854,6 @@ impl AlertService {
         Ok(())
     }
 
-    /// Returns whether durable history already exists for an event alert.
-    pub async fn event_alert_exists(
-        pool: &DbPool,
-        project_id: i32,
-        event_id: Uuid,
-        alert_type: AlertType,
-    ) -> AppResult<bool> {
-        let prefix = format!("event-{project_id}-{event_id}-{alert_type}-%");
-        let legacy_prefix = format!("event-{event_id}-{alert_type}-%");
-        let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM alert_history WHERE project_id = $1 AND (idempotency_key LIKE $2 OR idempotency_key LIKE $3))",
-        )
-        .bind(project_id)
-        .bind(prefix)
-        .bind(legacy_prefix)
-        .fetch_one(pool)
-        .await?;
-        Ok(exists)
-    }
-
     async fn dispatch_existing_history(
         pool: &DbPool,
         history: &AlertHistory,
@@ -984,6 +986,55 @@ impl AlertService {
         .await?;
 
         Ok(history)
+    }
+
+    /// Deliveries per UTC day over the last `days` days, oldest first, the
+    /// empty days included; with `rule_id`, only that rule's.
+    pub async fn history_by_day(
+        pool: &DbPool,
+        project_id: i32,
+        rule_id: Option<i32>,
+        days: i64,
+    ) -> AppResult<Vec<AlertHistoryDay>> {
+        const DAY: i64 = 86_400;
+        let first = Utc::now().timestamp().div_euclid(DAY) * DAY - (days - 1) * DAY;
+        let epoch = super::scope::epoch("created_at");
+        let sql = format!(
+            "SELECT ({epoch} / {DAY}) * {DAY} AS day, status, COUNT(*) \
+             FROM alert_history \
+             WHERE project_id = $1 AND ($2 IS NULL OR alert_rule_id = $2) AND {epoch} >= $3 \
+             GROUP BY day, status"
+        );
+        let rows: Vec<(i64, String, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+            .bind(project_id)
+            .bind(rule_id)
+            .bind(first)
+            .fetch_all(pool)
+            .await?;
+
+        let mut out: Vec<AlertHistoryDay> = (0..days)
+            .map(|i| AlertHistoryDay {
+                day: DateTime::from_timestamp(first + i * DAY, 0).unwrap_or_default(),
+                sent: 0,
+                failed: 0,
+                skipped: 0,
+            })
+            .collect();
+        for (day, status, count) in rows {
+            let Some(bucket) = usize::try_from((day - first) / DAY)
+                .ok()
+                .and_then(|i| out.get_mut(i))
+            else {
+                continue;
+            };
+            match status.as_str() {
+                "sent" => bucket.sent += count,
+                "failed" => bucket.failed += count,
+                "skipped" => bucket.skipped += count,
+                _ => {}
+            }
+        }
+        Ok(out)
     }
 
     /// Atomically leases due pending history rows for dispatch.

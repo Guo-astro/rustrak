@@ -756,7 +756,7 @@
       "increaseCooldown": "Crește perioada de așteptare cu {count} minute",
       "minutesUnit": "min",
       "noCooldownLimit": "Fără limită — alerta se declanșează de fiecare dată",
-      "cooldownLimit": "{count, plural, =1 {Cel mult o alertă pe minut per problemă} other {Cel mult o alertă la fiecare # minute per problemă}}",
+      "cooldownLimit": "{count, plural, =1 {Cel mult o alertă pe minut} other {Cel mult o alertă la fiecare # minute}}",
       "fieldAlertType": "Acest tip de alertă",
       "saveFailed": "Salvarea regulii a eșuat",
       "updated": "Regulă de alertă actualizată",
@@ -1011,9 +1011,9 @@
       "notify": ", anunță <strong>{channels}</strong>",
       "notifyNobody": ", <strong>încă nu anunță pe nimeni</strong>",
       "atMostOnce": {
-        "minute": ", cel mult o dată la <strong>{count, plural, one {un minut} few {# minute} other {# de minute}}</strong> pe problemă.",
-        "hour": ", cel mult o dată la <strong>{count, plural, one {o oră} few {# ore} other {# de ore}}</strong> pe problemă.",
-        "day": ", cel mult o dată la <strong>{count, plural, one {o zi} few {# zile} other {# de zile}}</strong> pe problemă."
+        "minute": ", cel mult o dată la <strong>{count, plural, one {un minut} few {# minute} other {# de minute}}</strong>.",
+        "hour": ", cel mult o dată la <strong>{count, plural, one {o oră} few {# ore} other {# de ore}}</strong>.",
+        "day": ", cel mult o dată la <strong>{count, plural, one {o zi} few {# zile} other {# de zile}}</strong>."
       },
       "everyTime": ", de fiecare dată."
     },
@@ -1030,7 +1030,7 @@
       "notifyHint": "Canalele sunt comune tuturor proiectelor; <link>gestionează canalele</link>.",
       "noChannels": "Încă nu există canale. Adaugă unul în Setări → Integrări.",
       "frequency": "Cel mult",
-      "frequencyHint": "Cât de des poate anunța aceeași problemă, ca o rafală de erori să trimită o singură alertă.",
+      "frequencyHint": "Cât de des poate notifica această alertă, ca o rafală de erori să trimită o singură alertă.",
       "every": {
         "minute": "{count, plural, one {O dată pe minut} few {La # minute} other {La # de minute}}",
         "hour": "{count, plural, one {O dată pe oră} few {La # ore} other {La # de ore}}",
@@ -1049,7 +1049,7 @@
     },
     "list": {
       "paused": "În pauză",
-      "lastTriggered": "Ultima trimitere {when}",
+      "lastTriggered": "Ultima declanșare {when}",
       "neverTriggered": "Nu s-a declanșat încă",
       "enabled": "Activează sau pune pe pauză {name}",
       "resumed": "Alertă reluată",
@@ -1094,7 +1094,7 @@
         "pending": "În așteptare",
         "skipped": "Omisă"
       },
-      "lastSent": "Ultima trimitere",
+      "lastTriggered": "Ultima declanșare",
       "chartHint": "Trimiteri pe zi: trimise, omise din cauza frecvenței maxime și eșuate",
       "ruleHint": "Fiecare trimitere a acestei alerte, cu motivul când a eșuat sau a fost omisă",
       "columns": {
@@ -1118,7 +1118,7 @@
       "conditions": "Doar dacă",
       "notifies": "Anunță",
       "frequency": "Cel mult",
-      "lastSent": "Ultima trimitere",
+      "lastSent": "Ultima declanșare",
       "active": "Activă",
       "afterEvents": "după {count} evenimente"
     },

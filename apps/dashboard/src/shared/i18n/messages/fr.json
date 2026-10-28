@@ -756,7 +756,7 @@
       "increaseCooldown": "Augmenter le délai de {count} minutes",
       "minutesUnit": "min",
       "noCooldownLimit": "Aucune limite — une alerte se déclenche à chaque fois",
-      "cooldownLimit": "{count, plural, =1 {Au plus une alerte par minute et par problème} other {Au plus une alerte toutes les # minutes et par problème}}",
+      "cooldownLimit": "{count, plural, =1 {Au plus une alerte par minute} other {Au plus une alerte toutes les # minutes}}",
       "fieldAlertType": "Ce type d’alerte",
       "saveFailed": "Échec de l’enregistrement de la règle",
       "updated": "Règle d’alerte mise à jour",
@@ -1011,9 +1011,9 @@
       "notify": ", prévenir <strong>{channels}</strong>",
       "notifyNobody": ", <strong>ne prévenir personne pour l’instant</strong>",
       "atMostOnce": {
-        "minute": ", au plus une fois toutes les <strong>{count, plural, one {minute} other {# minutes}}</strong> par problème.",
-        "hour": ", au plus une fois toutes les <strong>{count, plural, one {heure} other {# heures}}</strong> par problème.",
-        "day": ", au plus une fois tous les <strong>{count, plural, one {jour} other {# jours}}</strong> par problème."
+        "minute": ", au plus une fois toutes les <strong>{count, plural, one {minute} other {# minutes}}</strong>.",
+        "hour": ", au plus une fois toutes les <strong>{count, plural, one {heure} other {# heures}}</strong>.",
+        "day": ", au plus une fois tous les <strong>{count, plural, one {jour} other {# jours}}</strong>."
       },
       "everyTime": ", à chaque fois."
     },
@@ -1030,7 +1030,7 @@
       "notifyHint": "Les canaux sont partagés par tous les projets ; <link>gérer les canaux</link>.",
       "noChannels": "Aucun canal pour l’instant. Ajoutez-en un dans Paramètres → Intégrations.",
       "frequency": "Au plus",
-      "frequencyHint": "À quelle fréquence un même problème peut prévenir, pour qu’une rafale d’erreurs n’envoie qu’une alerte.",
+      "frequencyHint": "À quelle fréquence cette alerte peut notifier, pour qu’une rafale d’erreurs n’envoie qu’une alerte.",
       "every": {
         "minute": "{count, plural, one {Une fois par minute} other {Toutes les # minutes}}",
         "hour": "{count, plural, one {Une fois par heure} other {Toutes les # heures}}",
@@ -1049,7 +1049,7 @@
     },
     "list": {
       "paused": "En pause",
-      "lastTriggered": "Dernier envoi {when}",
+      "lastTriggered": "Dernier déclenchement {when}",
       "neverTriggered": "Pas encore déclenchée",
       "enabled": "Activer ou mettre en pause {name}",
       "resumed": "Alerte reprise",
@@ -1094,7 +1094,7 @@
         "pending": "En attente",
         "skipped": "Ignorée"
       },
-      "lastSent": "Dernier envoi",
+      "lastTriggered": "Dernier déclenchement",
       "chartHint": "Envois par jour : envoyés, ignorés par la fréquence maximale et en échec",
       "ruleHint": "Chaque envoi de cette alerte, avec la raison quand il a échoué ou a été ignoré",
       "columns": {
@@ -1118,7 +1118,7 @@
       "conditions": "Seulement si",
       "notifies": "Prévient",
       "frequency": "Au plus",
-      "lastSent": "Dernier envoi",
+      "lastSent": "Dernier déclenchement",
       "active": "Active",
       "afterEvents": "après {count} événements"
     },

@@ -24,7 +24,8 @@ export interface FilterFields {
 
 /**
  * The conditions a rule is saved with. A filter left at its default is not
- * sent, and the event count only means something for new issues.
+ * sent, the event count only means something for new issues, and the level
+ * nothing for feedback.
  */
 export function conditionsFromForm(
   form: FilterFields & { alert_type: AlertType },
@@ -34,7 +35,8 @@ export function conditionsFromForm(
     .map((e) => e.trim())
     .filter(Boolean);
   return {
-    ...(form.min_level !== 'any' && { min_level: form.min_level }),
+    ...(form.min_level !== 'any' &&
+      form.alert_type !== 'new_feedback' && { min_level: form.min_level }),
     ...(environments.length > 0 && { environments }),
     ...(form.alert_type === 'new_issue' &&
       form.min_events > 1 && { min_events: form.min_events }),
