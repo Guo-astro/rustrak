@@ -4,7 +4,15 @@ import type {
   Result,
   RustrakError,
 } from '@rustrak/client';
-import { cn, EmptyIcon, Page, PageHeader, Text } from '@rustrak/ui';
+import {
+  Button,
+  CloseIcon,
+  cn,
+  EmptyIcon,
+  Page,
+  PageHeader,
+  Text,
+} from '@rustrak/ui';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
@@ -194,6 +202,11 @@ function LogsPage() {
 
           <VolumePanel volume={volume} lineOpen={Boolean(current)} />
 
+          <LineFailed
+            show={selection.failed}
+            onClose={() => select(undefined)}
+          />
+
           <div className="flex min-h-0 flex-1 gap-4">
             {/* Narrow, the pane replaces the list once a line is open. */}
             <div
@@ -321,7 +334,7 @@ function useSelectedLog(
     : { log: undefined, failed: true };
 }
 
-/** Beside the list: the open line, or why the linked one did not open. */
+/** Beside the list, or in its place on a phone: the open line. */
 function SelectedPane({
   selection,
   onTrace,
@@ -331,22 +344,38 @@ function SelectedPane({
   onTrace: (trace: string) => void;
   onClose: () => void;
 }) {
-  const tLogs = useTranslations('logs');
-  if (!selection.log && !selection.failed) return null;
+  if (!selection.log) return null;
   return (
     <div className="flex min-h-0 w-full flex-col overflow-hidden lg:w-[28rem] lg:flex-none lg:rounded-lg lg:border lg:border-border lg:bg-panel xl:w-[34rem]">
-      {selection.log ? (
-        <LogDetail
-          key={selection.log.id}
-          log={selection.log}
-          onTrace={onTrace}
-          onClose={onClose}
-        />
-      ) : (
-        <Text variant="meta" tone="subtle" className="p-4">
-          {tLogs('lineFailed')}
-        </Text>
-      )}
+      <LogDetail
+        key={selection.log.id}
+        log={selection.log}
+        onTrace={onTrace}
+        onClose={onClose}
+      />
+    </div>
+  );
+}
+
+/**
+ * A linked line that could not be read, said above the list rather than in
+ * the pane: the list stays whole on a phone, and closing it clears the link.
+ */
+function LineFailed({ show, onClose }: { show: boolean; onClose: () => void }) {
+  const tLogs = useTranslations('logs');
+  if (!show) return null;
+  return (
+    <div className="flex shrink-0 items-center justify-between gap-2 rounded-lg border border-border bg-panel py-1 pr-1 pl-3">
+      <Text variant="meta" tone="subtle">
+        {tLogs('lineFailed')}
+      </Text>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={CloseIcon}
+        aria-label={tLogs('close')}
+        onClick={onClose}
+      />
     </div>
   );
 }
