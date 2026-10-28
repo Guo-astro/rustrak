@@ -775,7 +775,7 @@ fn default_limit() -> i64 {
     ),
     responses(
         (status = 200, description = "Alert history", body = Vec<crate::models::AlertHistory>),
-        (status = 400, description = "Invalid query parameter"),
+        (status = 400, description = "Invalid query parameter", body = String, content_type = "text/plain"),
         (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
         (status = 404, description = "Project not found", body = crate::error::ErrorResponse),
     ),
@@ -833,7 +833,7 @@ fn default_days() -> i64 {
     ),
     responses(
         (status = 200, description = "Deliveries per UTC day, oldest first", body = Vec<crate::models::AlertHistoryDay>),
-        (status = 400, description = "Invalid query parameter"),
+        (status = 400, description = "Invalid query parameter", body = String, content_type = "text/plain"),
         (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
         (status = 404, description = "Project not found", body = crate::error::ErrorResponse),
     ),

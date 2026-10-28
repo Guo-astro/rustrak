@@ -239,7 +239,8 @@ export function RuleEditor({
                     : values.min_level,
                 minEvents: values.min_events,
                 cooldownMinutes: values.cooldown_minutes,
-                channels: chosen.map((i) => i.name),
+                // Dispatch skips a disabled integration; so does the sentence.
+                channels: chosen.filter((i) => i.is_enabled).map((i) => i.name),
               }}
             />
           </p>
@@ -370,6 +371,9 @@ function EnvironmentsRow({ environments }: { environments: string[] }) {
           boxClassName="w-40"
           className="font-mono"
           onChange={(e) => setDraft(e.target.value)}
+          // Leaving the field adds what it holds: clicking Save blurs it
+          // first, so a typed name is never dropped from the rule.
+          onBlur={add}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             e.preventDefault();

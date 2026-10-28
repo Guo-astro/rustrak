@@ -4883,7 +4883,7 @@ export type AlertRulesListHistoryErrors = {
     /**
      * Invalid query parameter
      */
-    400: unknown;
+    400: string;
     /**
      * Unauthorized
      */
@@ -4930,7 +4930,7 @@ export type AlertRulesHistoryByDayErrors = {
     /**
      * Invalid query parameter
      */
-    400: unknown;
+    400: string;
     /**
      * Unauthorized
      */
