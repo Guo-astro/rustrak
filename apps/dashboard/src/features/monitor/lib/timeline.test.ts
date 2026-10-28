@@ -10,6 +10,7 @@ const bucket = (counts: Partial<MonitorStatsBucket>): MonitorStatsBucket => ({
   timeout: 0,
   in_progress: 0,
   avg_duration_ms: null,
+  duration_count: 0,
   ...counts,
 });
 
@@ -48,10 +49,20 @@ describe('windowDuration', () => {
   it('weighs each bucket by the runs that reported a duration', () => {
     expect(
       windowDuration([
-        bucket({ ok: 1, avg_duration_ms: 1000 }),
-        bucket({ ok: 3, avg_duration_ms: 3000 }),
+        bucket({ ok: 1, avg_duration_ms: 1000, duration_count: 1 }),
+        bucket({ ok: 3, avg_duration_ms: 3000, duration_count: 3 }),
         bucket({}),
       ]),
     ).toBe(2500);
+  });
+
+  it('leaves out the runs that reported no duration', () => {
+    // Nine errors without a duration beside a 1 s run: the mean is of 1 s and 3 s.
+    expect(
+      windowDuration([
+        bucket({ ok: 1, error: 9, avg_duration_ms: 1000, duration_count: 1 }),
+        bucket({ ok: 1, avg_duration_ms: 3000, duration_count: 1 }),
+      ]),
+    ).toBe(2000);
   });
 });

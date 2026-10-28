@@ -976,6 +976,7 @@ export const zMonitorEnvironmentResponse = z.object({
 export const zMonitorStatsBucket = z.object({
     avg_duration_ms: z.number().nullable(),
     bucket: z.iso.datetime({ offset: true }),
+    duration_count: z.int(),
     error: z.int(),
     in_progress: z.int(),
     missed: z.int(),

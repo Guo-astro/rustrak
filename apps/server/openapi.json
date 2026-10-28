@@ -16107,7 +16107,8 @@
           "missed",
           "timeout",
           "in_progress",
-          "avg_duration_ms"
+          "avg_duration_ms",
+          "duration_count"
         ],
         "properties": {
           "avg_duration_ms": {
@@ -16122,6 +16123,11 @@
             "type": "string",
             "format": "date-time",
             "description": "Where the bucket starts."
+          },
+          "duration_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many check-ins reported a duration: the mean's weight when buckets\nare averaged together."
           },
           "error": {
             "type": "integer",

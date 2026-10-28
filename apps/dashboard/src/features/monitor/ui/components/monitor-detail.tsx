@@ -4,7 +4,11 @@ import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { checkInFill } from '@/features/monitor/lib/check-in-fill';
 import { formatRunDuration } from '@/features/monitor/lib/duration';
-import { lastCheckIn, nextCheckIn } from '@/features/monitor/lib/status';
+import {
+  lastCheckIn,
+  lastRun as newestRun,
+  nextCheckIn,
+} from '@/features/monitor/lib/status';
 import { successRate, windowDuration } from '@/features/monitor/lib/timeline';
 import { ScheduleText } from '@/shared/ui/components/schedule-text';
 import { CheckInStrip, StripAxis } from './check-in-strip';
@@ -27,9 +31,7 @@ export function MonitorFigures({
   const last = lastCheckIn(monitor);
   const next = nextCheckIn(monitor);
   const late = next !== null && Date.parse(next) < Date.now();
-  const lastRun = monitor.environments
-    .flatMap((env) => env.recent_checkins)
-    .find((c) => c.status !== 'in_progress');
+  const lastRun = newestRun(monitor);
   const rate = successRate(buckets);
   const duration = windowDuration(buckets);
   const maxRuntime = monitor.config.max_runtime * 60_000;
@@ -168,13 +170,15 @@ export function DurationChart({ stats }: { stats: MonitorEnvironmentStats[] }) {
     first && second
       ? Date.parse(second.bucket) - Date.parse(first.bucket) >= 86_400_000
       : false;
+  // Series keyed by position, not by name: an environment named `t` would
+  // otherwise overwrite the timestamp the axis reads.
   const data = (stats[0]?.buckets ?? []).map((bucket, index) => {
     const point: Record<string, number | null> = {
       t: Date.parse(bucket.bucket),
     };
-    for (const env of stats) {
-      point[env.environment] = env.buckets[index]?.avg_duration_ms ?? null;
-    }
+    stats.forEach((env, at) => {
+      point[`env-${at}`] = env.buckets[index]?.avg_duration_ms ?? null;
+    });
     return point;
   });
 
@@ -182,7 +186,7 @@ export function DurationChart({ stats }: { stats: MonitorEnvironmentStats[] }) {
     <TimeSeriesChart
       data={data}
       series={stats.map((env, index) => ({
-        key: env.environment,
+        key: `env-${index}`,
         label: env.environment,
         color: `var(--chart-${(index % 5) + 1})`,
       }))}

@@ -1318,6 +1318,11 @@ export type MonitorStatsBucket = {
      * Where the bucket starts.
      */
     bucket: string;
+    /**
+     * How many check-ins reported a duration: the mean's weight when buckets
+     * are averaged together.
+     */
+    duration_count: number;
     error: number;
     in_progress: number;
     missed: number;
