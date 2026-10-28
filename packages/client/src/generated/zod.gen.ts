@@ -3225,6 +3225,16 @@ export const zLogsVolumeQuery = z.object({
  */
 export const zLogsVolumeResponse = z.array(zLogVolumePoint);
 
+export const zLogsGetPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    log_id: z.uuid()
+});
+
+/**
+ * The log
+ */
+export const zLogsGetResponse = zLogResponse;
+
 export const zMembersListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
 });
@@ -3570,6 +3580,7 @@ export const zTransactionsListQuery = z.object({
     status: z.string().nullish(),
     environment: z.string().nullish(),
     release: z.string().nullish(),
+    period: z.string().nullish(),
     sort: z.union([
         z.literal('recent'),
         z.literal('slowest')

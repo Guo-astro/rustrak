@@ -516,17 +516,20 @@ async fn query_event_timeseries(
 type Bounds = Option<(DateTime<Utc>, DateTime<Utc>)>;
 
 /// Narrows `issues` to the ones seen in the scope's environment (bound as
-/// `$2`) and release (`$3`); either one `NULL` narrows nothing.
+/// `$2`) and release (`$3`); either one `NULL` narrows nothing. With both, one
+/// event has to be in both, as `IssueService::list` reads them.
 #[cfg(feature = "postgres")]
 const ISSUE_IN_SCOPE: &str = "($2::text IS NULL OR id IN (
         SELECT issue_id FROM issue_environments WHERE project_id = $1 AND environment = $2))
     AND ($3::text IS NULL OR id IN (
-        SELECT issue_id FROM events WHERE project_id = $1 AND release = $3))";
+        SELECT issue_id FROM events WHERE project_id = $1 AND release = $3
+        AND ($2::text IS NULL OR environment = $2)))";
 #[cfg(not(feature = "postgres"))]
 const ISSUE_IN_SCOPE: &str = "(?2 IS NULL OR id IN (
         SELECT issue_id FROM issue_environments WHERE project_id = ?1 AND environment = ?2))
     AND (?3 IS NULL OR id IN (
-        SELECT issue_id FROM events WHERE project_id = ?1 AND release = ?3))";
+        SELECT issue_id FROM events WHERE project_id = ?1 AND release = ?3
+        AND (?2 IS NULL OR environment = ?2)))";
 
 async fn count_events(
     pool: &DbPool,

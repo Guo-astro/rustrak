@@ -68,6 +68,9 @@ export function ConnectedApps({ initial }: { initial: OAuthGrant[] }) {
                 size="sm"
                 disabled={isPending}
                 onClick={() => revoke(grant)}
+                aria-label={t('mcp.connected.revokeLabel', {
+                  name: grant.client_name,
+                })}
               >
                 {t('mcp.connected.revoke')}
               </Button>

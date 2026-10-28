@@ -270,3 +270,12 @@ fn test_parse_container_keeps_sub_millisecond_after_epoch() {
     assert!(logs[0].timestamp.is_some());
     assert!(logs[1].timestamp.is_none());
 }
+
+#[test]
+fn test_volume_counts_a_level_it_does_not_know_as_info() {
+    // Ingestion keeps levels outside the six; the chart must not drop them.
+    let mut point = rustrak::models::LogVolumePoint::empty(0);
+    point.add("notice", 2);
+    point.add("info", 1);
+    assert_eq!(point.info, 3);
+}

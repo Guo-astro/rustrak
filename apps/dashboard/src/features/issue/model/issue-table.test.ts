@@ -1,6 +1,6 @@
 import type { DataTableQuery } from '@rustrak/ui';
 import { describe, expect, it } from 'vitest';
-import { issueListParams } from './issue-table';
+import { issueListParams, withServerQuery } from './issue-table';
 
 const base: DataTableQuery = {
   sorting: [],
@@ -65,5 +65,46 @@ describe('issueListParams', () => {
         'open',
       ),
     ).toMatchObject({ assigned: 'none' });
+  });
+});
+
+describe('withServerQuery', () => {
+  it('keeps the one sort the server applies and drops any other', () => {
+    const query: DataTableQuery = {
+      ...base,
+      sorting: [
+        { id: 'nonsense', desc: false },
+        // An inherited key is not a sort: `toString` is on every object.
+        { id: 'toString', desc: false },
+        { id: 'events', desc: true },
+        { id: 'priority', desc: false },
+      ],
+    };
+    expect(withServerQuery(query).sorting).toEqual([
+      { id: 'events', desc: true },
+    ]);
+  });
+
+  it('drops a page size the endpoint refuses', () => {
+    const query = { ...base, pagination: { pageIndex: 2, pageSize: 101 } };
+    expect(withServerQuery(query, 50).pagination).toEqual({
+      pageIndex: 2,
+      pageSize: 50,
+    });
+  });
+
+  it('keeps only the seen windows the server reads', () => {
+    const query: DataTableQuery = {
+      ...base,
+      filters: [
+        { id: 'lastSeen', value: ['tomorrow'] },
+        { id: 'firstSeen', value: ['24h'] },
+        { id: 'level', value: ['error'] },
+      ],
+    };
+    expect(withServerQuery(query).filters).toEqual([
+      { id: 'firstSeen', value: ['24h'] },
+      { id: 'level', value: ['error'] },
+    ]);
   });
 });

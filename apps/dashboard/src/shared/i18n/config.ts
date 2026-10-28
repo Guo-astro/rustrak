@@ -124,6 +124,15 @@ export function formatsFor(timeZone: string) {
         dateStyle: 'medium',
         timeStyle: showZone ? 'long' : 'medium',
       },
+      /** A log line's clock: to the millisecond, since lines come in bursts. */
+      logLine: {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        fractionalSecondDigits: 3,
+      },
       /** Time only, for a breadcrumb inside one event. */
       time: {
         hour: '2-digit',

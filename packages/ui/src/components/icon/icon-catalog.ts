@@ -49,6 +49,7 @@ import {
   Palette,
   PanelLeft,
   PanelRight,
+  Paperclip,
   Pencil,
   Play,
   Plug,
@@ -151,6 +152,7 @@ export const DragIcon = fromLucide('DragIcon', GripVertical);
 export const AppearanceIcon = fromLucide('AppearanceIcon', Palette);
 export const ExternalLinkIcon = fromLucide('ExternalLinkIcon', ExternalLink);
 export const LinkIcon = fromLucide('LinkIcon', Link);
+export const AttachmentIcon = fromLucide('AttachmentIcon', Paperclip);
 export const AssignIcon = fromLucide('AssignIcon', Users);
 export const SaveViewIcon = fromLucide('SaveViewIcon', Bookmark);
 export const StarIcon = fromLucide('StarIcon', Star);
@@ -255,6 +257,7 @@ export const icons = {
   appearance: AppearanceIcon,
   externalLink: ExternalLinkIcon,
   link: LinkIcon,
+  attachment: AttachmentIcon,
   assign: AssignIcon,
   saveView: SaveViewIcon,
   star: StarIcon,

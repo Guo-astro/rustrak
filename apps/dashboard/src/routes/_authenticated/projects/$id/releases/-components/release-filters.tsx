@@ -3,11 +3,8 @@ import { useTranslations } from 'use-intl';
 import { getProjectEnvironments } from '@/features/project/api/queries';
 import type { PeriodChoice } from '@/features/release/model/session-health';
 import { PeriodSegment } from '@/features/release/ui/components/period-filter';
-import {
-  ScopeBar,
-  ScopeSegment,
-  scopeActions,
-} from '@/shared/ui/components/scope-bar';
+import { scopeActions } from '@/shared/lib/scope-actions';
+import { ScopeBar, ScopeSegment } from '@/shared/ui/components/scope-bar';
 import { useAsync } from '@/shared/ui/hooks/use-async';
 
 export interface ReleaseScope {

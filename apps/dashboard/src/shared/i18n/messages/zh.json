@@ -227,6 +227,8 @@
   },
   "logs": {
     "emptyValue": "（空）",
+    "volumeFailed": "无法加载日志量图表",
+    "lineFailed": "无法打开这一行，它可能已被删除。",
     "attributes": "属性",
     "empty": {
       "title": "此时间范围内没有符合搜索条件的日志"
@@ -378,6 +380,7 @@
       "highestPriority": "优先级从高到低",
       "me": "我",
       "unassigned": "未分配",
+      "assigned": "已分配",
       "oldest": "最早优先",
       "newest": "最新优先",
       "environment": "环境",
@@ -387,7 +390,7 @@
       "unassign": "取消分配",
       "copyId": "复制 ID",
       "copied": "已复制 ID",
-      "count": "{count} 个问题",
+      "count": "{display} 个问题",
       "views": {
         "open": "未解决",
         "resolved": "已解决",
@@ -398,10 +401,6 @@
     "detail": {
       "linkCopied": "已复制链接",
       "copyLink": "复制链接",
-      "moreArchiveOptions": "更多归档方式",
-      "archiveUntilEscalating": "归档直至升级",
-      "archiveUntilEscalatingHint": "若发生频率上升会重新出现",
-      "archiveForever": "永久归档",
       "status": "状态",
       "firstSeen": "首次出现于 {when}",
       "lastSeen": "最近出现于 {when}",
@@ -690,7 +689,7 @@
     },
     "summary": {
       "withFatal": "{count} 个有致命错误",
-      "events24h": "24 小时内 {count} 个事件"
+      "events24h": "24 小时内 {display} 个事件"
     }
   },
   "alerts": {
@@ -1665,7 +1664,7 @@
       "levelWarning": "警告",
       "levelInfo": "信息",
       "issues": "未解决问题",
-      "issuesDescription": "优先查看",
+      "issuesDescription": "优先查看（全部时间）",
       "issuesRecent": "最近",
       "issuesNew": "新增",
       "issuesFrequent": "事件最多",
@@ -2583,6 +2582,7 @@
       "op": "操作",
       "description": "描述",
       "duration": "耗时",
+      "selfTime": "自身耗时",
       "start": "开始",
       "status": "状态",
       "spanId": "Span ID"

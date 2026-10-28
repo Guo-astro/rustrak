@@ -57,6 +57,7 @@ pub async fn list_transactions(
         status: query.status.clone(),
         environment: query.environment.clone(),
         release: query.release.clone(),
+        period_hours: crate::routes::period::parse_period_hours(query.period.as_deref()),
         slowest: query.sort == Some(crate::pagination::TransactionListSort::Slowest),
     };
 
@@ -170,8 +171,9 @@ pub async fn get_transaction_spans(
     security(("bearer_auth" = [])),
 ))]
 /// GET /api/projects/{project_id}/transactions/stats
-/// Returns paginated aggregate performance stats (count, p50/p95/p99 latency,
-/// failure rate) grouped by transaction name + op, most frequent first.
+/// Returns paginated aggregate performance stats (count, time spent, p50/p95/p99
+/// latency, failure rate) grouped by transaction name + op, the most time spent
+/// first unless `sort` asks otherwise.
 pub async fn get_transaction_stats(
     pool: web::Data<DbPool>,
     path: web::Path<i32>,
@@ -267,8 +269,9 @@ pub async fn get_transaction_stat_group(
     security(("bearer_auth" = [])),
 ))]
 /// Returns one endpoint's trend over the window, every bucket present:
-/// how often it ran and failed, and its p50 and p95. Without a window, the
-/// last 14 days.
+/// how often it ran and failed, and its p50 and p95. Without a window, back
+/// to its oldest call and never less than the last 24 hours, which is also
+/// what an endpoint with no calls gets.
 pub async fn get_transaction_stat_group_timeseries(
     pool: web::Data<DbPool>,
     path: web::Path<i32>,
@@ -292,7 +295,7 @@ pub async fn get_transaction_stat_group_timeseries(
         &query.name,
         query.op.as_deref(),
         filter.environment.as_deref(),
-        filter.period_hours.unwrap_or(14 * 24),
+        filter.period_hours,
     )
     .await?;
     Ok(HttpResponse::Ok().json(points))
