@@ -1,0 +1,44 @@
+---
+version: v0.22.0
+title: Dashboard Redesign
+description: Every page of the dashboard rebuilt on the design system, with the server endpoints behind it
+date: 2026-10-29
+tags: [dashboard, server, client]
+---
+
+## A new dashboard
+
+Every page is rebuilt on `@rustrak/ui`, with a new app shell, sidebar and
+command bar.
+
+- Projects as cards, and an overview filtered by environment and release
+- Issues as a full-page table, and a redesigned issue detail
+- User feedback as a split-view inbox
+- Releases as a table and a release page, with new issues per environment
+  and session health
+- Performance as endpoints, an endpoint page with its trend, and a trace page
+- Logs as a searchable stream with a volume chart per level
+- Crons as a shared-axis timeline and a monitor page
+- Agents as an overview, traces, conversations and a trace page
+- Settings with each integration on its own page, and a redesigned login
+
+## Products per project
+
+A project can turn off the products it does not use. Data for a disabled
+product is dropped at ingest, and the sidebar lists the rest in the order you
+choose. Issues are always on, and agents need performance.
+
+## Independent alert rules
+
+A project can hold several rules for the same trigger, for example new issues
+by email with one set of filters and to Slack with another. Alert deliveries
+are counted per day by outcome.
+
+## Improvements
+
+- A release's new issues are counted per environment and outlive event
+  retention, like Sentry's; existing issues are backfilled from retained events
+- `@rustrak/client` adds `logs.get`, `logs.volume`, `agents.conversations`,
+  `agents.conversation`, `releases.list`, `releases.get`, `monitors.stats`,
+  `transactions.getStatGroupTimeseries` and `alertRules.historyByDay`
+- Changing the language applies without a reload
