@@ -1,18 +1,11 @@
 import { Button, DeleteIcon, EditIcon, Switch } from '@rustrak/ui';
+import { useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { type ReactNode, useState, useTransition } from 'react';
+import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import {
-  deleteAlertRule,
-  updateAlertRule,
-} from '@/features/alert/api/mutations';
-import {
-  getAlertHistoryByDay,
-  getAlertRule,
-  listAlertHistory,
-  listIntegrations,
-} from '@/features/alert/api/queries';
+import { alertMutations } from '@/features/alert/api/mutations';
+import { alertQueries } from '@/features/alert/api/queries';
 import {
   alertHref,
   alertsHref,
@@ -28,10 +21,9 @@ import { ProviderIcon } from '@/features/alert/ui/components/provider-icon';
 import { useFrequency } from '@/features/alert/ui/components/rule-list';
 import { RuleSentence } from '@/features/alert/ui/components/rule-sentence';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { Panel, RailBlock } from '@/shared/ui/components/panel';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
@@ -44,22 +36,25 @@ import { useRouter } from '@/shared/ui/hooks/use-router';
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/alerts/$ruleId/',
 )({
-  loader: ({ params }) => {
-    const projectId = Number.parseInt(params.id, 10);
-    const ruleId = Number.parseInt(params.ruleId, 10);
-    return loadAll([
-      getAlertRule(projectId, ruleId),
-      listIntegrations(),
-      listAlertHistory(projectId, { ruleId, limit: 100 }),
-      // Counted on the server: the table above is only the newest page.
-      getAlertHistoryByDay(projectId, { ruleId, days: 14 }),
+  // The rule and its channels are the page; what it has sent arrives after.
+  loader: async ({ context: { queryClient }, params }) => {
+    const reads = ruleReads(params);
+    void queryClient.prefetchQuery(reads.history);
+    void queryClient.prefetchQuery(reads.days);
+    const [rule] = await Promise.all([
+      queryClient.query({ ...reads.rule, staleTime: 'static' }),
+      queryClient.query({
+        ...alertQueries.integrations(),
+        staleTime: 'static',
+      }),
     ]);
+    return { rule };
   },
   head: ({ loaderData }) => ({
     meta: [
       {
         title: translator('alerts')('overview.ruleMetaTitle', {
-          name: loaderData?.success ? loaderData.data[0].name : '',
+          name: loaderData?.rule.name ?? '',
         }),
       },
     ],
@@ -67,58 +62,69 @@ export const Route = createFileRoute(
   component: AlertPage,
 });
 
+/** The page's reads, built once for the loader and the component. */
+function ruleReads(params: { id: string; ruleId: string }) {
+  const projectId = Number.parseInt(params.id, 10);
+  const ruleId = Number.parseInt(params.ruleId, 10);
+  return {
+    rule: alertQueries.rule(projectId, ruleId),
+    history: alertQueries.history(projectId, { ruleId, limit: 100 }),
+    // Counted on the server: the table below is only the newest page.
+    days: alertQueries.historyByDay(projectId, { ruleId, days: 14 }),
+  };
+}
+
 function AlertPage() {
   const t = useTranslations('alerts');
   const format = useFormatter();
   const frequency = useFrequency();
-  const { id } = Route.useParams();
-  const loaded = Route.useLoaderData();
+  const params = Route.useParams();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
-  const projectId = Number.parseInt(id, 10);
-  usePageTrail(loaded.success ? [{ label: loaded.data[0].name }] : []);
+  const projectId = Number.parseInt(params.id, 10);
+  const reads = ruleReads(params);
+  const { data: rule } = useSuspenseQuery(reads.rule);
+  const { data: integrations } = useSuspenseQuery(alertQueries.integrations());
+  const history = useQuery(reads.history);
+  const days = useQuery(reads.days);
+  const update = useMutation(alertMutations.updateRule(projectId));
+  const remove = useMutation(alertMutations.deleteRule(projectId, rule.id));
+  const isPending = update.isPending || remove.isPending;
+  usePageTrail([{ label: rule.name }]);
 
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('overview.loadFailed')} />
-    );
-  }
-
-  const [rule, integrations, history, days] = loaded.data;
   const shape = ruleShape(rule, integrations);
   const linked = new Set(rule.integration_ids);
   const channels = integrations.filter((i) => linked.has(i.id));
+  // A dash until the days arrive, never a zero that is not one.
   const count = (status: 'sent' | 'skipped' | 'failed') =>
-    days.reduce((sum, day) => sum + day[status], 0);
+    days.data?.reduce((sum, day) => sum + day[status], 0);
+  const figure = (value: number | undefined) =>
+    value === undefined ? '—' : format.number(value);
 
   const setEnabled = (enabled: boolean) =>
-    startTransition(async () => {
-      const result = await updateAlertRule(projectId, rule.id, {
-        is_enabled: enabled,
-      });
-      if (!result.success) {
-        toast.error(t('ruleDialog.saveFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      toast.success(t(enabled ? 'list.resumed' : 'list.pausedToast'));
-      await router.refresh();
-    });
+    update.mutate(
+      { ruleId: rule.id, body: { is_enabled: enabled } },
+      {
+        onError: (error) =>
+          toast.error(t('ruleDialog.saveFailed'), {
+            description: error.error.message,
+          }),
+        onSuccess: () =>
+          toast.success(t(enabled ? 'list.resumed' : 'list.pausedToast')),
+      },
+    );
 
-  const remove = () =>
-    startTransition(async () => {
-      const result = await deleteAlertRule(projectId, rule.id);
-      if (!result.success) {
+  const confirmDelete = () =>
+    remove.mutate(undefined, {
+      onError: (error) =>
         toast.error(t('overview.deleteFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      toast.success(t('overview.deleted'));
-      setConfirming(false);
-      router.push(alertsHref(projectId));
+          description: error.error.message,
+        }),
+      onSuccess: () => {
+        toast.success(t('overview.deleted'));
+        setConfirming(false);
+        router.push(alertsHref(projectId));
+      },
     });
 
   const figures: [string, ReactNode][] = [
@@ -128,15 +134,15 @@ function AlertPage() {
         ? format.relativeTime(new Date(rule.last_triggered_at))
         : '—',
     ],
-    [t('history.status.sent'), format.number(count('sent'))],
-    [t('history.status.skipped'), format.number(count('skipped'))],
+    [t('history.status.sent'), figure(count('sent'))],
+    [t('history.status.skipped'), figure(count('skipped'))],
     [
       t('history.status.failed'),
       <span
         key="failed"
         className={count('failed') ? 'text-sev-error-fg' : undefined}
       >
-        {format.number(count('failed'))}
+        {figure(count('failed'))}
       </span>,
     ],
   ];
@@ -238,14 +244,28 @@ function AlertPage() {
               ))}
             </dl>
             <Panel title={t('history.last14')} hint={t('history.chartHint')}>
-              <HistoryChart days={days} />
+              <QueryState
+                query={days}
+                placeholder={<div className="h-[180px]" />}
+                title={t('overview.loadFailed')}
+              >
+                {(loaded) => <HistoryChart days={loaded} />}
+              </QueryState>
             </Panel>
             <Panel
               flush
               title={t('history.title')}
               hint={t('history.ruleHint')}
             >
-              <HistoryTable projectId={projectId} history={history} />
+              <QueryState
+                query={history}
+                placeholder={null}
+                title={t('overview.loadFailed')}
+              >
+                {(deliveries) => (
+                  <HistoryTable projectId={projectId} history={deliveries} />
+                )}
+              </QueryState>
             </Panel>
           </div>
         </main>
@@ -295,7 +315,7 @@ function AlertPage() {
         title={t('overview.deleteTitle', { name: rule.name })}
         description={t('overview.deleteDescription')}
         isPending={isPending}
-        onConfirm={remove}
+        onConfirm={confirmDelete}
         onClose={() => setConfirming(false)}
       />
     </div>

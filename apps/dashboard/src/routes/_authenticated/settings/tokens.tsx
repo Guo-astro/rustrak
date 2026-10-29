@@ -1,10 +1,10 @@
 import { ExternalLinkIcon } from '@rustrak/ui';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { listTokens } from '@/features/token/api/queries';
+import { tokenQueries } from '@/features/token/api/queries';
 import { TokensList } from '@/features/token/ui/components/tokens-list/tokens-list';
 import { translator } from '@/shared/i18n/intl';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 
 export const Route = createFileRoute('/_authenticated/settings/tokens')({
   head: () => {
@@ -16,27 +16,18 @@ export const Route = createFileRoute('/_authenticated/settings/tokens')({
       ],
     };
   },
-  loader: () => listTokens(),
+  loader: ({ context: { queryClient } }) =>
+    queryClient.query({ ...tokenQueries.list(), staleTime: 'static' }),
   component: TokensPage,
 });
 
 function TokensPage() {
   const t = useTranslations('settings');
-  const tokens = Route.useLoaderData();
-
-  if (!tokens.success) {
-    return (
-      <LoadFailure
-        error={tokens.error}
-        title={t('tokens.loadFailed')}
-        notFoundOnMissing={false}
-      />
-    );
-  }
+  const { data: tokens } = useSuspenseQuery(tokenQueries.list());
 
   return (
     <TokensList
-      initialTokens={tokens.data}
+      tokens={tokens}
       title={t('tokens.title')}
       subtitle={t('tokens.subtitle')}
       footer={

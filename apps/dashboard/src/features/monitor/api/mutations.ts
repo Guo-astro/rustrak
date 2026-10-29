@@ -17,9 +17,10 @@ export const monitorMutations = {
         ),
       meta: { invalidates: [monitorQueries.all(projectId)] },
     }),
-  update: (projectId: number, slug: string) =>
+  /** The monitor is the variable: the form edits one or creates one. */
+  update: (projectId: number) =>
     mutationOptions({
-      mutationFn: (body: UpdateMonitor) =>
+      mutationFn: ({ slug, body }: { slug: string; body: UpdateMonitor }) =>
         orThrow(
           api().monitors.update({
             path: { project_id: projectId, slug },

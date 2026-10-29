@@ -12,14 +12,11 @@ export const tokenMutations = {
         orThrow(api().tokens.create({ body })),
       meta: { invalidates: [tokenQueries.list().queryKey] },
     }),
-  delete: (id: number) =>
+  /** The token is the variable: the list deletes any row with one. */
+  delete: () =>
     mutationOptions({
-      mutationFn: () => orThrow(api().tokens.delete({ path: { id } })),
-      meta: {
-        invalidates: [
-          tokenQueries.list().queryKey,
-          tokenQueries.detail(id).queryKey,
-        ],
-      },
+      mutationFn: (id: number) =>
+        orThrow(api().tokens.delete({ path: { id } })),
+      meta: { invalidates: [tokenQueries.all()] },
     }),
 };

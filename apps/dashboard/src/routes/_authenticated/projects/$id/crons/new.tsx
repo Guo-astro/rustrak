@@ -2,47 +2,35 @@ import { PageHeader } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { MonitorForm } from '@/features/monitor/ui/components/monitor-form';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 export const Route = createFileRoute('/_authenticated/projects/$id/crons/new')({
-  loader: async ({ params }) => ({
-    project: await getProject(Number.parseInt(params.id, 10)),
+  // Only for the title; the layout has already read it, so this is the cache.
+  loader: async ({ context: { queryClient }, params }) => ({
+    project: await queryClient.query({
+      ...projectQueries.detail(Number.parseInt(params.id, 10)),
+      staleTime: 'static',
+    }),
   }),
-  head: ({ loaderData }) => {
-    if (!loaderData?.project.success) {
-      return {
-        meta: [{ title: translator('projectPages')('projectNotFound') }],
-      };
-    }
-    return {
-      meta: [
-        {
-          title: translator('crons')('meta.newTitle', {
-            project: loaderData.project.data.name,
-          }),
-        },
-      ],
-    };
-  },
+  head: ({ loaderData }) => ({
+    meta: [
+      {
+        title: translator('crons')('meta.newTitle', {
+          project: loaderData?.project.name ?? '',
+        }),
+      },
+    ],
+  }),
   component: NewMonitorPage,
 });
 
 function NewMonitorPage() {
   const t = useTranslations('crons');
-  const pageT = useTranslations('projectPages');
   const { id } = Route.useParams();
-  const { project } = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
   usePageTrail([{ label: t('form.newTitle') }]);
-
-  if (!project.success) {
-    return (
-      <LoadFailure error={project.error} title={pageT('loadProjectFailed')} />
-    );
-  }
 
   return (
     <div className="flex h-full flex-col">

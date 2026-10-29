@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { previewTemplate } from '@/features/alert/api/mutations';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { alertQueries } from '@/features/alert/api/queries';
 
 /**
  * What the body renders to, as the server sees it.
@@ -27,78 +28,45 @@ const DEBOUNCE_MS = 350;
  */
 const ERROR_SETTLE_MS = 800;
 
+/** `value`, once it has stopped changing for `ms`. */
+function useSettled<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
+}
+
 /**
- * Asks the server what a template renders to, a little after the reader
+ * What `template` renders to, asked of the server a little after the reader
  * stops typing. The dashboard cannot run the template engine, and a preview
  * from anywhere else would eventually disagree with what a delivery sends.
  *
- * Answers that arrive out of order are dropped: only the request for the
- * latest text is allowed to set state.
- *
- * `request` keeps one identity for the life of the hook, so a caller can name
- * it in an effect's dependencies without that effect re-running on every
- * render.
+ * Keyed by the template, so an answer for older text never stands for the
+ * current one, and going back to a body already rendered asks nothing.
  */
-export function useTemplatePreview() {
-  const [preview, setPreview] = useState<TemplatePreview>({ status: 'idle' });
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sequence = useRef(0);
+export function useTemplatePreview(template: string): TemplatePreview {
+  const debounced = useSettled(template, DEBOUNCE_MS);
+  const settled = useSettled(template, ERROR_SETTLE_MS);
+  const preview = useQuery({
+    ...alertQueries.templatePreview(debounced),
+    enabled: debounced.trim() !== '',
+  });
 
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-      if (settle.current) clearTimeout(settle.current);
-    },
-    [],
-  );
+  // The last body that rendered, kept for the panel while the next one is
+  // asked or refused.
+  const [rendered, setRendered] = useState<string>();
+  const answer = preview.data;
+  const ok = answer?.ok && answer.rendered != null ? answer.rendered : null;
+  if (ok !== null && ok !== rendered) setRendered(ok);
 
-  const request = useCallback((template: string) => {
-    if (timer.current) clearTimeout(timer.current);
-    if (settle.current) clearTimeout(settle.current);
-    const ticket = ++sequence.current;
-    const typedAt = Date.now();
-
-    if (!template.trim()) {
-      setPreview({ status: 'idle' });
-      return;
-    }
-
-    setPreview((current) => ({
-      status: 'rendering',
-      rendered: 'rendered' in current ? current.rendered : undefined,
-    }));
-
-    timer.current = setTimeout(async () => {
-      const result = await previewTemplate(template);
-      if (ticket !== sequence.current) return;
-
-      if (result.success && result.data.ok && result.data.rendered != null) {
-        const rendered = result.data.rendered;
-        setPreview({ status: 'ok', rendered });
-        return;
-      }
-
-      // A refusal waits for the text to settle. Typing again in the meantime
-      // starts a fresh request, and this answer is never shown.
-      const refusal = (current: TemplatePreview): TemplatePreview => {
-        const kept = 'rendered' in current ? current.rendered : undefined;
-        if (!result.success) return { status: 'unavailable', rendered: kept };
-        return {
-          status: 'error',
-          error: result.data.error ?? '',
-          rendered: kept,
-        };
-      };
-      settle.current = setTimeout(
-        () => {
-          if (ticket !== sequence.current) return;
-          setPreview(refusal);
-        },
-        Math.max(0, ERROR_SETTLE_MS - (Date.now() - typedAt)),
-      );
-    }, DEBOUNCE_MS);
-  }, []);
-
-  return { preview, request };
+  if (!template.trim()) return { status: 'idle' };
+  if (debounced !== template || preview.isPending) {
+    return { status: 'rendering', rendered };
+  }
+  if (ok !== null) return { status: 'ok', rendered: ok };
+  if (settled !== template) return { status: 'rendering', rendered };
+  if (preview.isError) return { status: 'unavailable', rendered };
+  return { status: 'error', error: answer?.error ?? '', rendered };
 }

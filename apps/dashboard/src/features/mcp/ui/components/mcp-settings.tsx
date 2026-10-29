@@ -13,11 +13,12 @@ import {
   Switch,
   Tag,
 } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
-import { type ReactNode, useState, useTransition } from 'react';
+import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { updateMcpSettings } from '@/features/mcp/api/mutations';
+import { mcpMutations } from '@/features/mcp/api/mutations';
 import {
   type ConnectMethod,
   mcpSnippet,
@@ -35,7 +36,7 @@ import { type CopyFlags, useCopyFlags } from '@/shared/ui/hooks/use-copy-flags';
 import { useSyntaxHighlighter } from '@/shared/ui/hooks/use-syntax-highlighter';
 
 interface McpSettingsProps {
-  initial: McpStatus;
+  settings: McpStatus;
   isAdmin: boolean;
   /** The reader's connected assistants, shown while the server is on. */
   connected: ReactNode;
@@ -55,30 +56,30 @@ const CLIENTS: readonly Client[] = ['web', 'claudeCode', 'json', 'vscode'];
  * only one shown; the API token appears only on a server without
  * `PUBLIC_URL`, where signing in cannot work.
  */
-export function McpSettings({ initial, isAdmin, connected }: McpSettingsProps) {
+export function McpSettings({
+  settings,
+  isAdmin,
+  connected,
+}: McpSettingsProps) {
   const t = useTranslations('settings');
-  const [enabled, setEnabled] = useState(initial.enabled);
-  const [isPending, startTransition] = useTransition();
+  const update = useMutation(mcpMutations.updateSettings());
+  // The switch moves at once; the server's answer settles it either way.
+  const enabled = update.isPending ? update.variables : settings.enabled;
   const [helpOpen, setHelpOpen] = useState(false);
   const copyFlags = useCopyFlags({
     unavailable: t('mcp.copyUnavailable'),
     hint: (label) => t('mcp.copyUnavailableHint', { label }),
   });
-  const signInAvailable = initial.url !== null;
-  const url = initial.url ?? `${window.location.origin}/mcp`;
+  const signInAvailable = settings.url !== null;
+  const url = settings.url ?? `${window.location.origin}/mcp`;
 
-  const toggle = (next: boolean) => {
-    setEnabled(next);
-    startTransition(async () => {
-      const result = await updateMcpSettings(next);
-      if (!result.success) {
-        setEnabled(!next);
+  const toggle = (next: boolean) =>
+    update.mutate(next, {
+      onError: (error) =>
         toast.error(t('mcp.server.updateFailed'), {
-          description: result.error.message,
-        });
-      }
+          description: error.error.message,
+        }),
     });
-  };
 
   return (
     <>
@@ -97,7 +98,7 @@ export function McpSettings({ initial, isAdmin, connected }: McpSettingsProps) {
               <Switch
                 checked={enabled}
                 onCheckedChange={toggle}
-                disabled={isPending}
+                disabled={update.isPending}
                 aria-label={t('mcp.server.toggleLabel')}
               />
             ) : null}
@@ -140,7 +141,7 @@ export function McpSettings({ initial, isAdmin, connected }: McpSettingsProps) {
               isAdmin ? (
                 <Button
                   variant="primary"
-                  loading={isPending}
+                  loading={update.isPending}
                   onClick={() => toggle(true)}
                 >
                   {t('mcp.page.enable')}

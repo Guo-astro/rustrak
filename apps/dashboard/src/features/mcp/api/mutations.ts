@@ -24,10 +24,14 @@ export const mcpMutations = {
         ),
       meta: { invalidates: [mcpQueries.connections().queryKey] },
     }),
-  /** Disconnects an assistant: its tokens stop working at once. */
-  revokeConnection: (id: number) =>
+  /**
+   * Disconnects an assistant: its tokens stop working at once. The grant is
+   * the variable, so the list is one mutation rather than one per row.
+   */
+  revokeConnection: () =>
     mutationOptions({
-      mutationFn: () => orThrow(api().oauth.revokeGrant({ path: { id } })),
+      mutationFn: (id: number) =>
+        orThrow(api().oauth.revokeGrant({ path: { id } })),
       meta: { invalidates: [mcpQueries.connections().queryKey] },
     }),
 };

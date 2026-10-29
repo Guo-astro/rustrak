@@ -10,31 +10,26 @@ import {
   Tabs,
   Text,
 } from '@rustrak/ui';
+import { useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { updateAlertRule } from '@/features/alert/api/mutations';
-import {
-  listAlertHistory,
-  listAlertRules,
-  listIntegrations,
-} from '@/features/alert/api/queries';
+import { alertMutations } from '@/features/alert/api/mutations';
+import { alertQueries } from '@/features/alert/api/queries';
 import { alertHref, newAlertHref } from '@/features/alert/model/rule-summary';
 import { HistoryTable } from '@/features/alert/ui/components/alert-history';
 import {
   AlertStarters,
   RulesTable,
 } from '@/features/alert/ui/components/rule-list';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf } from '@/shared/lib/search-params';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { useRouter } from '@/shared/ui/hooks/use-router';
+import { QueryState } from '@/shared/ui/components/query-state';
 
 const VIEWS = ['rules', 'deliveries'] as const;
+const HISTORY = { limit: 100 };
 
 /**
  * Alerts: every rule of the project as a table, and every delivery they
@@ -48,15 +43,26 @@ export const Route = createFileRoute('/_authenticated/projects/$id/alerts/')({
   head: () => ({
     meta: [{ title: translator('alerts')('overview.metaTitle') }],
   }),
+  loaderDeps: ({ search }) => ({ view: search.view }),
   // The lists used to fall back to `[]`, which drew "no alert rules yet" over
-  // an outage and invited the admin to recreate rules that already exist.
-  loader: ({ params }) => {
+  // an outage and invited the admin to recreate rules that already exist, so
+  // they are awaited. The deliveries are awaited on their own tab; on the
+  // rules tab they only count the failures in the header, which can wait.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      listAlertRules(projectId),
-      listIntegrations(),
-      listAlertHistory(projectId, { limit: 100 }),
+    const history = alertQueries.history(projectId, HISTORY);
+    if (deps.view !== 'deliveries') void queryClient.prefetchQuery(history);
+    await Promise.all([
+      queryClient.query({
+        ...alertQueries.ruleList(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...alertQueries.integrations(),
+        staleTime: 'static',
+      }),
+      deps.view === 'deliveries' &&
+        queryClient.query({ ...history, staleTime: 'static' }),
     ]);
   },
   component: AlertsPage,
@@ -67,36 +73,31 @@ function AlertsPage() {
   const { id } = Route.useParams();
   const { view = 'rules' } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const loaded = Route.useLoaderData();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const projectId = Number.parseInt(id, 10);
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: rules } = useSuspenseQuery(alertQueries.ruleList(projectId));
+  const { data: integrations } = useSuspenseQuery(alertQueries.integrations());
+  const history = useQuery(alertQueries.history(projectId, HISTORY));
+  const update = useMutation(alertMutations.updateRule(projectId));
 
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('overview.loadFailed')} />
-    );
-  }
-
-  const [project, rules, integrations, history] = loaded.data;
   const active = rules.filter((r) => r.is_enabled).length;
-  const failed = history.filter((h) => h.status === 'failed').length;
+  const failed = (history.data ?? []).filter(
+    (h) => h.status === 'failed',
+  ).length;
   const channelsHref = `/settings/integrations?projectId=${projectId}`;
 
   const toggle = (rule: AlertRuleResponse, enabled: boolean) =>
-    startTransition(async () => {
-      const result = await updateAlertRule(projectId, rule.id, {
-        is_enabled: enabled,
-      });
-      if (!result.success) {
-        toast.error(t('ruleDialog.saveFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      toast.success(t(enabled ? 'list.resumed' : 'list.pausedToast'));
-      await router.refresh();
-    });
+    update.mutate(
+      { ruleId: rule.id, body: { is_enabled: enabled } },
+      {
+        onError: (error) =>
+          toast.error(t('ruleDialog.saveFailed'), {
+            description: error.error.message,
+          }),
+        onSuccess: () =>
+          toast.success(t(enabled ? 'list.resumed' : 'list.pausedToast')),
+      },
+    );
 
   return (
     <div className="flex h-full flex-col">
@@ -165,12 +166,20 @@ function AlertsPage() {
         ) : null}
         {view === 'deliveries' ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-panel">
-            <HistoryTable
-              projectId={projectId}
-              history={history}
-              ruleNames={new Map(rules.map((r) => [r.id, r.name]))}
-              ruleHref={(ruleId) => alertHref(projectId, ruleId)}
-            />
+            <QueryState
+              query={history}
+              placeholder={null}
+              title={t('overview.loadFailed')}
+            >
+              {(deliveries) => (
+                <HistoryTable
+                  projectId={projectId}
+                  history={deliveries}
+                  ruleNames={new Map(rules.map((r) => [r.id, r.name]))}
+                  ruleHref={(ruleId) => alertHref(projectId, ruleId)}
+                />
+              )}
+            </QueryState>
           </div>
         ) : rules.length === 0 ? (
           <AlertStarters projectId={projectId} />
@@ -179,7 +188,7 @@ function AlertsPage() {
             projectId={projectId}
             rules={rules}
             integrations={integrations}
-            busy={isPending}
+            busy={update.isPending}
             onToggle={toggle}
           />
         )}

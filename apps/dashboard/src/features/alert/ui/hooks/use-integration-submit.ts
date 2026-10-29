@@ -1,22 +1,18 @@
 import type {
   AlertIntegration,
   CreateAlertIntegration,
-  Result,
   RustrakError,
 } from '@rustrak/client';
-import { useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { toast } from 'sonner';
-import {
-  createIntegration,
-  updateIntegration,
-} from '@/features/alert/api/mutations';
+import { alertMutations } from '@/features/alert/api/mutations';
+import type { ApiError } from '@/shared/api/query';
 import type { Translate } from '@/shared/lib/error-copy';
 import {
   applyServerFieldErrors,
   type ServerFieldMap,
 } from '@/shared/lib/form-errors';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 /**
  * The two fields every integration dialog collects, whatever the provider.
@@ -57,7 +53,7 @@ export interface UseIntegrationSubmitOptions<T extends IntegrationFormBase> {
   readonly messages: IntegrationSubmitMessages;
   /** The global translator, which `applyServerFieldErrors` needs for its copy. */
   readonly t: Translate;
-  /** Run after a save the server accepted, before the route refreshes. */
+  /** Run after a save the server accepted, once the list is read again. */
   readonly onSaved: () => void;
 }
 
@@ -79,48 +75,37 @@ export interface IntegrationSubmit<T extends IntegrationFormBase> {
 export function useIntegrationSubmit<T extends IntegrationFormBase>(
   options: UseIntegrationSubmitOptions<T>,
 ): IntegrationSubmit<T> {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const create = useMutation(alertMutations.createIntegration());
+  const update = useMutation(alertMutations.updateIntegration());
 
+  // Update where there is something to update, create otherwise.
+  // `provider_type` is only sent on create: it is what the integration *is*,
+  // and the update endpoint does not accept a change of it.
   const submit = (data: T) => {
-    startTransition(async () => {
-      const result = await save(options, data);
-
-      if (!result.success) {
-        reportFailure(options, result.error);
-        return;
-      }
-
-      const { existingIntegration, messages, onSaved } = options;
-      toast.success(existingIntegration ? messages.updated : messages.created);
-      onSaved();
-      router.refresh();
-    });
+    const { existingIntegration, providerType, credentials } = options;
+    const body = {
+      name: data.name,
+      credentials: credentials(data),
+      is_enabled: data.is_enabled,
+    };
+    const callbacks = {
+      onError: (error: ApiError) => reportFailure(options, error.error),
+      onSuccess: () => {
+        const { messages, onSaved } = options;
+        toast.success(
+          existingIntegration ? messages.updated : messages.created,
+        );
+        onSaved();
+      },
+    };
+    if (existingIntegration) {
+      update.mutate({ id: existingIntegration.id, body }, callbacks);
+    } else {
+      create.mutate({ ...body, provider_type: providerType }, callbacks);
+    }
   };
 
-  return { submit, isPending };
-}
-
-/**
- * Update where there is something to update, create otherwise.
- *
- * `provider_type` is only sent on create: it is what the integration *is*, and
- * the update endpoint does not accept a change of it.
- */
-function save<T extends IntegrationFormBase>(
-  options: UseIntegrationSubmitOptions<T>,
-  data: T,
-): Promise<Result<AlertIntegration, RustrakError>> {
-  const { existingIntegration, providerType, credentials } = options;
-  const body = {
-    name: data.name,
-    credentials: credentials(data),
-    is_enabled: data.is_enabled,
-  };
-
-  return existingIntegration
-    ? updateIntegration(existingIntegration.id, body)
-    : createIntegration({ ...body, provider_type: providerType });
+  return { submit, isPending: create.isPending || update.isPending };
 }
 
 /** Put the rejection where the user can act on it. */

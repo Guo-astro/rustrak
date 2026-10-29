@@ -7,10 +7,10 @@ import {
   QueryBar,
   type QueryField,
 } from '@rustrak/ui';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getMonitorStats, listMonitors } from '@/features/monitor/api/queries';
+import { monitorQueries } from '@/features/monitor/api/queries';
 import {
   type MonitorHealth,
   monitorHealth,
@@ -22,12 +22,10 @@ import {
 import { CronsEmpty } from '@/features/monitor/ui/components/crons-empty';
 import { MonitorList } from '@/features/monitor/ui/components/monitor-list';
 import { TimelinePeriodFilter } from '@/features/monitor/ui/components/timeline-period';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 
 const STATES = ['failing', 'ok', 'waiting', 'muted'] as const;
 type MonitorState = (typeof STATES)[number];
@@ -63,22 +61,31 @@ export const Route = createFileRoute('/_authenticated/projects/$id/crons/')({
     period: searchOneOf(search.period, TIMELINE_PERIODS),
   }),
   loaderDeps: ({ search }) => ({ period: search.period }),
-  loader: ({ params, deps }) => {
+  // The stats are the strips every row is drawn with, so they are the page
+  // as much as the list is.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      listMonitors(projectId),
-      getMonitorStats(projectId, { period: deps.period ?? DEFAULT_PERIOD }),
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...monitorQueries.list(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...monitorQueries.stats(projectId, {
+          period: deps.period ?? DEFAULT_PERIOD,
+        }),
+        staleTime: 'static',
+      }),
     ]);
+    return { project };
   },
   head: ({ loaderData }) => {
     const t = translator('crons');
-    if (!loaderData?.success) {
-      return {
-        meta: [{ title: translator('projectPages')('projectNotFound') }],
-      };
-    }
-    const project = loaderData.data[0].name;
+    const project = loaderData?.project.name ?? '';
     return {
       meta: [
         { title: t('meta.listTitle', { project }) },
@@ -100,26 +107,20 @@ function CronsPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const loaded = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
   const period = search.period ?? DEFAULT_PERIOD;
   const newHref = `/projects/${projectId}/crons/new`;
-  const router = useRouter();
-  const empty = loaded.success && loaded.data[1].length === 0;
-
-  // The snippet creates the monitor on its first run, so an empty page
-  // re-runs its loader until one appears and the list replaces it.
-  useEffect(() => {
-    if (!empty) return;
-    const timer = setInterval(() => router.invalidate(), EMPTY_POLL_MS);
-    return () => clearInterval(timer);
-  }, [empty, router]);
-
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('loadFailed')} />;
-  }
-
-  const [project, monitors, stats] = loaded.data;
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  // The snippet creates the monitor on its first run, so an empty list asks
+  // again until one appears and the list replaces the setup screen.
+  const { data: monitors } = useSuspenseQuery({
+    ...monitorQueries.list(projectId),
+    refetchInterval: (query) =>
+      query.state.data?.length === 0 ? EMPTY_POLL_MS : false,
+  });
+  const { data: stats } = useSuspenseQuery(
+    monitorQueries.stats(projectId, { period }),
+  );
   const failing = monitors.filter((m) => monitorHealth(m) === 'failing').length;
   const shown = monitors
     .filter((m) => matches(m, search.q ?? '', search.state))

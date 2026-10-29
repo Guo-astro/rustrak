@@ -16,27 +16,41 @@ export const alertMutations = {
         orThrow(api().alertChannels.create({ body })),
       meta: { invalidates: [alertQueries.integrations().queryKey] },
     }),
-  updateIntegration: (id: number) =>
+  // The integration is the variable, not a parameter: a list of them, or a
+  // rule's channels tested together, is one mutation rather than one per row.
+  updateIntegration: () =>
     mutationOptions({
-      mutationFn: (body: UpdateAlertIntegration) =>
-        orThrow(api().alertChannels.update({ path: { id }, body })),
+      mutationFn: ({
+        id,
+        body,
+      }: {
+        id: number;
+        body: UpdateAlertIntegration;
+      }) => orThrow(api().alertChannels.update({ path: { id }, body })),
       meta: { invalidates: [alertQueries.integrations().queryKey] },
     }),
   /**
    * Rules in any project may route to the integration and lose it, and no key
    * narrower than every project's holds all of them.
    */
-  deleteIntegration: (id: number) =>
+  deleteIntegration: () =>
     mutationOptions({
-      mutationFn: () => orThrow(api().alertChannels.delete({ path: { id } })),
+      mutationFn: (id: number) =>
+        orThrow(api().alertChannels.delete({ path: { id } })),
       meta: {
         invalidates: [alertQueries.integrations().queryKey, ['projects']],
       },
     }),
   /** Sends a sample alert through the integration; records nothing. */
-  testIntegration: (id: number) =>
+  testIntegration: () =>
     mutationOptions({
-      mutationFn: (routingOverride?: Record<string, unknown>) =>
+      mutationFn: ({
+        id,
+        routingOverride,
+      }: {
+        id: number;
+        routingOverride?: Record<string, unknown>;
+      }) =>
         orThrow(
           api().alertChannels.test({
             path: { id },
@@ -56,9 +70,16 @@ export const alertMutations = {
         ),
       meta: { invalidates: [alertQueries.rules(projectId)] },
     }),
-  updateRule: (projectId: number, ruleId: number) =>
+  /** The rule is the variable: the rules table toggles any row with one. */
+  updateRule: (projectId: number) =>
     mutationOptions({
-      mutationFn: (body: UpdateAlertRule) =>
+      mutationFn: ({
+        ruleId,
+        body,
+      }: {
+        ruleId: number;
+        body: UpdateAlertRule;
+      }) =>
         orThrow(
           api().alertRules.update({
             path: { project_id: projectId, rule_id: ruleId },

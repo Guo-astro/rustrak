@@ -1,4 +1,8 @@
-import type { AlertIntegration, ProviderType } from '@rustrak/client';
+import type {
+  AlertIntegration,
+  ProviderType,
+  TestChannelResponse,
+} from '@rustrak/client';
 import {
   BackIcon,
   Button,
@@ -9,13 +13,11 @@ import {
   Tag,
   TestIcon,
 } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  deleteIntegration,
-  testIntegration,
-} from '@/features/alert/api/mutations';
+import { alertMutations } from '@/features/alert/api/mutations';
 import { slackDefaults } from '@/features/alert/model/integration-forms';
 import { ConfirmDeleteDialog } from '@/features/alert/ui/components/confirm-delete-dialog';
 import { ProviderForm } from '@/features/alert/ui/components/integration-config-dialog/provider-form';
@@ -58,7 +60,9 @@ export function ProviderSettings({
 }) {
   const t = useTranslations('alerts');
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const test = useMutation(alertMutations.testIntegration());
+  const remove = useMutation(alertMutations.deleteIntegration());
+  const isPending = test.isPending || remove.isPending;
   const [deleting, setDeleting] = useState<AlertIntegration | null>(null);
 
   const editing: AlertIntegration | 'new' | null =
@@ -70,22 +74,32 @@ export function ProviderSettings({
   const handleTest = (
     integration: AlertIntegration,
     routingOverride?: Record<string, unknown>,
-  ) => startTransition(() => sendTest(integration, routingOverride, t));
+  ) =>
+    test.mutate(
+      { id: integration.id, routingOverride },
+      {
+        // The request itself failed, which is not the same as the provider
+        // refusing the message: that comes back as a successful request.
+        onError: (error) =>
+          toast.error(t('integrations.testFailed'), {
+            description: error.error.message,
+          }),
+        onSuccess: (answer) => announceTest(answer, t),
+      },
+    );
 
   const handleDelete = () => {
     if (!deleting) return;
-    startTransition(async () => {
-      const result = await deleteIntegration(deleting.id);
-      if (!result.success) {
+    remove.mutate(deleting.id, {
+      onError: (error) =>
         toast.error(t('integrations.deleteFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      toast.success(t('integrations.deleted'));
-      setDeleting(null);
-      if (editing !== null) onEdit(undefined);
-      router.refresh();
+          description: error.error.message,
+        }),
+      onSuccess: () => {
+        toast.success(t('integrations.deleted'));
+        setDeleting(null);
+        if (editing !== null) onEdit(undefined);
+      },
     });
   };
 
@@ -97,7 +111,6 @@ export function ProviderSettings({
       return;
     }
     onEdit(undefined);
-    router.refresh();
   };
 
   return (
@@ -258,32 +271,22 @@ function IntegrationRow({
   );
 }
 
-/** Sends a test through a saved integration and says how it went. */
-async function sendTest(
-  integration: AlertIntegration,
-  routingOverride: Record<string, unknown> | undefined,
+/** Says how a test the server carried out went. */
+function announceTest(
+  answer: TestChannelResponse,
   t: ReturnType<typeof useTranslations<'alerts'>>,
 ) {
-  const result = await testIntegration(integration.id, routingOverride);
-  if (!result.success) {
-    // The request itself failed, which is not the same as the provider
-    // refusing the message: that comes back as a successful request.
-    toast.error(t('integrations.testFailed'), {
-      description: result.error.message,
-    });
-    return;
-  }
-  if (!result.data.success) {
+  if (!answer.success) {
     toast.error(t('integrations.testFailedResult'), {
-      description: result.data.message,
+      description: answer.message,
     });
     return;
   }
   // Delivery is judged by the HTTP status and the body is never
   // interpreted, so a body to read is shown as neutral, not as success.
-  if (result.data.response_body) {
+  if (answer.response_body) {
     toast.info(t('integrations.testAnswered'), {
-      description: result.data.response_body,
+      description: answer.response_body,
     });
     return;
   }

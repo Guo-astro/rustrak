@@ -1,7 +1,8 @@
 import type { AuthorizationRequest } from '@rustrak/client';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getAuthorization } from '@/features/mcp/api/queries';
+import { mcpQueries } from '@/features/mcp/api/queries';
 import { ConsentForm } from '@/features/mcp/ui/components/consent-form';
 import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
@@ -44,8 +45,13 @@ export const Route = createFileRoute('/oauth/authorize')({
     return { answer };
   },
   loaderDeps: ({ search }) => search,
-  loader: ({ deps, context }) =>
-    context.answer.state === 'authenticated' ? getAuthorization(deps) : null,
+  // Awaited without throwing: a request the server refuses is this page's
+  // own answer, said in place of the consent form.
+  loader: async ({ deps, context: { answer, queryClient } }) => {
+    if (answer.state === 'authenticated') {
+      await queryClient.prefetchQuery(mcpQueries.authorization(deps));
+    }
+  },
   head: () => ({ meta: [{ title: translator('oauth')('meta.title') }] }),
   component: AuthorizePage,
 });
@@ -54,7 +60,10 @@ function AuthorizePage() {
   const t = useTranslations('oauth');
   const { answer } = Route.useRouteContext();
   const request = Route.useSearch();
-  const client = Route.useLoaderData();
+  const client = useQuery({
+    ...mcpQueries.authorization(request),
+    enabled: answer.state === 'authenticated',
+  });
 
   if (answer.state === 'unavailable') {
     return <OutageScreen error={answer.error} />;
@@ -65,21 +74,21 @@ function AuthorizePage() {
       <div className="w-full max-w-[460px] space-y-10">
         <RustrakWordmark className="h-[22px] w-auto" />
 
-        {client?.success && answer.state === 'authenticated' ? (
+        {client.data && answer.state === 'authenticated' ? (
           <ConsentForm
             request={request}
             client={client.data}
             email={answer.user.email}
           />
-        ) : (
+        ) : client.isLoading ? null : (
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">
               {t('failedTitle')}
             </h1>
             <p className="text-muted-foreground">{t('failedDescription')}</p>
-            {client && !client.success && (
+            {client.isError && (
               <p className="text-sm font-mono text-muted-foreground">
-                {client.error.message}
+                {client.error.error.message}
               </p>
             )}
           </div>

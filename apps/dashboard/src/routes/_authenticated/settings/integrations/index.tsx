@@ -1,11 +1,12 @@
 import { Button, Tag, type TagTone } from '@rustrak/ui';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
-import { listIntegrations } from '@/features/alert/api/queries';
+import { alertQueries } from '@/features/alert/api/queries';
 import { alertProviders } from '@/features/alert/model/providers';
 import { ProviderIcon } from '@/features/alert/ui/components/provider-icon';
-import { getGitHubStatus } from '@/features/github/api/queries';
+import { githubQueries } from '@/features/github/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { cn } from '@/shared/lib/utils';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
@@ -30,12 +31,13 @@ export const Route = createFileRoute('/_authenticated/settings/integrations/')({
       ],
     };
   },
-  loader: async () => {
-    const [integrations, github] = await Promise.all([
-      listIntegrations(),
-      getGitHubStatus(),
+  // Awaited, but a failure fills the cache rather than failing the page: the
+  // catalogue stands without either read, and says which one failed.
+  loader: async ({ context: { queryClient } }) => {
+    await Promise.all([
+      queryClient.prefetchQuery(alertQueries.integrations()),
+      queryClient.prefetchQuery(githubQueries.status()),
     ]);
-    return { integrations, github };
   },
   component: IntegrationsPage,
 });
@@ -48,17 +50,15 @@ function IntegrationsPage() {
   const t = useTranslations('settings');
   const tAlerts = useTranslations('alerts');
   const tGitHub = useTranslations('github');
-  const { integrations, github } = Route.useLoaderData();
+  const integrations = useQuery(alertQueries.integrations());
+  const github = useQuery(githubQueries.status());
   const { projectId } = Route.useSearch();
 
   const configured = (type: string) =>
-    integrations.success
-      ? integrations.data.filter((i) => i.provider_type === type)
-      : [];
+    (integrations.data ?? []).filter((i) => i.provider_type === type);
 
-  const githubInstalled =
-    github.success && github.data.installations.length > 0;
-  const githubPending = github.success && !!github.data.app && !githubInstalled;
+  const githubInstalled = (github.data?.installations.length ?? 0) > 0;
+  const githubPending = !!github.data?.app && !githubInstalled;
 
   return (
     <>
@@ -80,20 +80,20 @@ function IntegrationsPage() {
 
       {/* A failed read is said, not shown as nothing configured. GitHub's
           403 is a member's normal answer: the connection is an admin's. */}
-      {integrations.success ? null : (
+      {integrations.isError ? (
         <LoadFailure
-          error={integrations.error}
+          error={integrations.error.error}
           title={t('integrations.loadFailed')}
           notFoundOnMissing={false}
         />
-      )}
-      {github.success || github.error.kind === 'forbidden' ? null : (
+      ) : null}
+      {github.isError && github.error.error.kind !== 'forbidden' ? (
         <LoadFailure
-          error={github.error}
+          error={github.error.error}
           title={t('integrations.githubLoadFailed')}
           notFoundOnMissing={false}
         />
-      )}
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2 2xl:grid-cols-3">
         <IntegrationCard
