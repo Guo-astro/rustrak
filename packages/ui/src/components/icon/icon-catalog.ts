@@ -30,6 +30,7 @@ import {
   EllipsisVertical,
   ExternalLink,
   Eye,
+  EyeOff,
   GitBranch,
   GitCommitHorizontal,
   GitMerge,
@@ -190,6 +191,9 @@ export const NotificationIcon = fromLucide('NotificationIcon', Bell);
 export const TimeIcon = fromLucide('TimeIcon', Clock);
 export const EmptyIcon = fromLucide('EmptyIcon', Inbox);
 export const WatchIcon = fromLucide('WatchIcon', Eye);
+/** A secret field's reveal toggle: what shows the value, and what hides it. */
+export const RevealIcon = fromLucide('RevealIcon', Eye);
+export const ConcealIcon = fromLucide('ConcealIcon', EyeOff);
 
 /* --- Entities -------------------------------------------------------------
    What the data is about, rather than which page shows it. */

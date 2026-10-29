@@ -41,6 +41,7 @@ export {
   EllipsisVertical,
   ExternalLink,
   Eye,
+  EyeOff,
   GitBranch,
   GitCommitHorizontal,
   GitMerge,

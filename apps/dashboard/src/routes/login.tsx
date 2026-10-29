@@ -47,73 +47,84 @@ function LoginPage() {
   const ssoFailed = search.error === 'sso';
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Decorative (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-background flex-col justify-between p-12 relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_hsl(var(--card)),_transparent_50%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent z-10" />
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-canvas px-4 py-12">
+      {/* A directional light: a beam from just above the top-right, angled
+          down towards the card. A wide soft cone and a narrow brighter core,
+          both hung from their top edge so rotating them swings the beam
+          around its source. Each is placed by its centre from the right edge, so
+          on a phone the source stays in the corner, and sized in `lvh`,
+          which does not change as a phone's URL bar folds away. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <div className="absolute -top-[15lvh] left-[calc(100%-2.5rem)] sm:left-[calc(100%-23vw)] h-[180lvh] w-[max(36vw,260px)] -translate-x-1/2 origin-top rotate-[28deg] motion-safe:animate-login-beam bg-[radial-gradient(ellipse_50%_85%_at_50%_0%,rgb(255_255_255/0.08),transparent_90%)] blur-2xl" />
+        <div className="absolute -top-[15lvh] left-[calc(100%-4rem)] sm:left-[calc(100%-22vw)] h-[160lvh] w-[max(14vw,110px)] -translate-x-1/2 origin-top rotate-[28deg] motion-safe:animate-login-beam motion-safe:[animation-delay:150ms] bg-[radial-gradient(ellipse_50%_85%_at_50%_0%,rgb(255_255_255/0.07),transparent_90%)] blur-xl" />
+      </div>
 
-        {/* Brand */}
-        <Link href="/" className="relative z-20 flex items-center w-fit">
-          <RustrakWordmark className="h-[22px] w-auto" />
+      {/* Shadow: everything the beam does not reach falls darker, deepest
+          in the bottom-left corner opposite the source. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 motion-safe:animate-login-fade bg-[radial-gradient(ellipse_75%_70%_at_70%_15%,transparent_30%,rgb(0_0_0/0.55)_100%)]"
+      />
+
+      <div className="relative flex w-full max-w-[25rem] flex-col items-center gap-8">
+        <Link href="/" className="flex w-fit motion-safe:animate-login-rise">
+          <RustrakWordmark className="h-[22px] w-auto text-fg" />
         </Link>
 
-        {/* Welcome message */}
-        <div className="relative z-20 max-w-xl">
-          <h2 className="text-6xl xl:text-7xl font-extrabold tracking-tighter leading-[1.05] mb-8">
-            {t('heroTitle')}
-            <span className="text-primary">.</span>
-          </h2>
-          <p className="text-muted-foreground text-lg font-medium leading-relaxed max-w-md">
-            {t('heroDescription')}
-          </p>
+        {/* The card where the beam lands. The light comes from the top-right,
+            so everything below is lit from that corner: a border that
+            brightens towards it, a highlight along the top edge, a sheen
+            inside, and a faint bounce off the far corner. */}
+        <div className="relative isolate w-full motion-safe:animate-login-rise motion-safe:[animation-delay:100ms]">
+          {/* Spill: light that misses the card and pools around it. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-16 -z-10 motion-safe:animate-login-fade motion-safe:[animation-delay:500ms] bg-[radial-gradient(ellipse_60%_50%_at_80%_10%,rgb(255_255_255/0.03),transparent_70%)] blur-2xl"
+          />
 
-          {/* Stats */}
-          <div className="mt-12 flex items-center gap-8">
-            <div>
-              <span className="text-2xl font-bold text-primary">50MB</span>
-              <p className="text-sm text-muted-foreground">
-                {t('statMemoryFootprint')}
-              </p>
-            </div>
-            <div>
-              <span className="text-2xl font-bold text-primary">&lt;50ms</span>
-              <p className="text-sm text-muted-foreground">
-                {t('statIngestionLatency')}
-              </p>
-            </div>
-            <div>
-              <span className="text-2xl font-bold text-primary">10k+</span>
-              <p className="text-sm text-muted-foreground">
-                {t('statEventsPerSecond')}
-              </p>
+          {/* The border is a 1px gradient frame: bright at the lit corner,
+              falling back to the ordinary border opposite it. */}
+          <div className="relative rounded-xl bg-border-raised p-px shadow-raised">
+            {/* The light on the card, revealed from the corner it comes from.
+                Deliberately not masked to the ring: the card is translucent,
+                and this layer showing through it is what gives the face its
+                lit tone. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 rounded-xl [mask-image:radial-gradient(circle_at_100%_0%,#000_45%,transparent)] [mask-position:100%_0%] [mask-repeat:no-repeat] [mask-size:400%_400%] bg-[linear-gradient(215deg,rgb(255_255_255/0.22),transparent_35%,transparent_75%,rgb(255_255_255/0.04))] motion-safe:animate-login-sweep motion-safe:[animation-delay:500ms]"
+            />
+            <div className="relative overflow-hidden rounded-[calc(var(--radius-xl)-1px)] bg-canvas/70 p-8">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 motion-safe:animate-login-fade motion-safe:[animation-delay:700ms] bg-[radial-gradient(ellipse_70%_55%_at_100%_0%,rgb(255_255_255/0.09),transparent_70%),radial-gradient(ellipse_50%_40%_at_0%_100%,rgb(255_255_255/0.015),transparent_70%),linear-gradient(215deg,transparent_35%,rgb(0_0_0/0.18))]"
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-px [mask-image:linear-gradient(to_left,#000_33%,transparent_66%)] [mask-position:100%_0%] [mask-repeat:no-repeat] [mask-size:300%_100%] motion-safe:animate-login-wipe motion-safe:[animation-delay:800ms] bg-[linear-gradient(90deg,transparent_20%,rgb(255_255_255/0.35)_85%,transparent)]"
+              />
+              <div className="login-stagger relative">
+                <LoginForm ssoConfig={ssoConfig} ssoFailed={ssoFailed} />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer. No version: the instance version is told to signed-in
-            people only, and this page is the one surface every stranger
-            reaches. The server withholds it from anonymous callers for the same
-            reason, so printing it here would give away what the API will not.
-            It lives on `settings/about` instead. */}
-        <div className="relative z-20 flex items-end text-xs text-muted-foreground font-mono">
-          <p>&copy; {new Date().getFullYear()} Rustrak</p>
-        </div>
+        <nav className="flex items-center gap-3 motion-safe:animate-login-rise motion-safe:[animation-delay:650ms] text-meta text-fg-subtle">
+          <a href="https://rustrak.dev" className="hover:text-fg">
+            {t('footer.docs')}
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://github.com/rustrak/rustrak"
+            className="hover:text-fg"
+          >
+            GitHub
+          </a>
+        </nav>
       </div>
-
-      {/* Right Panel - Form */}
-      <div className="w-full lg:w-1/2 bg-card flex items-center justify-center p-8 lg:p-12">
-        <div className="w-full max-w-[420px] space-y-10">
-          {/* Mobile brand (hidden on desktop) */}
-          <div className="lg:hidden flex items-center mb-8">
-            <RustrakWordmark className="h-[22px] w-auto" />
-          </div>
-
-          {/* Form */}
-          <LoginForm ssoConfig={ssoConfig} ssoFailed={ssoFailed} />
-        </div>
-      </div>
-    </div>
+    </main>
   );
 }

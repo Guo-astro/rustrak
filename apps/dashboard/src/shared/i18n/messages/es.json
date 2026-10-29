@@ -1697,11 +1697,6 @@
       "title": "Iniciar sesión | Rustrak",
       "description": "Inicia sesión en tu cuenta de Rustrak"
     },
-    "heroTitle": "Te damos la bienvenida de nuevo a Rustrak",
-    "heroDescription": "Seguimiento de errores ligero y autoalojado. Accede a tu panel para supervisar la salud del sistema y resolver incidentes críticos.",
-    "statMemoryFootprint": "Huella de memoria",
-    "statIngestionLatency": "Latencia de ingesta",
-    "statEventsPerSecond": "Eventos/segundo",
     "form": {
       "title": "Iniciar sesión",
       "subtitle": "Introduce tus credenciales para acceder a la plataforma.",
@@ -1748,6 +1743,9 @@
       "expiredTitle": "No hay nada que vincular",
       "expiredDescription": "Esta solicitud ha caducado o ya se completó. Vuelve a iniciar sesión para empezar de nuevo.",
       "backToLogin": "Volver al inicio de sesión"
+    },
+    "footer": {
+      "docs": "Documentación"
     }
   },
   "invite": {

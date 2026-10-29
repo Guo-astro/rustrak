@@ -1697,22 +1697,17 @@
       "title": "Log in | Rustrak",
       "description": "Sign in to your Rustrak account"
     },
-    "heroTitle": "Welcome back to Rustrak",
-    "heroDescription": "Lightweight, self-hosted error tracking. Access your dashboard to monitor system health and resolve critical incidents.",
-    "statMemoryFootprint": "Memory footprint",
-    "statIngestionLatency": "Ingestion latency",
-    "statEventsPerSecond": "Events/second",
     "form": {
-      "title": "Log in",
+      "title": "Log in to Rustrak",
       "subtitle": "Enter your credentials to access the platform.",
-      "emailLabel": "Email Address",
+      "emailLabel": "Email",
       "emailPlaceholder": "name@company.com",
       "passwordLabel": "Password",
       "passwordPlaceholder": "Enter your password",
       "hidePassword": "Hide password",
       "showPassword": "Show password",
-      "signingIn": "Signing in...",
-      "login": "Login",
+      "signingIn": "Logging in…",
+      "login": "Log in",
       "continueWithSso": "Continue with {provider}",
       "ssoRedirecting": "Redirecting...",
       "ssoFailure": "Single sign-on failed. Please try again.",
@@ -1748,6 +1743,9 @@
       "expiredTitle": "Nothing to link",
       "expiredDescription": "This request has expired or was already completed. Sign in again to start over.",
       "backToLogin": "Back to login"
+    },
+    "footer": {
+      "docs": "Docs"
     }
   },
   "invite": {

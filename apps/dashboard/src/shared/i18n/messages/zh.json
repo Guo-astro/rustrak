@@ -1697,11 +1697,6 @@
       "title": "登录 | Rustrak",
       "description": "登录您的 Rustrak 账户"
     },
-    "heroTitle": "欢迎回到 Rustrak",
-    "heroDescription": "轻量级、可自托管的错误跟踪。访问您的仪表盘，监控系统健康状况并解决关键事件。",
-    "statMemoryFootprint": "内存占用",
-    "statIngestionLatency": "摄取延迟",
-    "statEventsPerSecond": "事件数/秒",
     "form": {
       "title": "登录",
       "subtitle": "输入您的凭据以访问平台。",
@@ -1748,6 +1743,9 @@
       "expiredTitle": "没有需要关联的内容",
       "expiredDescription": "此请求已过期或已完成。请重新登录以重新开始。",
       "backToLogin": "返回登录"
+    },
+    "footer": {
+      "docs": "文档"
     }
   },
   "invite": {

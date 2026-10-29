@@ -1697,11 +1697,6 @@
       "title": "Autentificare | Rustrak",
       "description": "Autentifică-te în contul tău Rustrak"
     },
-    "heroTitle": "Bine ai revenit în Rustrak",
-    "heroDescription": "Urmărire de erori ușoară și auto-găzduită. Accesează panoul tău pentru a monitoriza starea sistemului și a rezolva incidentele critice.",
-    "statMemoryFootprint": "Amprentă de memorie",
-    "statIngestionLatency": "Latență de ingestie",
-    "statEventsPerSecond": "Evenimente/secundă",
     "form": {
       "title": "Autentificare",
       "subtitle": "Introdu credențialele pentru a accesa platforma.",
@@ -1748,6 +1743,9 @@
       "expiredTitle": "Nimic de asociat",
       "expiredDescription": "Această cerere a expirat sau a fost deja finalizată. Autentifică-te din nou pentru a reîncepe.",
       "backToLogin": "Înapoi la autentificare"
+    },
+    "footer": {
+      "docs": "Documentație"
     }
   },
   "invite": {

@@ -1697,11 +1697,6 @@
       "title": "Connexion | Rustrak",
       "description": "Connectez-vous à votre compte Rustrak"
     },
-    "heroTitle": "Bon retour sur Rustrak",
-    "heroDescription": "Suivi d’erreurs léger et auto-hébergé. Accédez à votre tableau de bord pour surveiller la santé du système et résoudre les incidents critiques.",
-    "statMemoryFootprint": "Empreinte mémoire",
-    "statIngestionLatency": "Latence d’ingestion",
-    "statEventsPerSecond": "Événements/seconde",
     "form": {
       "title": "Connexion",
       "subtitle": "Saisissez vos identifiants pour accéder à la plateforme.",
@@ -1748,6 +1743,9 @@
       "expiredTitle": "Rien à associer",
       "expiredDescription": "Cette demande a expiré ou a déjà été traitée. Reconnectez-vous pour recommencer.",
       "backToLogin": "Retour à la connexion"
+    },
+    "footer": {
+      "docs": "Documentation"
     }
   },
   "invite": {
