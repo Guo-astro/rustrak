@@ -152,11 +152,6 @@ function EventPage() {
     members: membersResult,
   } = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
-  usePageTrail(
-    issueResult.success
-      ? [{ label: issueResult.data.short_id, mono: true }]
-      : [],
-  );
 
   // The four the page cannot render without.
   if (!projectResult.success) {
@@ -247,6 +242,7 @@ function EventView({
   me: number;
 }) {
   const t = useTranslations('projectPages');
+  usePageTrail([{ label: issue.short_id, mono: true }]);
   const eventData = event.data as Record<string, unknown>;
   const payload = readEventPayload(eventData);
   const { has } = payload;

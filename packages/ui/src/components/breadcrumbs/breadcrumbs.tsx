@@ -98,6 +98,8 @@ export function Breadcrumbs({
         const last = index === items.length - 1;
 
         return (
+          // A crumb is its place in the trail: two may share a label.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
           <Fragment key={`${index}:${item.label}`}>
             {index > 0 ? (
               <span aria-hidden="true" className={styles.separator()}>
