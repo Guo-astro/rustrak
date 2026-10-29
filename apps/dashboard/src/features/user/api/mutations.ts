@@ -1,290 +1,190 @@
+/**
+ * Writes about people and their access.
+ *
+ * The sign-in writes publish the user they are handed to the session store
+ * themselves: the response already carries it, and a second `/auth/me` to
+ * learn what we were just told is a round trip the login screen pays for.
+ * No cookie handling anywhere: the request is same-origin, so the browser
+ * stores the session cookie itself.
+ */
 import type {
   AcceptInvitation,
-  AcceptInvitationResponse,
   CreateInvitation,
-  InvitationResponse,
   LoginRequest,
-  ProjectMember,
-  Result,
-  RustrakError,
-  TeamMemberResponse,
   UpsertProjectMember,
-  UserResponse,
   UserRole,
 } from '@rustrak/client';
-import { Ok } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import { mutationOptions } from '@tanstack/react-query';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 import { session } from '@/shared/api/session';
-import { listTeam as listTeamQuery } from './queries';
+import { userQueries } from './queries';
 
-/**
- * Login with email and password.
- *
- * Returns the client's own `Result` like every other action here. It used to
- * translate the failure into a domain enum, and that layer bought nothing: the
- * server answers the same `Unauthorized` whether the email is unknown, the
- * password is wrong, or the account is disabled, so the client already reports
- * a single `unauthenticated` and there is nothing left to collapse.
- *
- * Deciding that `unauthenticated` deserves one deliberately vague sentence is a
- * *presentation* decision and lives in the form, next to the other copy. See
- * `login-form.tsx`, which explains why that vagueness is deliberate.
- *
- * **Nothing here touches the cookie any more.** Under Next this ran on the
- * server, so the `Set-Cookie` headers the API answered with had to be parsed
- * out of `result.data` and replayed onto the Next cookie store by hand — three
- * helpers and a parser, all of them a workaround for the request being made by
- * a process that was not the browser. The browser makes it now, same origin,
- * so it stores the cookie itself.
- *
- * The session store is told directly rather than left to re-ask: the sign-in
- * response already carries the user, and a second `/auth/me` to learn what we
- * were just handed is a round trip the login screen pays for in latency.
- */
-export async function login(
-  credentials: LoginRequest,
-): Promise<Result<UserResponse, RustrakError>> {
-  const client = await createClient();
-  const result = await client.auth.login({ body: credentials });
-
-  if (!result.success) return result;
-
-  session.set({ state: 'authenticated', user: result.data.user });
-
-  return { success: true, data: result.data.user };
-}
-
-/** Start OIDC login. */
-export async function startSso(): Promise<Result<string, RustrakError>> {
-  const client = await createClient();
-  const result = await client.auth.ssoStart();
-
-  if (!result.success) return result;
-
-  return Ok(result.data.authorization_url);
-}
-
-/** Link the pending SSO identity with the account's password and sign in. */
-export async function confirmSsoLink(
-  password: string,
-): Promise<Result<UserResponse, RustrakError>> {
-  const client = await createClient();
-  const result = await client.auth.confirmSsoLink({ body: { password } });
-
-  if (!result.success) return result;
-
-  session.set({ state: 'authenticated', user: result.data.user });
-
-  return Ok(result.data.user);
-}
-
-/**
- * Logout the current user.
- *
- * The session this tab holds is dropped whether or not the request lands. It
- * is not a claim that the server session ended — the next guard asks and gets
- * the truth — it is a refusal to keep rendering the dashboard, which is the
- * safer of the two failures on a shared machine.
- */
-export async function logout(): Promise<void> {
-  const client = await createClient();
-
-  try {
-    await client.auth.logout();
-  } finally {
-    session.clear();
-  }
-}
-
-/**
- * Accept an invitation by setting a password.
- * The backend creates a session unless password login is disabled; then the
- * account exists but `signed_in` is false and the user signs in through SSO.
- */
-export async function acceptInvitation(
-  input: AcceptInvitation,
-): Promise<Result<AcceptInvitationResponse, RustrakError>> {
-  const client = await createClient();
-  const result = await client.auth.acceptInvitation({ body: input });
-
-  if (!result.success) return result;
-
-  // Not signed in means the server also ended any session this browser had,
-  // so the store must not keep showing that other account.
-  if (result.data.signed_in) {
-    session.set({ state: 'authenticated', user: result.data.user });
-  } else {
-    session.clear();
-  }
-
-  return result;
-}
-
-/**
- * Update a user's global role (admin/member).
- *
- * The backend guards against removing the last admin and against
- * unauthorized callers (only instance admins may change roles).
- *
- * The `RustrakError` is returned rather than flattened to a string, because the
- * server names `role` on the rejections it can attribute and the caller needs
- * `fields` to put the message on the control the user just changed.
- *
- * @param userId - The user ID to update
- * @param role - The new global role
- * @returns `Ok` on success, or the failure the server reported
- */
-export async function updateUserRole(
-  userId: number,
-  role: UserRole,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.team.updateRole({ path: { user_id: userId }, body: { role } });
-}
-
-/**
- * Store how this reader wants the dashboard presented to them.
- *
- * A field left out is left alone; a field sent as `null` is cleared, which is
- * how a reader goes back to "infer it from my browser" after having chosen.
- *
- * The updated user is published to the session store rather than discarded,
- * and that is load-bearing now. Under Next the caller followed this with
- * `router.refresh()` and the server read the row again, so both preferences
- * took effect on the next render for free. Here the row is only read at boot:
- * without this the store would still be holding the language the reader just
- * changed away from, and `intl.reload()` would resolve straight back to it.
- *
- * @param preferences - Language and/or timezone
- * @returns `Ok` on success, or the failure the server reported
- */
-export async function updatePreferences(preferences: {
-  language?: string | null;
-  timezone?: string | null;
-}): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  const result = await client.auth.updateCurrentUser({ body: preferences });
-
-  if (!result.success) return result;
-
-  session.set({ state: 'authenticated', user: result.data });
-
-  return Ok(undefined);
-}
-
-/** Replace the signed-in user's password, given the current one. */
-export async function changePassword(request: {
-  current_password: string;
-  new_password: string;
-}): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.auth.changePassword({ body: request });
-}
-
-/**
- * Permanently remove a user from the instance.
- *
- * The backend guards against deleting yourself, the primary user, and the
- * last remaining admin.
- *
- * @param userId - The user ID to remove
- * @returns `Ok` on success, or the failure the server reported
- */
-export async function removeTeamMember(
-  userId: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.team.deleteUser({ path: { user_id: userId } });
-}
-
-/**
- * Add or update a member of a project (upsert by user_id).
- *
- * The backend guards against unauthorized callers (only global admins
- * or project admins may manage members) and returns 403 otherwise.
- *
- * The `RustrakError` is returned rather than flattened to a string: the server
- * names `role` on a rejected role, and only the caller can decide which control
- * that belongs on.
- *
- * @param projectId - The project ID
- * @param input - The user_id and per-project role
- * @returns `Ok` on success, or the failure the server reported
- */
-export async function upsertProjectMember(
-  projectId: number,
-  input: UpsertProjectMember,
-): Promise<Result<ProjectMember, RustrakError>> {
-  const client = await createClient();
-  return client.members.upsert({
-    path: { project_id: projectId },
-    body: input,
-  });
-}
-
-/**
- * Remove a member from a project.
- *
- * @param projectId - The project ID
- * @param userId - The user ID to remove
- * @returns `Ok` on success, or the failure the server reported
- */
-export async function removeProjectMember(
-  projectId: number,
-  userId: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.members.remove({
-    path: { project_id: projectId, user_id: userId },
-  });
-}
-
-/**
- * Create a new invitation for a given email + role.
- *
- * v1 does not send email, so the returned invitation token must be
- * shared manually by the admin (used to build the invite link).
- *
- * The `RustrakError` is returned rather than flattened to a string: an address
- * that already has an account or a pending invite comes back as a `conflict`
- * naming `email`, and the form puts that on the email input instead of in a
- * toast the user has to translate back into an edit.
- *
- * @param input - Email and role for the invitee
- * @returns The created invitation, or the failure the server reported
- */
-export async function createInvitation(
-  input: CreateInvitation,
-): Promise<Result<InvitationResponse, RustrakError>> {
-  const client = await createClient();
-  return client.invitations.create({ body: input });
-}
-
-/**
- * Revoke (delete) a pending invitation by its token.
- *
- * @param token - The invitation token to revoke
- * @returns `Ok` on success, or the failure the server reported
- */
-export async function revokeInvitation(
-  token: string,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.invitations.revoke({ path: { token } });
-}
-
-/**
- * The roster, for the add-member dropdown.
- *
- * A delegate that no longer has to exist. It was here because `queries.ts`
- * carried `server-only` and the dropdown is a browser component, so the read
- * had to cross a `'use server'` boundary to be reachable at all. Nothing is
- * `server-only` any more and this could be one import change at the call site
- * — it is kept for now so that this commit changes the framework and not the
- * shape of the feature, and it is the first thing to delete afterwards.
- */
-export async function listTeam(): Promise<
-  Result<TeamMemberResponse[], RustrakError>
-> {
-  return listTeamQuery();
-}
+export const userMutations = {
+  /**
+   * The server answers the same `unauthenticated` whether the email is
+   * unknown, the password wrong or the account disabled; giving that one
+   * deliberately vague sentence is the form's decision (`login-form.tsx`).
+   */
+  login: () =>
+    mutationOptions({
+      mutationFn: async (credentials: LoginRequest) => {
+        const { user } = await orThrow(api().auth.login({ body: credentials }));
+        session.set({ state: 'authenticated', user });
+        return user;
+      },
+    }),
+  /** Start OIDC login; resolves to the URL to send the browser to. */
+  startSso: () =>
+    mutationOptions({
+      mutationFn: async () =>
+        (await orThrow(api().auth.ssoStart())).authorization_url,
+    }),
+  /** Link the pending SSO identity with the account's password and sign in. */
+  confirmSsoLink: () =>
+    mutationOptions({
+      mutationFn: async (password: string) => {
+        const { user } = await orThrow(
+          api().auth.confirmSsoLink({ body: { password } }),
+        );
+        session.set({ state: 'authenticated', user });
+        return user;
+      },
+      meta: { invalidates: [userQueries.ssoLink().queryKey] },
+    }),
+  /**
+   * The session this tab holds is dropped whether or not the request lands,
+   * and a failed request is not reported: dropping it is not a claim that the
+   * server session ended (the next guard asks and gets the truth), it is a
+   * refusal to keep rendering the dashboard, the safer of the two failures on
+   * a shared machine.
+   */
+  logout: () =>
+    mutationOptions({
+      mutationFn: async () => {
+        try {
+          await api().auth.logout();
+        } finally {
+          session.clear();
+        }
+      },
+    }),
+  /**
+   * Accept an invitation by setting a password. The server signs the new
+   * account in unless password login is disabled; then `signed_in` is false,
+   * the user signs in through SSO, and the server has also ended any session
+   * this browser had, so the store must not keep showing that other account.
+   */
+  acceptInvitation: () =>
+    mutationOptions({
+      mutationFn: async (input: AcceptInvitation) => {
+        const accepted = await orThrow(
+          api().auth.acceptInvitation({ body: input }),
+        );
+        if (accepted.signed_in) {
+          session.set({ state: 'authenticated', user: accepted.user });
+        } else {
+          session.clear();
+        }
+        return accepted;
+      },
+      meta: {
+        invalidates: [
+          userQueries.invitationsRoot(),
+          userQueries.team().queryKey,
+        ],
+      },
+    }),
+  /**
+   * The reader's language and timezone. A field left out is left alone; a
+   * field sent as `null` is cleared, back to "infer it from my browser".
+   *
+   * The updated user goes to the session store, which is not a query and so
+   * not something `meta.invalidates` can reach: the row is only read at boot,
+   * and without this `intl.reload()` would resolve straight back to the
+   * language the reader just changed away from.
+   */
+  updatePreferences: () =>
+    mutationOptions({
+      mutationFn: async (preferences: {
+        language?: string | null;
+        timezone?: string | null;
+      }) => {
+        const user = await orThrow(
+          api().auth.updateCurrentUser({ body: preferences }),
+        );
+        session.set({ state: 'authenticated', user });
+      },
+    }),
+  /** Replace the signed-in user's password, given the current one. */
+  changePassword: () =>
+    mutationOptions({
+      mutationFn: (request: {
+        current_password: string;
+        new_password: string;
+      }) => orThrow(api().auth.changePassword({ body: request })),
+    }),
+  /**
+   * A user's global role. The server refuses to demote the last admin and
+   * names `role` on what it can attribute, so the failure reaches the control.
+   */
+  updateRole: (userId: number) =>
+    mutationOptions({
+      mutationFn: (role: UserRole) =>
+        orThrow(
+          api().team.updateRole({ path: { user_id: userId }, body: { role } }),
+        ),
+      meta: { invalidates: [userQueries.team().queryKey] },
+    }),
+  /**
+   * Remove a user from the instance; the server refuses yourself, the primary
+   * user and the last admin. Their memberships go with them, in every project.
+   */
+  removeFromTeam: (userId: number) =>
+    mutationOptions({
+      mutationFn: () =>
+        orThrow(api().team.deleteUser({ path: { user_id: userId } })),
+      meta: { invalidates: [userQueries.team().queryKey, ['projects']] },
+    }),
+  /**
+   * Add a member to a project or change their role (upsert by `user_id`). The
+   * server names `role` on a rejected role.
+   */
+  upsertMember: (projectId: number) =>
+    mutationOptions({
+      mutationFn: (input: UpsertProjectMember) =>
+        orThrow(
+          api().members.upsert({
+            path: { project_id: projectId },
+            body: input,
+          }),
+        ),
+      meta: { invalidates: [userQueries.members(projectId).queryKey] },
+    }),
+  removeMember: (projectId: number, userId: number) =>
+    mutationOptions({
+      mutationFn: () =>
+        orThrow(
+          api().members.remove({
+            path: { project_id: projectId, user_id: userId },
+          }),
+        ),
+      meta: { invalidates: [userQueries.members(projectId).queryKey] },
+    }),
+  /**
+   * Invite an email with a role. No email is sent: the token builds the link
+   * the admin shares. An address that already has an account or an invite
+   * comes back as a `conflict` naming `email`, for the email input.
+   */
+  invite: () =>
+    mutationOptions({
+      mutationFn: (input: CreateInvitation) =>
+        orThrow(api().invitations.create({ body: input })),
+      meta: { invalidates: [userQueries.invitations().queryKey] },
+    }),
+  revokeInvitation: (token: string) =>
+    mutationOptions({
+      mutationFn: () => orThrow(api().invitations.revoke({ path: { token } })),
+      meta: { invalidates: [userQueries.invitationsRoot()] },
+    }),
+};

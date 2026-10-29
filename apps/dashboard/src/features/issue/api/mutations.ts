@@ -1,160 +1,103 @@
+/**
+ * Writes to issues.
+ *
+ * A change of status, a delete or a bulk action moves the project's counts
+ * (the overview, the stats, the release pages), which live outside this slice:
+ * those invalidate the whole `projectScope`.
+ */
 import type {
-  ActivityEntry,
   BulkDeleteIssues,
   BulkUpdateIssues,
-  IssueResponse,
-  Result,
-  RustrakError,
   UpdateIssueState,
 } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import { mutationOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
+import { issueQueries } from './queries';
 
-/**
- * List issues for a project with offset-based pagination.
- *
- * @param projectId - The project ID
- * @param options - Optional filtering and pagination options
- * @returns Paginated list of issues with total count
- */
-
-/**
- * Update an issue's state (resolve, mute, etc.).
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param state - The state updates to apply
- * @returns The updated issue
- */
-export async function updateIssueState(
-  projectId: number,
-  issueId: string,
-  state: UpdateIssueState,
-): Promise<Result<IssueResponse, RustrakError>> {
-  const client = await createClient();
-  return client.issues.update({
-    path: { project_id: projectId, issue_id: issueId },
-    body: state,
-  });
-}
-
-/**
- * Resolve an issue in the next release.
- *
- * Marks the issue resolved but tracks the pending release so a regression
- * before deploy reopens it; a recorded deploy finalizes the resolution.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @returns The updated issue
- */
-export async function resolveIssueInNextRelease(
-  projectId: number,
-  issueId: string,
-): Promise<Result<IssueResponse, RustrakError>> {
-  const client = await createClient();
-  return client.issues.update({
-    path: { project_id: projectId, issue_id: issueId },
-    body: { status: 'resolvedInNextRelease' },
-  });
-}
-
-/**
- * Bulk-update a set of issues (status and/or priority) in one request.
- *
- * @param projectId - The project ID
- * @param body - The ids and fields to update
- */
-export async function bulkUpdateIssues(
-  projectId: number,
-  body: BulkUpdateIssues,
-): Promise<Result<{ updated: number }, RustrakError>> {
-  const client = await createClient();
-  return client.issues.bulkUpdate({ path: { project_id: projectId }, body });
-}
-
-/**
- * Bulk-delete a set of issues in one request.
- *
- * @param projectId - The project ID
- * @param body - The ids to delete
- */
-export async function bulkDeleteIssues(
-  projectId: number,
-  body: BulkDeleteIssues,
-): Promise<Result<{ deleted: number }, RustrakError>> {
-  const client = await createClient();
-  return client.issues.bulkDelete({ path: { project_id: projectId }, body });
-}
-
-/**
- * Add a comment (note) to an issue's activity log.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param text - The comment body
- */
-export async function addIssueComment(
-  projectId: number,
-  issueId: string,
-  text: string,
-): Promise<Result<ActivityEntry, RustrakError>> {
-  const client = await createClient();
-  return client.issues.createComment({
-    path: { project_id: projectId, issue_id: issueId },
-    body: { text },
-  });
-}
-
-/**
- * Toggle the current user's bookmark on an issue.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param enabled - Whether the issue should be bookmarked
- */
-export async function setIssueBookmark(
-  projectId: number,
-  issueId: string,
-  enabled: boolean,
-): Promise<Result<{ is_bookmarked: boolean }, RustrakError>> {
-  const client = await createClient();
-  return client.issues.setBookmark({
-    path: { project_id: projectId, issue_id: issueId },
-    body: { enabled },
-  });
-}
-
-/**
- * Toggle the current user's subscription to an issue's notifications.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param enabled - Whether the user should be subscribed
- */
-export async function setIssueSubscription(
-  projectId: number,
-  issueId: string,
-  enabled: boolean,
-): Promise<Result<{ is_subscribed: boolean }, RustrakError>> {
-  const client = await createClient();
-  return client.issues.setSubscription({
-    path: { project_id: projectId, issue_id: issueId },
-    body: { enabled },
-  });
-}
-
-/**
- * Delete an issue.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- */
-export async function deleteIssue(
-  projectId: number,
-  issueId: string,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.issues.delete({
-    path: { project_id: projectId, issue_id: issueId },
-  });
-}
+export const issueMutations = {
+  /**
+   * Resolve, mute, reprioritise… `{ status: 'resolvedInNextRelease' }` marks
+   * the issue resolved but tracks the pending release, so a regression before
+   * the deploy reopens it and a recorded deploy finalises it.
+   */
+  update: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (state: UpdateIssueState) =>
+        orThrow(
+          api().issues.update({
+            path: { project_id: projectId, issue_id: issueId },
+            body: state,
+          }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  bulkUpdate: (projectId: number) =>
+    mutationOptions({
+      mutationFn: (body: BulkUpdateIssues) =>
+        orThrow(
+          api().issues.bulkUpdate({ path: { project_id: projectId }, body }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  bulkDelete: (projectId: number) =>
+    mutationOptions({
+      mutationFn: (body: BulkDeleteIssues) =>
+        orThrow(
+          api().issues.bulkDelete({ path: { project_id: projectId }, body }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  delete: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: () =>
+        orThrow(
+          api().issues.delete({
+            path: { project_id: projectId, issue_id: issueId },
+          }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  /** A note on the issue's activity log. */
+  comment: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (text: string) =>
+        orThrow(
+          api().issues.createComment({
+            path: { project_id: projectId, issue_id: issueId },
+            body: { text },
+          }),
+        ),
+      meta: { invalidates: [issueQueries.one(projectId, issueId)] },
+    }),
+  /** The reader's own bookmark, which the lists can filter on. */
+  bookmark: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (enabled: boolean) =>
+        orThrow(
+          api().issues.setBookmark({
+            path: { project_id: projectId, issue_id: issueId },
+            body: { enabled },
+          }),
+        ),
+      meta: {
+        invalidates: [
+          issueQueries.one(projectId, issueId),
+          issueQueries.lists(projectId),
+        ],
+      },
+    }),
+  /** The reader's own subscription to the issue's notifications. */
+  subscribe: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (enabled: boolean) =>
+        orThrow(
+          api().issues.setSubscription({
+            path: { project_id: projectId, issue_id: issueId },
+            body: { enabled },
+          }),
+        ),
+      meta: { invalidates: [issueQueries.one(projectId, issueId)] },
+    }),
+};

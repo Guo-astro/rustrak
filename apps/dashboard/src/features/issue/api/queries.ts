@@ -1,152 +1,115 @@
 /**
- * Reads for the issues feature, called straight from Server Components.
+ * Reads for the issues feature.
  *
- * `import 'server-only'` is a build-time poison pill rather than a directive:
- * if this module ever reaches the client bundle the build fails, instead of
- * shipping a browser bundle that holds the session cookie.
+ * Everything about one issue sits under `issueQueries.one(...)`, so a write to
+ * it refreshes its detail, aggregates, chart, activity and reports together.
  */
 import type {
-  ActivityEntry,
   FeedbackListData,
-  FeedbackListResponse,
-  IssueAggregates,
-  IssueResponse,
-  IssueStatsResponse,
   IssuesGetStatsData,
   IssuesListData,
-  IssuesListResponse,
-  IssuesListUserReportsResponse,
-  Result,
-  RustrakError,
 } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import { queryOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-/**
- * List issues for a project with offset-based pagination.
- *
- * @param projectId - The project ID
- * @param options - Optional filtering and pagination options
- * @returns Paginated list of issues with total count
- */
+type IssuesListQuery = IssuesListData['query'];
+type IssueStatsWindow = NonNullable<IssuesGetStatsData['query']>['window'];
+type FeedbackListQuery = FeedbackListData['query'];
 
-/**
- * List issues for a project with offset-based pagination.
- *
- * @param projectId - The project ID
- * @param options - Optional filtering and pagination options
- * @returns Paginated list of issues with total count
- */
-export async function listIssues(
-  projectId: number,
-  options?: IssuesListData['query'],
-): Promise<Result<IssuesListResponse, RustrakError>> {
-  const client = await createClient();
-  return client.issues.list({
-    path: { project_id: projectId },
-    query: options,
-  });
-}
-
-/**
- * Get a single issue by ID.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @returns The issue
- */
-export async function getIssue(
-  projectId: number,
-  issueId: string,
-): Promise<Result<IssueResponse, RustrakError>> {
-  const client = await createClient();
-  return client.issues.get({
-    path: { project_id: projectId, issue_id: issueId },
-  });
-}
-
-/**
- * Get per-issue aggregates (unique user count + top tags).
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- */
-export async function getIssueAggregates(
-  projectId: number,
-  issueId: string,
-): Promise<Result<IssueAggregates, RustrakError>> {
-  const client = await createClient();
-  return client.issues.getAggregates({
-    path: { project_id: projectId, issue_id: issueId },
-  });
-}
-
-/**
- * Get a zero-filled event-count timeseries for an issue (24h or 30d).
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param window - The time window (`24h` or `30d`)
- */
-export async function getIssueStats(
-  projectId: number,
-  issueId: string,
-  window: NonNullable<IssuesGetStatsData['query']>['window'] = '24h',
-): Promise<Result<IssueStatsResponse, RustrakError>> {
-  const client = await createClient();
-  return client.issues.getStats({
-    path: { project_id: projectId, issue_id: issueId },
-    query: { window },
-  });
-}
-
-/**
- * Get an issue's activity log (status changes, comments/notes, etc.).
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- */
-export async function getIssueActivity(
-  projectId: number,
-  issueId: string,
-): Promise<Result<ActivityEntry[], RustrakError>> {
-  const client = await createClient();
-  return client.issues.getActivity({
-    path: { project_id: projectId, issue_id: issueId },
-  });
-}
-
-/**
- * A page of the feedback users sent about an issue, newest first.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param page - 1-indexed page, the newest by default
- */
-export async function listUserReports(
-  projectId: number,
-  issueId: string,
-  page?: number,
-): Promise<Result<IssuesListUserReportsResponse, RustrakError>> {
-  const client = await createClient();
-  return client.issues.listUserReports({
-    path: { project_id: projectId, issue_id: issueId },
-    query: { page },
-  });
-}
-
-/**
- * List a project's user feedback, with what each user submitted.
- *
- * @param projectId - The project ID
- * @param options - Mailbox filter and pagination
- */
-export async function listFeedback(
-  projectId: number,
-  options?: FeedbackListData['query'],
-): Promise<Result<FeedbackListResponse, RustrakError>> {
-  const client = await createClient();
-  return client.feedback.list({
-    path: { project_id: projectId },
-    query: options,
-  });
-}
+export const issueQueries = {
+  all: (projectId: number) => [...projectScope(projectId), 'issues'] as const,
+  /** Every page and filter of the issues list. */
+  lists: (projectId: number) =>
+    [...issueQueries.all(projectId), 'list'] as const,
+  /** Everything about one issue. */
+  one: (projectId: number, issueId: string) =>
+    [...issueQueries.all(projectId), 'issue', issueId] as const,
+  list: (projectId: number, query: IssuesListQuery = {}) =>
+    queryOptions({
+      queryKey: [...issueQueries.lists(projectId), query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().issues.list({ path: { project_id: projectId }, query, signal }),
+        ),
+    }),
+  detail: (projectId: number, issueId: string) =>
+    queryOptions({
+      queryKey: [...issueQueries.one(projectId, issueId), 'detail'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().issues.get({
+            path: { project_id: projectId, issue_id: issueId },
+            signal,
+          }),
+        ),
+    }),
+  /** Unique user count and top tags. */
+  aggregates: (projectId: number, issueId: string) =>
+    queryOptions({
+      queryKey: [...issueQueries.one(projectId, issueId), 'aggregates'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().issues.getAggregates({
+            path: { project_id: projectId, issue_id: issueId },
+            signal,
+          }),
+        ),
+    }),
+  /** A zero-filled event-count timeseries over the window. */
+  stats: (
+    projectId: number,
+    issueId: string,
+    window: IssueStatsWindow = '24h',
+  ) =>
+    queryOptions({
+      queryKey: [...issueQueries.one(projectId, issueId), 'stats', window],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().issues.getStats({
+            path: { project_id: projectId, issue_id: issueId },
+            query: { window },
+            signal,
+          }),
+        ),
+    }),
+  /** Status changes, comments and links, as the activity log records them. */
+  activity: (projectId: number, issueId: string) =>
+    queryOptions({
+      queryKey: [...issueQueries.one(projectId, issueId), 'activity'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().issues.getActivity({
+            path: { project_id: projectId, issue_id: issueId },
+            signal,
+          }),
+        ),
+    }),
+  /** A page of the feedback users sent about the issue, newest first. */
+  userReports: (projectId: number, issueId: string, page?: number) =>
+    queryOptions({
+      queryKey: [...issueQueries.one(projectId, issueId), 'user-reports', page],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().issues.listUserReports({
+            path: { project_id: projectId, issue_id: issueId },
+            query: { page },
+            signal,
+          }),
+        ),
+    }),
+  /** The project's whole feedback mailbox, with what each user submitted. */
+  feedback: (projectId: number, query: FeedbackListQuery = {}) =>
+    queryOptions({
+      queryKey: [...issueQueries.all(projectId), 'feedback', query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().feedback.list({
+            path: { project_id: projectId },
+            query,
+            signal,
+          }),
+        ),
+    }),
+};

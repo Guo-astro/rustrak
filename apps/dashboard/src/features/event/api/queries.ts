@@ -1,51 +1,14 @@
 /**
- * Reads for the event feature, called straight from Server Components.
- *
- * `import 'server-only'` is a build-time poison pill rather than a directive:
- * if this module reaches the client bundle the build fails, instead of shipping
- * a browser bundle that holds the session cookie.
+ * Reads for the event feature. Events are only ever written by ingestion, so
+ * there is no `mutations.ts` beside this.
  */
-import type {
-  AttachmentInfo,
-  EventDetailResponse,
-  EventResponse,
-  Result,
-  RustrakError,
-} from '@rustrak/client';
-import { Ok } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import type { EventResponse } from '@rustrak/client';
+import { queryOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-/**
- * Get a single event with full details.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param eventId - The event UUID
- * @returns The event with full Sentry data
- */
-
-/**
- * Get a single event with full details.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param eventId - The event UUID
- * @returns The event with full Sentry data
- */
-export async function getEventDetail(
-  projectId: number,
-  issueId: string,
-  eventId: string,
-): Promise<Result<EventDetailResponse, RustrakError>> {
-  const client = await createClient();
-  return client.events.get({
-    path: { project_id: projectId, issue_id: issueId, event_id: eventId },
-  });
-}
-
-/**
- * Navigation info for event pagination
- */
+/** Where an event sits among its issue's events, 1-based for display. */
 export interface EventNavigation {
   currentIndex: number;
   totalCount: number;
@@ -55,147 +18,135 @@ export interface EventNavigation {
   nextEventId: string | null;
 }
 
-/**
- * Get the last (most recent) event for an issue.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @returns The last event, or `null` when the issue has no events
- */
-export async function getLastEvent(
-  projectId: number,
-  issueId: string,
-): Promise<Result<EventResponse | null, RustrakError>> {
-  const client = await createClient();
-  // Get events ordered by desc (most recent first), limit to 1
-  const response = await client.events.list({
-    path: { project_id: projectId, issue_id: issueId },
-    query: { order: 'desc' },
-  });
-
-  if (!response.success) {
-    return response;
-  }
-
-  return Ok(response.data.items[0] ?? null);
-}
-
-// Caps sequential page fetches in getEventNavigation to bound worst-case
+// Caps the sequential page reads of `navigation` to bound the worst-case
 // round-trips for high-volume issues (~1000 events at PAGE_SIZE=20).
 const MAX_NAV_PAGES = 50;
 
-/**
- * Get navigation info for an event within an issue.
- * This fetches events (up to MAX_NAV_PAGES pages) to determine prev/next,
- * which works for issues with reasonable event counts. For very large
- * issues, navigation is best-effort within the fetched window.
- *
- * A page that *fails* ends the call as a failure rather than truncating the
- * window, because nothing downstream could tell a truncated window apart from
- * a genuinely short issue.
- *
- * A page that merely *runs out of budget* still truncates, and that path is a
- * known defect rather than a design: on hitting `MAX_NAV_PAGES` this returns
- * `Ok` with a partial `totalCount` and no signal. Because the issue page lands
- * the reader on the newest event while this walks ascending, the current event
- * usually falls outside a truncated window, `findIndex` returns `-1`, and the
- * result reads "0 of N" with "next" pointing at the oldest event in the issue.
- * Pre-existing, unchanged by the `Result` conversion, and recorded as D-31 in
- * deferred-work.md; the fix is a different navigation design (ask the server
- * for neighbours) rather than a bigger cap, which only moves the threshold.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param currentEventId - The current event UUID
- * @returns Navigation info with prev/next event IDs
- */
-export async function getEventNavigation(
-  projectId: number,
-  issueId: string,
-  currentEventId: string,
-): Promise<Result<EventNavigation, RustrakError>> {
-  const client = await createClient();
+export const eventQueries = {
+  all: (projectId: number) => [...projectScope(projectId), 'events'] as const,
+  /** Every event read of one issue. */
+  ofIssue: (projectId: number, issueId: string) =>
+    [...eventQueries.all(projectId), 'issue', issueId] as const,
+  /** One event with its full Sentry payload. */
+  detail: (projectId: number, issueId: string, eventId: string) =>
+    queryOptions({
+      queryKey: [
+        ...eventQueries.ofIssue(projectId, issueId),
+        'detail',
+        eventId,
+      ],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().events.get({
+            path: {
+              project_id: projectId,
+              issue_id: issueId,
+              event_id: eventId,
+            },
+            signal,
+          }),
+        ),
+    }),
+  /** The issue's most recent event, or `null` when it has none. */
+  latest: (projectId: number, issueId: string) =>
+    queryOptions({
+      queryKey: [...eventQueries.ofIssue(projectId, issueId), 'latest'],
+      queryFn: async ({ signal }): Promise<EventResponse | null> => {
+        const page = await orThrow(
+          api().events.list({
+            path: { project_id: projectId, issue_id: issueId },
+            query: { order: 'desc' },
+            signal,
+          }),
+        );
+        return page.items[0] ?? null;
+      },
+    }),
+  /**
+   * Prev/next/first/last around an event, walking the issue's events oldest
+   * first (up to `MAX_NAV_PAGES` pages) and following the cursor chain.
+   *
+   * A page that *fails* fails the read rather than truncating the window,
+   * because nothing downstream could tell a truncated window apart from a
+   * genuinely short issue.
+   *
+   * A walk that merely *runs out of budget* still truncates, and that is a
+   * known defect rather than a design: on hitting `MAX_NAV_PAGES` this answers
+   * a partial `totalCount` and no signal. Because the issue page lands the
+   * reader on the newest event while this walks ascending, the current event
+   * usually falls outside a truncated window, `findIndex` returns `-1`, and the
+   * result reads "0 of N" with "next" pointing at the oldest event. Recorded as
+   * D-31 in deferred-work.md; the fix is a different navigation design (ask the
+   * server for neighbours) rather than a bigger cap, which only moves the
+   * threshold.
+   */
+  navigation: (projectId: number, issueId: string, eventId: string) =>
+    queryOptions({
+      queryKey: [
+        ...eventQueries.ofIssue(projectId, issueId),
+        'navigation',
+        eventId,
+      ],
+      queryFn: async ({ signal }): Promise<EventNavigation> => {
+        const events: EventResponse[] = [];
+        let cursor: string | undefined;
+        let pageCount = 0;
+        do {
+          const page = await orThrow(
+            api().events.list({
+              path: { project_id: projectId, issue_id: issueId },
+              query: { order: 'asc', cursor },
+              signal,
+            }),
+          );
+          events.push(...page.items);
+          cursor = page.has_more ? (page.next_cursor ?? undefined) : undefined;
+          pageCount++;
+        } while (cursor && pageCount < MAX_NAV_PAGES);
 
-  // Fetch events in ascending order (oldest first), following the cursor
-  // chain, so navigation is correct for issues with more than one page.
-  const events: EventResponse[] = [];
-  let cursor: string | undefined;
-  let pageCount = 0;
-  do {
-    const response = await client.events.list({
-      path: { project_id: projectId, issue_id: issueId },
-      query: { order: 'asc', cursor },
-    });
-    if (!response.success) {
-      return response;
-    }
-    events.push(...response.data.items);
-    cursor = response.data.has_more
-      ? (response.data.next_cursor ?? undefined)
-      : undefined;
-    pageCount++;
-  } while (cursor && pageCount < MAX_NAV_PAGES);
-
-  const totalCount = events.length;
-
-  if (totalCount === 0) {
-    return Ok({
-      currentIndex: 0,
-      totalCount: 0,
-      firstEventId: null,
-      lastEventId: null,
-      prevEventId: null,
-      nextEventId: null,
-    });
-  }
-
-  // Find current event index
-  const currentIndex = events.findIndex((event) => event.id === currentEventId);
-
-  return Ok({
-    currentIndex: currentIndex + 1, // 1-based for display
-    totalCount,
-    firstEventId: events[0]?.id ?? null,
-    lastEventId: events[totalCount - 1]?.id ?? null,
-    prevEventId:
-      currentIndex > 0 ? (events[currentIndex - 1]?.id ?? null) : null,
-    nextEventId:
-      currentIndex < totalCount - 1
-        ? (events[currentIndex + 1]?.id ?? null)
-        : null,
-  });
-}
-
-/**
- * Resolve the event id a Sentry SDK reported, without knowing its issue.
- *
- * @param projectId - The project ID
- * @param eventId - The SDK's 32-hex event id
- */
-export async function getEventBySentryId(
-  projectId: number,
-  eventId: string,
-): Promise<Result<EventDetailResponse, RustrakError>> {
-  const client = await createClient();
-  return client.events.getBySentryId({
-    path: { project_id: projectId, event_id: eventId },
-  });
-}
-
-/**
- * List the files sent with an event, such as a feedback's screenshot.
- *
- * @param projectId - The project ID
- * @param issueId - The issue UUID
- * @param eventId - The event UUID
- */
-export async function listEventAttachments(
-  projectId: number,
-  issueId: string,
-  eventId: string,
-): Promise<Result<AttachmentInfo[], RustrakError>> {
-  const client = await createClient();
-  return client.events.listAttachments({
-    path: { project_id: projectId, issue_id: issueId, event_id: eventId },
-  });
-}
+        // An index past either end reads `undefined`, so no event, and an
+        // event not in the window, both fall out as nulls and "0 of N".
+        const index = events.findIndex((event) => event.id === eventId);
+        return {
+          currentIndex: index + 1,
+          totalCount: events.length,
+          firstEventId: events[0]?.id ?? null,
+          lastEventId: events.at(-1)?.id ?? null,
+          prevEventId: events[index - 1]?.id ?? null,
+          nextEventId: events[index + 1]?.id ?? null,
+        };
+      },
+    }),
+  /** The files sent with an event, such as a feedback's screenshot. */
+  attachments: (projectId: number, issueId: string, eventId: string) =>
+    queryOptions({
+      queryKey: [
+        ...eventQueries.ofIssue(projectId, issueId),
+        'attachments',
+        eventId,
+      ],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().events.listAttachments({
+            path: {
+              project_id: projectId,
+              issue_id: issueId,
+              event_id: eventId,
+            },
+            signal,
+          }),
+        ),
+    }),
+  /** The event a Sentry SDK reported, by its 32-hex id, without its issue. */
+  bySentryId: (projectId: number, eventId: string) =>
+    queryOptions({
+      queryKey: [...eventQueries.all(projectId), 'sentry-id', eventId],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().events.getBySentryId({
+            path: { project_id: projectId, event_id: eventId },
+            signal,
+          }),
+        ),
+    }),
+};
