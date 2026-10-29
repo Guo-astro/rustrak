@@ -1,0 +1,45 @@
+---
+version: v0.22.1
+title: Dashboard on TanStack Query
+description: Every dashboard page now reads through one shared cache, and the Agents and Storage pages load quickly on large databases
+date: 2026-10-29
+tags: [server, dashboard]
+---
+
+## One cache for the whole dashboard
+
+Every page of the dashboard, from issues and events to alerts, crons, releases,
+logs, agents, storage and settings, now reads and writes through TanStack Query.
+There is one shared cache instead of a separate fetch on each page.
+
+- Going back to a page you just saw shows it immediately. A read stays current
+  for 30 seconds. After that the page still shows what it had and refreshes in
+  the background.
+- Data refreshes in the background when you come back to the browser tab
+- A change you save also refreshes every page that shows that data. A deleted
+  record disappears from the cache straight away.
+- Signing out, or signing in as someone else, empties the cache, so one user's
+  data is never on screen for the next
+- Every page uses the same error screen with a retry, and an expired session
+  still sends you to login
+
+## Agents and Storage on large databases
+
+On databases with many spans, both pages could time out. They now load quickly.
+
+- New partial indexes cover the Agents window, trace and conversation queries
+  and the per-project count of standalone spans. The migrations run
+  automatically on startup.
+- A page of conversations reads its agent names in one query instead of one
+  per row
+- The Agents page defaults to the last 24 hours. Use `?period=all` to see
+  everything. The overview panels load after the header and the open tab.
+- Storage figures are read at startup, shown immediately and refreshed in the
+  background. Only a finished cleanup makes a request wait for a new read.
+
+## Fixes
+
+- GenAI model, agent and tool names are cut to 255 bytes instead of 255
+  characters, so spans with long multibyte names no longer fail to insert on
+  PostgreSQL. Conversation IDs keep their 255-character cut, so existing
+  conversations are not split.
