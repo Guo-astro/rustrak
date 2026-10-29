@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { alertQueries } from '@/features/alert/api/queries';
+import { useSettled } from '@/shared/ui/hooks/use-settled';
 
 /**
  * What the body renders to, as the server sees it.
@@ -27,16 +28,6 @@ const DEBOUNCE_MS = 350;
  * reads as the editor arguing. A success is shown as soon as it arrives.
  */
 const ERROR_SETTLE_MS = 800;
-
-/** `value`, once it has stopped changing for `ms`. */
-function useSettled<T>(value: T, ms: number): T {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), ms);
-    return () => clearTimeout(timer);
-  }, [value, ms]);
-  return settled;
-}
 
 /**
  * What `template` renders to, asked of the server a little after the reader
