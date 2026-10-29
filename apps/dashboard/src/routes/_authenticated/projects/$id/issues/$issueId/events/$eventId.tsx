@@ -51,6 +51,7 @@ import { getProject } from '@/features/project/api/queries';
 import { listProjectMembers } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 import { EventLoading } from './$eventId/-components/event-loading';
 import { EventNavigator } from './$eventId/-components/event-navigator';
 import { EventRail } from './$eventId/-components/event-rail';
@@ -151,6 +152,11 @@ function EventPage() {
     members: membersResult,
   } = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
+  usePageTrail(
+    issueResult.success
+      ? [{ label: issueResult.data.short_id, mono: true }]
+      : [],
+  );
 
   // The four the page cannot render without.
   if (!projectResult.success) {

@@ -9,6 +9,7 @@ import {
 } from '@/features/alert/ui/components/provider-settings';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 import { integrationProjectId } from '../-components/integrations-back-link';
 
 export const Route = createFileRoute(
@@ -33,6 +34,7 @@ function ProviderPage() {
   const t = useTranslations('settings');
   const tAlerts = useTranslations('alerts');
   const { provider, integrations } = Route.useLoaderData();
+  usePageTrail([{ label: provider.name }]);
   const { edit } = Route.useSearch();
   const navigate = Route.useNavigate();
   const description = tAlerts(

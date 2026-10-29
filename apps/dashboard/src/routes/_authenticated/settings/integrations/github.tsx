@@ -9,6 +9,7 @@ import { GitHubLoginCard } from '@/features/github/ui/components/github-login-ca
 import { GitHubMark } from '@/shared/ui/components/github-mark';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 export const Route = createFileRoute(
   '/_authenticated/settings/integrations/github',
@@ -29,6 +30,7 @@ function GitHubIntegrationPage() {
   const t = useTranslations('settings');
   const tGitHub = useTranslations('github');
   const { status, login } = Route.useLoaderData();
+  usePageTrail([{ label: 'GitHub' }]);
   const loginCard = login.success ? (
     <GitHubLoginCard login={login.data.login} />
   ) : (

@@ -605,14 +605,16 @@ function sectionCrumbs(
   const section = route?.path ? `${base}${route.path}` : null;
   const below = section ? pathname.length > section.length + 1 : false;
   if (!section || !below) return [{ label }];
-  return [
-    { label, render: <Link href={section} /> },
-    ...trail.map((crumb) => ({
-      label: crumb.label,
-      mono: crumb.mono,
-      render: crumb.href ? <Link href={crumb.href} /> : undefined,
-    })),
-  ];
+  return [{ label, render: <Link href={section} /> }, ...trailCrumbs(trail)];
+}
+
+/** What a page below its section said it is, after that section's crumb. */
+function trailCrumbs(trail: TrailCrumb[]): Crumb[] {
+  return trail.map((crumb) => ({
+    label: crumb.label,
+    mono: crumb.mono,
+    render: crumb.href ? <Link href={crumb.href} /> : undefined,
+  }));
 }
 
 /** Where you are, at the top of the sheet. */
@@ -635,25 +637,37 @@ export function AppBreadcrumbs() {
       href: `${base}/settings${e.href}`,
     })),
   ].find((e) => pathname.startsWith(e.href));
+  const projectCrumb: Crumb[] = project
+    ? [
+        {
+          label: project.name,
+          icon: <ProjectLogo project={project} size={18} />,
+          render: <Link href={base} />,
+        },
+      ]
+    : [];
 
-  if (project && settingsPage && isSettingsPath(pathname)) {
+  // Every level of a settings trail is a way back: "Settings" to the first
+  // page of its nav, the page to itself from anything opened inside it (an
+  // integration), then whatever that page says it is. The last crumb is
+  // never a link, so the page you are on stays plain text.
+  if (settingsPage && isSettingsPath(pathname)) {
     items = [
+      ...projectCrumb,
       {
-        label: project.name,
-        icon: <ProjectLogo project={project} size={18} />,
-        render: <Link href={base} />,
+        label: tSettings('nav.settingsTitle'),
+        render: <Link href={`${base}/settings`} />,
       },
-      { label: tSettings('nav.settingsTitle') },
-      { label: tSettings(`nav.${settingsPage.key}` as 'nav.profile') },
+      {
+        label: tSettings(`nav.${settingsPage.key}` as 'nav.profile'),
+        render: <Link href={settingsPage.href} />,
+      },
+      ...trailCrumbs(trail),
     ];
   } else if (project) {
     const route = activeRoute(pathname, base);
     items = [
-      {
-        label: project.name,
-        icon: <ProjectLogo project={project} size={18} />,
-        render: <Link href={base} />,
-      },
+      ...projectCrumb,
       ...sectionCrumbs(
         pathname,
         base,

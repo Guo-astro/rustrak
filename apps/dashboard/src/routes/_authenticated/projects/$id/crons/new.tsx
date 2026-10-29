@@ -1,10 +1,11 @@
+import { PageHeader } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { MonitorForm } from '@/features/monitor/ui/components/monitor-form';
 import { getProject } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { Link } from '@/shared/ui/components/link';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 export const Route = createFileRoute('/_authenticated/projects/$id/crons/new')({
   loader: async ({ params }) => ({
@@ -35,6 +36,7 @@ function NewMonitorPage() {
   const { id } = Route.useParams();
   const { project } = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
+  usePageTrail([{ label: t('form.newTitle') }]);
 
   if (!project.success) {
     return (
@@ -44,20 +46,10 @@ function NewMonitorPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b px-4 py-4 md:px-8 md:py-6">
-        <nav className="mb-1 text-xs text-muted-foreground">
-          <Link
-            href={`/projects/${projectId}/crons`}
-            className="hover:text-foreground"
-          >
-            {t('title')}
-          </Link>
-        </nav>
-        <h1 className="text-lg font-semibold">{t('form.newTitle')}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          {t('form.newDescription')}
-        </p>
-      </div>
+      <PageHeader
+        title={t('form.newTitle')}
+        summary={[t('form.newDescription')]}
+      />
       <div className="flex-1 overflow-auto px-4 py-6 md:px-8">
         <div className="mx-auto max-w-5xl">
           <MonitorForm projectId={projectId} />

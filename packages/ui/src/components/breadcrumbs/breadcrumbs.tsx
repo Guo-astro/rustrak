@@ -98,7 +98,7 @@ export function Breadcrumbs({
         const last = index === items.length - 1;
 
         return (
-          <Fragment key={item.label}>
+          <Fragment key={`${index}:${item.label}`}>
             {index > 0 ? (
               <span aria-hidden="true" className={styles.separator()}>
                 {separator}
