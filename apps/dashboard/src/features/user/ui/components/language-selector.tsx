@@ -2,6 +2,7 @@ import { useId, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'use-intl';
 import { updatePreferences } from '@/features/user/api/mutations';
+import { intl } from '@/shared/i18n/intl';
 import { isLocale, LOCALES } from '@/shared/i18n/routing';
 import { SettingRow } from '@/shared/ui/components/setting-row';
 import {
@@ -22,10 +23,12 @@ import { useRouter } from '@/shared/ui/hooks/use-router';
  * a link to an issue is a link to that issue, not to that issue in Spanish.
  *
  * The choice is written to `users.language`, so it follows the reader to any
- * browser they log in from. `router.refresh()` rather than
- * `location.reload()`: it re-runs the Server Components against the new row
- * and reconciles, so scroll position, open dialogs and client state survive
- * the change.
+ * browser they log in from. `intl.reload()` is what applies it: it resolves
+ * the language again from the row `updatePreferences` just published and
+ * swaps the catalogue under the provider, so the page re-renders in place
+ * with scroll position, open dialogs and client state intact. The route
+ * refresh after it is for what is translated outside React, the tab title
+ * each route's `head` builds.
  *
  * **Each language names itself.** `简体中文`, not "Chinese" -- a reader who
  * needs this control is by definition not reading the current language well,
@@ -48,7 +51,8 @@ export function LanguageSelector() {
         toast.error(t('saveFailed'));
         return;
       }
-      router.refresh();
+      await intl.reload();
+      await router.refresh();
     });
   };
 
