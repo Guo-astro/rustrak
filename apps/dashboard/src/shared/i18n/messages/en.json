@@ -2474,7 +2474,21 @@
       "description": "Rustrak tells you when a cron job doesn't run on time, fails, or runs longer than it should. Add a check-in to your job: its monitor is created on the first run.",
       "upsertNote": "This example checks in to the my-job monitor every hour and creates it on the first run. Change the slug and the schedule to your job's.",
       "orManual": "Prefer to set it up by hand?",
-      "manual": "Create a monitor"
+      "manual": "Create a monitor",
+      "steps": {
+        "checkIn": {
+          "title": "Add a check-in",
+          "description": "Paste the snippet into your job. Your DSN is already filled in."
+        },
+        "run": {
+          "title": "Run the job",
+          "description": "Its monitor is created on the first check-in, with the schedule it sends."
+        },
+        "alert": {
+          "title": "Get notified",
+          "description": "Rustrak tells you when a run is missed, fails or takes too long."
+        }
+      }
     },
     "setup": {
       "copy": "Copy",

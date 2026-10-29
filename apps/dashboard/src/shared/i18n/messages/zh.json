@@ -2474,7 +2474,21 @@
       "description": "当 cron 任务没有按时运行、失败或运行时间过长时，Rustrak 会通知你。在任务中添加签到：首次运行时会自动创建监控。",
       "upsertNote": "此示例每小时向 my-job 监控签到，并在首次运行时创建它。请将 slug 和计划替换为你的任务的。",
       "orManual": "想手动设置？",
-      "manual": "创建监控"
+      "manual": "创建监控",
+      "steps": {
+        "checkIn": {
+          "title": "添加签到",
+          "description": "将代码片段粘贴到你的任务中，DSN 已自动填好。"
+        },
+        "run": {
+          "title": "运行任务",
+          "description": "首次签到时会按其发送的计划自动创建监控。"
+        },
+        "alert": {
+          "title": "接收通知",
+          "description": "当任务错过运行、失败或耗时过长时，Rustrak 会通知你。"
+        }
+      }
     },
     "setup": {
       "copy": "复制",

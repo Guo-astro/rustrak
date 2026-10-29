@@ -2474,7 +2474,21 @@
       "description": "Rustrak te anunță când un cron nu rulează la timp, eșuează sau durează mai mult decât ar trebui. Adaugă un check-in în sarcina ta: monitorul ei se creează la prima rulare.",
       "upsertNote": "Acest exemplu face check-in în monitorul my-job în fiecare oră și îl creează la prima rulare. Înlocuiește slug-ul și programarea cu cele ale sarcinii tale.",
       "orManual": "Preferi să îl configurezi manual?",
-      "manual": "Creează un monitor"
+      "manual": "Creează un monitor",
+      "steps": {
+        "checkIn": {
+          "title": "Adaugă un check-in",
+          "description": "Lipește fragmentul în sarcina ta. DSN-ul tău este deja completat."
+        },
+        "run": {
+          "title": "Rulează sarcina",
+          "description": "Monitorul ei se creează la primul check-in, cu programarea trimisă."
+        },
+        "alert": {
+          "title": "Primește notificări",
+          "description": "Rustrak te anunță când o rulare lipsește, eșuează sau durează prea mult."
+        }
+      }
     },
     "setup": {
       "copy": "Copiază",

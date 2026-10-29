@@ -1,15 +1,14 @@
 import type { MonitorResponse } from '@rustrak/client';
 import {
   Button,
-  EmptyIcon,
   NewIcon,
   Page,
   PageHeader,
   QueryBar,
   type QueryField,
-  Text,
 } from '@rustrak/ui';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { useTranslations } from 'use-intl';
 import { getMonitorStats, listMonitors } from '@/features/monitor/api/queries';
 import {
@@ -20,7 +19,7 @@ import {
   TIMELINE_PERIODS,
   type TimelinePeriod,
 } from '@/features/monitor/lib/timeline';
-import { CronSetupGuide } from '@/features/monitor/ui/components/cron-setup-guide';
+import { CronsEmpty } from '@/features/monitor/ui/components/crons-empty';
 import { MonitorList } from '@/features/monitor/ui/components/monitor-list';
 import { TimelinePeriodFilter } from '@/features/monitor/ui/components/timeline-period';
 import { getProject } from '@/features/project/api/queries';
@@ -93,9 +92,8 @@ export const Route = createFileRoute('/_authenticated/projects/$id/crons/')({
   component: CronsPage,
 });
 
-/** A sample slug and schedule for the snippets shown before any monitor exists. */
-const SAMPLE_SLUG = 'my-job';
-const SAMPLE_SCHEDULE = { type: 'crontab', value: '0 * * * *' } as const;
+/** How often an empty page asks again, so the first check-in shows itself. */
+const EMPTY_POLL_MS = 5_000;
 
 function CronsPage() {
   const t = useTranslations('crons');
@@ -106,6 +104,16 @@ function CronsPage() {
   const projectId = Number.parseInt(id, 10);
   const period = search.period ?? DEFAULT_PERIOD;
   const newHref = `/projects/${projectId}/crons/new`;
+  const router = useRouter();
+  const empty = loaded.success && loaded.data[1].length === 0;
+
+  // The snippet creates the monitor on its first run, so an empty page
+  // re-runs its loader until one appears and the list replaces it.
+  useEffect(() => {
+    if (!empty) return;
+    const timer = setInterval(() => router.invalidate(), EMPTY_POLL_MS);
+    return () => clearInterval(timer);
+  }, [empty, router]);
 
   if (!loaded.success) {
     return <LoadFailure error={loaded.error} title={t('loadFailed')} />;
@@ -162,31 +170,7 @@ function CronsPage() {
 
       {monitors.length === 0 ? (
         <Page>
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 py-6">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <EmptyIcon size="xl" className="mb-2 text-fg-ghost" />
-              <Text variant="body">{t('empty.title')}</Text>
-              <Text variant="meta" tone="subtle" className="max-w-xl">
-                {t('empty.description')}
-              </Text>
-            </div>
-            <CronSetupGuide
-              dsn={project.dsn}
-              slug={SAMPLE_SLUG}
-              schedule={SAMPLE_SCHEDULE}
-            />
-            <Text variant="meta" tone="subtle">
-              {t('empty.upsertNote')}
-            </Text>
-            <div className="flex items-center justify-center gap-3 border-border-divider border-t pt-6">
-              <Text variant="meta" tone="subtle">
-                {t('empty.orManual')}
-              </Text>
-              <Button size="sm" render={<Link href={newHref} />}>
-                {t('empty.manual')}
-              </Button>
-            </div>
-          </div>
+          <CronsEmpty dsn={project.dsn} newHref={newHref} />
         </Page>
       ) : (
         <Page scroll={false}>

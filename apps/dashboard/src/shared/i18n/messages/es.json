@@ -2474,7 +2474,21 @@
       "description": "Rustrak te avisa cuando un cron no se ejecuta a tiempo, falla o tarda más de lo debido. Añade un check-in a tu tarea: su monitor se crea en la primera ejecución.",
       "upsertNote": "Este ejemplo hace check-in en el monitor my-job cada hora y lo crea en la primera ejecución. Cambia el slug y la programación por los de tu tarea.",
       "orManual": "¿Prefieres configurarlo a mano?",
-      "manual": "Crear un monitor"
+      "manual": "Crear un monitor",
+      "steps": {
+        "checkIn": {
+          "title": "Añade un check-in",
+          "description": "Pega el fragmento en tu tarea. Tu DSN ya está incluido."
+        },
+        "run": {
+          "title": "Ejecuta la tarea",
+          "description": "Su monitor se crea en el primer check-in, con la programación que envía."
+        },
+        "alert": {
+          "title": "Recibe avisos",
+          "description": "Rustrak te avisa cuando una ejecución no llega, falla o tarda demasiado."
+        }
+      }
     },
     "setup": {
       "copy": "Copiar",
