@@ -6,7 +6,6 @@
  */
 import type { CreateProject, UpdateProject } from '@rustrak/client';
 import { mutationOptions } from '@tanstack/react-query';
-import { projectScope } from '@/shared/api/keys';
 import { orThrow } from '@/shared/api/query';
 import { api } from '@/shared/api/rustrak';
 import { projectQueries } from './queries';
@@ -30,9 +29,15 @@ export const projectMutations = {
         ],
       },
     }),
-  delete: (id: number) =>
+  /**
+   * The id is the mutation's variable: the projects grid deletes whichever
+   * card was confirmed, and its pending `variables` is the card to hide.
+   * `['projects']` covers every list and the deleted project's scope.
+   */
+  delete: () =>
     mutationOptions({
-      mutationFn: () => orThrow(api().projects.delete({ path: { id } })),
-      meta: { invalidates: [projectQueries.lists(), projectScope(id)] },
+      mutationFn: (id: number) =>
+        orThrow(api().projects.delete({ path: { id } })),
+      meta: { invalidates: [['projects']] },
     }),
 };

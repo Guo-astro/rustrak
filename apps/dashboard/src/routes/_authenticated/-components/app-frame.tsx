@@ -41,10 +41,9 @@ import {
   TeamIcon,
   TokensIcon,
 } from '@rustrak/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMatch } from '@tanstack/react-router';
 import { PlatformIcon } from 'platformicons';
-import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
 import { projectQueries } from '@/features/project/api/queries';
 import { toCommandProjects } from '@/features/project/lib/command-items';
@@ -52,7 +51,7 @@ import {
   keepsProduct,
   orderedProducts,
 } from '@/features/project/model/products';
-import { logout } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { COMMAND_BAR_PROJECT_LIMIT } from '@/shared/config/commands';
 import { isSettingsPath } from '@/shared/lib/settings-path';
 import { CommandBar } from '@/shared/ui/components/command-bar/command-bar';
@@ -265,7 +264,8 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   const pathname = usePathname();
   const router = useRouter();
   const project = useCurrentProject();
-  const [signingOut, startSignOut] = useTransition();
+  const logout = useMutation(userMutations.logout());
+  const signingOut = logout.isPending;
 
   // One read for the switcher and the command bar; creating or deleting a
   // project invalidates it. A failed read still renders both: the static
@@ -304,10 +304,7 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   ];
 
   const signOut = () =>
-    startSignOut(async () => {
-      await logout();
-      router.push('/login');
-    });
+    logout.mutate(undefined, { onSettled: () => router.push('/login') });
 
   return (
     <Sidebar

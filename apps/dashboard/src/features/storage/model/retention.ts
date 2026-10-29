@@ -322,6 +322,19 @@ export function nextReadIn(
   return Math.min(Math.max(due, POLL_MS), MAX_TIMEOUT_MS);
 }
 
+/**
+ * A count's read as the value {@link impactState} takes: the counts once in,
+ * `'failed'` once a read failed and no retry is running, `null` meanwhile.
+ */
+export function impactOf<T>(read: {
+  data: T | undefined;
+  isError: boolean;
+  isFetching: boolean;
+}): T | null | 'failed' {
+  if (read.data !== undefined) return read.data;
+  return read.isError && !read.isFetching ? 'failed' : null;
+}
+
 /** How far a count of what goes has got: pending, failed, or in. */
 export function impactState(
   impact: object | null | 'failed',

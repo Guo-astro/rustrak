@@ -7,10 +7,10 @@ import {
   EmptyIcon,
   Tag,
 } from '@rustrak/ui';
-import { useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import { revokeInvitation } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { copyToClipboard } from '@/shared/lib/clipboard';
 import { type Translate } from '@/shared/lib/error-copy';
 import {
@@ -18,7 +18,6 @@ import {
   SettingsEmpty,
   SettingsListItem,
 } from '@/shared/ui/components/setting-row';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface PendingInvitationsProps {
   invitations: InvitationResponse[];
@@ -40,24 +39,20 @@ async function handleCopy(invitation: InvitationResponse, t: Translate) {
 }
 
 export function PendingInvitations({ invitations }: PendingInvitationsProps) {
-  const router = useRouter();
   const t = useTranslations('user');
   const format = useFormatter();
-  const [isPending, startTransition] = useTransition();
+  const revoke = useMutation(userMutations.revokeInvitation());
+  const isPending = revoke.isPending;
 
   const handleRevoke = (invitation: InvitationResponse) => {
-    startTransition(async () => {
-      const result = await revokeInvitation(invitation.token);
-      if (result.success) {
-        toast.success(t('toast.revoked'));
-        router.refresh();
-      } else {
-        // No form here, so there is no input to attach a `fields` entry to;
-        // the message is what the row can show.
+    revoke.mutate(invitation.token, {
+      onSuccess: () => toast.success(t('toast.revoked')),
+      // No form here, so there is no input to attach a `fields` entry to;
+      // the message is what the row can show.
+      onError: (error) =>
         toast.error(t('toast.revokeFailed'), {
-          description: result.error.message,
-        });
-      }
+          description: error.error.message,
+        }),
     });
   };
 

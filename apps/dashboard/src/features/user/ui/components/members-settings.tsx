@@ -13,14 +13,12 @@ import {
   Tag,
   TeamIcon,
 } from '@rustrak/ui';
-import { useEffect, useState, useTransition } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  listTeam,
-  removeProjectMember,
-  upsertProjectMember,
-} from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
+import { userQueries } from '@/features/user/api/queries';
 import { PROJECT_ROLES, roleLabel } from '@/features/user/model/roles';
 import {
   SettingSection,
@@ -53,7 +51,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/components/shadcn/select';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface MembersSettingsProps {
   projectId: number;
@@ -68,14 +65,12 @@ export function MembersSettings({
   currentUserId,
   canManage,
 }: MembersSettingsProps) {
-  const router = useRouter();
   const t = useTranslations('user');
-  const [isPending, startTransition] = useTransition();
-  const [team, setTeam] = useState<TeamMemberResponse[] | null>(null);
-  // Distinct from `team === null`, which only means "not loaded yet". An empty
-  // dropdown reading "No users available" is a claim about the team; if the
-  // fetch failed we have no basis to make it.
-  const [teamFailed, setTeamFailed] = useState(false);
+  const upsert = useMutation(userMutations.upsertMember(projectId));
+  const remove = useMutation(userMutations.removeMember(projectId));
+  const isPending = upsert.isPending || remove.isPending;
+  // Only a manager sees the add-member dropdown it populates.
+  const team = useQuery({ ...userQueries.team(), enabled: canManage });
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [removingMember, setRemovingMember] =
     useState<ProjectMemberResponse | null>(null);
@@ -84,81 +79,48 @@ export function MembersSettings({
   // Exclude users who are already members, and global admins — admins (including
   // the primary user) already have implicit access to every project, so adding
   // them as a project member is meaningless.
-  const availableUsers = (team ?? []).filter(
+  const availableUsers = (team.data ?? []).filter(
     (user) => !memberIds.has(user.id) && user.role !== 'admin',
   );
-
-  // Lazily load the team list (to populate the add-member dropdown) the first
-  // time a manager visits this page.
-  useEffect(() => {
-    if (!canManage) return;
-    let cancelled = false;
-    listTeam()
-      .then((result) => {
-        if (cancelled) return;
-        if (result.success) setTeam(result.data);
-        else setTeamFailed(true);
-      })
-      // The client no longer throws, but the Server Action *call* still can:
-      // an offline tab, a 500 from the Next server, or a stale action id after
-      // a redeploy all reject here. This `.then()` runs inside an effect, so
-      // there is no route boundary above it to catch that -- without this
-      // handler it is a bare unhandled rejection and the dropdown silently
-      // stays empty forever.
-      .catch(() => {
-        if (!cancelled) setTeamFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [canManage]);
 
   const handleRoleChange = (
     member: ProjectMemberResponse,
     role: ProjectRole,
   ) => {
     if (role === member.role) return;
-    startTransition(async () => {
-      const result = await upsertProjectMember(projectId, {
-        user_id: member.user_id,
-        role,
-      });
-      if (result.success) {
-        toast.success(t('toast.updated'), {
-          description: t('member.updatedDescription', {
-            email: member.email,
-            role: t(roleLabel(role)),
+    upsert.mutate(
+      { user_id: member.user_id, role },
+      {
+        onSuccess: () =>
+          toast.success(t('toast.updated'), {
+            description: t('member.updatedDescription', {
+              email: member.email,
+              role: t(roleLabel(role)),
+            }),
           }),
-        });
-        router.refresh();
-      } else {
         // `error.message` rather than copy built from `error.fields`: the
         // server names `role`, but these are row menu actions, not a
         // react-hook-form, and the server's own sentence ("Cannot downgrade
         // the last project admin") says far more than the generic field copy.
-        toast.error(t('toast.updateFailed'), {
-          description: result.error.message,
-        });
-      }
-    });
+        onError: (error) =>
+          toast.error(t('toast.updateFailed'), {
+            description: error.error.message,
+          }),
+      },
+    );
   };
 
   const handleRemove = () => {
     if (!removingMember) return;
-    startTransition(async () => {
-      const result = await removeProjectMember(
-        projectId,
-        removingMember.user_id,
-      );
-      if (result.success) {
+    remove.mutate(removingMember.user_id, {
+      onSuccess: () => {
         toast.success(t('toast.removed'));
         setRemovingMember(null);
-        router.refresh();
-      } else {
+      },
+      onError: (error) =>
         toast.error(t('toast.removeFailed'), {
-          description: result.error.message,
-        });
-      }
+          description: error.error.message,
+        }),
     });
   };
 
@@ -265,11 +227,10 @@ export function MembersSettings({
         onOpenChange={setShowAddDialog}
         projectId={projectId}
         availableUsers={availableUsers}
-        teamFailed={teamFailed}
-        onSuccess={() => {
-          setShowAddDialog(false);
-          router.refresh();
-        }}
+        // An empty dropdown reading "No users available" is a claim about the
+        // team; a failed read gives no basis to make it.
+        teamFailed={team.isError}
+        onSuccess={() => setShowAddDialog(false)}
       />
 
       {/* Remove confirmation */}
@@ -349,27 +310,27 @@ function AddMemberForm({
   onSuccess,
 }: Omit<AddMemberDialogProps, 'open'>) {
   const t = useTranslations('user');
-  const [isPending, startTransition] = useTransition();
+  const add = useMutation(userMutations.upsertMember(projectId));
+  const isPending = add.isPending;
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState<ProjectRole>('viewer');
 
   const handleAdd = () => {
     const parsedId = Number.parseInt(userId, 10);
     if (!Number.isFinite(parsedId)) return;
-    startTransition(async () => {
-      const result = await upsertProjectMember(projectId, {
-        user_id: parsedId,
-        role,
-      });
-      if (result.success) {
-        toast.success(t('toast.added'));
-        onSuccess();
-      } else {
-        toast.error(t('toast.addFailed'), {
-          description: result.error.message,
-        });
-      }
-    });
+    add.mutate(
+      { user_id: parsedId, role },
+      {
+        onSuccess: () => {
+          toast.success(t('toast.added'));
+          onSuccess();
+        },
+        onError: (error) =>
+          toast.error(t('toast.addFailed'), {
+            description: error.error.message,
+          }),
+      },
+    );
   };
 
   return (

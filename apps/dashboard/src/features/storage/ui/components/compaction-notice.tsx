@@ -1,10 +1,11 @@
 import type { CleanupStatus, Compaction } from '@rustrak/client';
 import { Button, StorageIcon } from '@rustrak/ui';
-import { useEffect, useState, useTransition } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { compactStorage } from '@/features/storage/api/mutations';
-import { getStorageCompaction } from '@/features/storage/api/queries';
+import { storageMutations } from '@/features/storage/api/mutations';
+import { storageQueries } from '@/features/storage/api/queries';
 import { formatBytes } from '@/shared/lib/utils';
 import {
   AlertDialog,
@@ -31,27 +32,13 @@ export function CompactionNotice({
   onStarted: (job: CleanupStatus) => void;
 }) {
   const t = useTranslations('storage');
-  const [compaction, setCompaction] = useState<Compaction | null>(null);
+  const { data: compaction } = useQuery(storageQueries.compaction());
   const [confirming, setConfirming] = useState(false);
 
-  // Hidden while a job runs and read again once it stops: a compaction that
-  // just finished must not leave its button up, and a cleanup changes what
-  // there is to give back.
-  useEffect(() => {
-    if (disabled) {
-      setCompaction(null);
-      return;
-    }
-    let cancelled = false;
-    getStorageCompaction().then((result) => {
-      if (!cancelled && result.success) setCompaction(result.data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [disabled]);
-
-  if (!compaction?.needed) return null;
+  // Hidden while a job runs, and read again with the rest of `['storage']`
+  // once it stops: a compaction that just finished must not leave its button
+  // up, and a cleanup changes what there is to give back.
+  if (disabled || !compaction?.needed) return null;
 
   return (
     <div className="flex flex-wrap items-start gap-4 border-b border-border-divider px-5 py-4 last:border-b-0">
@@ -95,24 +82,24 @@ function ConfirmDialog({
   onStarted: (job: CleanupStatus) => void;
 }) {
   const t = useTranslations('storage');
-  const [isPending, startTransition] = useTransition();
+  const compact = useMutation(storageMutations.compact());
+  const isPending = compact.isPending;
   const free = compaction.free_disk_bytes;
   const room = free === null || free >= compaction.required_disk_bytes;
 
   const run = () =>
-    startTransition(async () => {
-      const result = await compactStorage();
-      if (result.success) {
-        onStarted(result.data);
+    compact.mutate(undefined, {
+      onSuccess: (job) => {
+        onStarted(job);
         onOpenChange(false);
-        return;
-      }
-      toast.error(t('toasts.compactionFailed'), {
-        description:
-          result.error.kind === 'conflict'
-            ? t('dialog.alreadyRunning')
-            : result.error.message,
-      });
+      },
+      onError: ({ error }) =>
+        toast.error(t('toasts.compactionFailed'), {
+          description:
+            error.kind === 'conflict'
+              ? t('dialog.alreadyRunning')
+              : error.message,
+        }),
     });
 
   return (

@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
-import { changePassword } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import { PasswordInput } from '@/shared/ui/components/password-input';
 import {
@@ -51,7 +52,8 @@ export function ChangePasswordDialog() {
   const t = useTranslations('settings');
   const globalT = useTranslations();
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const change = useMutation(userMutations.changePassword());
+  const isPending = change.isPending;
 
   const form = useForm<ChangePasswordFormData>({
     resolver: zodResolver(
@@ -85,26 +87,26 @@ export function ChangePasswordDialog() {
   };
 
   const onSubmit = (data: ChangePasswordFormData) => {
-    startTransition(async () => {
-      const result = await changePassword({
+    change.mutate(
+      {
         current_password: data.current_password,
         new_password: data.new_password,
-      });
-
-      if (!result.success) {
-        applyServerFieldErrors(form, result.error, {
-          labels: {
-            current_password: t('account.password.current'),
-            new_password: t('account.password.new'),
-          },
-          t: globalT,
-        });
-        return;
-      }
-
-      close();
-      toast.success(t('account.password.changed'));
-    });
+      },
+      {
+        onSuccess: () => {
+          close();
+          toast.success(t('account.password.changed'));
+        },
+        onError: (error) =>
+          applyServerFieldErrors(form, error.error, {
+            labels: {
+              current_password: t('account.password.current'),
+              new_password: t('account.password.new'),
+            },
+            t: globalT,
+          }),
+      },
+    );
   };
 
   return (

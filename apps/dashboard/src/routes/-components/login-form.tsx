@@ -9,11 +9,12 @@ import {
   Separator,
   Text,
 } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
-import { login, startSso } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { SERVER_ERROR_PATH } from '@/shared/lib/form-errors';
 import {
   Form,
@@ -114,16 +115,18 @@ export function LoginForm({
 }) {
   const t = useTranslations('auth');
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [isSsoPending, startSsoTransition] = useTransition();
+  const login = useMutation(userMutations.login());
+  const sso = useMutation(userMutations.startSso());
+  // Still busy once it succeeded: the browser is on its way out.
+  const isPending = login.isPending || login.isSuccess;
+  const isSsoPending = sso.isPending || sso.isSuccess;
   const [showPassword, setShowPassword] = useState(false);
   // Not `useState(ssoFailed)`: a callback failure arrives as `?error=sso`, so
   // the prop is the source of truth and copying it into state would freeze it
   // at the value the first render saw. These two flags only record what the
   // reader did about it -- retried, or hit a failure while starting.
   const [ssoErrorDismissed, setSsoErrorDismissed] = useState(false);
-  const [ssoStartFailed, setSsoStartFailed] = useState(false);
-  const hasSsoError = ssoStartFailed || (ssoFailed && !ssoErrorDismissed);
+  const hasSsoError = sso.isError || (ssoFailed && !ssoErrorDismissed);
   // A failed or absent config lookup means the login page is all we have, so
   // the password form stays; the server decides whether it is allowed.
   const passwordLoginEnabled = ssoConfig?.password_login_enabled ?? true;
@@ -153,65 +156,54 @@ export function LoginForm({
 
     form.clearErrors();
 
-    startTransition(async () => {
-      const result = await login(data);
+    login.mutate(data, {
+      onSuccess: () => router.push('/'),
+      onError: ({ error }) => {
+        if (error.kind === 'unauthenticated') {
+          // **This form deliberately gets no per-field errors, and that is not an
+          // oversight the field-error work should "fix".**
+          //
+          // Every other form in the app now reads `error.fields` and marks the
+          // input the server named. Login must not, because here the server's
+          // answer is itself the secret. "This email exists but the password is
+          // wrong" is user enumeration: it turns the login page into an oracle
+          // that confirms whether an address has an account, which is the first
+          // step of a credential-stuffing run and, on a self-hosted instance, of
+          // working out who the team is.
+          //
+          // So all three real outcomes -- unknown address, wrong password,
+          // disabled account -- collapse into this one sentence, and it is
+          // attached to `password` only so it lands next to the field the user
+          // will retype. The server helps by making them indistinguishable
+          // upstream too: it checks `is_active` *before* verifying the password,
+          // so a distinct "account disabled" answer would leak the same fact.
+          form.setError('password', {
+            type: 'server',
+            message: t('form.invalidCredentials'),
+          });
+          return;
+        }
 
-      if (result.success) {
-        router.push('/');
-        return;
-      }
-
-      if (result.error.kind === 'unauthenticated') {
-        // **This form deliberately gets no per-field errors, and that is not an
-        // oversight the field-error work should "fix".**
+        // Not a verdict on the credentials, so it does not go on a credential
+        // field. "An unexpected error occurred" under the password box, when the
+        // API is simply down, sends the user off to retype a password that was
+        // right all along.
         //
-        // Every other form in the app now reads `error.fields` and marks the
-        // input the server named. Login must not, because here the server's
-        // answer is itself the secret. "This email exists but the password is
-        // wrong" is user enumeration: it turns the login page into an oracle
-        // that confirms whether an address has an account, which is the first
-        // step of a credential-stuffing run and, on a self-hosted instance, of
-        // working out who the team is.
-        //
-        // So all three real outcomes -- unknown address, wrong password,
-        // disabled account -- collapse into this one sentence, and it is
-        // attached to `password` only so it lands next to the field the user
-        // will retype. The server helps by making them indistinguishable
-        // upstream too: it checks `is_active` *before* verifying the password,
-        // so a distinct "account disabled" answer would leak the same fact.
-        form.setError('password', {
+        // The path is imported rather than written out: `FormRootError` reads
+        // the same key, so a literal here would be a third copy of a constant
+        // nothing checks.
+        form.setError(SERVER_ERROR_PATH, {
           type: 'server',
-          message: t('form.invalidCredentials'),
+          message: loginFailureMessage(error, t),
         });
-        return;
-      }
-
-      // Not a verdict on the credentials, so it does not go on a credential
-      // field. "An unexpected error occurred" under the password box, when the
-      // API is simply down, sends the user off to retype a password that was
-      // right all along.
-      //
-      // The path is imported rather than written out: `FormRootError` reads
-      // the same key, so a literal here would be a third copy of a constant
-      // nothing checks.
-      form.setError(SERVER_ERROR_PATH, {
-        type: 'server',
-        message: loginFailureMessage(result.error, t),
-      });
+      },
     });
   };
 
   const onSsoLogin = () => {
     setSsoErrorDismissed(true);
-    setSsoStartFailed(false);
-    startSsoTransition(async () => {
-      const result = await startSso();
-      if (!result.success) {
-        setSsoStartFailed(true);
-        return;
-      }
-
-      window.location.assign(result.data);
+    sso.mutate(undefined, {
+      onSuccess: (url) => window.location.assign(url),
     });
   };
 

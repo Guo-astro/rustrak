@@ -1,7 +1,8 @@
-import { useId, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useId } from 'react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'use-intl';
-import { updatePreferences } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { intl } from '@/shared/i18n/intl';
 import { isLocale, LOCALES } from '@/shared/i18n/routing';
 import { SettingRow } from '@/shared/ui/components/setting-row';
@@ -39,21 +40,25 @@ export function LanguageSelector() {
   const t = useTranslations('locale');
   const locale = useLocale();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  // Pending until the new language is on screen, not only until it is saved.
+  const save = useMutation({
+    ...userMutations.updatePreferences(),
+    onSuccess: async () => {
+      await intl.reload();
+      // Not to see the write: to rebuild the tab title, which each route's
+      // `head` translates outside React.
+      await router.refresh();
+    },
+  });
+  const isPending = save.isPending;
   const fieldId = useId();
 
   const switchTo = (next: string | null) => {
     if (!isLocale(next ?? undefined) || next === locale) return;
-
-    startTransition(async () => {
-      const result = await updatePreferences({ language: next });
-      if (!result.success) {
-        toast.error(t('saveFailed'));
-        return;
-      }
-      await intl.reload();
-      await router.refresh();
-    });
+    save.mutate(
+      { language: next },
+      { onError: () => toast.error(t('saveFailed')) },
+    );
   };
 
   return (

@@ -13,6 +13,7 @@ import {
   elapsed,
   estimateBytes,
   estimateSize,
+  impactOf,
   nextReadIn,
   presetsWith,
   removedParts,
@@ -317,5 +318,23 @@ describe('elapsed', () => {
 
   it('starts from zero without a start', () => {
     expect(elapsed(null, at(42))).toBe('0:00');
+  });
+});
+
+describe('impactOf', () => {
+  it('is the data once in', () => {
+    expect(impactOf({ data: 3, isError: false, isFetching: true })).toBe(3);
+  });
+
+  it('is failed once a read failed and nothing retries it', () => {
+    expect(
+      impactOf({ data: undefined, isError: true, isFetching: false }),
+    ).toBe('failed');
+  });
+
+  it('is counting while a retry runs', () => {
+    expect(
+      impactOf({ data: undefined, isError: true, isFetching: true }),
+    ).toBeNull();
   });
 });

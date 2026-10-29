@@ -1,7 +1,8 @@
-import { useId, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useId } from 'react';
 import { toast } from 'sonner';
 import { useTimeZone, useTranslations } from 'use-intl';
-import { updatePreferences } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { session } from '@/shared/api/session';
 import { intl } from '@/shared/i18n/intl';
 import { SettingRow } from '@/shared/ui/components/setting-row';
@@ -42,7 +43,12 @@ function storedTimeZone(): string | null {
 export function TimeZoneSelector() {
   const t = useTranslations('locale');
   const timeZone = useTimeZone();
-  const [isPending, startTransition] = useTransition();
+  // Pending until the formatters have the new zone, not only until it is saved.
+  const save = useMutation({
+    ...userMutations.updatePreferences(),
+    onSuccess: () => intl.reload(),
+  });
+  const isPending = save.isPending;
   const fieldId = useId();
 
   const switchTo = (next: string | null) => {
@@ -53,14 +59,10 @@ export function TimeZoneSelector() {
     // the route context, which `updatePreferences` does not refresh.
     if (!next || next === storedTimeZone()) return;
 
-    startTransition(async () => {
-      const result = await updatePreferences({ timezone: next });
-      if (!result.success) {
-        toast.error(t('timeZoneSaveFailed'));
-        return;
-      }
-      await intl.reload();
-    });
+    save.mutate(
+      { timezone: next },
+      { onError: () => toast.error(t('timeZoneSaveFailed')) },
+    );
   };
 
   return (

@@ -1,5 +1,6 @@
+import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { updatePreferences } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { intl } from '@/shared/i18n/intl';
 
 /**
@@ -31,6 +32,18 @@ import { intl } from '@/shared/i18n/intl';
  */
 export function TimeZoneSync({ hasTimeZone }: { hasTimeZone: boolean }) {
   const attempted = useRef(false);
+  // Silent on failure, deliberately. This runs unprompted on someone else's
+  // screen; a toast about a preference they never touched would be noise, and
+  // the only cost of failing is that timestamps stay in UTC until the next
+  // page load tries again.
+  //
+  // `intl.reload()` rather than a route refresh: nothing a loader fetched
+  // depends on the zone, only the formatters do, and they read it from the
+  // snapshot this republishes.
+  const { mutate: save } = useMutation({
+    ...userMutations.updatePreferences(),
+    onSuccess: () => intl.reload(),
+  });
 
   useEffect(() => {
     if (hasTimeZone || attempted.current) return;
@@ -44,18 +57,8 @@ export function TimeZoneSync({ hasTimeZone }: { hasTimeZone: boolean }) {
     }
     if (!zone) return;
 
-    void updatePreferences({ timezone: zone }).then((result) => {
-      // Silent on failure, deliberately. This runs unprompted on someone
-      // else's screen; a toast about a preference they never touched would be
-      // noise, and the only cost of failing is that timestamps stay in UTC
-      // until the next page load tries again.
-      //
-      // `intl.reload()` rather than `router.refresh()`: nothing a loader
-      // fetched depends on the zone, only the formatters do, and they read it
-      // from the snapshot this republishes.
-      if (result.success) void intl.reload();
-    });
-  }, [hasTimeZone]);
+    save({ timezone: zone });
+  }, [hasTimeZone, save]);
 
   return null;
 }

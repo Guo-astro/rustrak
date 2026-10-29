@@ -1,6 +1,7 @@
 import type { RustrakError } from '@rustrak/client';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { getInvitation } from '@/features/user/api/queries';
+import { userQueries } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
 import { RustrakWordmark } from '@/shared/ui/components/rustrak-wordmark';
@@ -12,7 +13,7 @@ import { InvitationUnavailable } from './-components/invitation-unavailable';
  *
  * The server emits exactly two of them: `404` when no invitation carries the
  * token, and `400` when one does but is expired or already spent. `gone` is
- * listed because the docstring on `getInvitation` promises this page branches
+ * listed because the docstring on `userQueries.invitation` promises this page branches
  * on `kind`, and a `410` is the natural way for that endpoint to grow.
  *
  * **Written as an allowlist on purpose.** Every other kind -- an outage, a rate
@@ -39,27 +40,32 @@ export const Route = createFileRoute('/invite/$token')({
       ],
     };
   },
-  loader: ({ params }) => getInvitation(params.token),
+  // `prefetchQuery` rather than a critical read: a dead token is an answer
+  // this page renders, not a failure for the error boundary.
+  loader: ({ context: { queryClient }, params }) =>
+    queryClient.prefetchQuery(userQueries.invitation(params.token)),
   component: InvitePage,
 });
 
 function InvitePage() {
   const { token } = Route.useParams();
-  const result = Route.useLoaderData();
+  const result = useQuery(userQueries.invitation(token));
 
-  // Three outcomes, where there used to be two. `!result.success` alone folded
+  if (result.isPending) return null;
+
+  // Three outcomes, where there used to be two. A failure alone folded
   // a transient outage into "this invitation link is invalid ... ask an
   // administrator to send you a new one" -- false, and the single action that
   // cannot fix an unreachable API. The invitee would burn an admin's time on a
   // link that was fine all along.
-  if (!result.success && !isDeadToken(result.error)) {
-    return <OutageScreen error={result.error} />;
+  if (result.isError && !isDeadToken(result.error.error)) {
+    return <OutageScreen error={result.error.error} />;
   }
 
   // Belt and braces: the server's `is_acceptable` already rejects both of these
   // with a `400`, so this only fires if the two halves disagree about the
   // clock or the status.
-  const invitation = result.success ? result.data : null;
+  const invitation = result.data ?? null;
   const isAcceptable =
     invitation !== null &&
     invitation.status === 'pending' &&

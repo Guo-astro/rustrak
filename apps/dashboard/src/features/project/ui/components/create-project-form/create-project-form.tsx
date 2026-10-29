@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import { PlatformIcon } from 'platformicons';
-import { useMemo, useTransition } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
-import { createProject } from '@/features/project/api/mutations';
+import { projectMutations } from '@/features/project/api/mutations';
 import {
   projectNameField,
   projectSlugField,
@@ -69,7 +70,7 @@ function suggestName(platformId: string, taken: Set<string>): string {
 }
 
 /**
- * Platform grid plus name field, submitting to `createProject`.
+ * Platform grid plus name field, submitting to `projectMutations.create`.
  *
  * `existingNames` only feeds the suggested default name; the server still has
  * the final say on collisions.
@@ -78,7 +79,8 @@ export function CreateProjectForm({ existingNames }: CreateProjectFormProps) {
   const t = useTranslations('projects');
   const formT = useTranslations();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const create = useMutation(projectMutations.create());
+  const isPending = create.isPending;
 
   const createProjectFormSchema = useMemo(
     () => buildCreateProjectFormSchema(t),
@@ -117,48 +119,48 @@ export function CreateProjectForm({ existingNames }: CreateProjectFormProps) {
   };
 
   const onSubmit = (data: CreateProjectFormData) => {
-    startTransition(async () => {
-      const result = await createProject({
+    create.mutate(
+      {
         name: data.name,
         platform: data.platform,
         // Only sent when the user took the field over. An auto slug is
         // derived, and the server is allowed to de-duplicate a derived slug
         // silently. Sending the preview would turn that into a 409.
         ...(slug.isManual ? { slug: data.slug } : {}),
-      });
-
-      if (!result.success) {
-        // A taken name or slug belongs on its own field, not in a toast the
-        // user has to translate back into an edit. The server names the
-        // offending input as data now (`fields: [{field: 'slug', code:
-        // 'already_exists'}]`), so nothing here reads the message prose. The
-        // helper only marks a field this form registers, so a name the form
-        // does not have cannot strand it.
-        const applied = applyServerFieldErrors(form, result.error, {
-          labels: { name: t('fields.name'), slug: t('fields.slug') },
-          t: formT,
-        });
-
-        // The slug input is read-only while it mirrors the name, so a slug the
-        // server rejected would be marked and unfixable. Hand the field over.
-        if (applied.marked.includes('slug')) {
-          slug.takeOver();
-        }
-
-        // Only when nothing landed on an input: a toast next to a red field is
-        // the same sentence twice, and it outlives the fix.
-        if (applied.formLevel) {
-          toast.error(t('toasts.createFailed'), {
-            description: applied.formLevel,
+      },
+      {
+        // Straight into Client Keys: the DSN and the platform's setup snippet
+        // are the only thing left to do, and that page owns them.
+        onSuccess: (project) =>
+          router.push(`/projects/${project.id}/settings/client-keys`),
+        onError: (error) => {
+          // A taken name or slug belongs on its own field, not in a toast the
+          // user has to translate back into an edit. The server names the
+          // offending input as data now (`fields: [{field: 'slug', code:
+          // 'already_exists'}]`), so nothing here reads the message prose. The
+          // helper only marks a field this form registers, so a name the form
+          // does not have cannot strand it.
+          const applied = applyServerFieldErrors(form, error.error, {
+            labels: { name: t('fields.name'), slug: t('fields.slug') },
+            t: formT,
           });
-        }
-        return;
-      }
 
-      // Straight into Client Keys: the DSN and the platform's setup snippet
-      // are the only thing left to do, and that page owns them.
-      router.push(`/projects/${result.data.id}/settings/client-keys`);
-    });
+          // The slug input is read-only while it mirrors the name, so a slug the
+          // server rejected would be marked and unfixable. Hand the field over.
+          if (applied.marked.includes('slug')) {
+            slug.takeOver();
+          }
+
+          // Only when nothing landed on an input: a toast next to a red field is
+          // the same sentence twice, and it outlives the fix.
+          if (applied.formLevel) {
+            toast.error(t('toasts.createFailed'), {
+              description: applied.formLevel,
+            });
+          }
+        },
+      },
+    );
   };
 
   // Rendered in two places (the aside on desktop, the fixed bar on mobile), so

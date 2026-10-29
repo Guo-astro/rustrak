@@ -1,7 +1,8 @@
 import { Page, PageHeader } from '@rustrak/ui';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getProjects } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { CreateProjectForm } from '@/features/project/ui/components/create-project-form/create-project-form';
 import { translator } from '@/shared/i18n/intl';
 
@@ -29,16 +30,19 @@ export const Route = createFileRoute('/_authenticated/projects/new')({
   // project creation: this is one of the few places where discarding the
   // failure is the right answer, and it is written out rather than swallowed by
   // a `catch`.
-  loader: async () => {
-    const existing = await getProjects({ page: 1, per_page: 100 });
-    return existing.success ? existing.data.items.map((p) => p.name) : [];
-  },
+  loader: ({ context: { queryClient } }) =>
+    void queryClient.prefetchQuery(existingProjects),
   component: NewProjectPage,
 });
 
+const existingProjects = projectQueries.list({ page: 1, per_page: 100 });
+
 function NewProjectPage() {
   const t = useTranslations('projectPages');
-  const existingNames = Route.useLoaderData();
+  const existing = useQuery({
+    ...existingProjects,
+    select: (page) => page.items.map((p) => p.name),
+  });
 
   return (
     <div className="flex h-full flex-col">
@@ -47,7 +51,7 @@ function NewProjectPage() {
         summary={[t('newProject.subtitle')]}
       />
       <Page>
-        <CreateProjectForm existingNames={existingNames} />
+        <CreateProjectForm existingNames={existing.data ?? []} />
       </Page>
     </div>
   );

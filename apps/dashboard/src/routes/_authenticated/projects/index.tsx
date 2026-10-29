@@ -1,13 +1,13 @@
 import type { ProjectsListResponse } from '@rustrak/client';
 import { Button, NewIcon, Page, PageHeader } from '@rustrak/ui';
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { useFormatter, useTranslations } from 'use-intl';
-import { getProjects } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { ProjectsGrid } from '@/features/project/ui/components/projects-grid';
 import { translator } from '@/shared/i18n/intl';
 import { searchPage } from '@/shared/lib/search-params';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 
 /**
  * Window for the per-row stats.
@@ -37,41 +37,35 @@ export const Route = createFileRoute('/_authenticated/projects/')({
   // One request, stats included: the server aggregates the whole page in two
   // queries. Asking per row would be 20 round trips for a table that renders
   // above the fold.
-  loader: async ({ deps }) => {
-    const projects = await getProjects({
-      page: deps.page,
-      per_page: 20,
-      stats_period: STATS_PERIOD,
-    });
-
-    // Deleting the last card on the last page leaves that page empty, and an
-    // empty page renders "no projects" with no way back. Send the browser to
-    // the last page that exists, as the releases list does.
-    if (projects.success && deps.page > 1) {
-      const { total_pages } = projects.data;
-      if (deps.page > total_pages) {
-        throw redirect({ href: `/projects?page=${Math.max(total_pages, 1)}` });
-      }
-    }
-
-    return projects;
-  },
+  loader: ({ context: { queryClient }, deps }) =>
+    queryClient.query({ ...projectsPage(deps.page), staleTime: 'static' }),
   component: ProjectsPage,
 });
+
+function projectsPage(page: number) {
+  return projectQueries.list({
+    page,
+    per_page: 20,
+    stats_period: STATS_PERIOD,
+  });
+}
 
 function ProjectsPage() {
   const t = useTranslations('projectPages');
   const tProjects = useTranslations('projects');
   const format = useFormatter();
   const page = Route.useSearch({ select: (search) => search.page ?? 1 });
-  const projectsResponse = Route.useLoaderData();
+  const { data: projects } = useSuspenseQuery(projectsPage(page));
 
-  if (!projectsResponse.success) {
+  // Deleting the last card on the last page leaves that page empty, and an
+  // empty page renders "no projects" with no way back. Send the browser to
+  // the last page that exists, as the releases list does.
+  if (page > 1 && page > projects.total_pages) {
     return (
-      <LoadFailure
-        error={projectsResponse.error}
-        title={t('projectsList.loadFailed')}
-        notFoundOnMissing={false}
+      <Navigate
+        to="/projects"
+        search={{ page: Math.max(projects.total_pages, 1) }}
+        replace
       />
     );
   }
@@ -80,7 +74,7 @@ function ProjectsPage() {
     <div className="flex h-full flex-col">
       <PageHeader
         title={t('projectsList.title')}
-        summary={projectsSummary(projectsResponse.data, tProjects, format)}
+        summary={projectsSummary(projects, tProjects, format)}
         actions={
           <Button
             variant="primary"
@@ -92,10 +86,7 @@ function ProjectsPage() {
         }
       />
       <Page>
-        <ProjectsGrid
-          initialProjects={projectsResponse.data}
-          currentPage={page}
-        />
+        <ProjectsGrid page={projects} currentPage={page} />
       </Page>
     </div>
   );

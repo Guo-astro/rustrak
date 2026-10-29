@@ -1,9 +1,10 @@
 import type { ProjectResponse, ProjectsListResponse } from '@rustrak/client';
 import { Button, EmptyIcon, NewIcon, Text } from '@rustrak/ui';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { deleteProject } from '@/features/project/api/mutations';
+import { projectMutations } from '@/features/project/api/mutations';
 import { Link } from '@/shared/ui/components/link';
 import { TablePagination } from '@/shared/ui/components/table-pagination';
 import { useRouter } from '@/shared/ui/hooks/use-router';
@@ -11,26 +12,23 @@ import { DeleteProjectsDialog } from './delete-projects-dialog';
 import { ProjectCard } from './project-card';
 
 interface ProjectsGridProps {
-  initialProjects: ProjectsListResponse;
+  page: ProjectsListResponse;
   currentPage: number;
 }
 
 /** Every project the reader can see, one card each, a page at a time. */
-export function ProjectsGrid({
-  initialProjects,
-  currentPage,
-}: ProjectsGridProps) {
+export function ProjectsGrid({ page, currentPage }: ProjectsGridProps) {
   const t = useTranslations('projects');
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const { items, total_count, total_pages, per_page } = initialProjects;
+  const remove = useMutation(projectMutations.delete());
+  const { items, total_count, total_pages, per_page } = page;
 
-  // The card leaves at once; the refresh afterwards puts it back if the
-  // delete did not go through.
-  const [projects, removeOptimistic] = useOptimistic(
-    items,
-    (state, deletedId: number) => state.filter((p) => p.id !== deletedId),
-  );
+  // The card leaves at once and stays gone until the list has reloaded
+  // (`mutateAsync` settles after the refetch); a failed delete puts it back.
+  const projects = remove.isPending
+    ? items.filter((p) => p.id !== remove.variables)
+    : items;
+  const isPending = remove.isPending;
   const [pendingDelete, setPendingDelete] = useState<ProjectResponse | null>(
     null,
   );
@@ -42,21 +40,12 @@ export function ProjectsGrid({
     // sitting over it reads as a click that did nothing.
     setPendingDelete(null);
 
-    startTransition(async () => {
-      removeOptimistic(target.id);
-      const result = await deleteProject(target.id);
-
-      if (result.success) {
-        toast.success(t('toasts.deleted', { count: 1 }));
-      } else {
+    remove.mutate(target.id, {
+      onSuccess: () => toast.success(t('toasts.deleted', { count: 1 })),
+      onError: (error) =>
         toast.error(t('toasts.deleteFailed'), {
-          description: result.error.message,
-        });
-      }
-      // Awaited and `sync`: the transition, and with it the optimistic
-      // removal, has to last until the list has reloaded, or the card flashes
-      // back in between.
-      await router.refresh({ sync: true });
+          description: error.error.message,
+        }),
     });
   };
 

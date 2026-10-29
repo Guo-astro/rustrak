@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { UserRole } from '@rustrak/client';
 import { Button, Input, NewIcon } from '@rustrak/ui';
-import { useId, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useId } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
-import { createInvitation } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { copyToClipboard } from '@/shared/lib/clipboard';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
@@ -26,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/components/shadcn/select';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 const inviteSchema = z.object({
   email: z.email('Please enter a valid email address'),
@@ -41,57 +41,56 @@ type InviteFormData = z.infer<typeof inviteSchema>;
  * attribute, so Enter in the email field still submits.
  */
 export function InviteForm() {
-  const router = useRouter();
   const t = useTranslations('user');
   const formId = useId();
 
   const globalT = useTranslations();
-  const [isPending, startTransition] = useTransition();
+  const invite = useMutation(userMutations.invite());
+  const isPending = invite.isPending;
 
   const onSubmit = (data: InviteFormData) => {
-    startTransition(async () => {
-      const result = await createInvitation({
-        email: data.email,
-        role: data.role as UserRole,
-      });
-
-      if (!result.success) {
-        // An address that already has an account, or already has a pending
-        // invite, comes back as a `conflict` naming `email`. That belongs on
-        // the email input, where the fix is.
-        const applied = applyServerFieldErrors(form, result.error, {
-          labels: {
-            email: t('invite.fieldEmail'),
-            role: t('invite.roleLabel'),
-          },
-          t: globalT,
-        });
-
-        if (applied.formLevel) {
-          toast.error(t('toast.createFailed'), {
-            description: applied.formLevel,
+    invite.mutate(
+      { email: data.email, role: data.role as UserRole },
+      {
+        onError: (error) => {
+          // An address that already has an account, or already has a pending
+          // invite, comes back as a `conflict` naming `email`. That belongs on
+          // the email input, where the fix is.
+          const applied = applyServerFieldErrors(form, error.error, {
+            labels: {
+              email: t('invite.fieldEmail'),
+              role: t('invite.roleLabel'),
+            },
+            t: globalT,
           });
-        }
-        return;
-      }
 
-      const link = `${window.location.origin}/invite/${result.data.token}`;
-      form.reset({ email: '', role: 'member' });
-      router.refresh();
+          if (applied.formLevel) {
+            toast.error(t('toast.createFailed'), {
+              description: applied.formLevel,
+            });
+          }
+        },
+        onSuccess: (invitation) => copyInvite(invitation.token),
+      },
+    );
+  };
 
-      const copied = await copyToClipboard(link);
-      if (copied) {
-        toast.success(t('toast.created'), {
-          description: t('toast.createdHint'),
-        });
-      } else {
-        // Couldn't auto-copy (e.g. plain HTTP). Surface the link so it isn't lost;
-        // it's also re-copyable from the pending invitations list below.
-        toast.success(t('toast.created'), {
-          description: t('toast.copyInviteLink', { link }),
-        });
-      }
-    });
+  const copyInvite = async (token: string) => {
+    const link = `${window.location.origin}/invite/${token}`;
+    form.reset({ email: '', role: 'member' });
+
+    const copied = await copyToClipboard(link);
+    if (copied) {
+      toast.success(t('toast.created'), {
+        description: t('toast.createdHint'),
+      });
+    } else {
+      // Couldn't auto-copy (e.g. plain HTTP). Surface the link so it isn't lost;
+      // it's also re-copyable from the pending invitations list below.
+      toast.success(t('toast.created'), {
+        description: t('toast.copyInviteLink', { link }),
+      });
+    }
   };
 
   const form = useForm<InviteFormData>({

@@ -50,7 +50,9 @@ export const userMutations = {
         session.set({ state: 'authenticated', user });
         return user;
       },
-      meta: { invalidates: [userQueries.ssoLink().queryKey] },
+      // No invalidation of `ssoLink`: the page reading it is on its way out,
+      // and refetching the link it just consumed would swap the form for
+      // "this link expired" under the reader.
     }),
   /**
    * The session this tab holds is dropped whether or not the request lands,
@@ -88,9 +90,12 @@ export const userMutations = {
         }
         return accepted;
       },
+      // The admin's list and roster, not the token's own view: the accept
+      // page is standing on it, and the spent token would read as a dead link
+      // over the "account created" screen.
       meta: {
         invalidates: [
-          userQueries.invitationsRoot(),
+          userQueries.invitations().queryKey,
           userQueries.team().queryKey,
         ],
       },
@@ -127,10 +132,11 @@ export const userMutations = {
   /**
    * A user's global role. The server refuses to demote the last admin and
    * names `role` on what it can attribute, so the failure reaches the control.
+   * The user is a variable: one mutation serves every row of the roster.
    */
-  updateRole: (userId: number) =>
+  updateRole: () =>
     mutationOptions({
-      mutationFn: (role: UserRole) =>
+      mutationFn: ({ userId, role }: { userId: number; role: UserRole }) =>
         orThrow(
           api().team.updateRole({ path: { user_id: userId }, body: { role } }),
         ),
@@ -140,9 +146,9 @@ export const userMutations = {
    * Remove a user from the instance; the server refuses yourself, the primary
    * user and the last admin. Their memberships go with them, in every project.
    */
-  removeFromTeam: (userId: number) =>
+  removeFromTeam: () =>
     mutationOptions({
-      mutationFn: () =>
+      mutationFn: (userId: number) =>
         orThrow(api().team.deleteUser({ path: { user_id: userId } })),
       meta: { invalidates: [userQueries.team().queryKey, ['projects']] },
     }),
@@ -161,9 +167,10 @@ export const userMutations = {
         ),
       meta: { invalidates: [userQueries.members(projectId).queryKey] },
     }),
-  removeMember: (projectId: number, userId: number) =>
+  /** The member is the variable: one mutation serves every row. */
+  removeMember: (projectId: number) =>
     mutationOptions({
-      mutationFn: () =>
+      mutationFn: (userId: number) =>
         orThrow(
           api().members.remove({
             path: { project_id: projectId, user_id: userId },
@@ -182,9 +189,11 @@ export const userMutations = {
         orThrow(api().invitations.create({ body: input })),
       meta: { invalidates: [userQueries.invitations().queryKey] },
     }),
-  revokeInvitation: (token: string) =>
+  /** The token is a variable: one mutation serves every pending row. */
+  revokeInvitation: () =>
     mutationOptions({
-      mutationFn: () => orThrow(api().invitations.revoke({ path: { token } })),
+      mutationFn: (token: string) =>
+        orThrow(api().invitations.revoke({ path: { token } })),
       meta: { invalidates: [userQueries.invitationsRoot()] },
     }),
 };
