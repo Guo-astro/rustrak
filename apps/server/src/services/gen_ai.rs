@@ -71,7 +71,13 @@ pub fn extract_gen_ai_columns(span_data: &mut Value, op: Option<&str>) -> GenAiC
         request_model: get_str(span_data, "gen_ai.request.model", 255),
         response_model: get_str(span_data, "gen_ai.response.model", 255),
         tool_name: get_str(span_data, "gen_ai.tool.name", 255),
-        conversation_id: get_str(span_data, "gen_ai.conversation.id", 255),
+        // Chars, not bytes: it is an identity, and a shorter cut than spans
+        // already stored got would split a conversation from its next turns.
+        // Its index holds no other wide value, so 255 chars stays in bounds.
+        conversation_id: span_data
+            .get("gen_ai.conversation.id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.chars().take(255).collect()),
         usage_input_tokens: get_f64(span_data, "gen_ai.usage.input_tokens"),
         usage_output_tokens: get_f64(span_data, "gen_ai.usage.output_tokens"),
         usage_total_tokens: get_f64(span_data, "gen_ai.usage.total_tokens"),

@@ -345,3 +345,17 @@ fn test_extract_cuts_names_to_255_bytes_on_a_char_boundary() {
     assert!(agent.chars().all(|c| c == '🦀'));
     assert_eq!(cols.request_model.as_deref(), Some("gpt-4o"));
 }
+
+#[test]
+fn test_extract_keeps_conversation_ids_to_255_chars() {
+    // An identity, not a label: cutting it shorter than before would split an
+    // existing conversation from its next turns. Its index holds no other
+    // wide value, so it stays within the B-tree limit at 255 chars.
+    let id = "会".repeat(100);
+    let mut data = json!({
+        "gen_ai.operation.type": "agent",
+        "gen_ai.conversation.id": id,
+    });
+    let cols = extract_gen_ai_columns(&mut data, None);
+    assert_eq!(cols.conversation_id.as_deref(), Some(id.as_str()));
+}
