@@ -1,48 +1,63 @@
 import type {
-  MonitorEnvironmentStats,
-  MonitorResponse,
   MonitorsListCheckinsData,
-  MonitorsListCheckinsResponse,
   MonitorsStatsData,
-  Result,
-  RustrakError,
 } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import { queryOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-export async function listMonitors(
-  projectId: number,
-): Promise<Result<MonitorResponse[], RustrakError>> {
-  const client = await createClient();
-  return client.monitors.list({ path: { project_id: projectId } });
-}
-
-export async function getMonitor(
-  projectId: number,
-  slug: string,
-): Promise<Result<MonitorResponse, RustrakError>> {
-  const client = await createClient();
-  return client.monitors.get({ path: { project_id: projectId, slug } });
-}
-
-export async function listCheckIns(
-  projectId: number,
-  slug: string,
-  options?: MonitorsListCheckinsData['query'],
-): Promise<Result<MonitorsListCheckinsResponse, RustrakError>> {
-  const client = await createClient();
-  return client.monitors.listCheckins({
-    path: { project_id: projectId, slug },
-    query: options,
-  });
-}
-
-export async function getMonitorStats(
-  projectId: number,
-  options?: MonitorsStatsData['query'],
-): Promise<Result<MonitorEnvironmentStats[], RustrakError>> {
-  const client = await createClient();
-  return client.monitors.stats({
-    path: { project_id: projectId },
-    query: options,
-  });
-}
+export const monitorQueries = {
+  all: (projectId: number) => [...projectScope(projectId), 'monitors'] as const,
+  list: (projectId: number) =>
+    queryOptions({
+      queryKey: [...monitorQueries.all(projectId), 'list'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().monitors.list({ path: { project_id: projectId }, signal }),
+        ),
+    }),
+  stats: (projectId: number, query: MonitorsStatsData['query'] = {}) =>
+    queryOptions({
+      queryKey: [...monitorQueries.all(projectId), 'stats', query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().monitors.stats({
+            path: { project_id: projectId },
+            query,
+            signal,
+          }),
+        ),
+    }),
+  /** One monitor: its detail and its check-ins. */
+  monitor: (projectId: number, slug: string) =>
+    [...monitorQueries.all(projectId), 'monitor', slug] as const,
+  detail: (projectId: number, slug: string) =>
+    queryOptions({
+      queryKey: [...monitorQueries.monitor(projectId, slug), 'detail'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().monitors.get({ path: { project_id: projectId, slug }, signal }),
+        ),
+    }),
+  checkIns: (
+    projectId: number,
+    slug: string,
+    query: MonitorsListCheckinsData['query'] = {},
+  ) =>
+    queryOptions({
+      queryKey: [
+        ...monitorQueries.monitor(projectId, slug),
+        'check-ins',
+        query,
+      ],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().monitors.listCheckins({
+            path: { project_id: projectId, slug },
+            query,
+            signal,
+          }),
+        ),
+    }),
+};

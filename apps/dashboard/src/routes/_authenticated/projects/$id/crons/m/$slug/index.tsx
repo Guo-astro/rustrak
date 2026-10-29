@@ -1,12 +1,13 @@
 import { MuteIcon, Text } from '@rustrak/ui';
+import {
+  keepPreviousData,
+  useQuery,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
-import {
-  getMonitor,
-  getMonitorStats,
-  listCheckIns,
-} from '@/features/monitor/api/queries';
+import { monitorQueries } from '@/features/monitor/api/queries';
 import {
   TIMELINE_PERIODS,
   type TimelinePeriod,
@@ -22,12 +23,11 @@ import {
 } from '@/features/monitor/ui/components/monitor-detail';
 import { MonitorStatus } from '@/features/monitor/ui/components/monitor-status';
 import { TimelinePeriodFilter } from '@/features/monitor/ui/components/timeline-period';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchPage } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { Panel, RailBlock } from '@/shared/ui/components/panel';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { ScheduleText } from '@/shared/ui/components/schedule-text';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
@@ -48,52 +48,66 @@ export const Route = createFileRoute(
     period: searchOneOf(search.period, TIMELINE_PERIODS),
   }),
   loaderDeps: ({ search }) => ({ page: search.page, period: search.period }),
-  loader: ({ params, deps }) => {
-    const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      getMonitor(projectId, params.slug),
-      listCheckIns(projectId, params.slug, {
-        page: deps.page ?? 1,
-        per_page: PER_PAGE,
-      }),
-      getMonitorStats(projectId, {
-        slug: params.slug,
-        period: deps.period ?? DEFAULT_PERIOD,
-      }),
+  // The monitor and the page of check-ins are awaited; the figures and the
+  // charts, all drawn from the stats, arrive after.
+  loader: async ({ context: { queryClient }, params, deps }) => {
+    const reads = monitorReads(params, deps);
+    void queryClient.prefetchQuery(reads.stats);
+    const [monitor] = await Promise.all([
+      queryClient.query({ ...reads.monitor, staleTime: 'static' }),
+      queryClient.query({ ...reads.checkIns, staleTime: 'static' }),
     ]);
+    return { monitor };
   },
   head: ({ loaderData }) => ({
     meta: [
       {
-        title: loaderData?.success
-          ? translator('crons')('meta.detailTitle', {
-              monitor: loaderData.data[1].name,
-            })
-          : translator('crons')('loadMonitorFailed'),
+        title: translator('crons')('meta.detailTitle', {
+          monitor: loaderData?.monitor.name ?? '',
+        }),
       },
     ],
   }),
   component: MonitorPage,
 });
 
+/** The page's reads for a URL, built once for the loader and the component. */
+function monitorReads(
+  params: { id: string; slug: string },
+  search: { page?: number; period?: TimelinePeriod },
+) {
+  const projectId = Number.parseInt(params.id, 10);
+  return {
+    monitor: monitorQueries.detail(projectId, params.slug),
+    checkIns: monitorQueries.checkIns(projectId, params.slug, {
+      page: search.page ?? 1,
+      per_page: PER_PAGE,
+    }),
+    stats: monitorQueries.stats(projectId, {
+      slug: params.slug,
+      period: search.period ?? DEFAULT_PERIOD,
+    }),
+  };
+}
+
 function MonitorPage() {
   const t = useTranslations('crons');
-  const { id } = Route.useParams();
+  const params = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const loaded = Route.useLoaderData();
   const [isPending, startTransition] = useTransition();
-  const projectId = Number.parseInt(id, 10);
+  const projectId = Number.parseInt(params.id, 10);
   const period = search.period ?? DEFAULT_PERIOD;
-  usePageTrail(loaded.success ? [{ label: loaded.data[1].name }] : []);
+  const reads = monitorReads(params, search);
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: monitor } = useSuspenseQuery(reads.monitor);
+  const { data: checkIns } = useSuspenseQuery(reads.checkIns);
+  // Another window keeps the one on screen until it arrives.
+  const stats = useQuery({ ...reads.stats, placeholderData: keepPreviousData });
+  usePageTrail([{ label: monitor.name }]);
 
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('loadMonitorFailed')} />;
-  }
-
-  const [project, monitor, checkIns, stats] = loaded.data;
   const waiting = monitor.environments.length === 0;
+  const loadFailed = t('loadMonitorFailed');
 
   return (
     <div className="flex h-full flex-col">
@@ -161,18 +175,36 @@ function MonitorPage() {
               </Panel>
             ) : (
               <>
-                <MonitorFigures monitor={monitor} stats={stats} />
+                <QueryState query={stats} placeholder={null} title={loadFailed}>
+                  {(loaded) => (
+                    <MonitorFigures monitor={monitor} stats={loaded} />
+                  )}
+                </QueryState>
                 <Panel
                   title={t('detail.timeline')}
                   hint={t('detail.timelineHint')}
                 >
-                  <MonitorTimeline monitor={monitor} stats={stats} />
+                  <QueryState
+                    query={stats}
+                    placeholder={null}
+                    title={loadFailed}
+                  >
+                    {(loaded) => (
+                      <MonitorTimeline monitor={monitor} stats={loaded} />
+                    )}
+                  </QueryState>
                 </Panel>
                 <Panel
                   title={t('detail.duration')}
                   hint={t('detail.durationHint')}
                 >
-                  <DurationChart stats={stats} />
+                  <QueryState
+                    query={stats}
+                    placeholder={null}
+                    title={loadFailed}
+                  >
+                    {(loaded) => <DurationChart stats={loaded} />}
+                  </QueryState>
                 </Panel>
               </>
             )}

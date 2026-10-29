@@ -6,22 +6,21 @@ import type {
   SourceMapGcResult,
 } from '@rustrak/client';
 import { Button } from '@rustrak/ui';
-import { useEffect, useState, useTransition } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
+import { storageMutations } from '@/features/storage/api/mutations';
+import { storageQueries } from '@/features/storage/api/queries';
 import {
-  executeStorageCleanup,
-  gcStorageSourceMaps,
-  previewStorageCleanup,
-  previewStorageSourceMapGc,
-} from '@/features/storage/api/mutations';
-import {
-  estimateBytes,
+  estimateSize,
+  impactOf,
   impactState,
   KINDS,
   type Kind,
   removedParts,
 } from '@/features/storage/model/retention';
+import { ApiError } from '@/shared/api/query';
 import { formatBytes } from '@/shared/lib/utils';
 import {
   AlertDialog,
@@ -55,16 +54,17 @@ export function DeleteDialog({
   onOpenChange,
   projects,
   onStarted,
-  onChanged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   onStarted: (job: CleanupStatus) => void;
-  /** Reads the page again after a deletion that was not a job. */
-  onChanged: () => void;
 }) {
-  const [isPending, startTransition] = useTransition();
+  // Here rather than in the editor, so the dialog stays open while they run.
+  const gc = useMutation(storageMutations.gcSourceMaps());
+  const cleanup = useMutation(storageMutations.cleanup());
+  const isPending = gc.isPending || cleanup.isPending;
   return (
     <AlertDialog
       open={open}
@@ -75,10 +75,10 @@ export function DeleteDialog({
           <Editor
             projects={projects}
             isPending={isPending}
-            startTransition={startTransition}
+            gc={gc.mutateAsync}
+            cleanup={cleanup.mutateAsync}
             onDone={(job) => {
               if (job) onStarted(job);
-              else onChanged();
               onOpenChange(false);
             }}
           />
@@ -91,12 +91,15 @@ export function DeleteDialog({
 function Editor({
   projects,
   isPending,
-  startTransition,
+  gc,
+  cleanup,
   onDone,
 }: {
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   isPending: boolean;
-  startTransition: (run: () => Promise<void>) => void;
+  gc: () => Promise<unknown>;
+  cleanup: (options: CleanupRequest) => Promise<CleanupStatus>;
   /** With the started job, or `null` when only source maps went. */
   onDone: (job: CleanupStatus | null) => void;
 }) {
@@ -121,11 +124,16 @@ function Editor({
     projects,
   );
 
-  const run = () =>
-    startTransition(async () => {
-      const done = await deleteNow(options, { maps, rows, parts }, t);
-      if (done !== undefined) onDone(done);
-    });
+  const run = async () => {
+    const done = await deleteNow(
+      options,
+      { maps, rows, parts },
+      gc,
+      cleanup,
+      t,
+    );
+    if (done !== undefined) onDone(done);
+  };
 
   return (
     <>
@@ -241,11 +249,14 @@ function Choice({
 async function deleteNow(
   options: CleanupRequest,
   chosen: { maps: number; rows: number; parts: string[] },
+  gc: () => Promise<unknown>,
+  cleanup: (options: CleanupRequest) => Promise<CleanupStatus>,
   t: (key: string, values?: Record<string, string | number>) => string,
 ): Promise<CleanupStatus | null | undefined> {
   if (chosen.maps > 0) {
-    const gc = await gcStorageSourceMaps();
-    if (!gc.success) {
+    try {
+      await gc();
+    } catch {
       toast.error(t('toasts.gcFailed'));
       return undefined;
     }
@@ -254,13 +265,18 @@ async function deleteNow(
     toast.success(t('toasts.removed', { parts: chosen.parts.join(', ') }));
     return null;
   }
-  const result = await executeStorageCleanup(options);
-  if (result.success) return result.data;
-  toast.error(t('toasts.cleanupFailed'), {
-    description:
-      result.error.kind === 'conflict' ? t('dialog.alreadyRunning') : undefined,
-  });
-  return undefined;
+  try {
+    return await cleanup(options);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    toast.error(t('toasts.cleanupFailed'), {
+      description:
+        error.error.kind === 'conflict'
+          ? t('dialog.alreadyRunning')
+          : undefined,
+    });
+    return undefined;
+  }
 }
 
 /** How old, and where: the two choices that narrow a deletion. */
@@ -276,11 +292,12 @@ function Scope({
   onDays: (days: number) => void;
   project: string;
   onProject: (project: string) => void;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   disabled?: boolean;
 }) {
   const t = useTranslations('storage');
-  const byName = [...projects].sort((a, b) =>
+  const byName = [...(projects ?? [])].sort((a, b) =>
     a.project_name.localeCompare(b.project_name),
   );
   return (
@@ -337,59 +354,22 @@ function Scope({
   );
 }
 
-/** What a deletion would remove, counted as its options change. */
-function useCount(options: CleanupRequest) {
-  const [counts, setCounts] = useState<CleanupCounts | null | 'failed'>(null);
-  const [attempt, setAttempt] = useState(0);
-  const key = JSON.stringify(options);
-  useEffect(() => {
-    let cancelled = false;
-    setCounts(null);
-    const timer = setTimeout(async () => {
-      const result = await previewStorageCleanup(JSON.parse(key));
-      if (!cancelled) setCounts(result.success ? result.data : 'failed');
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [key, attempt]);
-  return { counts, retry: () => setAttempt((a) => a + 1) };
-}
-
 /** What a choice deletes: rows, unused source maps, as words and a size. */
 function whatGoes(
   counts: CleanupCounts | null | 'failed',
   unused: SourceMapGcResult | null,
-  projects: readonly ProjectStorage[],
+  projects: readonly ProjectStorage[] | null,
   t: (key: string, values?: Record<string, string | number>) => string,
 ) {
   const known = counts === null || counts === 'failed' ? null : counts;
   const maps = unused?.files_removed ?? 0;
   const rows = known ? KINDS.reduce((sum, k) => sum + known[k], 0) : 0;
   const parts = known ? removedParts({ ...known, source_maps: maps }, t) : [];
-  const bytes =
-    (known ? estimateBytes(known, projects) : 0) + (unused?.bytes_freed ?? 0);
-  return { maps, rows, parts, size: formatBytes(bytes) };
-}
-
-/** The source maps no upload uses: one count, with no age or project. */
-function useUnused() {
-  const [unused, setUnused] = useState<SourceMapGcResult | null | 'failed'>(
-    null,
-  );
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
-    setUnused(null);
-    previewStorageSourceMapGc().then((result) => {
-      if (!cancelled) setUnused(result.success ? result.data : 'failed');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt]);
-  return { unused, retryUnused: () => setAttempt((a) => a + 1) };
+  const freed = unused?.bytes_freed ?? 0;
+  const size = known
+    ? estimateSize(known, projects, freed)
+    : formatBytes(freed);
+  return { maps, rows, parts, size };
 }
 
 /** Two counts as one: failed if either failed, else counting if either is. */
@@ -409,11 +389,15 @@ function joined(
 function useDeletion(
   options: CleanupRequest,
   chosen: { rows: boolean; sourceMaps: boolean },
-  projects: readonly ProjectStorage[],
+  projects: readonly ProjectStorage[] | null,
 ) {
   const t = useTranslations('storage');
-  const { counts, retry } = useCount(options);
-  const { unused, retryUnused } = useUnused();
+  // What the chosen rows would be, and the source maps no upload uses (one
+  // count, with no age or project).
+  const countRead = useQuery(storageQueries.cleanupPreview(options));
+  const unusedRead = useQuery(storageQueries.sourceMapGcPreview());
+  const counts = impactOf(countRead);
+  const unused = impactOf(unusedRead);
   const goes = whatGoes(
     counts,
     chosen.sourceMaps && unused !== 'failed' ? unused : null,
@@ -428,8 +412,8 @@ function useDeletion(
     ...goes,
     state,
     retry: () => {
-      retry();
-      retryUnused();
+      void countRead.refetch();
+      void unusedRead.refetch();
     },
   };
 }

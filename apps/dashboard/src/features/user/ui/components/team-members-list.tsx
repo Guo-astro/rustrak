@@ -9,13 +9,11 @@ import {
   Tag,
   TeamIcon,
 } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import {
-  removeTeamMember,
-  updateUserRole,
-} from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import {
   SettingSection,
   SettingsEmpty,
@@ -31,7 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface TeamMembersListProps {
   members: TeamMemberResponse[];
@@ -54,51 +51,50 @@ export function TeamMembersList({
   members,
   currentUserId,
 }: TeamMembersListProps) {
-  const router = useRouter();
   const t = useTranslations('user');
   const format = useFormatter();
-  const [isPending, startTransition] = useTransition();
+  const updateRole = useMutation(userMutations.updateRole());
+  const remove = useMutation(userMutations.removeFromTeam());
+  const isPending = updateRole.isPending || remove.isPending;
   const [memberToDelete, setMemberToDelete] =
     useState<TeamMemberResponse | null>(null);
 
   const handleRoleChange = (member: TeamMemberResponse, role: UserRole) => {
-    startTransition(async () => {
-      const result = await updateUserRole(member.id, role);
-      if (result.success) {
-        toast.success(t('toast.roleUpdated'), {
-          description: t('member.updatedDescription', {
-            email: member.email,
-            role: t(userRoleLabel(role)),
+    updateRole.mutate(
+      { userId: member.id, role },
+      {
+        onSuccess: () =>
+          toast.success(t('toast.roleUpdated'), {
+            description: t('member.updatedDescription', {
+              email: member.email,
+              role: t(userRoleLabel(role)),
+            }),
           }),
-        });
-        router.refresh();
-      } else {
         // `error.message` rather than copy built from `error.fields`: the
         // server does name `role` here, but there is no react-hook-form on
         // this list to bind that to, and its own sentence ("Cannot demote
         // the last admin") is far more use in a toast than "Role is not
         // valid." would be.
-        toast.error(t('toast.roleUpdateFailed'), {
-          description: result.error.message,
-        });
-      }
-    });
+        onError: (error) =>
+          toast.error(t('toast.roleUpdateFailed'), {
+            description: error.error.message,
+          }),
+      },
+    );
   };
 
   const handleConfirmDelete = () => {
     if (!memberToDelete) return;
     const member = memberToDelete;
-    startTransition(async () => {
-      const result = await removeTeamMember(member.id);
-      if (result.success) {
+    remove.mutate(member.id, {
+      onSuccess: () => {
         toast.success(t('toast.removed'), { description: member.email });
         setMemberToDelete(null);
-        router.refresh();
-      } else {
+      },
+      onError: (error) =>
         toast.error(t('toast.removeFailed'), {
-          description: result.error.message,
-        });
-      }
+          description: error.error.message,
+        }),
     });
   };
 

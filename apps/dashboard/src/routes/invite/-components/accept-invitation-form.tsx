@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
-import { acceptInvitation } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
 import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   Form,
@@ -33,7 +34,8 @@ export function AcceptInvitationForm({
 }: AcceptInvitationFormProps) {
   const t = useTranslations('invite');
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const accept = useMutation(userMutations.acceptInvitation());
+  const isPending = accept.isPending;
   const [awaitingSso, setAwaitingSso] = useState(false);
 
   const acceptSchema = z
@@ -57,24 +59,22 @@ export function AcceptInvitationForm({
   const onSubmit = (data: AcceptFormData) => {
     form.clearErrors();
 
-    startTransition(async () => {
-      const result = await acceptInvitation({ token, password: data.password });
-
-      if (result.success) {
+    accept.mutate(
+      { token, password: data.password },
+      {
         // With password login disabled the account exists but no session was
         // opened: the way in is the provider, from the login page.
-        if (result.data.signed_in) {
-          router.push('/projects');
-        } else {
-          setAwaitingSso(true);
-        }
-      } else {
-        form.setError('confirmPassword', {
-          type: 'server',
-          message: result.error.message,
-        });
-      }
-    });
+        onSuccess: (accepted) => {
+          if (accepted.signed_in) router.push('/projects');
+          else setAwaitingSso(true);
+        },
+        onError: ({ error }) =>
+          form.setError('confirmPassword', {
+            type: 'server',
+            message: error.message,
+          }),
+      },
+    );
   };
 
   if (awaitingSso) {

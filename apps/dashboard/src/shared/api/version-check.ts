@@ -1,8 +1,10 @@
 /**
  * The update check, read by the banner slot.
  */
+
+import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
-import { getServerVersion } from '@/shared/api/server-version';
+import { api } from '@/shared/api/rustrak';
 import { compareVersions, type UpdateCheck } from '@/shared/lib/version';
 
 const VERSIONS_URL = 'https://rustrak.dev/versions.json';
@@ -54,14 +56,14 @@ function isEnabled(): boolean {
  * So an unreadable server version ends the check. No banner is worse than a
  * wrong banner, and there is no substitute version to reach for.
  */
-export async function checkForUpdate(): Promise<UpdateCheck> {
+async function checkForUpdate(signal: AbortSignal): Promise<UpdateCheck> {
   if (!isEnabled()) return { state: 'disabled' };
 
   // Read outside the `try` on purpose. `@rustrak/client` failures are values,
   // not throws, and this branch is the one that has to be seen; putting the
   // read inside the block below would let a future refactor drop it into the
   // catch and quietly restore the bug this function exists to fix.
-  const version = await getServerVersion();
+  const version = await api().health.version({ signal });
   if (!version.success) return { state: 'unknown', reason: 'server-version' };
 
   const current = version.data.version;
@@ -75,7 +77,7 @@ export async function checkForUpdate(): Promise<UpdateCheck> {
       // The browser's own HTTP cache decides how long this is good for, from
       // the headers GitHub Pages sends. Next's `revalidate` was a server-side
       // cache for a fetch a server no longer makes.
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(FETCH_TIMEOUT_MS)]),
     });
     if (!response.ok) return { state: 'unknown', reason: 'feed' };
 
@@ -107,4 +109,17 @@ export async function checkForUpdate(): Promise<UpdateCheck> {
   } catch {
     return { state: 'unknown', reason: 'feed' };
   }
+}
+
+/**
+ * The update check, once per tab: the running version does not change under
+ * a reader, and the feed is a public file the browser's HTTP cache already
+ * governs. It never fails; every way of not knowing is the `unknown` state.
+ */
+export function updateCheckQuery() {
+  return queryOptions({
+    queryKey: ['update-check'],
+    queryFn: ({ signal }) => checkForUpdate(signal),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 }

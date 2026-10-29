@@ -56,10 +56,12 @@ pub fn extract_gen_ai_columns(span_data: &mut Value, op: Option<&str>) -> GenAiC
     normalize_gen_ai_attributes(span_data, op);
 
     // Cut to the VARCHAR column each value lands in: Postgres rejects longer.
-    let get_str = |data: &Value, key: &str, max_chars: usize| {
+    // Bytes, not chars: four names of 255 four-byte chars in one covering
+    // index entry pass Postgres's ~2704-byte B-tree limit and fail the insert.
+    let get_str = |data: &Value, key: &str, max_bytes: usize| {
         data.get(key)
             .and_then(|v| v.as_str())
-            .map(|s| s.chars().take(max_chars).collect::<String>())
+            .map(|s| s[..s.floor_char_boundary(max_bytes)].to_string())
     };
     let get_f64 = |data: &Value, key: &str| data.get(key).and_then(|v| v.as_f64());
 
@@ -69,7 +71,13 @@ pub fn extract_gen_ai_columns(span_data: &mut Value, op: Option<&str>) -> GenAiC
         request_model: get_str(span_data, "gen_ai.request.model", 255),
         response_model: get_str(span_data, "gen_ai.response.model", 255),
         tool_name: get_str(span_data, "gen_ai.tool.name", 255),
-        conversation_id: get_str(span_data, "gen_ai.conversation.id", 255),
+        // Chars, not bytes: it is an identity, and a shorter cut than spans
+        // already stored got would split a conversation from its next turns.
+        // Its index holds no other wide value, so 255 chars stays in bounds.
+        conversation_id: span_data
+            .get("gen_ai.conversation.id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.chars().take(255).collect()),
         usage_input_tokens: get_f64(span_data, "gen_ai.usage.input_tokens"),
         usage_output_tokens: get_f64(span_data, "gen_ai.usage.output_tokens"),
         usage_total_tokens: get_f64(span_data, "gen_ai.usage.total_tokens"),

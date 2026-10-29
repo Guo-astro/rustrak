@@ -1,16 +1,13 @@
 import { EnvironmentIcon, ReleaseIcon, TimeIcon } from '@rustrak/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'use-intl';
-import {
-  getProjectEnvironments,
-  getProjectReleases,
-} from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import {
   PERIOD_CHOICES,
   type PeriodChoice,
 } from '@/features/release/model/session-health';
 import { scopeActions } from '@/shared/lib/scope-actions';
 import { ScopeBar, ScopeSegment } from '@/shared/ui/components/scope-bar';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 
 export interface FilterChange {
   period?: PeriodChoice;
@@ -45,8 +42,12 @@ export function OverviewFilters({
   onChange,
 }: OverviewFiltersProps) {
   const t = useTranslations('projectPages.overview');
-  const environments = useOptions(getProjectEnvironments, projectId);
-  const releases = useOptions(getProjectReleases, projectId);
+  // A filter's choices are empty while they load or when they fail to: the
+  // filter still works, it just has nothing to offer yet.
+  const environments =
+    useQuery(projectQueries.environments(projectId)).data ?? [];
+  const releases =
+    useQuery(projectQueries.releaseVersions(projectId)).data ?? [];
 
   return (
     <ScopeBar>
@@ -90,15 +91,4 @@ export function OverviewFilters({
       />
     </ScopeBar>
   );
-}
-
-/** A filter's choices, empty while they load or when they fail to. */
-function useOptions(
-  load: (projectId: number) => Promise<{ success: boolean; data?: string[] }>,
-  projectId: number,
-): string[] {
-  const read = useAsync(() => load(projectId), [projectId]);
-  return read.state === 'ready' && read.data.success
-    ? (read.data.data ?? [])
-    : [];
 }

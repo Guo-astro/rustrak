@@ -34,16 +34,8 @@ function baseUrl(): string {
  */
 let client: RustrakClient | undefined;
 
-/**
- * The client, as a promise.
- *
- * There is nothing to await any more — under Next this read the request's
- * cookies to build a per-request client, and in the browser the cookie is the
- * browser's business. The signature is kept because every `api/queries.ts` and
- * `api/mutations.ts` calls it exactly this way, and a synchronous rename would
- * have been a hundred-file diff that changed no behaviour.
- */
-export async function createClient(): Promise<RustrakClient> {
+/** The client. Built on first use, then the same one. */
+export function api(): RustrakClient {
   client ??= new RustrakClient({ baseUrl: baseUrl() });
   return client;
 }

@@ -1,29 +1,20 @@
-/**
- * Reads for the token feature, called straight from Server Components.
- *
- * `import 'server-only'` is a build-time poison pill rather than a directive:
- * if this module reaches the client bundle the build fails, instead of shipping
- * a browser bundle that holds the session cookie.
- */
-import type { AuthTokenResponse, Result, RustrakError } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import { queryOptions } from '@tanstack/react-query';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-/**
- * List all auth tokens (masked).
- * The full token is never returned after creation.
- *
- * @returns List of auth tokens with masked token values
- */
-
-/**
- * List all auth tokens (masked).
- * The full token is never returned after creation.
- *
- * @returns List of auth tokens with masked token values
- */
-export async function listTokens(): Promise<
-  Result<AuthTokenResponse[], RustrakError>
-> {
-  const client = await createClient();
-  return client.tokens.list();
-}
+export const tokenQueries = {
+  all: () => ['tokens'] as const,
+  /** Every token, masked. */
+  list: () =>
+    queryOptions({
+      queryKey: [...tokenQueries.all(), 'list'],
+      queryFn: ({ signal }) => orThrow(api().tokens.list({ signal })),
+    }),
+  /** One token with its full value (40-char hex), for the reveal and copy. */
+  detail: (id: number) =>
+    queryOptions({
+      queryKey: [...tokenQueries.all(), 'detail', id],
+      queryFn: ({ signal }) =>
+        orThrow(api().tokens.get({ path: { id }, signal })),
+    }),
+};

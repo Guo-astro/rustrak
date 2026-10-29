@@ -3,11 +3,10 @@ import { Button } from '@rustrak/ui';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
-  estimateBytes,
+  estimateSize,
   impactState,
   removedParts,
 } from '@/features/storage/model/retention';
-import { formatBytes } from '@/shared/lib/utils';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,7 +34,8 @@ export function RetentionFooter({
   impact: CleanupCounts | null | 'failed';
   /** Asks for the count again after it failed. */
   onRetry: () => void;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   isPending: boolean;
   onCancel: () => void;
   onSave: (cleanNow: boolean) => void;
@@ -44,7 +44,7 @@ export function RetentionFooter({
   const [confirming, setConfirming] = useState(false);
   const known = impact === null || impact === 'failed' ? null : impact;
   const parts = known ? removedParts(known, t) : [];
-  const size = known ? formatBytes(estimateBytes(known, projects)) : '';
+  const size = known ? estimateSize(known, projects) : '';
 
   return (
     <>

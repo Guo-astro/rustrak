@@ -1,13 +1,13 @@
 import type { ProjectResponse, RateLimitsResponse } from '@rustrak/client';
 import { Button, Input } from '@rustrak/ui';
-import { useId, useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useId, useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import { updateProject } from '@/features/project/api/mutations';
+import { projectMutations } from '@/features/project/api/mutations';
 import { parseRateLimit } from '@/features/project/model/rate-limit';
 import { describeError } from '@/shared/lib/error-copy';
 import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 type LimitField = 'rate_limit_per_minute' | 'rate_limit_per_hour';
 
@@ -66,12 +66,12 @@ function LimitRow({
 }) {
   const t = useTranslations('projects.rateLimits');
   const formT = useTranslations();
-  const router = useRouter();
   const id = useId();
   const stored = project[field];
   const [raw, setRaw] = useState(stored === null ? '' : String(stored));
   const [invalid, setInvalid] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const update = useMutation(projectMutations.update(project.id));
+  const isPending = update.isPending;
 
   const parsed = parseRateLimit(raw);
   const hasChanges = !parsed.ok || parsed.value !== stored;
@@ -81,17 +81,16 @@ function LimitRow({
       setInvalid(true);
       return;
     }
-    startTransition(async () => {
-      const result = await updateProject(project.id, { [field]: parsed.value });
-      if (!result.success) {
-        toast.error(t('saveFailed'), {
-          description: describeError(result.error, formT),
-        });
-        return;
-      }
-      toast.success(t('saved'));
-      router.refresh();
-    });
+    update.mutate(
+      { [field]: parsed.value },
+      {
+        onSuccess: () => toast.success(t('saved')),
+        onError: (error) =>
+          toast.error(t('saveFailed'), {
+            description: describeError(error.error, formT),
+          }),
+      },
+    );
   };
 
   return (

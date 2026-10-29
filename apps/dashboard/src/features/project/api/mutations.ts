@@ -1,48 +1,48 @@
-import type {
-  CreateProject,
-  ProjectResponse,
-  Result,
-  RustrakError,
-  UpdateProject,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
-
 /**
- * Create a new project.
+ * Writes for the project feature.
  *
- * @param input - Project data (name, optional slug)
- * @returns The created project
+ * The rate limits a project update can set are its own, read back through its
+ * detail; the server-wide `rateLimits` read never changes from here.
  */
-export async function createProject(
-  input: CreateProject,
-): Promise<Result<ProjectResponse, RustrakError>> {
-  const client = await createClient();
-  return client.projects.create({ body: input });
-}
+import type { CreateProject, UpdateProject } from '@rustrak/client';
+import { mutationOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
+import { projectQueries } from './queries';
 
-/**
- * Update an existing project.
- *
- * @param id - Project ID
- * @param input - Fields to update (name)
- * @returns The updated project
- */
-export async function updateProject(
-  id: number,
-  input: UpdateProject,
-): Promise<Result<ProjectResponse, RustrakError>> {
-  const client = await createClient();
-  return client.projects.update({ path: { id }, body: input });
-}
-
-/**
- * Delete a project.
- *
- * @param id - Project ID
- */
-export async function deleteProject(
-  id: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.projects.delete({ path: { id } });
-}
+export const projectMutations = {
+  create: () =>
+    mutationOptions({
+      mutationFn: (body: CreateProject) =>
+        orThrow(api().projects.create({ body })),
+      meta: { invalidates: [projectQueries.lists()] },
+    }),
+  /** Name and platform show in every list and the switcher, not only here. */
+  update: (id: number) =>
+    mutationOptions({
+      mutationFn: (body: UpdateProject) =>
+        orThrow(api().projects.update({ path: { id }, body })),
+      meta: {
+        invalidates: [
+          projectQueries.detail(id).queryKey,
+          projectQueries.lists(),
+        ],
+      },
+    }),
+  /**
+   * The id is the mutation's variable: the projects grid deletes whichever
+   * card was confirmed, and its pending `variables` is the card to hide.
+   * `['projects']` covers every list and the deleted project's scope.
+   */
+  delete: () =>
+    mutationOptions({
+      mutationFn: (id: number) =>
+        orThrow(api().projects.delete({ path: { id } })),
+      // Everything of the project goes before the lists refetch: asking
+      // again for any of it can only answer 404.
+      onSuccess: (_data, id, _result, { client }) =>
+        client.removeQueries({ queryKey: projectScope(id) }),
+      meta: { invalidates: [projectQueries.lists()] },
+    }),
+};

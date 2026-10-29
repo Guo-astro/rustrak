@@ -5,15 +5,12 @@ import type {
   AlertType,
 } from '@rustrak/client';
 import { Button, cn, Input, TestIcon, Text } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import { type ReactNode, useMemo, useState, useTransition } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  createAlertRule,
-  testIntegration,
-  updateAlertRule,
-} from '@/features/alert/api/mutations';
+import { alertMutations } from '@/features/alert/api/mutations';
 import { buildChannelsPayload } from '@/features/alert/lib/routing';
 import {
   type AlertRuleFormData,
@@ -26,6 +23,7 @@ import {
   DEFAULT_COOLDOWN,
 } from '@/features/alert/model/rule-summary';
 import { useChannelRouting } from '@/features/alert/ui/hooks/use-channel-routing';
+import type { ApiError } from '@/shared/api/query';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import {
   conditionsFromForm,
@@ -64,7 +62,10 @@ export function RuleEditor({
 }) {
   const t = useTranslations('alerts');
   const globalT = useTranslations();
-  const [isPending, startTransition] = useTransition();
+  const create = useMutation(alertMutations.createRule(projectId));
+  const update = useMutation(alertMutations.updateRule(projectId));
+  const test = useMutation(alertMutations.testIntegration());
+  const isPending = create.isPending || update.isPending;
   const [isTesting, startTest] = useTransition();
   const routing = useChannelRouting(rule, integrations);
   const schema = useMemo(() => alertRuleFormSchema(t), [t]);
@@ -93,23 +94,20 @@ export function RuleEditor({
       });
       return;
     }
-    startTransition(async () => {
-      const body = {
-        name: data.name,
-        alert_type: data.alert_type,
-        channels: buildChannelsPayload(
-          data.selected_integration_ids,
-          routing.routingMap,
-          integrations,
-        ),
-        cooldown_minutes: data.cooldown_minutes,
-        conditions: conditionsFromForm(data),
-      };
-      const result = rule
-        ? await updateAlertRule(projectId, rule.id, body)
-        : await createAlertRule(projectId, body);
-      if (!result.success) {
-        const applied = applyServerFieldErrors(form, result.error, {
+    const body = {
+      name: data.name,
+      alert_type: data.alert_type,
+      channels: buildChannelsPayload(
+        data.selected_integration_ids,
+        routing.routingMap,
+        integrations,
+      ),
+      cooldown_minutes: data.cooldown_minutes,
+      conditions: conditionsFromForm(data),
+    };
+    const callbacks = {
+      onError: (error: ApiError) => {
+        const applied = applyServerFieldErrors(form, error.error, {
           labels: { name: t('common.fieldName') },
           t: globalT,
         });
@@ -118,15 +116,21 @@ export function RuleEditor({
             description: applied.formLevel,
           });
         }
-        return;
-      }
-      toast.success(t(rule ? 'ruleDialog.updated' : 'ruleDialog.created'));
-      onSaved(result.data);
-    });
+      },
+      onSuccess: (saved: AlertRuleResponse) => {
+        toast.success(t(rule ? 'ruleDialog.updated' : 'ruleDialog.created'));
+        onSaved(saved);
+      },
+    };
+    if (rule) update.mutate({ ruleId: rule.id, body }, callbacks);
+    else create.mutate(body, callbacks);
   };
 
   // A test sends through every chosen channel, routed as the saved rule
   // would be: the same payload, so an email gets its recipients as a list.
+  // Several calls on one mutation: `mutateAsync` reports each, where
+  // `mutate`'s callbacks would only answer the last, and the transition
+  // spans them all where `isPending` would only follow the last.
   const sendTest = () =>
     startTest(async () => {
       if (!routing.validate(values.selected_integration_ids)) return;
@@ -137,21 +141,28 @@ export function RuleEditor({
       );
       const names = new Map(integrations.map((i) => [i.id, i.name]));
       await Promise.all(
-        payload.map(async ({ integration_id, routing_override }) => {
+        payload.map(({ integration_id, routing_override }) => {
           const channel = names.get(integration_id) ?? String(integration_id);
-          const result = await testIntegration(
-            integration_id,
-            routing_override,
-          );
-          if (result.success && result.data.success) {
-            toast.success(t('editor.testSent', { channel }));
-          } else {
-            toast.error(t('editor.testFailed', { channel }), {
-              description: result.success
-                ? result.data.message
-                : result.error.message,
-            });
-          }
+          return test
+            .mutateAsync({
+              id: integration_id,
+              routingOverride: routing_override,
+            })
+            .then(
+              (answer) => {
+                if (answer.success) {
+                  toast.success(t('editor.testSent', { channel }));
+                } else {
+                  toast.error(t('editor.testFailed', { channel }), {
+                    description: answer.message,
+                  });
+                }
+              },
+              (error: ApiError) =>
+                toast.error(t('editor.testFailed', { channel }), {
+                  description: error.error.message,
+                }),
+            );
         }),
       );
     });

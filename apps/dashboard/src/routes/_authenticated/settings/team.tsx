@@ -1,15 +1,13 @@
 import { TeamIcon } from '@rustrak/ui';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { listTeam } from '@/features/user/api/mutations';
-import { listInvitations } from '@/features/user/api/queries';
+import { userQueries } from '@/features/user/api/queries';
 import { InviteForm } from '@/features/user/ui/components/invite-form';
 import { PendingInvitations } from '@/features/user/ui/components/pending-invitations';
 import { TeamMembersList } from '@/features/user/ui/components/team-members-list';
 import { session } from '@/shared/api/session';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { SettingsEmpty } from '@/shared/ui/components/setting-row';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { useSessionUser } from '@/shared/ui/hooks/use-session-user';
@@ -31,12 +29,15 @@ export const Route = createFileRoute('/_authenticated/settings/team')({
    * loading them anyway would put "we could not load the team" underneath the
    * "you are not authorised" panel that already explains why.
    */
-  loader: async () => {
+  loader: async ({ context: { queryClient } }) => {
     const answer = session.peek();
     if (answer?.state !== 'authenticated' || answer.user.role !== 'admin') {
-      return null;
+      return;
     }
-    return loadAll([listTeam(), listInvitations()]);
+    await Promise.all([
+      queryClient.query({ ...userQueries.team(), staleTime: 'static' }),
+      queryClient.query({ ...userQueries.invitations(), staleTime: 'static' }),
+    ]);
   },
   component: TeamPage,
 });
@@ -44,7 +45,6 @@ export const Route = createFileRoute('/_authenticated/settings/team')({
 function TeamPage() {
   const t = useTranslations('settings');
   const user = useSessionUser();
-  const loaded = Route.useLoaderData();
 
   const heading = (
     <SettingsHeader title={t('team.title')} description={t('team.subtitle')} />
@@ -54,7 +54,7 @@ function TeamPage() {
   // branch that used to sit above this one belongs to `_authenticated` now —
   // an outage is not a permission verdict, and reporting one as the other is
   // the bug that branch exists to prevent.
-  if (user.role !== 'admin' || loaded === null) {
+  if (user.role !== 'admin') {
     return (
       <>
         {heading}
@@ -69,17 +69,18 @@ function TeamPage() {
     );
   }
 
-  if (!loaded.success) {
-    return (
-      <LoadFailure
-        error={loaded.error}
-        title={t('team.loadFailed')}
-        notFoundOnMissing={false}
-      />
-    );
-  }
+  return (
+    <>
+      {heading}
+      <TeamRoster currentUserId={user.id} />
+    </>
+  );
+}
 
-  const [members, invitations] = loaded.data;
+/** The admin's view: separate so its reads are only subscribed for an admin. */
+function TeamRoster({ currentUserId }: { currentUserId: number }) {
+  const { data: members } = useSuspenseQuery(userQueries.team());
+  const { data: invitations } = useSuspenseQuery(userQueries.invitations());
 
   const pendingInvitations = invitations.filter(
     (invitation) => invitation.status === 'pending',
@@ -87,9 +88,8 @@ function TeamPage() {
 
   return (
     <>
-      {heading}
       <InviteForm />
-      <TeamMembersList members={members} currentUserId={user.id} />
+      <TeamMembersList members={members} currentUserId={currentUserId} />
       <PendingInvitations invitations={pendingInvitations} />
     </>
   );

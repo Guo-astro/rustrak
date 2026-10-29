@@ -1,13 +1,12 @@
 import { PageHeader } from '@rustrak/ui';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getAlertRule, listIntegrations } from '@/features/alert/api/queries';
+import { alertQueries } from '@/features/alert/api/queries';
 import { alertHref } from '@/features/alert/model/rule-summary';
 import { RuleEditor } from '@/features/alert/ui/components/rule-editor/rule-editor';
-import { getProjectEnvironments } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
@@ -15,19 +14,29 @@ import { useRouter } from '@/shared/ui/hooks/use-router';
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/alerts/$ruleId/edit',
 )({
-  loader: ({ params }) => {
+  loader: async ({ context: { queryClient }, params }) => {
     const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getAlertRule(projectId, Number.parseInt(params.ruleId, 10)),
-      listIntegrations(),
-      getProjectEnvironments(projectId),
+    const [rule] = await Promise.all([
+      queryClient.query({
+        ...alertQueries.rule(projectId, Number.parseInt(params.ruleId, 10)),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...alertQueries.integrations(),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...projectQueries.environments(projectId),
+        staleTime: 'static',
+      }),
     ]);
+    return { rule };
   },
   head: ({ loaderData }) => ({
     meta: [
       {
         title: translator('alerts')('overview.editMetaTitle', {
-          name: loaderData?.success ? loaderData.data[0].name : '',
+          name: loaderData?.rule.name ?? '',
         }),
       },
     ],
@@ -37,28 +46,20 @@ export const Route = createFileRoute(
 
 function EditAlertPage() {
   const t = useTranslations('alerts');
-  const { id } = Route.useParams();
-  const loaded = Route.useLoaderData();
+  const { id, ruleId } = Route.useParams();
   const router = useRouter();
   const projectId = Number.parseInt(id, 10);
-  usePageTrail(
-    loaded.success
-      ? [
-          {
-            label: loaded.data[0].name,
-            href: alertHref(projectId, loaded.data[0].id),
-          },
-          { label: t('overview.edit') },
-        ]
-      : [],
+  const { data: rule } = useSuspenseQuery(
+    alertQueries.rule(projectId, Number.parseInt(ruleId, 10)),
   );
-
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('overview.loadFailed')} />
-    );
-  }
-  const [rule, integrations, environments] = loaded.data;
+  const { data: integrations } = useSuspenseQuery(alertQueries.integrations());
+  const { data: environments } = useSuspenseQuery(
+    projectQueries.environments(projectId),
+  );
+  usePageTrail([
+    { label: rule.name, href: alertHref(projectId, rule.id) },
+    { label: t('overview.edit') },
+  ]);
 
   return (
     <div className="flex h-full flex-col">

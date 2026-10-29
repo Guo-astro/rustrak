@@ -8,9 +8,10 @@ import {
   TabList,
   Tabs,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import { useFormatter, useTranslations } from 'use-intl';
-import { listIssues } from '@/features/issue/api/queries';
+import { issueQueries } from '@/features/issue/api/queries';
 import { assignable } from '@/features/issue/model/assignable';
 import {
   ISSUE_FILTER_VARIANTS,
@@ -20,17 +21,10 @@ import {
   withServerQuery,
 } from '@/features/issue/model/issue-table';
 import { IssuesTable } from '@/features/issue/ui/components/issues-table/issues-table';
-import {
-  getProject,
-  getProjectEnvironments,
-  getProjectReleases,
-} from '@/features/project/api/queries';
-import { listProjectMembers } from '@/features/user/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
+import { userQueries } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 
 const PAGE_SIZE = 50;
 
@@ -53,6 +47,14 @@ function tableQuery(search: IssuesSearch): DataTableQuery {
     if (value) params.set(key, value);
   }
   return parseTableQuery(params, ISSUE_FILTER_VARIANTS, PAGE_SIZE);
+}
+
+/** The page of issues a URL shows, for the loader and the component alike. */
+function issuesList(projectId: number, search: IssuesSearch) {
+  return issueQueries.list(
+    projectId,
+    issueListParams(tableQuery(search), search.view ?? 'open'),
+  );
 }
 
 /** A query and a view, written the way the address holds them. */
@@ -89,24 +91,33 @@ export const Route = createFileRoute('/_authenticated/projects/$id/issues/')({
     return toSearch(withServerQuery(query, PAGE_SIZE), view);
   },
   loaderDeps: ({ search }) => search,
-  loader: ({ params, deps }) => {
+  // Who can be assigned, and what the bar can suggest, are only started:
+  // none of it is the list itself, so the list does not wait for it.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      listIssues(
-        projectId,
-        issueListParams(tableQuery(deps), deps.view ?? 'open'),
-      ),
+    void queryClient.prefetchQuery(userQueries.members(projectId));
+    void queryClient.prefetchQuery(projectQueries.environments(projectId));
+    void queryClient.prefetchQuery(projectQueries.releaseVersions(projectId));
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...issuesList(projectId, deps),
+        staleTime: 'static',
+      }),
     ]);
+    return { project };
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const [project] = loaderData.data;
+    const { project } = loaderData;
     return {
       meta: [
         { title: t('projectTitle', { project: project.name }) },
@@ -128,32 +139,19 @@ function IssuesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const context = Route.useRouteContext();
-  const loaded = Route.useLoaderData();
   const loading = useRouterState({ select: (state) => state.isLoading });
   const projectId = Number.parseInt(id, 10);
   const me = context.state === 'authenticated' ? context.user.id : 0;
   const view = search.view ?? 'open';
   const query = tableQuery(search);
-
-  // Who can be assigned, and what the bar can suggest. None of it is the
-  // list itself, so the list does not wait for it.
-  const extras = useAsync(
-    () =>
-      Promise.all([
-        listProjectMembers(projectId),
-        getProjectEnvironments(projectId),
-        getProjectReleases(projectId),
-      ]),
-    [projectId],
-  );
-  const [members, environments, releases] =
-    extras.state === 'ready' ? extras.data : [];
-
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('issues.loadFailed')} />;
-  }
-
-  const [project, page] = loaded.data;
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: page } = useSuspenseQuery(issuesList(projectId, search));
+  // Suggestions only: without them the list still works.
+  const members = useQuery(userQueries.members(projectId)).data ?? [];
+  const environments =
+    useQuery(projectQueries.environments(projectId)).data ?? [];
+  const releases =
+    useQuery(projectQueries.releaseVersions(projectId)).data ?? [];
 
   // Each change applies to the address as it is when it lands, not as it was
   // when this render read it: two changes in one gesture (clearing the
@@ -216,11 +214,11 @@ function IssuesPage() {
           loading={loading}
           me={me}
           members={assignable(
-            members?.success ? members.data : [],
+            members,
             context.state === 'authenticated' ? context.user : null,
           )}
-          environments={environments?.success ? environments.data : []}
-          releases={releases?.success ? releases.data : []}
+          environments={environments}
+          releases={releases}
         />
       </Page>
     </div>

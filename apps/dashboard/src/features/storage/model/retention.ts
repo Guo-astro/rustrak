@@ -7,6 +7,7 @@ import type {
   StorageAge,
 } from '@rustrak/client';
 import type { Translate } from '@/shared/lib/error-copy';
+import { formatBytes } from '@/shared/lib/utils';
 
 /** The kinds of data a retention window applies to. */
 export type Kind = 'events' | 'transactions' | 'logs';
@@ -218,6 +219,20 @@ export function estimateBytes(
   );
 }
 
+/**
+ * {@link estimateBytes} as words, plus `extra` bytes freed besides the rows.
+ * `…` while the projects to price them are not in yet, rather than a 0 B that
+ * reads as nothing worth mentioning.
+ */
+export function estimateSize(
+  counts: CleanupCounts,
+  projects: readonly ProjectStorage[] | null,
+  extra = 0,
+): string {
+  if (projects === null) return '…';
+  return formatBytes(estimateBytes(counts, projects) + extra);
+}
+
 /** "2 errors", "3 logs"… for what a run removed, leaving out the zeros. */
 export function removedParts(removed: CleanupCounts, t: Translate): string[] {
   const parts: [number, string][] = [
@@ -305,6 +320,19 @@ export function nextReadIn(
   if (!state.next_run_at) return POLL_MS;
   const due = Date.parse(state.next_run_at) - now;
   return Math.min(Math.max(due, POLL_MS), MAX_TIMEOUT_MS);
+}
+
+/**
+ * A count's read as the value {@link impactState} takes: the counts once in,
+ * `'failed'` once a read failed and no retry is running, `null` meanwhile.
+ */
+export function impactOf<T>(read: {
+  data: T | undefined;
+  isError: boolean;
+  isFetching: boolean;
+}): T | null | 'failed' {
+  if (read.data !== undefined) return read.data;
+  return read.isError && !read.isFetching ? 'failed' : null;
 }
 
 /** How far a count of what goes has got: pending, failed, or in. */

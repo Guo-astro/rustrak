@@ -1,17 +1,11 @@
-import type {
-  CleanupCounts,
-  CleanupStatus,
-  RetentionResponse,
-  RetentionSettings,
-} from '@rustrak/client';
-import { useEffect, useState, useTransition } from 'react';
+import type { CleanupStatus, RetentionSettings } from '@rustrak/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  previewRetention,
-  runRetention,
-  updateRetention,
-} from '@/features/storage/api/mutations';
+import { storageMutations } from '@/features/storage/api/mutations';
+import { storageQueries } from '@/features/storage/api/queries';
+import { impactOf } from '@/features/storage/model/retention';
 
 /**
  * Retention being edited: the draft, what it would delete (counted as it
@@ -19,52 +13,45 @@ import {
  */
 export function useRetentionDraft(
   initial: RetentionSettings,
-  onDone: (saved: RetentionResponse, job: CleanupStatus | null) => void,
+  /** With the cleanup started, `null` when none was asked for or it could not start. */
+  onDone: (job: CleanupStatus | null) => void,
 ) {
   const t = useTranslations('storage');
   const [draft, setDraft] = useState(initial);
-  const [impact, setImpact] = useState<CleanupCounts | null | 'failed'>(null);
-  const [attempt, setAttempt] = useState(0);
-  const [isPending, startTransition] = useTransition();
+  const preview = useQuery(storageQueries.retentionPreview(draft));
+  const update = useMutation(storageMutations.updateRetention());
+  const run = useMutation(storageMutations.runRetention());
 
-  const key = JSON.stringify(draft);
-  useEffect(() => {
-    let cancelled = false;
-    setImpact(null);
-    const timer = setTimeout(async () => {
-      const result = await previewRetention(JSON.parse(key));
-      if (!cancelled) setImpact(result.success ? result.data : 'failed');
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [key, attempt]);
-
-  // Starts the cleanup the saved settings now enforce; `null` if it could
-  // not start, already said with a toast.
-  const startCleanup = async (): Promise<CleanupStatus | null> => {
-    const job = await runRetention();
-    if (job.success) return job.data;
-    toast.error(t('toasts.cleanupFailed'), {
-      description:
-        job.error.kind === 'conflict' ? t('dialog.alreadyRunning') : undefined,
+  // Starts the cleanup the saved settings now enforce; a failure to start is
+  // said with a toast and still closes, the settings being saved.
+  const startCleanup = () =>
+    run.mutate(undefined, {
+      onSuccess: onDone,
+      onError: ({ error }) => {
+        toast.error(t('toasts.cleanupFailed'), {
+          description:
+            error.kind === 'conflict' ? t('dialog.alreadyRunning') : undefined,
+        });
+        onDone(null);
+      },
     });
-    return null;
-  };
 
   const save = (cleanNow: boolean) =>
-    startTransition(async () => {
-      const saved = await updateRetention(draft);
-      if (!saved.success) {
-        toast.error(t('dialog.saveFailed'));
-        return;
-      }
-      if (!cleanNow) toast.success(t('dialog.saved'));
-      onDone(saved.data, cleanNow ? await startCleanup() : null);
+    update.mutate(draft, {
+      onError: () => toast.error(t('dialog.saveFailed')),
+      onSuccess: () => {
+        if (cleanNow) return startCleanup();
+        toast.success(t('dialog.saved'));
+        onDone(null);
+      },
     });
 
-  const retry = () => setAttempt((a) => a + 1);
-
-  return { draft, setDraft, impact, retry, isPending, save };
+  return {
+    draft,
+    setDraft,
+    impact: impactOf(preview),
+    retry: () => void preview.refetch(),
+    isPending: update.isPending || run.isPending,
+    save,
+  };
 }

@@ -1,10 +1,10 @@
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getProject, getRateLimits } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { RateLimitSettings } from '@/features/project/ui/components/general-settings-form/rate-limit-settings';
 import { ProductsSettings } from '@/features/project/ui/components/products-settings';
 import { translator } from '@/shared/i18n/intl';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
 
 export const Route = createFileRoute(
@@ -13,13 +13,9 @@ export const Route = createFileRoute(
   head: () => ({
     meta: [{ title: `${translator('settings')('data.title')} | Rustrak` }],
   }),
-  loader: async ({ params }) => {
-    const [project, rateLimits] = await Promise.all([
-      getProject(Number.parseInt(params.id, 10)),
-      getRateLimits(),
-    ]);
-    return { project, rateLimits };
-  },
+  // The project is the layout's; the server's limits are only a placeholder.
+  loader: ({ context: { queryClient } }) =>
+    void queryClient.prefetchQuery(projectQueries.rateLimits()),
   component: DataSettingsPage,
 });
 
@@ -30,11 +26,11 @@ export const Route = createFileRoute(
  */
 function DataSettingsPage() {
   const t = useTranslations('settings');
-  const { project, rateLimits } = Route.useLoaderData();
-
-  if (!project.success) {
-    return <LoadFailure error={project.error} title={t('loadProjectFailed')} />;
-  }
+  const { id } = Route.useParams();
+  const { data: project } = useSuspenseQuery(
+    projectQueries.detail(Number.parseInt(id, 10)),
+  );
+  const rateLimits = useQuery(projectQueries.rateLimits());
 
   return (
     <>
@@ -45,12 +41,12 @@ function DataSettingsPage() {
 
       {/* Keyed: its state seeds once, and the next project must not inherit
           this one's switches. */}
-      <ProductsSettings key={project.data.id} project={project.data} />
+      <ProductsSettings key={project.id} project={project} />
 
       <RateLimitSettings
-        project={project.data}
+        project={project}
         // A failure here costs only the placeholder, not the page.
-        serverLimits={rateLimits.success ? rateLimits.data : null}
+        serverLimits={rateLimits.data ?? null}
       />
     </>
   );

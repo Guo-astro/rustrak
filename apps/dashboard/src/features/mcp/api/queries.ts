@@ -1,33 +1,27 @@
-import type {
-  AuthorizationInfo,
-  AuthorizationRequest,
-  McpStatus,
-  OAuthGrant,
-  Result,
-  RustrakError,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import type { AuthorizationRequest } from '@rustrak/client';
+import { queryOptions } from '@tanstack/react-query';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-/** Whether the server answers MCP clients at `/mcp`. */
-export async function getMcpSettings(): Promise<
-  Result<McpStatus, RustrakError>
-> {
-  const client = await createClient();
-  return client.settings.getMcp();
-}
-
-/** Verifies an assistant's authorization request and says who is asking. */
-export async function getAuthorization(
-  request: AuthorizationRequest,
-): Promise<Result<AuthorizationInfo, RustrakError>> {
-  const client = await createClient();
-  return client.oauth.getAuthorization({ query: request });
-}
-
-/** The assistants connected to the signed-in user's account. */
-export async function listConnections(): Promise<
-  Result<OAuthGrant[], RustrakError>
-> {
-  const client = await createClient();
-  return client.oauth.listGrants();
-}
+export const mcpQueries = {
+  all: () => ['mcp'] as const,
+  /** Whether the server answers MCP clients at `/mcp`. */
+  settings: () =>
+    queryOptions({
+      queryKey: [...mcpQueries.all(), 'settings'],
+      queryFn: ({ signal }) => orThrow(api().settings.getMcp({ signal })),
+    }),
+  /** Verifies an assistant's authorization request and says who is asking. */
+  authorization: (request: AuthorizationRequest) =>
+    queryOptions({
+      queryKey: [...mcpQueries.all(), 'authorization', request],
+      queryFn: ({ signal }) =>
+        orThrow(api().oauth.getAuthorization({ query: request, signal })),
+    }),
+  /** The assistants connected to the signed-in user's account. */
+  connections: () =>
+    queryOptions({
+      queryKey: [...mcpQueries.all(), 'connections'],
+      queryFn: ({ signal }) => orThrow(api().oauth.listGrants({ signal })),
+    }),
+};

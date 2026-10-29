@@ -796,31 +796,46 @@ impl SpanService {
         .fetch_all(pool)
         .await?;
 
+        // The page's agents in one query, of the same turns each row counts:
+        // the window and environment too. One per row was a scan of the
+        // turns per row.
+        let ids: Vec<String> = rows.iter().map(|row| row.get("conversation_id")).collect();
+        #[cfg(feature = "postgres")]
+        let (in_page, ids_param) = ("= ANY($3)", ids);
+        #[cfg(not(feature = "postgres"))]
+        let (in_page, ids_param) = (
+            "IN (SELECT value FROM json_each($3))",
+            serde_json::to_string(&ids).unwrap_or_default(),
+        );
+        let agent_rows: Vec<(String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            r#"
+            SELECT t.conversation_id, s.gen_ai_agent_name
+            FROM ({turns}) t
+            JOIN spans s ON s.project_id = $1 AND s.trace_id = t.trace_id
+                        AND s.gen_ai_operation_type = 'agent'
+                        AND s.gen_ai_agent_name IS NOT NULL
+            WHERE t.conversation_id {in_page}
+            GROUP BY t.conversation_id, s.gen_ai_agent_name
+            ORDER BY MIN(s.start_timestamp) ASC
+            "#
+        )))
+        .bind(project_id)
+        .bind(filters.environment.as_deref())
+        .bind(ids_param)
+        .fetch_all(pool)
+        .await?;
+        let mut agents: HashMap<String, Vec<String>> = HashMap::new();
+        for (conversation_id, name) in agent_rows {
+            agents.entry(conversation_id).or_default().push(name);
+        }
+
         let mut conversations = Vec::with_capacity(rows.len());
         for row in &rows {
             let conversation_id: String = row.get("conversation_id");
-            // ponytail: one query per row for its agents, at most a page of them.
-            // Of the same turns the row counts: the window and environment too.
-            let agents: Vec<(String,)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-                r#"
-                SELECT gen_ai_agent_name FROM spans
-                WHERE project_id = $1 AND gen_ai_operation_type = 'agent'
-                  AND gen_ai_agent_name IS NOT NULL
-                  AND trace_id IN (SELECT t.trace_id FROM ({turns}) t
-                                   WHERE t.conversation_id = $3)
-                GROUP BY gen_ai_agent_name
-                ORDER BY MIN(start_timestamp) ASC
-                "#
-            )))
-            .bind(project_id)
-            .bind(filters.environment.as_deref())
-            .bind(&conversation_id)
-            .fetch_all(pool)
-            .await?;
             conversations.push(AgentConversationSummary {
+                agent_names: agents.remove(&conversation_id).unwrap_or_default(),
                 conversation_id,
                 turn_count: row.get("turn_count"),
-                agent_names: agents.into_iter().map(|(name,)| name).collect(),
                 llm_call_count: row.get("llm_call_count"),
                 tool_call_count: row.get("tool_call_count"),
                 total_tokens: row.get("total_tokens"),
@@ -934,7 +949,7 @@ impl SpanService {
         let total_sql = format!(
             r#"
             SELECT COUNT(*) FROM (
-                SELECT 1 FROM spans
+                SELECT 1 FROM spans {TRACE_INDEX}
                 WHERE project_id = $1 AND gen_ai_operation_type IS NOT NULL AND trace_id IS NOT NULL
                   {scope}
                   {time_filter}
@@ -987,7 +1002,7 @@ impl SpanService {
                    SUM(CASE WHEN status IS NOT NULL AND status <> 'ok' THEN 1 ELSE 0 END) AS error_count,
                    MIN(start_timestamp) AS started_at,
                    COALESCE(MAX(duration_ms), 0) AS longest
-            FROM spans
+            FROM spans {TRACE_INDEX}
             WHERE project_id = $1 AND gen_ai_operation_type IS NOT NULL AND trace_id IS NOT NULL
               {scope}
               {time_filter}
@@ -1146,6 +1161,15 @@ impl SpanService {
         Ok(out)
     }
 }
+
+/// The index the traces list reads. SQLite's planner prefers the narrower
+/// `(project_id, trace_id)` index for its GROUP BY and then reads every span's
+/// row, prompts and all; the covering one answers it from the index alone
+/// (~490ms to ~40ms over 300k AI spans). Postgres picks it by itself.
+#[cfg(feature = "postgres")]
+const TRACE_INDEX: &str = "";
+#[cfg(not(feature = "postgres"))]
+const TRACE_INDEX: &str = "INDEXED BY idx_spans_gen_ai_trace_cover";
 
 /// `AND start_timestamp >= ...` time filter for a `spans` query. Empty
 /// string when `period_hours` is `None` (no time filter). Mirrors

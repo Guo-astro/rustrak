@@ -1,17 +1,19 @@
-import type { Result, RustrakError, SpanDetailResponse } from '@rustrak/client';
+import type { SpanDetailResponse } from '@rustrak/client';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslations } from 'use-intl';
 import { AiSpanDetail } from '@/features/agent-trace/ui/components/ai-span-detail';
+import type { ApiError } from '@/shared/api/query';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 
 interface SpanDetailPaneProps {
-  /** The loaded span, or `null` when no span is selected. */
-  selected: Result<SpanDetailResponse, RustrakError> | null;
+  /** The selected span's read, or `null` when no span is selected. */
+  selected: UseQueryResult<SpanDetailResponse, ApiError> | null;
   /** The URL named a span this trace does not contain. */
   requestedMissing: boolean;
 }
 
 /**
- * The right-hand pane, and the four answers it has to tell apart.
+ * The right-hand pane, and the five answers it has to tell apart.
  *
  * The distinction that matters is between "gone" and "broken": reporting a
  * timeout or a 500 as "that span is no longer available" would send the reader
@@ -23,8 +25,7 @@ export function SpanDetailPane({
 }: SpanDetailPaneProps) {
   const t = useTranslations('projectPages');
 
-  const notFound =
-    selected?.success === false && selected.error.kind === 'not_found';
+  const notFound = selected?.error?.error.kind === 'not_found';
 
   // A stale link, not an outage -- say so in place rather than replacing the
   // whole trace view with a failure surface.
@@ -38,9 +39,19 @@ export function SpanDetailPane({
     return <p className="text-fg-subtle text-meta">{t('trace.selectSpan')}</p>;
   }
 
-  if (!selected.success) {
-    return <LoadFailure error={selected.error} title={t('trace.loadFailed')} />;
+  if (selected.data) return <AiSpanDetail span={selected.data} />;
+
+  if (selected.isError) {
+    return (
+      <LoadFailure
+        error={selected.error.error}
+        title={t('trace.loadFailed')}
+        notFoundOnMissing={false}
+      />
+    );
   }
 
-  return <AiSpanDetail span={selected.data} />;
+  return (
+    <div className="h-64 w-full animate-pulse rounded-lg bg-surface-hover motion-reduce:animate-none" />
+  );
 }

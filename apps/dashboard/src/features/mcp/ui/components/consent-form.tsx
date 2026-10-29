@@ -1,9 +1,9 @@
 import type { AuthorizationInfo, AuthorizationRequest } from '@rustrak/client';
+import { useMutation } from '@tanstack/react-query';
 import { ShieldAlert } from 'lucide-react';
-import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { decideAuthorization } from '@/features/mcp/api/mutations';
+import { mcpMutations } from '@/features/mcp/api/mutations';
 import { navigableRedirect } from '@/features/mcp/lib/navigable-redirect';
 import { Button } from '@/shared/ui/components/shadcn/button';
 
@@ -22,22 +22,21 @@ interface ConsentFormProps {
  */
 export function ConsentForm({ request, client, email }: ConsentFormProps) {
   const t = useTranslations('oauth');
-  const [isPending, startTransition] = useTransition();
+  const decision = useMutation(mcpMutations.decideAuthorization(request));
+  const isPending = decision.isPending;
 
-  const decide = (approve: boolean) => {
-    startTransition(async () => {
-      const result = await decideAuthorization(request, approve);
-      if (!result.success) {
-        toast.error(t('decideFailed'), { description: result.error.message });
-        return;
-      }
-      if (!navigableRedirect(result.data.redirect_to)) {
-        toast.error(t('decideFailed'));
-        return;
-      }
-      window.location.assign(result.data.redirect_to);
+  const decide = (approve: boolean) =>
+    decision.mutate(approve, {
+      onError: (error) =>
+        toast.error(t('decideFailed'), { description: error.error.message }),
+      onSuccess: ({ redirect_to }) => {
+        if (!navigableRedirect(redirect_to)) {
+          toast.error(t('decideFailed'));
+          return;
+        }
+        window.location.assign(redirect_to);
+      },
     });
-  };
 
   return (
     <div className="space-y-8">

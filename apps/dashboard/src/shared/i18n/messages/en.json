@@ -1249,14 +1249,12 @@
     "count": "{count, plural, one {# release} other {# releases}}",
     "released": "Released",
     "unreleased": "Unreleased",
-    "loadFailed": "Could not load the releases",
     "emptyWindow": "No releases",
     "empty": {
       "title": "No releases yet",
       "description": "Send a <code>release</code> with your events or sessions, or create one from CI with sentry-cli, to see each version here."
     },
     "detail": {
-      "loadFailed": "Could not load this release",
       "copy": "Copy version",
       "copied": "Version copied",
       "created": "Created {when}",
@@ -1441,7 +1439,6 @@
     "conversations": {
       "title": "Conversations",
       "metaTitle": "{conversation} | Conversations | Rustrak",
-      "loadFailed": "Could not load this conversation",
       "empty": "No conversations in this window. Send gen_ai.conversation.id on your agent spans to group their turns.",
       "pageOf": "Page {page} of {total}",
       "newer": "Newer conversations",
@@ -1782,8 +1779,6 @@
   "projectPages": {
     "projectNotFound": "Project Not Found | Rustrak",
     "projectTitle": "{project} | Rustrak",
-    "loadProjectFailed": "Could not load project",
-    "loadIssueFailed": "Could not load issue",
     "projectsList": {
       "meta": {
         "title": "Projects | Rustrak",
@@ -1791,8 +1786,7 @@
       },
       "title": "Projects",
       "subtitle": "Manage your error tracking projects",
-      "newProject": "New Project",
-      "loadFailed": "Could not load projects"
+      "newProject": "New Project"
     },
     "newProject": {
       "meta": {
@@ -1862,9 +1856,7 @@
         "description": "Issues for {project}"
       },
       "title": "Issues",
-      "subtitle": "Errors from {project}, grouped by what caused them",
-      "loadFailed": "Could not load issues",
-      "loadLatestEventFailed": "Could not load the latest event"
+      "subtitle": "Errors from {project}, grouped by what caused them"
     },
     "logs": {
       "meta": {
@@ -1872,7 +1864,6 @@
         "description": "Structured logs for {project}"
       },
       "title": "Logs",
-      "loadFailed": "Could not load logs",
       "emptyTitle": "No logs yet",
       "emptyDescription": "Send structured logs from your SDK (e.g. <code>Sentry.logger.info(...)</code>) to start collecting them here."
     },
@@ -1935,8 +1926,6 @@
         "issueNotFound": "Issue Not Found | Rustrak",
         "noEvents": "No Events | {issue} | Rustrak"
       },
-      "loadFailed": "Could not load event",
-      "loadNavigationFailed": "Could not load the events in this issue",
       "lastSeen": "Last seen",
       "firstSeen": "First seen",
       "inRelease": "in release <rel>{release}</rel>",
@@ -1980,7 +1969,6 @@
       "meta": {
         "description": "User feedback for {project}"
       },
-      "loadFailed": "Could not load the feedback",
       "mailbox": {
         "inbox": "Inbox",
         "resolved": "Resolved",
@@ -2064,8 +2052,7 @@
     "members": {
       "meta": {
         "title": "Project Members | Rustrak"
-      },
-      "loadFailed": "Could not load project members"
+      }
     },
     "tokens": {
       "meta": {
@@ -2074,7 +2061,6 @@
       },
       "title": "API Tokens",
       "subtitle": "Manage your API tokens for programmatic access",
-      "loadFailed": "Could not load API tokens",
       "apiReference": "API Reference",
       "apiReferenceDescription": "Full documentation for all endpoints, authentication, and request examples"
     },
@@ -2085,8 +2071,7 @@
       },
       "title": "Members",
       "subtitle": "Manage your team members and invitations",
-      "notAuthorizedDescription": "Only instance administrators can manage the team. Contact an admin if you need access.",
-      "loadFailed": "Could not load the team"
+      "notAuthorizedDescription": "Only instance administrators can manage the team. Contact an admin if you need access."
     },
     "integrations": {
       "meta": {
@@ -2107,7 +2092,6 @@
       },
       "title": "AI assistants",
       "subtitle": "Let Claude, ChatGPT or Cursor read and triage your errors.",
-      "loadFailed": "Could not load the MCP settings",
       "copy": "Copy",
       "copied": "Copied",
       "copyLabel": "Copy {label}",
@@ -2333,7 +2317,6 @@
     },
     "repository": {
       "metaTitle": "GitHub",
-      "loadFailed": "Could not load the GitHub settings",
       "subtitle": "Link this project to a repository to open its code from stack traces, find the commit that broke it and keep issues in sync.",
       "unavailable": "GitHub is not available for this project",
       "goToIntegrations": "Open integrations",
@@ -2438,7 +2421,6 @@
     },
     "title": "Crons",
     "newMonitor": "New monitor",
-    "loadFailed": "Could not load monitors",
     "loadMonitorFailed": "Could not load this monitor",
     "never": "Never",
     "columns": {
@@ -2682,7 +2664,6 @@
     "count": "{count, plural, one {# endpoint} other {# endpoints}}",
     "search": "Search endpoints…",
     "environment": "Environment",
-    "loadFailed": "Could not load the endpoints",
     "emptyWindow": "No endpoints",
     "empty": {
       "title": "No transactions yet",
@@ -2729,7 +2710,6 @@
       "when": "When"
     },
     "transaction": {
-      "loadFailed": "Could not load this transaction",
       "unnamed": "(unnamed)",
       "idCopied": "Event id copied",
       "copyId": "Copy event id",

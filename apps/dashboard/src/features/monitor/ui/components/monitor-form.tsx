@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { MonitorResponse } from '@rustrak/client';
+import { useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { useMemo, useTransition } from 'react';
+import { useMemo } from 'react';
 import { type Path, useForm, useFormContext, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTimeZone, useTranslations } from 'use-intl';
-import { createMonitor, updateMonitor } from '@/features/monitor/api/mutations';
+import { monitorMutations } from '@/features/monitor/api/mutations';
 import { monitorHref } from '@/features/monitor/lib/href';
 import {
   DEFAULT_MONITOR_FORM,
@@ -14,6 +15,7 @@ import {
   type MonitorFormData,
   monitorFormSchema,
 } from '@/features/monitor/model/monitor-form';
+import type { ApiError } from '@/shared/api/query';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import { Link } from '@/shared/ui/components/link';
 import { ScheduleField } from '@/shared/ui/components/schedule-field';
@@ -53,7 +55,9 @@ export function MonitorForm({
   const globalT = useTranslations();
   const router = useRouter();
   const readerZone = useTimeZone();
-  const [isPending, startTransition] = useTransition();
+  const create = useMutation(monitorMutations.create(projectId));
+  const update = useMutation(monitorMutations.update(projectId));
+  const isPending = create.isPending || update.isPending;
 
   const schema = useMemo(() => monitorFormSchema(t), [t]);
   const form = useForm<MonitorFormData>({
@@ -67,17 +71,10 @@ export function MonitorForm({
   const cancelHref = monitor ? monitorHref(projectId, monitor.slug) : listHref;
 
   const onSubmit = (data: MonitorFormData) => {
-    startTransition(async () => {
-      const input = inputFromForm(data);
-      const result = monitor
-        ? await updateMonitor(projectId, monitor.slug, {
-            name: input.name,
-            config: input.config,
-          })
-        : await createMonitor(projectId, input);
-
-      if (!result.success) {
-        const applied = applyServerFieldErrors(form, result.error, {
+    const input = inputFromForm(data);
+    const callbacks = {
+      onError: (error: ApiError) => {
+        const applied = applyServerFieldErrors(form, error.error, {
           // The server blames `config` as a whole; the schedule is the part
           // of it a person most often gets wrong.
           map: { config: 'schedule' },
@@ -91,12 +88,23 @@ export function MonitorForm({
         if (applied.formLevel) {
           toast.error(t('form.saveFailed'), { description: applied.formLevel });
         }
-        return;
-      }
-
-      toast.success(t(monitor ? 'form.saved' : 'form.created'));
-      router.push(monitorHref(projectId, result.data.slug));
-    });
+      },
+      onSuccess: (saved: MonitorResponse) => {
+        toast.success(t(monitor ? 'form.saved' : 'form.created'));
+        router.push(monitorHref(projectId, saved.slug));
+      },
+    };
+    if (monitor) {
+      update.mutate(
+        {
+          slug: monitor.slug,
+          body: { name: input.name, config: input.config },
+        },
+        callbacks,
+      );
+    } else {
+      create.mutate(input, callbacks);
+    }
   };
 
   return (

@@ -1,15 +1,13 @@
-import type {
-  CleanupStatus,
-  ProjectStorage,
-  RetentionResponse,
-  RustrakError,
-  StorageAge,
-  StorageSummary,
-} from '@rustrak/client';
+import type { CleanupStatus } from '@rustrak/client';
 import { Button, ConfigureIcon, DeleteIcon } from '@rustrak/ui';
-import { useEffect, useEffectEvent, useMemo, useState } from 'react';
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
-import { getRetention } from '@/features/storage/api/queries';
+import { storageQueries } from '@/features/storage/api/queries';
 import {
   KINDS,
   nextReadIn,
@@ -33,96 +31,79 @@ import {
   ProjectsSkeleton,
 } from './storage-skeletons';
 
-/** What the storage page shows, read together and slower than the rest. */
-export interface StorageFigures {
-  summary: StorageSummary;
-  projects: readonly ProjectStorage[];
-  age: StorageAge;
-}
-
 /**
  * The storage page: what is held, how old it is, and which project holds
  * it. The header's two actions change retention and delete data now; a
  * project's own retention is changed from its row.
  *
- * The header and its actions need only the retention, which answers at once;
- * the figures can take seconds on a large instance, so each panel that shows
- * them holds its own skeleton (or the failure) until they land.
+ * The header and its actions need only the retention, which the route
+ * awaits; the figures can take seconds on a large instance, so each panel
+ * that shows them holds its own skeleton (or the failure) until they land.
  */
 export function StorageView({
-  retention: initialRetention,
-  figures,
-  reloading,
   title,
   subtitle,
-  onChanged,
 }: {
-  retention: RetentionResponse;
-  /** `null` while loading. */
-  figures: { data: StorageFigures } | { error: RustrakError } | null;
-  /** The figures shown are the last ones; newer are on their way. */
-  reloading: boolean;
   title: string;
   subtitle: string;
-  /** Reads the page's data again, after a cleanup. */
-  onChanged: () => void;
 }) {
   const t = useTranslations('storage');
   const ts = useTranslations('settings');
-  const [retention, setRetention] = useState(initialRetention);
+  const queryClient = useQueryClient();
+  // Read again when the saved status says to: a save leaves the next run for
+  // the scheduler's next tick, and a scheduled cleanup runs at its time.
+  const { data: retention } = useSuspenseQuery({
+    ...storageQueries.retention(),
+    refetchInterval: (query) =>
+      query.state.data
+        ? (nextReadIn(query.state.data, Date.now()) ?? false)
+        : false,
+  });
+  const summaryRead = useQuery(storageQueries.summary());
+  const projectsRead = useQuery(storageQueries.projects());
+  const ageRead = useQuery(storageQueries.age());
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [project, setProject] = useState<{ id: number; name: string } | null>(
     null,
   );
-  const cleanup = useCleanupJob(onChanged);
+  const cleanup = useCleanupJob();
 
-  // The page's data is read again through the latest `onChanged`, without
-  // the read below re-arming whenever its identity changes.
-  const changed = useEffectEvent(() => onChanged());
-
-  // One read of the saved status per status: a save leaves the next run for
-  // the scheduler's next tick, and a scheduled cleanup runs at its time.
+  // A cleanup this tab did not start (the schedule's) just finished: the
+  // figures below are from before it.
+  const scheduledRunning = retention.last_run?.status === 'running';
+  const wasRunning = useRef(scheduledRunning);
   useEffect(() => {
-    const delay = nextReadIn(retention, Date.now());
-    if (delay === null) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      const result = await getRetention();
-      if (cancelled) return;
-      // A cleanup this tab did not start (the schedule's) just finished:
-      // the figures below are from before it.
-      const finished =
-        retention.last_run?.status === 'running' &&
-        result.success &&
-        result.data.last_run?.status !== 'running';
-      setRetention((prev) => (result.success ? result.data : { ...prev }));
-      if (finished) changed();
-    }, delay);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [retention]);
+    if (wasRunning.current && !scheduledRunning) {
+      void queryClient.invalidateQueries({ queryKey: storageQueries.all() });
+    }
+    wasRunning.current = scheduledRunning;
+  }, [scheduledRunning, queryClient]);
 
-  const data = figures && 'data' in figures ? figures.data : null;
-  const projects = data?.projects ?? [];
+  const projects = projectsRead.data ?? null;
+  const { data: storage } = summaryRead;
+  const { data: age } = ageRead;
   const summary = useMemo(
     () =>
-      data &&
-      summarize({
-        projects: data.projects,
-        age: data.age,
-        sourceMaps: {
-          files: data.summary.source_maps.file_count,
-          bytes: data.summary.source_maps.total_bytes,
-        },
-        settings: retention.settings,
-      }),
-    [data, retention.settings],
+      storage && projects && age
+        ? summarize({
+            projects,
+            age,
+            sourceMaps: {
+              files: storage.source_maps.file_count,
+              bytes: storage.source_maps.total_bytes,
+            },
+            settings: retention.settings,
+          })
+        : null,
+    [storage, projects, age, retention.settings],
   );
-  const saved = (next: RetentionResponse, job: CleanupStatus | null) => {
-    setRetention(next);
+  // The figures are priced together, so one failed read fails them all; data
+  // already on screen wins over a later failure.
+  const failure = summary
+    ? null
+    : (summaryRead.error ?? projectsRead.error ?? ageRead.error);
+  const saved = (job: CleanupStatus | null) => {
     if (job) cleanup.follow(job);
   };
 
@@ -132,14 +113,14 @@ export function StorageView({
         title={title}
         description={subtitle}
         actions={
-          // Shown at once, enabled once the current figures are in: both
-          // dialogs price what they delete from the projects' sizes.
+          // Usable at once: the figures only price what the dialogs delete,
+          // and the price fills in when they land.
           <>
             <Button
               variant="danger"
               icon={DeleteIcon}
               onClick={() => setDeleting(true)}
-              disabled={cleanup.running || !data || reloading}
+              disabled={cleanup.running}
             >
               {t('deleteAction')}
             </Button>
@@ -147,7 +128,6 @@ export function StorageView({
               variant="primary"
               icon={ConfigureIcon}
               onClick={() => setEditing(true)}
-              disabled={!data || reloading}
             >
               {t('action')}
             </Button>
@@ -155,9 +135,9 @@ export function StorageView({
         }
       />
 
-      {figures && 'error' in figures ? (
+      {failure ? (
         <LoadFailure
-          error={figures.error}
+          error={failure.error}
           title={ts('storage.loadFailed')}
           notFoundOnMissing={false}
         />
@@ -172,7 +152,7 @@ export function StorageView({
       )}
 
       <SettingSection title={t('projects.retention')}>
-        {figures && 'error' in figures ? null : summary ? (
+        {failure ? null : summary ? (
           <CleanupLine
             summary={summary}
             retention={retention}
@@ -221,7 +201,6 @@ export function StorageView({
         onOpenChange={setDeleting}
         projects={projects}
         onStarted={cleanup.follow}
-        onChanged={onChanged}
       />
       <ProjectRetentionDialog
         project={project}

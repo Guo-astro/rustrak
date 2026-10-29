@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getSsoLink } from '@/features/user/api/queries';
+import { userQueries } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { Link } from '@/shared/ui/components/link';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
@@ -18,16 +19,20 @@ export const Route = createFileRoute('/link-account')({
     const t = translator('auth');
     return { meta: [{ title: t('link.metaTitle') }] };
   },
-  loader: () => getSsoLink(),
+  // `prefetchQuery` rather than a critical read: `not_found` is an answer
+  // this page renders (the link expired), not a failure for the boundary.
+  loader: ({ context: { queryClient } }) =>
+    queryClient.prefetchQuery(userQueries.ssoLink()),
   component: LinkAccountPage,
 });
 
 function LinkAccountPage() {
   const t = useTranslations('auth');
-  const result = Route.useLoaderData();
+  const link = useQuery(userQueries.ssoLink());
 
-  if (!result.success && result.error.kind !== 'not_found') {
-    return <OutageScreen error={result.error} />;
+  if (link.isPending) return null;
+  if (link.isError && link.error.error.kind !== 'not_found') {
+    return <OutageScreen error={link.error.error} />;
   }
 
   return (
@@ -37,10 +42,10 @@ function LinkAccountPage() {
           <RustrakWordmark className="h-[22px] w-auto" />
         </div>
 
-        {result.success ? (
+        {link.data ? (
           <LinkAccountForm
-            email={result.data.email}
-            provider={result.data.provider_name}
+            email={link.data.email}
+            provider={link.data.provider_name}
           />
         ) : (
           <div className="space-y-6">

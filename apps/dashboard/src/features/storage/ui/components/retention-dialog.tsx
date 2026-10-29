@@ -41,8 +41,9 @@ export function RetentionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   retention: RetentionResponse;
-  projects: readonly ProjectStorage[];
-  onDone: (saved: RetentionResponse, job: CleanupStatus | null) => void;
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
+  onDone: (job: CleanupStatus | null) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,8 +52,8 @@ export function RetentionDialog({
           <Editor
             retention={retention}
             projects={projects}
-            onDone={(saved, job) => {
-              onDone(saved, job);
+            onDone={(job) => {
+              onDone(job);
               onOpenChange(false);
             }}
             onCancel={() => onOpenChange(false)}
@@ -70,8 +71,9 @@ function Editor({
   onCancel,
 }: {
   retention: RetentionResponse;
-  projects: readonly ProjectStorage[];
-  onDone: (saved: RetentionResponse, job: CleanupStatus | null) => void;
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
+  onDone: (job: CleanupStatus | null) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('storage');

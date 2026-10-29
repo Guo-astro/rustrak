@@ -328,3 +328,34 @@ fn test_extract_leaves_cached_and_reasoning_none_when_absent() {
     assert_eq!(columns.usage_cached_input_tokens, None);
     assert_eq!(columns.usage_reasoning_output_tokens, None);
 }
+
+#[test]
+fn test_extract_cuts_names_to_255_bytes_on_a_char_boundary() {
+    // 255 four-byte chars would be 1020 bytes per column; four of them in one
+    // Postgres B-tree entry pass its ~2704-byte limit and the insert fails.
+    let wide = "🦀".repeat(300);
+    let mut data = json!({
+        "gen_ai.operation.type": "agent",
+        "gen_ai.agent.name": wide,
+        "gen_ai.request.model": "gpt-4o",
+    });
+    let cols = extract_gen_ai_columns(&mut data, None);
+    let agent = cols.agent_name.unwrap();
+    assert_eq!(agent.len(), 252);
+    assert!(agent.chars().all(|c| c == '🦀'));
+    assert_eq!(cols.request_model.as_deref(), Some("gpt-4o"));
+}
+
+#[test]
+fn test_extract_keeps_conversation_ids_to_255_chars() {
+    // An identity, not a label: cutting it shorter than before would split an
+    // existing conversation from its next turns. Its index holds no other
+    // wide value, so it stays within the B-tree limit at 255 chars.
+    let id = "会".repeat(100);
+    let mut data = json!({
+        "gen_ai.operation.type": "agent",
+        "gen_ai.conversation.id": id,
+    });
+    let cols = extract_gen_ai_columns(&mut data, None);
+    assert_eq!(cols.conversation_id.as_deref(), Some(id.as_str()));
+}

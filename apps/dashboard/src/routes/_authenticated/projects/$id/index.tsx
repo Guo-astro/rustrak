@@ -1,15 +1,16 @@
 import { Page, PageHeader, Text } from '@rustrak/ui';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { PlatformIcon } from 'platformicons';
 import { useFormatter, useTranslations } from 'use-intl';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import {
   DEFAULT_PERIOD,
   PERIOD_CHOICES,
+  type PeriodChoice,
 } from '@/features/release/model/session-health';
 import { translator } from '@/shared/i18n/intl';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { OverviewFilters } from './-components/overview-filters';
 import {
   ErrorVolumePanel,
@@ -17,11 +18,36 @@ import {
   KpiRow,
   LatencyPanel,
   SessionsPanel,
-  useOverviewData,
 } from './-components/overview-panels';
+import {
+  type OverviewFilters as Filters,
+  overviewReads,
+} from './-components/overview-reads';
+
+interface OverviewSearch {
+  period?: PeriodChoice;
+  environment?: string;
+  release?: string;
+  compare?: true;
+}
+
+/** The URL's filters, as the panels read them. */
+function overviewFilters(projectId: number, search: OverviewSearch) {
+  const choice = search.period ?? DEFAULT_PERIOD;
+  const period = choice === 'all' ? undefined : choice;
+  const filters: Filters = {
+    projectId,
+    period,
+    environment: search.environment,
+    release: search.release,
+  };
+  // Nothing comes before all time, so there is nothing to compare it with.
+  const compare = !!search.compare && period !== undefined;
+  return { choice, filters, compare };
+}
 
 export const Route = createFileRoute('/_authenticated/projects/$id/')({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): OverviewSearch => ({
     // An unrecognized value is dropped rather than passed on: the API ignores
     // what it cannot parse and answers unfiltered, while no control reads as
     // selected. So the URL and the screen always agree.
@@ -30,21 +56,42 @@ export const Route = createFileRoute('/_authenticated/projects/$id/')({
     release: searchString(search.release),
     compare: search.compare === true || search.compare === 'true' || undefined,
   }),
-  loader: ({ params }) => getProject(Number.parseInt(params.id, 10)),
+  loaderDeps: ({ search }) => search,
+  // Only the project is awaited; every panel is started and fills in when its
+  // own read lands, failing on its own.
+  loader: ({ context: { queryClient }, params, deps }) => {
+    const projectId = Number.parseInt(params.id, 10);
+    const { filters, compare } = overviewFilters(projectId, deps);
+    const reads = overviewReads(filters, compare);
+    void queryClient.prefetchQuery(reads.summary);
+    void queryClient.prefetchQuery(reads.events);
+    void queryClient.prefetchQuery(reads.sessionSummary);
+    void queryClient.prefetchQuery(reads.sessionTrend);
+    void queryClient.prefetchQuery(reads.latency);
+    void queryClient.prefetchQuery(reads.environments);
+    void queryClient.prefetchQuery(reads.releases);
+    if (reads.previousEvents)
+      void queryClient.prefetchQuery(reads.previousEvents);
+    void queryClient.prefetchQuery(reads.issues('recent'));
+    return queryClient.query({
+      ...projectQueries.detail(projectId),
+      staleTime: 'static',
+    });
+  },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
     return {
       meta: [
-        { title: t('projectTitle', { project: loaderData.data.name }) },
+        { title: t('projectTitle', { project: loaderData.name }) },
         {
           name: 'description',
           content: t('overview.meta.description', {
-            project: loaderData.data.name,
+            project: loaderData.name,
           }),
         },
       ],
@@ -59,28 +106,10 @@ function ProjectPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const projectResult = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
-
-  const choice = search.period ?? DEFAULT_PERIOD;
-  const period = choice === 'all' ? undefined : choice;
-  // Nothing comes before all time, so there is nothing to compare it with.
-  const compare = !!search.compare && period !== undefined;
-  const filters = {
-    projectId,
-    period,
-    environment: search.environment,
-    release: search.release,
-  };
-  const data = useOverviewData(filters, compare);
-
-  if (!projectResult.success) {
-    return (
-      <LoadFailure error={projectResult.error} title={t('loadProjectFailed')} />
-    );
-  }
-
-  const project = projectResult.data;
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { choice, filters, compare } = overviewFilters(projectId, search);
+  const reads = overviewReads(filters, compare);
 
   return (
     // On a phone the header scrolls away with the page: held in place, the
@@ -120,13 +149,13 @@ function ProjectPage() {
       />
 
       <Page className="max-lg:flex-none max-lg:overflow-visible">
-        <KpiRow data={data} filters={filters} />
+        <KpiRow reads={reads} filters={filters} />
 
         {/* min-w-0 on every cell holding a chart: a grid item defaults to
             min-width:auto, so a chart's measured width can pin its column
             open and the page ends up scrolling sideways on a phone. */}
         <ErrorVolumePanel
-          data={data}
+          reads={reads}
           filters={filters}
           compare={compare}
           onCompareChange={(next) =>
@@ -138,14 +167,14 @@ function ProjectPage() {
 
         <div className="grid gap-4 xl:grid-cols-5">
           <div className="min-w-0 xl:col-span-3">
-            <IssuesPanel filters={filters} />
+            <IssuesPanel reads={reads} projectId={projectId} />
           </div>
           <div className="min-w-0 xl:col-span-2">
-            <SessionsPanel data={data} filters={filters} />
+            <SessionsPanel reads={reads} filters={filters} />
           </div>
         </div>
 
-        <LatencyPanel projectId={projectId} />
+        <LatencyPanel reads={reads} projectId={projectId} />
       </Page>
     </div>
   );

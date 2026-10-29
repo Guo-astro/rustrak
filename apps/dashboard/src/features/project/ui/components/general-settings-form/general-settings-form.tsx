@@ -1,15 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ProjectResponse } from '@rustrak/client';
-import { useMemo, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
-import { deleteProject, updateProject } from '@/features/project/api/mutations';
+import { projectMutations } from '@/features/project/api/mutations';
 import {
   projectNameField,
   projectSlugField,
 } from '@/features/project/model/fields';
+import { ApiError } from '@/shared/api/query';
 import type { Translate } from '@/shared/lib/error-copy';
 import { describeError } from '@/shared/lib/error-copy';
 import {
@@ -49,7 +51,9 @@ export function GeneralSettingsForm({ project }: GeneralSettingsFormProps) {
   const t = useTranslations('projects');
   const formT = useTranslations();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const update = useMutation(projectMutations.update(project.id));
+  const remove = useMutation(projectMutations.delete());
+  const isPending = update.isPending;
 
   const generalSettingsSchema = useMemo(
     () => buildGeneralSettingsSchema(t),
@@ -72,22 +76,22 @@ export function GeneralSettingsForm({ project }: GeneralSettingsFormProps) {
     void form.trigger('name').then((valid) => {
       if (!valid || !hasNameChanges) return;
 
-      startTransition(async () => {
-        const trimmed = form.getValues('name').trim();
-        const result = await updateProject(project.id, { name: trimmed });
-
-        if (!result.success) {
-          reportFailure(result.error, t('toasts.updateNameFailed'));
-          return;
-        }
-
-        // Keep the field on the value that was actually persisted, otherwise
-        // stray whitespace leaves the Save button looking permanently dirty.
-        form.setValue('name', trimmed);
-        clearFailure();
-        toast.success(t('toasts.nameUpdated'));
-        router.refresh();
-      });
+      const trimmed = form.getValues('name').trim();
+      update.mutate(
+        { name: trimmed },
+        {
+          onSuccess: () => {
+            // Keep the field on the value that was actually persisted,
+            // otherwise stray whitespace leaves the Save button looking
+            // permanently dirty.
+            form.setValue('name', trimmed);
+            clearFailure();
+            toast.success(t('toasts.nameUpdated'));
+          },
+          onError: (error) =>
+            reportFailure(error.error, t('toasts.updateNameFailed')),
+        },
+      );
     });
   };
 
@@ -95,55 +99,52 @@ export function GeneralSettingsForm({ project }: GeneralSettingsFormProps) {
     void form.trigger('slug').then((valid) => {
       if (!valid || !hasSlugChanges) return;
 
-      startTransition(async () => {
-        const result = await updateProject(project.id, {
-          slug: form.getValues('slug').trim(),
-        });
-
-        if (!result.success) {
-          reportFailure(result.error, t('toasts.updateSlugFailed'));
-          return;
-        }
-
-        // The server slugifies the input, so echo back what it actually
-        // stored rather than the raw text: typing "My API" must leave the
-        // field showing "my-api", not a value that was never persisted.
-        form.setValue('slug', result.data.slug);
-        clearFailure();
-        toast.success(t('toasts.slugUpdated'));
-        router.refresh();
-      });
+      update.mutate(
+        { slug: form.getValues('slug').trim() },
+        {
+          onSuccess: (updated) => {
+            // The server slugifies the input, so echo back what it actually
+            // stored rather than the raw text: typing "My API" must leave the
+            // field showing "my-api", not a value that was never persisted.
+            form.setValue('slug', updated.slug);
+            clearFailure();
+            toast.success(t('toasts.slugUpdated'));
+          },
+          onError: (error) =>
+            reportFailure(error.error, t('toasts.updateSlugFailed')),
+        },
+      );
     });
   };
 
   const handlePlatformChange = (platform: string) => {
     if (!platform || platform === project.platform) return;
 
-    startTransition(async () => {
-      const result = await updateProject(project.id, { platform });
-
-      if (!result.success) {
+    update.mutate(
+      { platform },
+      {
+        onSuccess: () => {
+          clearFailure();
+          toast.success(t('toasts.platformUpdated'));
+        },
         // The picker is not a registered field, so this one has nowhere to go
         // but the form-level slot; `reportFailure` puts it there.
-        reportFailure(result.error, t('toasts.updatePlatformFailed'));
-        return;
-      }
-
-      clearFailure();
-      toast.success(t('toasts.platformUpdated'));
-      router.refresh();
-    });
+        onError: (error) =>
+          reportFailure(error.error, t('toasts.updatePlatformFailed')),
+      },
+    );
   };
 
   const handleRemoveProject = async () => {
-    const result = await deleteProject(project.id);
-
-    if (!result.success) {
+    try {
+      await remove.mutateAsync(project.id);
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error;
       // Toast only, deliberately. The Danger Zone sits outside the `<Form>`
       // wrapper, so a form-level message raised here renders up in Project
       // Details, nowhere near the button that was pressed.
       toast.error(t('toasts.deleteProjectFailed'), {
-        description: describeError(result.error, formT),
+        description: describeError(error.error, formT),
       });
       return;
     }

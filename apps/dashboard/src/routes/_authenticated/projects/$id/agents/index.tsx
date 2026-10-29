@@ -1,4 +1,4 @@
-import type { AgentsTracesData } from '@rustrak/client';
+import type { AgentSummary, AgentsTracesData } from '@rustrak/client';
 import {
   type DataTableQuery,
   EmptyIcon,
@@ -12,20 +12,15 @@ import {
   Tabs,
   Text,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
+import { agentQueries } from '@/features/agent-trace/api/queries';
 import {
-  getAgentConversations,
-  getAgentDuration,
-  getAgentEnvironments,
-  getAgentModelsTable,
-  getAgentRuns,
-  getAgentSummary,
-  getAgentToolsTable,
-  getAgentTraces,
-} from '@/features/agent-trace/api/queries';
-import {
-  AGENT_PERIODS,
+  AGENT_PERIOD_PARAMS,
+  type AgentDashboardFilters,
+  agentPeriodParam,
   fillBuckets,
   resolveAgentFilters,
 } from '@/features/agent-trace/model/filters';
@@ -39,12 +34,11 @@ import {
 } from '@/features/agent-trace/ui/components/agent-overview';
 import { AgentScope } from '@/features/agent-trace/ui/components/agent-scope';
 import { AgentTracesTable } from '@/features/agent-trace/ui/components/agent-traces-table';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { Panel } from '@/shared/ui/components/panel';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
 const PAGE_SIZE = 25;
@@ -70,7 +64,8 @@ const SORTS: TraceSort[] = [
 
 interface AgentsSearch {
   view?: (typeof VIEWS)[number];
-  period?: (typeof AGENT_PERIODS)[number];
+  /** Absent is the last 24 hours; `all` is all time. */
+  period?: (typeof AGENT_PERIOD_PARAMS)[number];
   environment?: string;
   q?: string;
   sort?: string;
@@ -97,6 +92,50 @@ function filterValue(query: DataTableQuery, id: string): string | undefined {
 }
 
 /**
+ * The page's reads for a URL, built once for the loader and the components so
+ * both name the same cache entries. One window for every widget: a chart on
+ * 24h beside a table on all time is a reader's trap, not a feature.
+ */
+function agentReads(projectId: number, search: AgentsSearch) {
+  const filters = resolveAgentFilters(search);
+  const window = {
+    period_hours: filters.periodHours,
+    environment: filters.environment,
+  };
+  const series = { ...window, interval_hours: filters.intervalHours };
+  const query = tableQuery(search);
+  const sort = query.sorting[0]?.id as TraceSort | undefined;
+  return {
+    filters,
+    query,
+    summary: agentQueries.summary(projectId, window),
+    // Not filtered by the current environment: the picker has to keep
+    // offering the option you would switch back to.
+    environments: agentQueries.environments(projectId),
+    runs: agentQueries.runs(projectId, series),
+    duration: agentQueries.duration(projectId, series),
+    models: agentQueries.models(projectId, window),
+    tools: agentQueries.tools(projectId, window),
+    traces: agentQueries.traces(projectId, {
+      ...window,
+      agent: filterValue(query, 'agent'),
+      model: filterValue(query, 'model'),
+      tool: filterValue(query, 'tool'),
+      errors: filterValue(query, 'status') === 'failing' || undefined,
+      sort:
+        sort && SORTS.includes(sort) && sort !== 'newest' ? sort : undefined,
+      page: query.pagination.pageIndex + 1,
+      per_page: PAGE_SIZE,
+    }),
+    conversations: agentQueries.conversations(projectId, {
+      ...window,
+      page: Number(search.page ?? 1) || 1,
+      per_page: PAGE_SIZE,
+    }),
+  };
+}
+
+/**
  * Agents: Sentry's AI agents insights. The overview answers how the agents
  * are doing -- runs, calls, tokens, latency, failures, by model and by tool
  * -- and the traces tab lists every run, a row a click on a model or tool
@@ -105,70 +144,54 @@ function filterValue(query: DataTableQuery, id: string): string | undefined {
 export const Route = createFileRoute('/_authenticated/projects/$id/agents/')({
   validateSearch: (search: Record<string, unknown>): AgentsSearch => ({
     view: searchOneOf(search.view, VIEWS),
-    period: searchOneOf(search.period, AGENT_PERIODS),
+    period: searchOneOf(search.period, AGENT_PERIOD_PARAMS),
     environment: searchString(search.environment),
     q: searchString(search.q),
     sort: searchString(search.sort),
     page: searchString(String(search.page ?? '')) || undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ params, deps }) => {
+  // The header and the open tab are awaited; the overview's panels are only
+  // started. Awaiting all nine reads made every tab as slow as the slowest,
+  // and one that timed out failed the page.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    // One window for every widget on the page: a chart on 24h beside a table
-    // on all-time is a reader's trap, not a feature.
-    const filters = resolveAgentFilters(deps);
-    const window = {
-      period_hours: filters.periodHours,
-      environment: filters.environment,
-    };
-    const query = tableQuery(deps);
-    const sort = query.sorting[0]?.id as TraceSort | undefined;
-    return loadAll([
-      getProject(projectId),
-      getAgentSummary(projectId, window),
-      getAgentRuns(projectId, {
-        ...window,
-        interval_hours: filters.intervalHours,
+    const reads = agentReads(projectId, deps);
+    const view = deps.view ?? 'overview';
+    if (view === 'overview') {
+      void queryClient.prefetchQuery(reads.runs);
+      void queryClient.prefetchQuery(reads.duration);
+      void queryClient.prefetchQuery(reads.models);
+      void queryClient.prefetchQuery(reads.tools);
+    }
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
       }),
-      getAgentDuration(projectId, {
-        ...window,
-        interval_hours: filters.intervalHours,
-      }),
-      getAgentModelsTable(projectId, window),
-      getAgentToolsTable(projectId, window),
-      getAgentTraces(projectId, {
-        ...window,
-        agent: filterValue(query, 'agent'),
-        model: filterValue(query, 'model'),
-        tool: filterValue(query, 'tool'),
-        errors: filterValue(query, 'status') === 'failing' || undefined,
-        sort:
-          sort && SORTS.includes(sort) && sort !== 'newest' ? sort : undefined,
-        page: query.pagination.pageIndex + 1,
-        per_page: PAGE_SIZE,
-      }),
-      // Not filtered by the current environment: the picker has to keep
-      // offering the option you would switch back to.
-      getAgentEnvironments(projectId),
-      getAgentConversations(projectId, {
-        ...window,
-        page: deps.view === 'conversations' ? Number(deps.page ?? 1) || 1 : 1,
-        per_page: PAGE_SIZE,
-      }),
+      queryClient.query({ ...reads.summary, staleTime: 'static' }),
+      queryClient.query({ ...reads.environments, staleTime: 'static' }),
+      // The models and tools are the traces table's filter options.
+      view === 'traces' &&
+        Promise.all([
+          queryClient.query({ ...reads.traces, staleTime: 'static' }),
+          queryClient.query({ ...reads.models, staleTime: 'static' }),
+          queryClient.query({ ...reads.tools, staleTime: 'static' }),
+        ]),
+      view === 'conversations' &&
+        queryClient.query({ ...reads.conversations, staleTime: 'static' }),
     ]);
+    return { project };
   },
   head: ({ loaderData }) => {
     const tPages = translator('projectPages');
-    if (!loaderData?.success) {
-      return { meta: [{ title: tPages('projectNotFound') }] };
-    }
-    const [project] = loaderData.data;
+    const name = loaderData?.project.name ?? '';
     return {
       meta: [
-        { title: tPages('agents.meta.title', { project: project.name }) },
+        { title: tPages('agents.meta.title', { project: name }) },
         {
           name: 'description',
-          content: tPages('agents.meta.description', { project: project.name }),
+          content: tPages('agents.meta.description', { project: name }),
         },
       ],
     };
@@ -182,31 +205,14 @@ function AgentsPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const router = useRouter();
-  const loaded = Route.useLoaderData();
   const loading = useRouterState({ select: (s) => s.isLoading });
   const projectId = Number.parseInt(id, 10);
   const view = search.view ?? 'overview';
-  const filters = resolveAgentFilters(search);
-
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={tPages('agents.loadFailed')} />
-    );
-  }
-
-  const [
-    project,
-    summary,
-    runs,
-    duration,
-    models,
-    tools,
-    traces,
-    environments,
-    conversations,
-  ] = loaded.data;
-  const query = tableQuery(search);
+  const reads = agentReads(projectId, search);
+  const { filters, query } = reads;
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: summary } = useSuspenseQuery(reads.summary);
+  const { data: environments } = useSuspenseQuery(reads.environments);
 
   // A model or tool row opens the traces that used it.
   const openTraces = (key: 'model' | 'tool', value: string) => {
@@ -233,19 +239,21 @@ function AgentsPage() {
     <AgentScope
       environments={environments}
       environment={search.environment}
-      period={search.period}
+      period={filters.period}
       onChange={(next) =>
         navigate({
-          search: (prev) => ({ ...prev, ...next, page: undefined }),
+          search: (prev) => ({
+            ...prev,
+            environment: next.environment,
+            period: agentPeriodParam(next.period),
+            page: undefined,
+          }),
         })
       }
     />
   );
 
-  const nothingYet =
-    summary.agent_runs + summary.llm_calls + summary.tool_calls === 0 &&
-    !search.period &&
-    !search.environment;
+  const nothingYet = isNothingYet(summary, filters, environments);
 
   return (
     <div className="flex h-full flex-col">
@@ -298,110 +306,250 @@ function AgentsPage() {
           </Text>
         </div>
       ) : view === 'conversations' ? (
-        <Page scroll={false}>
-          <div className="flex justify-end">{scope}</div>
-          <ConversationsList
-            projectId={projectId}
-            page={conversations}
-            currentPage={Number(search.page ?? 1) || 1}
-            loading={loading}
-            onPageChange={(next) =>
-              navigate({
-                search: (prev) => ({
-                  ...prev,
-                  page: next === 1 ? undefined : String(next),
-                }),
-              })
-            }
-          />
-        </Page>
+        <AgentsConversations
+          reads={reads}
+          loading={loading}
+          scope={scope}
+          projectId={projectId}
+        />
       ) : view === 'traces' ? (
-        <Page scroll={false}>
-          <AgentTracesTable
-            page={traces}
-            query={query}
-            loading={loading}
-            models={models.map((m) => m.model)}
-            tools={tools.map((m) => m.tool)}
-            scope={scope}
-            onOpen={(trace) =>
-              router.push(`/projects/${projectId}/agents/${trace.trace_id}`)
-            }
-            onQueryChange={(updater) => {
-              const next = updater(query);
-              const params = serializeTableQuery(
-                {
-                  ...next,
-                  sorting: next.sorting.map((s) => ({ ...s, desc: true })),
-                },
-                VARIANTS,
-                PAGE_SIZE,
-              );
-              navigate({
-                search: (prev) => ({
-                  ...prev,
-                  q: params.get('q') ?? undefined,
-                  sort:
-                    next.sorting[0]?.id === 'newest'
-                      ? undefined
-                      : (params.get('sort') ?? undefined),
-                  page: params.get('page') ?? undefined,
-                }),
-              });
-            }}
-          />
-        </Page>
+        <AgentsTraces
+          reads={reads}
+          loading={loading}
+          scope={scope}
+          projectId={projectId}
+        />
       ) : (
-        <Page>
-          <div className="flex justify-end">{scope}</div>
-          <AgentFigures summary={summary} />
-          <div className="grid shrink-0 gap-5 xl:grid-cols-2">
-            <Panel title={t('charts.runs')} hint={t('charts.runsHint')}>
+        <AgentsOverview
+          reads={reads}
+          summary={summary}
+          scope={scope}
+          onOpen={openTraces}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The overview's panels, each arriving with its own read. */
+function AgentsOverview({
+  reads,
+  summary,
+  scope,
+  onOpen: openTraces,
+}: {
+  reads: AgentReads;
+  summary: AgentSummary;
+  scope: ReactNode;
+  onOpen: (key: 'model' | 'tool', value: string) => void;
+}) {
+  const t = useTranslations('agents');
+  const loadFailed = useTranslations('projectPages')('agents.loadFailed');
+  const { filters } = reads;
+  const runs = useQuery(reads.runs);
+  const duration = useQuery(reads.duration);
+  const models = useQuery(reads.models);
+  const tools = useQuery(reads.tools);
+  return (
+    <Page>
+      <div className="flex justify-end">{scope}</div>
+      <AgentFigures summary={summary} />
+      <div className="grid shrink-0 gap-5 xl:grid-cols-2">
+        <Panel title={t('charts.runs')} hint={t('charts.runsHint')}>
+          <QueryState
+            query={runs}
+            placeholder={<PanelPlaceholder height={200} />}
+            title={loadFailed}
+          >
+            {(points) => (
               <RunsChart
                 points={fillBuckets(
-                  runs,
+                  points,
                   filters.intervalHours,
                   filters.periodHours,
                   (bucket) => ({ bucket, value: 0, errors: 0 }),
                 )}
               />
-            </Panel>
-            <Panel title={t('charts.duration')} hint={t('charts.durationHint')}>
-              {/* An empty bucket is a gap in the line, not a zero. */}
+            )}
+          </QueryState>
+        </Panel>
+        <Panel title={t('charts.duration')} hint={t('charts.durationHint')}>
+          {/* An empty bucket is a gap in the line, not a zero. */}
+          <QueryState
+            query={duration}
+            placeholder={<PanelPlaceholder height={200} />}
+            title={loadFailed}
+          >
+            {(points) => (
               <DurationChart
                 points={fillBuckets(
-                  duration,
+                  points,
                   filters.intervalHours,
                   filters.periodHours,
                   (bucket) => ({ bucket, avg_ms: 0, p95_ms: 0 }),
                 )}
               />
-            </Panel>
-          </div>
-          <div className="grid shrink-0 gap-5 xl:grid-cols-2">
-            <Panel
-              flush
-              title={t('modelsTable.title')}
-              hint={t('modelsTable.hint')}
-            >
+            )}
+          </QueryState>
+        </Panel>
+      </div>
+      <div className="grid shrink-0 gap-5 xl:grid-cols-2">
+        <Panel
+          flush
+          title={t('modelsTable.title')}
+          hint={t('modelsTable.hint')}
+        >
+          <QueryState
+            query={models}
+            placeholder={<PanelPlaceholder height={240} />}
+            title={loadFailed}
+          >
+            {(rows) => (
               <ModelsTable
-                rows={models}
+                rows={rows}
                 onOpen={(model) => openTraces('model', model)}
               />
-            </Panel>
-            <Panel
-              flush
-              title={t('toolsTable.title')}
-              hint={t('toolsTable.hint')}
-            >
+            )}
+          </QueryState>
+        </Panel>
+        <Panel flush title={t('toolsTable.title')} hint={t('toolsTable.hint')}>
+          <QueryState
+            query={tools}
+            placeholder={<PanelPlaceholder height={240} />}
+            title={loadFailed}
+          >
+            {(rows) => (
               <ToolsTable
-                rows={tools}
+                rows={rows}
                 onOpen={(tool) => openTraces('tool', tool)}
               />
-            </Panel>
-          </div>
-        </Page>
-      )}
-    </div>
+            )}
+          </QueryState>
+        </Panel>
+      </div>
+    </Page>
+  );
+}
+
+/** The traces tab: every run, filtered, sorted and paged through the URL. */
+function AgentsTraces({
+  reads,
+  loading,
+  scope,
+  projectId,
+}: {
+  reads: AgentReads;
+  loading: boolean;
+  scope: ReactNode;
+  projectId: number;
+}) {
+  const navigate = Route.useNavigate();
+  const router = useRouter();
+  const { query } = reads;
+  const { data: page } = useSuspenseQuery(reads.traces);
+  const { data: models } = useSuspenseQuery(reads.models);
+  const { data: tools } = useSuspenseQuery(reads.tools);
+  return (
+    <Page scroll={false}>
+      <AgentTracesTable
+        page={page}
+        query={query}
+        loading={loading}
+        models={models.map((m) => m.model)}
+        tools={tools.map((m) => m.tool)}
+        scope={scope}
+        onOpen={(trace) =>
+          router.push(`/projects/${projectId}/agents/${trace.trace_id}`)
+        }
+        onQueryChange={(updater) => {
+          const next = updater(query);
+          const params = serializeTableQuery(
+            {
+              ...next,
+              sorting: next.sorting.map((s) => ({ ...s, desc: true })),
+            },
+            VARIANTS,
+            PAGE_SIZE,
+          );
+          navigate({
+            search: (prev) => ({
+              ...prev,
+              q: params.get('q') ?? undefined,
+              sort:
+                next.sorting[0]?.id === 'newest'
+                  ? undefined
+                  : (params.get('sort') ?? undefined),
+              page: params.get('page') ?? undefined,
+            }),
+          });
+        }}
+      />
+    </Page>
+  );
+}
+
+/** The conversations tab: a page of them, the most recently active first. */
+function AgentsConversations({
+  reads,
+  loading,
+  scope,
+  projectId,
+}: {
+  reads: AgentReads;
+  loading: boolean;
+  scope: ReactNode;
+  projectId: number;
+}) {
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
+  const { data: conversations } = useSuspenseQuery(reads.conversations);
+  return (
+    <Page scroll={false}>
+      <div className="flex justify-end">{scope}</div>
+      <ConversationsList
+        projectId={projectId}
+        page={conversations}
+        currentPage={Number(search.page ?? 1) || 1}
+        loading={loading}
+        onPageChange={(next) =>
+          navigate({
+            search: (prev) => ({
+              ...prev,
+              page: next === 1 ? undefined : String(next),
+            }),
+          })
+        }
+      />
+    </Page>
+  );
+}
+
+/**
+ * Whether to show the setup screen. Nothing in the window is not nothing
+ * ever: only when no AI span has ever arrived to name an environment, or all
+ * time is what came back empty.
+ */
+function isNothingYet(
+  summary: AgentSummary,
+  filters: AgentDashboardFilters,
+  environments: string[],
+): boolean {
+  const empty =
+    summary.agent_runs + summary.llm_calls + summary.tool_calls === 0;
+  return (
+    empty &&
+    filters.environment === undefined &&
+    (filters.period === undefined || environments.length === 0)
+  );
+}
+
+type AgentReads = ReturnType<typeof agentReads>;
+
+function PanelPlaceholder({ height }: { height: number }) {
+  return (
+    <div
+      className="w-full animate-pulse rounded-lg bg-surface-hover motion-reduce:animate-none"
+      style={{ height }}
+    />
   );
 }

@@ -1,7 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useFormatter, useTranslations } from 'use-intl';
-import { getRateLimits } from '@/features/project/api/queries';
-import { getServerVersion } from '@/shared/api/server-version';
+import { projectQueries } from '@/features/project/api/queries';
+import { serverVersionQuery } from '@/shared/api/server-version';
 import { APP_VERSION } from '@/shared/config/constants';
 import { translator } from '@/shared/i18n/intl';
 import { describeError } from '@/shared/lib/error-copy';
@@ -18,12 +19,10 @@ export const Route = createFileRoute('/_authenticated/settings/instance')({
       ],
     };
   },
-  loader: async () => {
-    const [serverVersion, limits] = await Promise.all([
-      getServerVersion(),
-      getRateLimits(),
-    ]);
-    return { serverVersion, limits };
+  // Both are rows the page paints without: started, not awaited.
+  loader: ({ context: { queryClient } }) => {
+    void queryClient.prefetchQuery(serverVersionQuery());
+    void queryClient.prefetchQuery(projectQueries.rateLimits());
   },
   component: InstancePage,
 });
@@ -44,7 +43,8 @@ function InstancePage() {
   const tProjects = useTranslations('projects');
   const rootT = useTranslations();
   const format = useFormatter();
-  const { serverVersion, limits } = Route.useLoaderData();
+  const serverVersion = useQuery(serverVersionQuery());
+  const limits = useQuery(projectQueries.rateLimits());
 
   const limit = (value: number) =>
     value > 0 ? format.number(value) : t('instance.unlimited');
@@ -59,11 +59,12 @@ function InstancePage() {
       <SettingSection title={t('instance.version')}>
         <SettingRow title={t('about.serverVersion')}>
           <p className="font-mono text-mono text-fg">
-            {serverVersion.success
-              ? serverVersion.data.version
-                ? `v${serverVersion.data.version}`
-                : t('about.notReported')
-              : t('about.couldNotRead')}
+            {serverVersion.isError
+              ? t('about.couldNotRead')
+              : serverVersion.data &&
+                (serverVersion.data.version
+                  ? `v${serverVersion.data.version}`
+                  : t('about.notReported'))}
           </p>
         </SettingRow>
         <SettingRow title={t('about.webviewVersion')}>
@@ -72,15 +73,15 @@ function InstancePage() {
         <SettingRow title={t('about.environment')}>
           <p className="font-mono text-mono text-fg">{import.meta.env.MODE}</p>
         </SettingRow>
-        {!serverVersion.success && (
+        {serverVersion.isError && (
           <p className="px-5 py-3 text-hint text-fg-subtle">
-            {describeError(serverVersion.error, rootT)}{' '}
+            {describeError(serverVersion.error.error, rootT)}{' '}
             {t('about.serverVersionUnknown')}
           </p>
         )}
       </SettingSection>
 
-      {limits.success ? (
+      {limits.data ? (
         <SettingSection
           title={t('instance.limits')}
           description={t('instance.limitsDescription')}

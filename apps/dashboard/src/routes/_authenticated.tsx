@@ -1,17 +1,11 @@
 import { AppShell, Topbar, TopbarMenuButton } from '@rustrak/ui';
-import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
-import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
-import { useEffect } from 'react';
-import { useTranslations } from 'use-intl';
-import { getProjects } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { TimeZoneSync } from '@/features/user/ui/components/time-zone-sync';
 import { returnPath } from '@/shared/api/return-path';
 import { session } from '@/shared/api/session';
 import { COMMAND_BAR_PROJECT_LIMIT } from '@/shared/config/commands';
-import { Link } from '@/shared/ui/components/link';
 import { OutageScreen } from '@/shared/ui/components/outage-screen';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import { TableLabels } from '@/shared/ui/components/table-labels';
 import { UpdateBannerSlot } from '@/shared/ui/components/update-banner-slot';
 import {
@@ -52,11 +46,14 @@ export const Route = createFileRoute('/_authenticated')({
 
     return answer;
   },
-  // The sidebar's switcher and the command bar. A loader rather than a read in
-  // the sidebar, so it re-runs on navigation and on `router.refresh()`.
-  loader: () => getProjects({ per_page: COMMAND_BAR_PROJECT_LIMIT }),
+  // The sidebar's switcher and the command bar, started here so they are on
+  // their way before the frame renders; neither waits for it.
+  loader: ({ context: { queryClient } }) => {
+    void queryClient.prefetchQuery(
+      projectQueries.list({ per_page: COMMAND_BAR_PROJECT_LIMIT }),
+    );
+  },
   component: AuthenticatedLayout,
-  errorComponent: MainError,
 });
 
 function AuthenticatedLayout() {
@@ -110,59 +107,4 @@ function sidebarWasCollapsed(): boolean {
 function rememberSidebar(collapsed: boolean) {
   // biome-ignore lint/suspicious/noDocumentCookie: one boolean, read before the first paint; the Cookie Store API is async.
   document.cookie = `sidebar_state=${!collapsed}; path=/; max-age=31536000; SameSite=Lax`;
-}
-
-/**
- * The error boundary for everything under the header.
- *
- * No brand panel here, unlike the router's default: this boundary renders
- * *below* the header, which already carries the Rustrak mark and the
- * navigation, so a second brand panel would compete with it and strand the
- * user in a screen that looks like a logout.
- */
-function MainError({ error, reset }: ErrorComponentProps) {
-  const t = useTranslations('errors');
-
-  useEffect(() => {
-    console.error('Application error:', error);
-  }, [error]);
-
-  return (
-    <div className="flex-1 flex items-center justify-center px-6 py-20">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="flex justify-center">
-          <div className="size-12 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle
-              className="size-5 text-destructive"
-              aria-hidden="true"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <h1 className="text-xl font-bold tracking-tight">
-            {t('main.headline')}
-          </h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {t('main.description')}
-          </p>
-        </div>
-
-        <div className="flex justify-center gap-4">
-          <Button onClick={reset} variant="default">
-            <RefreshCw className="mr-2 size-4" />
-            {t('tryAgain')}
-          </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/projects" />}
-          >
-            <Home className="mr-2 size-4" />
-            {t('goToProjects')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
 }

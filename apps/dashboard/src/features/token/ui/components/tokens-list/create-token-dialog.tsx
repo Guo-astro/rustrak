@@ -18,8 +18,8 @@ export const TOKEN_DESCRIPTION_MAX_LENGTH = 200;
  * on demand in this shape: the full value, once.
  *
  * Two states in one dialog because they are two steps of one act. Closing
- * after the value is shown is what refreshes the list, which is why the caller
- * gets `onDone` rather than a plain `onOpenChange`.
+ * after the value is shown is what forgets it, which is why the caller gets
+ * `onDone` rather than a plain `onOpenChange`.
  */
 export function CreateTokenDialog({
   open,

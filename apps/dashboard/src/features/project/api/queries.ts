@@ -4,18 +4,11 @@
  * `stats` lives here rather than in a slice of its own: the aggregates are
  * *of a project*, not a concept a user manipulates.
  */
-import type {
-  ProjectResponse,
-  ProjectStatsSummary,
-  ProjectsListData,
-  ProjectsListResponse,
-  RateLimitsResponse,
-  Result,
-  RustrakError,
-  StatsGetEventTimeseriesResponse,
-} from '@rustrak/client';
-import { mapResult } from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import type { ProjectsListData } from '@rustrak/client';
+import { queryOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
 /** What the overview's page filters narrow every read to. */
 export interface OverviewScope {
@@ -23,103 +16,77 @@ export interface OverviewScope {
   release?: string;
 }
 
-/**
- * Get projects with pagination.
- *
- * @param options - Optional pagination options
- * @returns Paginated list of projects, or the failure that stopped it
- */
-export async function getProjects(
-  options?: ProjectsListData['query'],
-): Promise<Result<ProjectsListResponse, RustrakError>> {
-  const client = await createClient();
-  return client.projects.list({ query: options });
-}
-
-/**
- * Get a single project by ID.
- *
- * @param id - Project ID
- * @returns The project
- */
-export async function getProject(
-  id: number,
-): Promise<Result<ProjectResponse, RustrakError>> {
-  const client = await createClient();
-  return client.projects.get({ path: { id } });
-}
-
-/** The server's per-project limits, which a project without its own follows. */
-export async function getRateLimits(): Promise<
-  Result<RateLimitsResponse, RustrakError>
-> {
-  const client = await createClient();
-  return client.projects.getRateLimits();
-}
-
-/**
- * Get time-bucketed error-event volume for a project, split by severity.
- *
- * No catch: a fetch/auth failure must surface to the error boundary rather
- * than be disguised as a flat line at zero, which reads as "nothing is
- * breaking" — the most dangerous thing this page could say while wrong.
- *
- * @param projectId - The project ID
- * @param period - Time window (e.g. '24h', '7d'). Omit for all time.
- * @param interval - Bucket width in hours (default: 1, max: 24).
- * @param scope - Only this environment and release. Omit for every one.
- */
-export async function getProjectEventTimeseries(
-  projectId: number,
-  period?: string,
-  interval?: number,
-  scope?: OverviewScope,
-): Promise<Result<StatsGetEventTimeseriesResponse, RustrakError>> {
-  const client = await createClient();
-  return client.stats.getEventTimeseries({
-    path: { project_id: projectId },
-    query: { period, interval, ...scope },
-  });
-}
-
-/**
- * Get project-wide counters for the window, each with its previous-period
- * comparison.
- *
- * No catch, for the same reason as the timeseries above: zeroed counters are
- * indistinguishable from a genuinely quiet project.
- *
- * @param projectId - The project ID
- * @param period - Time window (e.g. '24h', '7d'). Omit for all time.
- */
-export async function getProjectStatsSummary(
-  projectId: number,
-  period?: string,
-  scope?: OverviewScope,
-): Promise<Result<ProjectStatsSummary, RustrakError>> {
-  const client = await createClient();
-  return client.stats.getSummary({
-    path: { project_id: projectId },
-    query: { period, ...scope },
-  });
-}
-
-/** The newest hundred releases' versions, for the filters that pick one. */
-export async function getProjectReleases(
-  projectId: number,
-): Promise<Result<string[], RustrakError>> {
-  const client = await createClient();
-  const page = await client.releases.list({
-    path: { project_id: projectId },
-    query: { per_page: 100 },
-  });
-  return mapResult(page, (p) => p.items.map((release) => release.version));
-}
-
-/** The environments a project's issues have been seen in, by name. */
-export async function getProjectEnvironments(
-  projectId: number,
-): Promise<Result<string[], RustrakError>> {
-  const client = await createClient();
-  return client.environments.list({ path: { project_id: projectId } });
-}
+/** Reads of projects, as `queryOptions` for the cache. */
+export const projectQueries = {
+  /** Every list of projects, whatever its page. */
+  lists: () => ['projects', 'list'] as const,
+  list: (query: ProjectsListData['query'] = {}) =>
+    queryOptions({
+      queryKey: [...projectQueries.lists(), query],
+      queryFn: ({ signal }) => orThrow(api().projects.list({ query, signal })),
+    }),
+  detail: (id: number) =>
+    queryOptions({
+      queryKey: [...projectScope(id), 'detail'],
+      queryFn: ({ signal }) =>
+        orThrow(api().projects.get({ path: { id }, signal })),
+    }),
+  /** The server's per-project limits, which a project without its own follows. */
+  rateLimits: () =>
+    queryOptions({
+      queryKey: ['rate-limits'],
+      queryFn: ({ signal }) =>
+        orThrow(api().projects.getRateLimits({ signal })),
+    }),
+  eventTimeseries: (
+    projectId: number,
+    query: { period?: string; interval?: number } & OverviewScope,
+  ) =>
+    queryOptions({
+      queryKey: [...projectScope(projectId), 'stats', 'events', query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().stats.getEventTimeseries({
+            path: { project_id: projectId },
+            query,
+            signal,
+          }),
+        ),
+    }),
+  summary: (projectId: number, query: { period?: string } & OverviewScope) =>
+    queryOptions({
+      queryKey: [...projectScope(projectId), 'stats', 'summary', query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().stats.getSummary({
+            path: { project_id: projectId },
+            query,
+            signal,
+          }),
+        ),
+    }),
+  /** The newest hundred releases' versions, for the filters that pick one. */
+  releaseVersions: (projectId: number) =>
+    queryOptions({
+      queryKey: [...projectScope(projectId), 'releases', 'versions'],
+      queryFn: async ({ signal }) => {
+        const page = await orThrow(
+          api().releases.list({
+            path: { project_id: projectId },
+            query: { per_page: 100 },
+            signal,
+          }),
+        );
+        return page.items.map((release) => release.version);
+      },
+    }),
+  /** The environments a project's issues have been seen in, by name. */
+  environments: (projectId: number) =>
+    queryOptions({
+      queryKey: [...projectScope(projectId), 'environments'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().environments.list({ path: { project_id: projectId }, signal }),
+        ),
+    }),
+};

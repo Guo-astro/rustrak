@@ -1,90 +1,101 @@
-import type {
-  GitHubLogin,
-  IssueLink,
-  ManifestResponse,
-  ProjectRepository,
-  Result,
-  RustrakError,
-  UpdateProjectRepository,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+/**
+ * Writes to the GitHub integration.
+ *
+ * Creating, linking or unlinking a GitHub issue also writes a line to the
+ * issue's activity log, which belongs to another slice: those invalidate the
+ * project's whole scope rather than only the GitHub panel.
+ */
+import type { UpdateProjectRepository } from '@rustrak/client';
+import { mutationOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
+import { githubQueries } from './queries';
 
-export async function getManifest(
-  organization?: string,
-): Promise<Result<ManifestResponse, RustrakError>> {
-  const client = await createClient();
-  return client.github.manifest({ body: { organization } });
-}
-
-export async function disconnectGitHub(): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.github.disconnect();
-}
-
-export async function setProjectRepository(
-  projectId: number,
-  input: UpdateProjectRepository,
-): Promise<Result<ProjectRepository, RustrakError>> {
-  const client = await createClient();
-  return client.github.putProjectRepository({
-    path: { project_id: projectId },
-    body: input,
-  });
-}
-
-export async function removeProjectRepository(
-  projectId: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.github.deleteProjectRepository({
-    path: { project_id: projectId },
-  });
-}
-
-export async function syncCodeowners(
-  projectId: number,
-): Promise<Result<ProjectRepository, RustrakError>> {
-  const client = await createClient();
-  return client.github.syncCodeowners({ path: { project_id: projectId } });
-}
-
-export async function createGitHubIssue(
-  projectId: number,
-  issueId: string,
-): Promise<Result<IssueLink, RustrakError>> {
-  const client = await createClient();
-  return client.github.createIssue({
-    path: { project_id: projectId, issue_id: issueId },
-    body: {},
-  });
-}
-
-export async function linkGitHubIssue(
-  projectId: number,
-  issueId: string,
-  reference: string,
-): Promise<Result<IssueLink, RustrakError>> {
-  const client = await createClient();
-  return client.github.linkIssue({
-    path: { project_id: projectId, issue_id: issueId },
-    body: { reference },
-  });
-}
-
-export async function unlinkGitHubIssue(
-  projectId: number,
-  issueId: string,
-  linkId: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.github.unlinkIssue({
-    path: { project_id: projectId, issue_id: issueId, link_id: linkId },
-  });
-}
-
-export async function setMyGitHubLogin(
-  login: string | null,
-): Promise<Result<GitHubLogin, RustrakError>> {
-  const client = await createClient();
-  return client.github.putMyLogin({ body: { login } });
-}
+export const githubMutations = {
+  /**
+   * The form to post to GitHub so it creates an app already configured for
+   * this server. Nothing is stored until GitHub calls back.
+   */
+  manifest: () =>
+    mutationOptions({
+      mutationFn: (organization: string | undefined) =>
+        orThrow(api().github.manifest({ body: { organization } })),
+    }),
+  /**
+   * Removes the app, its installations and every project's repository, so
+   * every project's GitHub reads change too.
+   */
+  disconnect: () =>
+    mutationOptions({
+      mutationFn: () => orThrow(api().github.disconnect()),
+      meta: { invalidates: [githubQueries.root(), ['projects']] },
+    }),
+  setRepository: (projectId: number) =>
+    mutationOptions({
+      mutationFn: (input: UpdateProjectRepository) =>
+        orThrow(
+          api().github.putProjectRepository({
+            path: { project_id: projectId },
+            body: input,
+          }),
+        ),
+      meta: { invalidates: [githubQueries.all(projectId)] },
+    }),
+  removeRepository: (projectId: number) =>
+    mutationOptions({
+      mutationFn: () =>
+        orThrow(
+          api().github.deleteProjectRepository({
+            path: { project_id: projectId },
+          }),
+        ),
+      meta: { invalidates: [githubQueries.all(projectId)] },
+    }),
+  syncCodeowners: (projectId: number) =>
+    mutationOptions({
+      mutationFn: () =>
+        orThrow(
+          api().github.syncCodeowners({ path: { project_id: projectId } }),
+        ),
+      meta: { invalidates: [githubQueries.all(projectId)] },
+    }),
+  createIssue: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: () =>
+        orThrow(
+          api().github.createIssue({
+            path: { project_id: projectId, issue_id: issueId },
+            body: {},
+          }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  linkIssue: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (reference: string) =>
+        orThrow(
+          api().github.linkIssue({
+            path: { project_id: projectId, issue_id: issueId },
+            body: { reference },
+          }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  unlinkIssue: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (linkId: number) =>
+        orThrow(
+          api().github.unlinkIssue({
+            path: { project_id: projectId, issue_id: issueId, link_id: linkId },
+          }),
+        ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  setMyLogin: () =>
+    mutationOptions({
+      mutationFn: (login: string | null) =>
+        orThrow(api().github.putMyLogin({ body: { login } })),
+      meta: { invalidates: [githubQueries.myLogin().queryKey] },
+    }),
+};

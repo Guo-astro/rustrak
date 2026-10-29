@@ -1,9 +1,4 @@
-import type {
-  LogResponse,
-  LogsVolumeResponse,
-  Result,
-  RustrakError,
-} from '@rustrak/client';
+import type { LogResponse, LogsVolumeResponse } from '@rustrak/client';
 import {
   Button,
   CloseIcon,
@@ -13,11 +8,16 @@ import {
   PageHeader,
   Text,
 } from '@rustrak/ui';
+import {
+  type UseQueryResult,
+  useQuery,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
 import { useShortcuts } from '@/features/issue/ui/components/issue-actions';
-import { getLog, getLogVolume, listLogs } from '@/features/log/api/queries';
+import { logQueries } from '@/features/log/api/queries';
 import { LOG_LEVELS } from '@/features/log/model/log-view';
 import { LogDetail } from '@/features/log/ui/components/log-detail';
 import { LogList } from '@/features/log/ui/components/log-list';
@@ -26,24 +26,52 @@ import {
   type LogSearchValue,
 } from '@/features/log/ui/components/log-search';
 import { LogVolume } from '@/features/log/ui/components/log-volume';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import {
   DEFAULT_PERIOD,
   PERIOD_CHOICES,
   type PeriodChoice,
 } from '@/features/release/model/session-health';
 import { PeriodFilter } from '@/features/release/ui/components/period-filter';
+import type { ApiError } from '@/shared/api/query';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import {
   searchOneOf,
   searchPage,
   searchString,
 } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 
 const PAGE_SIZE = 50;
+
+interface LogsReadSearch {
+  q?: string;
+  level?: (typeof LOG_LEVELS)[number];
+  trace?: string;
+  period?: PeriodChoice;
+  page?: number;
+}
+
+/**
+ * The page's reads for a URL, built once for the loader and the page so both
+ * name the same cache entries.
+ */
+function logReads(projectId: number, search: LogsReadSearch) {
+  const period = search.period ?? DEFAULT_PERIOD;
+  const filters = {
+    query: search.q,
+    level: search.level,
+    trace_id: search.trace,
+    period: period === 'all' ? undefined : period,
+  };
+  return {
+    list: logQueries.list(projectId, {
+      ...filters,
+      page: search.page ?? 1,
+      per_page: PAGE_SIZE,
+    }),
+    volume: logQueries.volume(projectId, filters),
+  };
+}
 
 /**
  * Logs: the lines the SDKs send, newest first.
@@ -70,37 +98,30 @@ export const Route = createFileRoute('/_authenticated/projects/$id/logs')({
     period: search.period,
     page: search.page,
   }),
-  loader: async ({ params, deps }) => {
+  // The lines are awaited, so the router keeps the previous page on screen
+  // while the next loads. The chart is only started: a volume that fails
+  // leaves the lines readable.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const period = deps.period ?? DEFAULT_PERIOD;
-    const filters = {
-      query: deps.q,
-      level: deps.level,
-      trace_id: deps.trace,
-      period: period === 'all' ? undefined : period,
-    };
-    // The chart on its own: a volume that fails leaves the lines readable.
-    const [main, volume] = await Promise.all([
-      loadAll([
-        getProject(projectId),
-        listLogs(projectId, {
-          ...filters,
-          page: deps.page ?? 1,
-          per_page: PAGE_SIZE,
-        }),
-      ]),
-      getLogVolume(projectId, filters),
+    const reads = logReads(projectId, deps);
+    void queryClient.prefetchQuery(reads.volume);
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({ ...reads.list, staleTime: 'static' }),
     ]);
-    return { main, volume };
+    return { project };
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.main.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const [project] = loaderData.main.data;
+    const { project } = loaderData;
     return {
       meta: [
         { title: t('logs.meta.title', { project: project.name }) },
@@ -121,16 +142,16 @@ function LogsPage() {
   const navigate = Route.useNavigate();
   const isPending = useRouterState({ select: (s) => s.status === 'pending' });
   const { id } = Route.useParams();
-  const { main: loaded, volume } = Route.useLoaderData();
+  const projectId = Number.parseInt(id, 10);
   const period = search.period ?? DEFAULT_PERIOD;
   const page = search.page ?? 1;
+  const reads = logReads(projectId, search);
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: logs } = useSuspenseQuery(reads.list);
+  const volume = useQuery(reads.volume);
 
-  const items = loaded.success ? loaded.data[1].items : [];
-  const selection = useSelectedLog(
-    Number.parseInt(id, 10),
-    items,
-    search.selected,
-  );
+  const items = logs.items;
+  const selection = useSelectedLog(projectId, items, search.selected);
   const current = selection.log;
 
   const select = (selected: string | undefined) =>
@@ -159,11 +180,6 @@ function LogsPage() {
     Escape: () => select(undefined),
   });
 
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('logs.loadFailed')} />;
-  }
-
-  const [project, logs] = loaded.data;
   const filtered = Boolean(search.q || search.level || search.trace);
   const howToSend = t.rich('logs.emptyDescription', {
     code: (chunks) => <code className="font-mono">{chunks}</code>,
@@ -270,11 +286,11 @@ function VolumePanel({
   volume,
   lineOpen,
 }: {
-  volume: Result<LogsVolumeResponse, RustrakError>;
+  volume: UseQueryResult<LogsVolumeResponse, ApiError>;
   lineOpen: boolean;
 }) {
   const tLogs = useTranslations('logs');
-  if (volume.success && volume.data.length === 0) return null;
+  if (volume.data?.length === 0) return null;
   return (
     <div
       className={cn(
@@ -282,12 +298,15 @@ function VolumePanel({
         lineOpen && 'max-lg:hidden',
       )}
     >
-      {volume.success ? (
+      {volume.data ? (
         <LogVolume points={volume.data} />
-      ) : (
+      ) : volume.isError ? (
         <Text variant="meta" tone="subtle" className="px-2 pb-2">
           {tLogs('volumeFailed')}
         </Text>
+      ) : (
+        // The chart's height while it loads, so the lines do not jump.
+        <div className="h-[120px]" />
       )}
     </div>
   );
@@ -309,29 +328,13 @@ function useSelectedLog(
   selected: string | undefined,
 ): Selection {
   const onPage = items.find((log) => log.id === selected);
-  // The answer carries what it was asked for: on the render that changes
-  // `selected`, the hook still holds the previous line until its effect runs.
-  const asked = `${projectId}:${selected}`;
-  const fetched = useAsync(
-    async () => ({
-      asked,
-      result:
-        selected && !onPage ? await getLog(projectId, selected) : undefined,
-    }),
-    [projectId, selected, Boolean(onPage)],
-  );
+  const fetched = useQuery({
+    ...logQueries.detail(projectId, selected ?? ''),
+    enabled: selected !== undefined && !onPage,
+  });
   if (onPage) return { log: onPage, failed: false };
-  if (
-    fetched.state !== 'ready' ||
-    fetched.data.asked !== asked ||
-    !fetched.data.result
-  ) {
-    return { log: undefined, failed: false };
-  }
-  const { result } = fetched.data;
-  return result.success
-    ? { log: result.data, failed: false }
-    : { log: undefined, failed: true };
+  if (selected === undefined) return { log: undefined, failed: false };
+  return { log: fetched.data, failed: fetched.isError };
 }
 
 /** Beside the list, or in its place on a phone: the open line. */

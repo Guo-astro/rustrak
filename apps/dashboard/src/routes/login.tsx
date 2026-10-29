@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getSsoConfig } from '@/features/user/api/queries';
+import { userQueries } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { Link } from '@/shared/ui/components/link';
 import { RustrakWordmark } from '@/shared/ui/components/rustrak-wordmark';
@@ -24,10 +25,11 @@ export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): { error?: string } => ({
     error: typeof search.error === 'string' ? search.error : undefined,
   }),
-  loader: async () => {
-    const result = await getSsoConfig();
-    return result.success ? result.data : null;
-  },
+  // Awaited so the form does not reshape under the reader, but through
+  // `prefetchQuery`, which never throws: a failed lookup leaves the password
+  // form, and the server decides whether it is allowed.
+  loader: ({ context: { queryClient } }) =>
+    queryClient.prefetchQuery(userQueries.ssoConfig()),
   head: () => {
     const t = translator('auth');
     return {
@@ -42,7 +44,7 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const t = useTranslations('auth');
-  const ssoConfig = Route.useLoaderData();
+  const ssoConfig = useQuery(userQueries.ssoConfig()).data ?? null;
   const search = Route.useSearch();
   const ssoFailed = search.error === 'sso';
 

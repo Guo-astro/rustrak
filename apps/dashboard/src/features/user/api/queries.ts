@@ -4,85 +4,61 @@
  * `auth`, `team`, `members` and `invitations` are one slice because all four
  * answer the same question from different angles: who is this, who is on the
  * instance, who is on this project, and who has been asked to join.
- */
-import type {
-  InvitationInfoResponse,
-  InvitationResponse,
-  ProjectMemberResponse,
-  Result,
-  RustrakError,
-  SsoConfigResponse,
-  SsoLinkResponse,
-  TeamMemberResponse,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
-
-/** Public SSO configuration for the unauthenticated login page. */
-export async function getSsoConfig(): Promise<
-  Result<SsoConfigResponse, RustrakError>
-> {
-  const client = await createClient();
-  return client.auth.ssoConfig();
-}
-
-/** The account an SSO login is waiting to link, or `not_found` if none. */
-export async function getSsoLink(): Promise<
-  Result<SsoLinkResponse, RustrakError>
-> {
-  const client = await createClient();
-  return client.auth.ssoLink();
-}
-
-/**
- * Fetch public information about an invitation by its token.
- * Used by the public accept-invitation page (no auth required).
  *
- * The three kinds that mean "this token buys you nothing" -- `not_found`,
- * `validation` and `gone`, for never issued, malformed, and expired or already
- * used -- are no longer folded into one verdict here. The page branches on
- * `kind` itself, which keeps the distinction available to whoever wants it and
- * keeps this action a pass-through like the other 74.
+ * Who is signed in is not here: the session is a store (`shared/api/session`).
  */
-export async function getInvitation(
-  token: string,
-): Promise<Result<InvitationInfoResponse, RustrakError>> {
-  const client = await createClient();
-  return client.auth.getInvitation({ path: { token } });
-}
+import { queryOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-/**
- * List all team members (instance users).
- *
- * @returns List of team members with their global role and status
- */
-export async function listTeam(): Promise<
-  Result<TeamMemberResponse[], RustrakError>
-> {
-  const client = await createClient();
-  return client.team.list();
-}
-
-/**
- * List members of a project with their per-project role.
- *
- * @param projectId - The project ID
- * @returns List of project members
- */
-export async function listProjectMembers(
-  projectId: number,
-): Promise<Result<ProjectMemberResponse[], RustrakError>> {
-  const client = await createClient();
-  return client.members.list({ path: { project_id: projectId } });
-}
-
-/**
- * List all pending/expired invitations.
- *
- * @returns List of invitations
- */
-export async function listInvitations(): Promise<
-  Result<InvitationResponse[], RustrakError>
-> {
-  const client = await createClient();
-  return client.invitations.list();
-}
+export const userQueries = {
+  /** Public SSO configuration, read before anyone signs in. */
+  ssoConfig: () =>
+    queryOptions({
+      queryKey: ['auth', 'sso-config'],
+      queryFn: ({ signal }) => orThrow(api().auth.ssoConfig({ signal })),
+    }),
+  /** The account an SSO login is waiting to link; `not_found` if none. */
+  ssoLink: () =>
+    queryOptions({
+      queryKey: ['auth', 'sso-link'],
+      queryFn: ({ signal }) => orThrow(api().auth.ssoLink({ signal })),
+    }),
+  /** Every invitation read: the list and each token's public view. */
+  invitationsRoot: () => ['invitations'] as const,
+  /**
+   * What an invitation token offers, for the public accept page.
+   *
+   * `not_found`, `validation` and `gone` (never issued, malformed, expired or
+   * already used) all mean "this token buys you nothing", and they are not
+   * folded into one verdict here: the page branches on `kind` itself.
+   */
+  invitation: (token: string) =>
+    queryOptions({
+      queryKey: [...userQueries.invitationsRoot(), 'token', token],
+      queryFn: ({ signal }) =>
+        orThrow(api().auth.getInvitation({ path: { token }, signal })),
+    }),
+  /** Pending and expired invitations. */
+  invitations: () =>
+    queryOptions({
+      queryKey: [...userQueries.invitationsRoot(), 'list'],
+      queryFn: ({ signal }) => orThrow(api().invitations.list({ signal })),
+    }),
+  /** The instance's users with their global role and status. */
+  team: () =>
+    queryOptions({
+      queryKey: ['team'],
+      queryFn: ({ signal }) => orThrow(api().team.list({ signal })),
+    }),
+  /** A project's members with their per-project role. */
+  members: (projectId: number) =>
+    queryOptions({
+      queryKey: [...projectScope(projectId), 'members'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().members.list({ path: { project_id: projectId }, signal }),
+        ),
+    }),
+};

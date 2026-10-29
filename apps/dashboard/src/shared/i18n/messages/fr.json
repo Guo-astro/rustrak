@@ -1249,14 +1249,12 @@
     "count": "{count, plural, one {# version} other {# versions}}",
     "released": "Publiée",
     "unreleased": "Non publiée",
-    "loadFailed": "Impossible de charger les versions",
     "emptyWindow": "Aucune version",
     "empty": {
       "title": "Aucune version pour l’instant",
       "description": "Envoyez un <code>release</code> avec vos événements ou sessions, ou créez-en un depuis la CI avec sentry-cli, pour voir chaque version ici."
     },
     "detail": {
-      "loadFailed": "Impossible de charger cette version",
       "copy": "Copier la version",
       "copied": "Version copiée",
       "created": "Créée {when}",
@@ -1441,7 +1439,6 @@
     "conversations": {
       "title": "Conversations",
       "metaTitle": "{conversation} | Conversations | Rustrak",
-      "loadFailed": "Impossible de charger cette conversation",
       "empty": "Aucune conversation sur cette période. Envoyez gen_ai.conversation.id sur les spans de vos agents pour regrouper leurs tours.",
       "pageOf": "Page {page} sur {total}",
       "newer": "Conversations plus récentes",
@@ -1782,8 +1779,6 @@
   "projectPages": {
     "projectNotFound": "Projet introuvable | Rustrak",
     "projectTitle": "{project} | Rustrak",
-    "loadProjectFailed": "Impossible de charger le projet",
-    "loadIssueFailed": "Impossible de charger le problème",
     "projectsList": {
       "meta": {
         "title": "Projets | Rustrak",
@@ -1791,8 +1786,7 @@
       },
       "title": "Projets",
       "subtitle": "Gérez vos projets de suivi d’erreurs",
-      "newProject": "Nouveau projet",
-      "loadFailed": "Impossible de charger les projets"
+      "newProject": "Nouveau projet"
     },
     "newProject": {
       "meta": {
@@ -1862,9 +1856,7 @@
         "description": "Problèmes de {project}"
       },
       "title": "Problèmes",
-      "subtitle": "Erreurs de {project}, regroupées par cause",
-      "loadFailed": "Impossible de charger les problèmes",
-      "loadLatestEventFailed": "Impossible de charger le dernier événement"
+      "subtitle": "Erreurs de {project}, regroupées par cause"
     },
     "logs": {
       "meta": {
@@ -1872,7 +1864,6 @@
         "description": "Journaux structurés de {project}"
       },
       "title": "Logs",
-      "loadFailed": "Impossible de charger les journaux",
       "emptyTitle": "Aucun journal pour le moment",
       "emptyDescription": "Envoyez des journaux structurés depuis votre SDK (ex. <code>Sentry.logger.info(...)</code>) pour commencer à les collecter ici."
     },
@@ -1935,8 +1926,6 @@
         "issueNotFound": "Problème introuvable | Rustrak",
         "noEvents": "Aucun événement | {issue} | Rustrak"
       },
-      "loadFailed": "Impossible de charger l’événement",
-      "loadNavigationFailed": "Impossible de charger les événements de ce problème",
       "lastSeen": "Dernière apparition",
       "firstSeen": "Première apparition",
       "inRelease": "dans la version <rel>{release}</rel>",
@@ -1980,7 +1969,6 @@
       "meta": {
         "description": "Retours utilisateurs de {project}"
       },
-      "loadFailed": "Impossible de charger les retours",
       "mailbox": {
         "inbox": "Boîte de réception",
         "resolved": "Résolus",
@@ -2064,8 +2052,7 @@
     "members": {
       "meta": {
         "title": "Membres du projet | Rustrak"
-      },
-      "loadFailed": "Impossible de charger les membres du projet"
+      }
     },
     "tokens": {
       "meta": {
@@ -2074,7 +2061,6 @@
       },
       "title": "Jetons API",
       "subtitle": "Gérez vos jetons API pour un accès programmatique",
-      "loadFailed": "Impossible de charger les jetons API",
       "apiReference": "Référence API",
       "apiReferenceDescription": "Documentation complète de tous les endpoints, de l’authentification et des exemples de requêtes"
     },
@@ -2085,8 +2071,7 @@
       },
       "title": "Membres",
       "subtitle": "Gérez les membres de votre équipe et les invitations",
-      "notAuthorizedDescription": "Seuls les administrateurs de l’instance peuvent gérer l’équipe. Contactez un admin si vous avez besoin d’y accéder.",
-      "loadFailed": "Impossible de charger l’équipe"
+      "notAuthorizedDescription": "Seuls les administrateurs de l’instance peuvent gérer l’équipe. Contactez un admin si vous avez besoin d’y accéder."
     },
     "integrations": {
       "meta": {
@@ -2107,7 +2092,6 @@
       },
       "title": "Assistants IA",
       "subtitle": "Laissez Claude, ChatGPT ou Cursor lire et trier vos erreurs.",
-      "loadFailed": "Impossible de charger les réglages MCP",
       "copy": "Copier",
       "copied": "Copié",
       "copyLabel": "Copier {label}",
@@ -2333,7 +2317,6 @@
     },
     "repository": {
       "metaTitle": "GitHub",
-      "loadFailed": "Impossible de charger les paramètres GitHub",
       "subtitle": "Liez ce projet à un dépôt pour ouvrir son code depuis la stack trace, trouver le commit fautif et garder les tickets synchronisés.",
       "unavailable": "GitHub n'est pas disponible pour ce projet",
       "goToIntegrations": "Ouvrir les intégrations",
@@ -2438,7 +2421,6 @@
     },
     "title": "Crons",
     "newMonitor": "Nouveau moniteur",
-    "loadFailed": "Impossible de charger les moniteurs",
     "loadMonitorFailed": "Impossible de charger ce moniteur",
     "never": "Jamais",
     "columns": {
@@ -2682,7 +2664,6 @@
     "count": "{count, plural, one {# endpoint} other {# endpoints}}",
     "search": "Rechercher des endpoints…",
     "environment": "Environnement",
-    "loadFailed": "Impossible de charger les endpoints",
     "emptyWindow": "Aucun endpoint",
     "empty": {
       "title": "Aucune transaction pour l’instant",
@@ -2729,7 +2710,6 @@
       "when": "Quand"
     },
     "transaction": {
-      "loadFailed": "Impossible de charger cette transaction",
       "unnamed": "(sans nom)",
       "idCopied": "Id de l’événement copié",
       "copyId": "Copier l’id de l’événement",

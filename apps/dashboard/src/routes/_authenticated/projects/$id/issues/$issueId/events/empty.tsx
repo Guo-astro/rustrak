@@ -1,33 +1,28 @@
 import { EmptyIcon, Page, PageHeader, Text } from '@rustrak/ui';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { getIssue } from '@/features/issue/api/queries';
-import { getProject } from '@/features/project/api/queries';
+import { issueQueries } from '@/features/issue/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/issues/$issueId/events/empty',
 )({
-  loader: ({ params }) => {
-    const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      getIssue(projectId, params.issueId),
-    ]);
-  },
+  loader: ({ context: { queryClient }, params }) =>
+    queryClient.query({
+      ...issueQueries.detail(Number.parseInt(params.id, 10), params.issueId),
+      staleTime: 'static',
+    }),
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('event.meta.issueNotFound') }] };
     }
 
-    const [, issue] = loaderData.data;
     return {
-      meta: [{ title: t('event.meta.noEvents', { issue: issue.title }) }],
+      meta: [{ title: t('event.meta.noEvents', { issue: loaderData.title }) }],
     };
   },
   component: EmptyEventsPage,
@@ -35,16 +30,11 @@ export const Route = createFileRoute(
 
 function EmptyEventsPage() {
   const t = useTranslations('projectPages');
-  const loaded = Route.useLoaderData();
-  usePageTrail(
-    loaded.success ? [{ label: loaded.data[1].short_id, mono: true }] : [],
+  const { id, issueId } = Route.useParams();
+  const { data: issue } = useSuspenseQuery(
+    issueQueries.detail(Number.parseInt(id, 10), issueId),
   );
-
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('loadIssueFailed')} />;
-  }
-
-  const [, issue] = loaded.data;
+  usePageTrail([{ label: issue.short_id, mono: true }]);
 
   return (
     <div className="flex h-full flex-col">

@@ -3,8 +3,6 @@ import type {
   CodeMapping,
   GitHubRepository,
   ProjectRepository,
-  Result,
-  RustrakError,
 } from '@rustrak/client';
 import {
   Button,
@@ -15,14 +13,12 @@ import {
   RefreshIcon,
   Switch,
 } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import {
-  removeProjectRepository,
-  setProjectRepository,
-  syncCodeowners,
-} from '@/features/github/api/mutations';
+import { githubMutations } from '@/features/github/api/mutations';
+import { githubQueries } from '@/features/github/api/queries';
 import { savableMappings } from '@/features/github/lib/code-mappings';
 import {
   conditionsFromForm,
@@ -43,13 +39,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/components/shadcn/select';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface RepositorySettingsProps {
   projectId: number;
   projectSlug: string;
   repository: ProjectRepository | null;
-  repositories: Result<GitHubRepository[], RustrakError>;
 }
 
 /**
@@ -60,28 +54,30 @@ export function RepositorySettings({
   projectId,
   projectSlug,
   repository,
-  repositories,
 }: RepositorySettingsProps) {
   const t = useTranslations('github');
   const format = useFormatter();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  const run = (
-    failure: string,
-    action: () => Promise<Result<unknown, RustrakError>>,
-  ) => {
-    startTransition(async () => {
-      const result = await action();
-      if (!result.success) {
-        toast.error(failure, { description: result.error.message });
-        return;
-      }
-      // Awaited, so the controls stay disabled until the saved values are on
-      // screen: a draft keyed on them would otherwise drop edits made between.
-      await router.refresh();
-    });
-  };
+  const repositories = useQuery(githubQueries.repositories(projectId));
+  const failed = (failure: string) => (error: Error) =>
+    toast.error(failure, { description: error.message });
+  const setRepository = useMutation({
+    ...githubMutations.setRepository(projectId),
+    onError: failed(t('repository.saveFailed')),
+  });
+  const removeRepository = useMutation({
+    ...githubMutations.removeRepository(projectId),
+    onError: failed(t('repository.saveFailed')),
+  });
+  const syncCodeowners = useMutation({
+    ...githubMutations.syncCodeowners(projectId),
+    onError: failed(t('repository.codeownersFailed')),
+  });
+  // Pending until the saved values are back on screen: a draft keyed on them
+  // would otherwise drop edits made between.
+  const isPending =
+    setRepository.isPending ||
+    removeRepository.isPending ||
+    syncCodeowners.isPending;
 
   const save = (changes: {
     repo?: GitHubRepository;
@@ -89,31 +85,27 @@ export function RepositorySettings({
     auto_create_issues?: boolean;
     auto_create_conditions?: AlertRuleResponse['conditions'];
   }) =>
-    run(t('repository.saveFailed'), () =>
-      setProjectRepository(projectId, {
-        installation_id:
-          changes.repo?.installation_id ?? repository?.installation_id ?? 0,
-        repo_full_name:
-          changes.repo?.full_name ?? repository?.repo_full_name ?? '',
-        code_mappings: changes.code_mappings ?? repository?.code_mappings,
-        auto_create_issues:
-          changes.auto_create_issues ?? repository?.auto_create_issues,
-        auto_create_conditions:
-          changes.auto_create_conditions ?? repository?.auto_create_conditions,
-      }),
-    );
+    setRepository.mutate({
+      installation_id:
+        changes.repo?.installation_id ?? repository?.installation_id ?? 0,
+      repo_full_name:
+        changes.repo?.full_name ?? repository?.repo_full_name ?? '',
+      code_mappings: changes.code_mappings ?? repository?.code_mappings,
+      auto_create_issues:
+        changes.auto_create_issues ?? repository?.auto_create_issues,
+      auto_create_conditions:
+        changes.auto_create_conditions ?? repository?.auto_create_conditions,
+    });
 
   // Without the list the page still works for a repository already chosen:
   // GitHub being unreachable for a moment must not hide its settings.
-  const choices = repositories.success ? repositories.data : [];
-  const unavailable = !repositories.success && (
+  const choices = repositories.data ?? [];
+  const unavailable = repositories.isError && (
     <div className="mb-4 flex flex-col gap-1.5 rounded-2xl border border-dashed border-border-subtle bg-surface px-5 py-4">
       <p className="text-value font-medium text-fg">
         {t('repository.unavailable')}
       </p>
-      <p className="text-meta text-fg-subtle">
-        {repositories.success ? null : repositories.error.message}
-      </p>
+      <p className="text-meta text-fg-subtle">{repositories.error.message}</p>
       <Link
         href="/settings/integrations"
         className="inline-flex items-center gap-1 text-meta text-fg-brand hover:underline"
@@ -264,11 +256,7 @@ export function RepositorySettings({
                   size="sm"
                   icon={RefreshIcon}
                   disabled={isPending}
-                  onClick={() =>
-                    run(t('repository.codeownersFailed'), () =>
-                      syncCodeowners(projectId),
-                    )
-                  }
+                  onClick={() => syncCodeowners.mutate()}
                 >
                   {t('repository.codeownersSync')}
                 </Button>
@@ -294,11 +282,7 @@ export function RepositorySettings({
               <Button
                 variant="danger"
                 disabled={isPending}
-                onClick={() =>
-                  run(t('repository.saveFailed'), () =>
-                    removeProjectRepository(projectId),
-                  )
-                }
+                onClick={() => removeRepository.mutate()}
               >
                 {t('repository.disconnect')}
               </Button>

@@ -1,13 +1,12 @@
 import type { AuthTokenResponse } from '@rustrak/client';
 import { Button, NewIcon, TokensIcon } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  createToken,
-  deleteToken,
-  getToken,
-} from '@/features/token/api/mutations';
+import { tokenMutations } from '@/features/token/api/mutations';
+import { tokenQueries } from '@/features/token/api/queries';
+import type { ApiError } from '@/shared/api/query';
 import { copyToClipboard } from '@/shared/lib/clipboard';
 import {
   SettingSection,
@@ -23,12 +22,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 import { CreateTokenDialog } from './create-token-dialog';
 import { TokenRows } from './token-rows';
 
 interface TokensListProps {
-  initialTokens: AuthTokenResponse[];
+  tokens: AuthTokenResponse[];
   /** The page's header is drawn here: its action, "New token", is this list's. */
   title: string;
   subtitle: string;
@@ -37,95 +35,80 @@ interface TokensListProps {
 }
 
 export function TokensList({
-  initialTokens,
+  tokens,
   title,
   subtitle,
   footer,
 }: TokensListProps) {
   const t = useTranslations('tokens');
   const commonT = useTranslations('common');
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
+  const creation = useMutation(tokenMutations.create());
+  const removal = useMutation(tokenMutations.delete());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newToken, setNewToken] = useState<string | null>(null);
+  // The full value, shown once: the creation's answer, until it is closed.
+  const newToken = creation.data?.token ?? null;
 
-  // Which single token a request is in flight for, so only its own buttons go
+  // Which single token a copy is in flight for, so only its own buttons go
   // quiet rather than the whole table.
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [copyingId, setCopyingId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AuthTokenResponse | null>(
     null,
   );
 
   const closeCreate = () => {
     setIsCreateOpen(false);
-    setNewToken(null);
-    router.refresh();
+    creation.reset();
   };
 
-  const create = (description: string) => {
-    startTransition(async () => {
-      const result = await createToken({
-        description: description || undefined,
-      });
-
-      if (!result.success) {
-        toast.error(t('toasts.createFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-
-      setNewToken(result.data.token);
-      toast.success(t('toasts.created'), {
-        description: t('toasts.createdHint'),
-      });
-    });
-  };
+  const create = (description: string) =>
+    creation.mutate(
+      { description: description || undefined },
+      {
+        onError: (error) =>
+          toast.error(t('toasts.createFailed'), {
+            description: error.error.message,
+          }),
+        onSuccess: () =>
+          toast.success(t('toasts.created'), {
+            description: t('toasts.createdHint'),
+          }),
+      },
+    );
 
   const confirmDelete = () => {
     if (!pendingDelete) return;
     const id = pendingDelete.id;
-    setBusyId(id);
     setPendingDelete(null);
-
-    startTransition(async () => {
-      const result = await deleteToken(id);
-
-      if (result.success) {
-        toast.success(t('toasts.deleted'));
-        router.refresh();
-      } else {
+    removal.mutate(id, {
+      onError: (error) =>
         toast.error(t('toasts.deleteFailed'), {
-          description: result.error.message,
-        });
-      }
-
-      setBusyId(null);
+          description: error.error.message,
+        }),
+      onSuccess: () => toast.success(t('toasts.deleted')),
     });
   };
 
-  const copy = (token: AuthTokenResponse) => {
-    setBusyId(token.id);
-    startTransition(async () => {
-      const result = await getToken(token.id);
-
-      if (!result.success) {
-        toast.error(t('toasts.getFailed'), {
-          description: result.error.message,
-        });
-        setBusyId(null);
-        return;
-      }
-
-      if (await copyToClipboard(result.data.token)) {
+  const copy = async (token: AuthTokenResponse) => {
+    setCopyingId(token.id);
+    try {
+      const { token: value } = await queryClient.fetchQuery(
+        tokenQueries.detail(token.id),
+      );
+      if (await copyToClipboard(value)) {
         toast.success(t('toasts.copied'));
       } else {
         // No clipboard (an insecure origin, usually). Showing the value is the
         // fallback: it is the one thing the user came here for.
-        toast.info(t('toasts.copyTitle'), { description: result.data.token });
+        toast.info(t('toasts.copyTitle'), { description: value });
       }
-      setBusyId(null);
-    });
+    } catch (error) {
+      toast.error(t('toasts.getFailed'), {
+        description: (error as ApiError).error.message,
+      });
+    } finally {
+      setCopyingId(null);
+    }
   };
 
   const copyNewToken = async () => {
@@ -139,8 +122,10 @@ export function TokensList({
   };
 
   const rowProps = {
-    tokens: initialTokens,
-    isBusy: (token: AuthTokenResponse) => isPending || busyId === token.id,
+    tokens,
+    isBusy: (token: AuthTokenResponse) =>
+      copyingId === token.id ||
+      (removal.isPending && removal.variables === token.id),
     onCopy: copy,
     onDelete: setPendingDelete,
   };
@@ -157,7 +142,7 @@ export function TokensList({
               open ? setIsCreateOpen(true) : closeCreate()
             }
             newToken={newToken}
-            isPending={isPending}
+            isPending={creation.isPending}
             onCreate={create}
             onDone={closeCreate}
             onCopyToken={copyNewToken}
@@ -169,7 +154,7 @@ export function TokensList({
         title={t('list.title')}
         description={t('list.description')}
       >
-        {initialTokens.length === 0 ? (
+        {tokens.length === 0 ? (
           <SettingsEmpty
             icon={<TokensIcon size="2xl" />}
             title={t('empty.title')}
@@ -198,15 +183,15 @@ export function TokensList({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>
+            <AlertDialogCancel disabled={removal.isPending}>
               {t('deleteDialog.cancel')}
             </AlertDialogCancel>
             <Button
               variant="danger-primary"
               onClick={confirmDelete}
-              disabled={isPending}
+              disabled={removal.isPending}
             >
-              {isPending
+              {removal.isPending
                 ? t('deleteDialog.deleting')
                 : t('deleteDialog.confirm')}
             </Button>

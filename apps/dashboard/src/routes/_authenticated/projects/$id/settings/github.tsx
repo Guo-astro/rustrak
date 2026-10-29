@@ -1,14 +1,10 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import {
-  getProjectRepository,
-  listRepositories,
-} from '@/features/github/api/queries';
+import { githubQueries } from '@/features/github/api/queries';
 import { RepositorySettings } from '@/features/github/ui/components/repository-settings';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
 
 export const Route = createFileRoute(
@@ -17,29 +13,26 @@ export const Route = createFileRoute(
   head: () => ({
     meta: [{ title: translator('github')('repository.metaTitle') }],
   }),
-  loader: async ({ params }) => {
+  loader: ({ context: { queryClient }, params }) => {
     const projectId = Number.parseInt(params.id, 10);
-    // The repository list is rendered in both branches: its failure is how
-    // the page says GitHub is not connected yet.
-    const [loaded, repositories] = await Promise.all([
-      loadAll([getProject(projectId), getProjectRepository(projectId)]),
-      listRepositories(projectId),
-    ]);
-    return { loaded, repositories };
+    // The picker's choices fill in on their own; their failure is how the
+    // page says GitHub is not connected yet.
+    void queryClient.prefetchQuery(githubQueries.repositories(projectId));
+    return queryClient.query({
+      ...githubQueries.repository(projectId),
+      staleTime: 'static',
+    });
   },
   component: GitHubSettingsPage,
 });
 
 function GitHubSettingsPage() {
   const t = useTranslations('github');
-  const { loaded, repositories } = Route.useLoaderData();
-
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('repository.loadFailed')} />
-    );
-  }
-  const [project, repository] = loaded.data;
+  const projectId = Number.parseInt(Route.useParams().id, 10);
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: repository } = useSuspenseQuery(
+    githubQueries.repository(projectId),
+  );
 
   return (
     <>
@@ -50,7 +43,6 @@ function GitHubSettingsPage() {
         projectId={project.id}
         projectSlug={project.slug}
         repository={repository}
-        repositories={repositories}
       />
     </>
   );

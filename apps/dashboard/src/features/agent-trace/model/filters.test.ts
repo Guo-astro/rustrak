@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  agentPeriodParam,
   defaultSelectedSpanId,
   fillBuckets,
   resolveAgentFilters,
@@ -68,13 +69,29 @@ describe('resolveAgentFilters', () => {
     expect(resolveAgentFilters({ period: '30d' }).intervalHours).toBe(24);
   });
 
-  it('falls back to all time for an unrecognized period', () => {
-    // A stale or hand-edited URL should still render something, and showing
-    // more data than asked for is the safe direction to fail in.
-    const filters = resolveAgentFilters({ period: 'last-tuesday' });
+  it('reads the last 24 hours unless asked otherwise', () => {
+    // All time scans every span a project ever sent; on a busy one that
+    // outlasts the client's timeout. A stale or hand-edited period gets the
+    // default too.
+    for (const period of [undefined, 'last-tuesday']) {
+      const filters = resolveAgentFilters({ period });
+      expect(filters.period).toBe('24h');
+      expect(filters.periodHours).toBe(24);
+    }
+  });
+
+  it('reads all time only when asked to', () => {
+    const filters = resolveAgentFilters({ period: 'all' });
 
     expect(filters.period).toBeUndefined();
     expect(filters.periodHours).toBeUndefined();
+    expect(filters.intervalHours).toBe(24);
+  });
+
+  it('writes the default window as no period, and all time as all', () => {
+    expect(agentPeriodParam('24h')).toBeUndefined();
+    expect(agentPeriodParam('7d')).toBe('7d');
+    expect(agentPeriodParam(undefined)).toBe('all');
   });
 
   it('treats an empty environment as no filter', () => {

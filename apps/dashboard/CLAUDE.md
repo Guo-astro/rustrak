@@ -73,7 +73,7 @@ the build if they disagree.
 
 Everything follows from that:
 
-- `createClient()` builds against `window.location.origin`
+- `api()` builds the client against `window.location.origin`
   (`src/shared/api/rustrak.ts`). No API URL to configure, in either environment.
 - The session cookie is first-party in both, so no `SameSite=None`, no
   third-party cookie policy to fight, and nothing parses `Set-Cookie` by hand.
@@ -120,18 +120,112 @@ fetching it again.
 
 ## Where the data comes from
 
-**A screen's own data belongs in its route loader.** The router can then hold
-the previous page on screen while the next one loads, restore scroll, and re-run
-it on `router.invalidate()`. Every method on `@rustrak/client` returns a
-`Result` and never throws for an expected failure, so a loader returns it as-is
-and the component renders both branches. Do not `unwrap`.
+**TanStack Query owns every read and write; the router decides when they
+start.** This is the router's documented composition with Query
+(`router-query`), and it is not optional: a screen never holds server data in
+`useState`, never calls the API from an effect, and never re-runs loaders to
+see a write.
 
-`useAsync` (`shared/ui/hooks`) is the exception, and it is a narrow one. Three
-surfaces are genuinely a grid of independent panels — the project overview, the
-storage page, the command bar — and each panel must appear when *its* query
-lands. A loader awaiting all six would make the whole grid arrive at the speed
-of the worst one, which is a visible regression from what `<Suspense>` bought.
-Anywhere else, use a loader.
+One `QueryClient` (`shared/api/query.ts`), created in `main.tsx` above the
+router and passed to it as context. Its defaults are deliberate:
+
+- `staleTime` 30s. Within it, going back shows what was there without asking;
+  past it, it still shows that at once and refetches behind it.
+- `retry: false`. `@rustrak/client` already retries what a retry can fix.
+- `defaultPreloadStaleTime: 0` on the router, so hovering a link starts its
+  reads and the cache, not the router, decides whether they are fresh.
+
+### Reads: `queryOptions` factories in `features/<slice>/api/queries.ts`
+
+```ts
+export const issueQueries = {
+  all: (projectId: number) => [...projectScope(projectId), 'issues'] as const,
+  list: (projectId: number, query: IssuesListQuery) =>
+    queryOptions({
+      queryKey: [...issueQueries.all(projectId), 'list', query],
+      queryFn: ({ signal }) =>
+        orThrow(api().issues.list({ path: { project_id: projectId }, query, signal })),
+    }),
+};
+```
+
+- **Keys are hierarchical** and everything of a project starts with
+  `projectScope(id)` (`shared/api/keys.ts`), so invalidating
+  `projectScope(id)` refreshes all of a project and a slice's `all(...)`
+  refreshes the slice. Instance-wide data starts with its own root
+  (`['storage']`, `['team']`). Slices cannot import each other; the shared
+  prefix is why `projectScope` lives in `shared`.
+- **`signal` always reaches the client**, so a read nobody waits for any more
+  (a superseded filter, a page left) is cancelled, not left running.
+- **`orThrow`** is the one seam between the client's `Result` and Query: it
+  throws the failure as an `ApiError` carrying the `RustrakError` whole.
+  `ApiError` is the registered `defaultError`, so `query.error.error` is typed.
+
+### Loaders: await what the page cannot paint without, start the rest
+
+```ts
+loader: async ({ context: { queryClient }, params, deps }) => {
+  void queryClient.prefetchQuery(issueQueries.stats(id, deps.period));   // a panel
+  return queryClient.query({ ...issueQueries.list(id, deps), staleTime: 'static' });
+},
+```
+
+- **Critical reads**: `queryClient.query({ ...options, staleTime: 'static' })`.
+  `static` returns what is cached without waiting for a refetch, so revisiting
+  is instant; the component's subscription refetches it behind the page if it
+  is stale. A failure throws into the route's error boundary (`RouteError`),
+  which renders it through `LoadFailure`. What the loader returns is what
+  `head` reads.
+- **Secondary reads** (a chart, a rail, a panel that can arrive later):
+  `void queryClient.prefetchQuery(options)`. Never awaited: awaiting nine reads
+  made the agents page as slow as the slowest, and one timing out failed it all.
+- **Only the open tab's reads.** A tab the reader is not on is not fetched.
+- `loaderDeps` holds exactly the search keys the loader reads.
+
+### Components: subscribe to what the loader started
+
+- Critical: `useSuspenseQuery(options)`. The loader already filled it, so it
+  never suspends on a navigation; it keeps the screen current afterwards.
+- Secondary: `useQuery(options)` rendered through `QueryState`
+  (`shared/ui/components/query-state.tsx`): its placeholder while pending, its
+  `LoadFailure` when it failed, the data otherwise. A panel that used to
+  degrade (an issue with no tags renders like a failed tags read) reads
+  `query.data ?? fallback` instead, on purpose and visibly.
+- Screen-local reads with no route (a dialog's preview, the command bar's
+  search): `useQuery` in the component, with `enabled` for "not yet".
+
+### Writes: `mutationOptions` factories in `features/<slice>/api/mutations.ts`
+
+```ts
+export const issueMutations = {
+  update: (projectId: number, issueId: string) =>
+    mutationOptions({
+      mutationFn: (body: UpdateIssueState) =>
+        orThrow(api().issues.update({ path: { project_id: projectId, issue_id: issueId }, body })),
+      meta: { invalidates: [issueQueries.all(projectId)] },
+    }),
+};
+```
+
+- **A mutation names what it changed in `meta.invalidates`**; the cache
+  refetches those keys once it settles (`shared/api/query.ts`), and
+  `mutateAsync` resolves after they are back. Nothing calls `router.invalidate()`
+  to see a write, and `invalidateQueries` by hand is only for a change no
+  mutation settles: a background job (a storage cleanup) finishing.
+- **A delete drops what it deleted** in its factory's `onSuccess`
+  (`client.removeQueries`), before the invalidation refetches: a still-mounted
+  page would otherwise ask again for a record that can only answer 404.
+- Components use `useMutation(factory(...))`: `isPending` for the button, the
+  `ApiError` in `onError` (a toast) or in a form's submit handler (field
+  errors through `form-errors.ts`).
+- An optimistic update writes the cache in `onMutate` and restores it in
+  `onError`; the invalidation reconciles it either way.
+
+### What is not a query
+
+The session (`shared/api/session.ts`) stays a store. The router's guard and
+`shared/i18n` both need it before a router or a `QueryClient` exists, and
+reading it through two caches would let them disagree.
 
 ## The URL is the state
 

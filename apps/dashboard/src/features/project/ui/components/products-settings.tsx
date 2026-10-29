@@ -17,10 +17,11 @@ import {
   Switch,
   Text,
 } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { updateProject } from '@/features/project/api/mutations';
+import { projectMutations } from '@/features/project/api/mutations';
 import {
   keepsProduct,
   LOCKED_PRODUCT,
@@ -28,7 +29,6 @@ import {
   PRODUCTS,
 } from '@/features/project/model/products';
 import { SettingSection } from '@/shared/ui/components/setting-row';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 const ICONS: Record<Product, IconComponent> = {
   issues: IssuesIcon,
@@ -62,7 +62,7 @@ interface ProductsState {
 export function ProductsSettings({ project }: { project: ProjectResponse }) {
   const t = useTranslations('settings');
   const tNav = useTranslations('projects');
-  const router = useRouter();
+  const update = useMutation(projectMutations.update(project.id));
   const [state, setState] = useState<ProductsState>({
     // Grouped as the sidebar shows them (a stable sort keeps the saved order
     // inside each group), so an order saved interleaved through the API still
@@ -82,28 +82,21 @@ export function ProductsSettings({ project }: { project: ProjectResponse }) {
   } | null>(null);
   // One save at a time: each sends both lists whole, so two in flight could
   // land out of order and the older one would win.
-  const [saving, setSaving] = useState(false);
+  const saving = update.isPending;
 
-  const save = async (next: ProductsState, previous = state) => {
+  const save = (next: ProductsState, previous = state) => {
     setState(next);
-    setSaving(true);
-    let result: Awaited<ReturnType<typeof updateProject>>;
-    try {
-      result = await updateProject(project.id, {
-        product_order: next.order,
-        disabled_products: next.disabled,
-      });
-    } finally {
-      setSaving(false);
-    }
-    if (!result.success) {
-      setState(previous);
-      toast.error(t('products.saveFailed'), {
-        description: result.error.message,
-      });
-      return;
-    }
-    router.refresh();
+    update.mutate(
+      { product_order: next.order, disabled_products: next.disabled },
+      {
+        onError: (error) => {
+          setState(previous);
+          toast.error(t('products.saveFailed'), {
+            description: error.error.message,
+          });
+        },
+      },
+    );
   };
 
   const toggle = (product: Product, on: boolean) =>

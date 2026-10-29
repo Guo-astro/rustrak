@@ -41,16 +41,18 @@ import {
   TeamIcon,
   TokensIcon,
 } from '@rustrak/ui';
-import { useLoaderData, useMatch } from '@tanstack/react-router';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMatch } from '@tanstack/react-router';
 import { PlatformIcon } from 'platformicons';
-import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
+import { projectQueries } from '@/features/project/api/queries';
 import { toCommandProjects } from '@/features/project/lib/command-items';
 import {
   keepsProduct,
   orderedProducts,
 } from '@/features/project/model/products';
-import { logout } from '@/features/user/api/mutations';
+import { userMutations } from '@/features/user/api/mutations';
+import { COMMAND_BAR_PROJECT_LIMIT } from '@/shared/config/commands';
 import { isSettingsPath } from '@/shared/lib/settings-path';
 import { CommandBar } from '@/shared/ui/components/command-bar/command-bar';
 import { Link } from '@/shared/ui/components/link';
@@ -192,23 +194,26 @@ function activeRoute(pathname: string, base: string): NavRoute | undefined {
   );
 }
 
-/** The project the URL is in, from the project layout's loader. */
+/** The project the URL is in, as the project layout's loader cached it. */
 function useCurrentProject(): FrameProject | null {
   const t = useTranslations('projects');
   const match = useMatch({
     from: '/_authenticated/projects/$id',
     shouldThrow: false,
   });
+  const id = match ? Number.parseInt(match.params.id, 10) : null;
+  const read = useQuery({
+    ...projectQueries.detail(id ?? 0),
+    enabled: id !== null,
+  });
 
-  if (!match) return null;
-
-  const read = match.loaderData?.project;
-  if (read?.success) return read.data;
+  if (id === null) return null;
+  if (read.data) return read.data;
 
   // The layout renders the chrome around whatever the page does with its own
   // failure, so an unreadable project is an honest placeholder, not an error.
   return {
-    id: Number.parseInt(match.params.id, 10),
+    id,
     name: t('switcher.fallback'),
     slug: '',
     platform: null,
@@ -259,14 +264,17 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   const pathname = usePathname();
   const router = useRouter();
   const project = useCurrentProject();
-  const [signingOut, startSignOut] = useTransition();
+  const logout = useMutation(userMutations.logout());
+  const signingOut = logout.isPending;
 
-  // One read for the switcher and the command bar, from the layout's loader so
-  // a created or deleted project shows up on the next navigation or refresh.
-  // A failed read still renders both: the static commands are the bulk of the
-  // bar, and an empty switcher still leads to "All projects".
-  const read = useLoaderData({ from: '/_authenticated' });
-  const projects = read.success ? read.data.items : [];
+  // One read for the switcher and the command bar; creating or deleting a
+  // project invalidates it. A failed read still renders both: the static
+  // commands are the bulk of the bar, and an empty switcher still leads to
+  // "All projects".
+  const read = useQuery(
+    projectQueries.list({ per_page: COMMAND_BAR_PROJECT_LIMIT }),
+  );
+  const projects = read.data?.items ?? [];
 
   const base = project ? `/projects/${project.id}` : '';
   const { settingsMode, scope, depth } = sidebarScope(pathname, project);
@@ -296,10 +304,7 @@ export function AppSidebar({ user }: { user: UserResponse }) {
   ];
 
   const signOut = () =>
-    startSignOut(async () => {
-      await logout();
-      router.push('/login');
-    });
+    logout.mutate(undefined, { onSettled: () => router.push('/login') });
 
   return (
     <Sidebar

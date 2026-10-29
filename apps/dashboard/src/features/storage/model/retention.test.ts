@@ -12,6 +12,8 @@ import {
   deletesAnything,
   elapsed,
   estimateBytes,
+  estimateSize,
+  impactOf,
   nextReadIn,
   presetsWith,
   removedParts,
@@ -192,6 +194,27 @@ describe('summarize', () => {
   });
 });
 
+describe('estimateSize', () => {
+  const counts = {
+    events: 3,
+    transactions: 0,
+    spans: 0,
+    logs: 3,
+    issues_removed: 0,
+    source_maps: 0,
+  };
+
+  it('is not guessed before the figures to price it are in', () => {
+    // The dialogs open before the storage figures arrive; a size of 0 B would
+    // read as "deletes nothing worth mentioning".
+    expect(estimateSize(counts, null)).toBe('…');
+  });
+
+  it('adds what is freed besides the rows', () => {
+    expect(estimateSize(counts, projects, 614)).toBe('1.0 KB');
+  });
+});
+
 describe('estimateBytes', () => {
   it('prices counted rows at the instance\u2019s average row per kind', () => {
     // Errors average 100 bytes, logs (220 over 6) about 36.7.
@@ -295,5 +318,23 @@ describe('elapsed', () => {
 
   it('starts from zero without a start', () => {
     expect(elapsed(null, at(42))).toBe('0:00');
+  });
+});
+
+describe('impactOf', () => {
+  it('is the data once in', () => {
+    expect(impactOf({ data: 3, isError: false, isFetching: true })).toBe(3);
+  });
+
+  it('is failed once a read failed and nothing retries it', () => {
+    expect(
+      impactOf({ data: undefined, isError: true, isFetching: false }),
+    ).toBe('failed');
+  });
+
+  it('is counting while a retry runs', () => {
+    expect(
+      impactOf({ data: undefined, isError: true, isFetching: true }),
+    ).toBeNull();
   });
 });

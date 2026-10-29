@@ -1,53 +1,22 @@
-import type {
-  AuthTokenCreatedResponse,
-  CreateAuthToken,
-  Result,
-  RustrakError,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import type { CreateAuthToken } from '@rustrak/client';
+import { mutationOptions } from '@tanstack/react-query';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
+import { tokenQueries } from './queries';
 
-/**
- * List all auth tokens (masked).
- * The full token is never returned after creation.
- *
- * @returns List of auth tokens with masked token values
- */
-
-/**
- * Create a new auth token.
- * The full token is only returned once during creation - save it immediately.
- *
- * @param input - Optional description for the token
- * @returns The created token with the full token value (shown only once)
- */
-export async function createToken(
-  input: CreateAuthToken,
-): Promise<Result<AuthTokenCreatedResponse, RustrakError>> {
-  const client = await createClient();
-  return client.tokens.create({ body: input });
-}
-
-/**
- * Delete an auth token.
- *
- * @param id - The token ID to delete
- */
-export async function deleteToken(
-  id: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.tokens.delete({ path: { id } });
-}
-
-/**
- * Get the full token value by ID.
- *
- * @param id - The token ID to retrieve
- * @returns The full token value (40-char hex string)
- */
-export async function getToken(
-  id: number,
-): Promise<Result<AuthTokenCreatedResponse, RustrakError>> {
-  const client = await createClient();
-  return client.tokens.get({ path: { id } });
-}
+export const tokenMutations = {
+  /** The answer carries the full token value. */
+  create: () =>
+    mutationOptions({
+      mutationFn: (body: CreateAuthToken) =>
+        orThrow(api().tokens.create({ body })),
+      meta: { invalidates: [tokenQueries.list().queryKey] },
+    }),
+  /** The token is the variable: the list deletes any row with one. */
+  delete: () =>
+    mutationOptions({
+      mutationFn: (id: number) =>
+        orThrow(api().tokens.delete({ path: { id } })),
+      meta: { invalidates: [tokenQueries.all()] },
+    }),
+};

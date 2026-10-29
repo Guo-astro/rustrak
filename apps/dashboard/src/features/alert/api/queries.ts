@@ -2,65 +2,97 @@
  * Reads for the alert feature: the rules a project has, and the integrations
  * they route to. A rule without an integration does nothing, which is why the
  * two live in one slice.
+ *
+ * Integrations are instance-wide, so they have their own root; rules and their
+ * deliveries belong to a project.
  */
-import type {
-  AlertHistory,
-  AlertHistoryDay,
-  AlertIntegration,
-  AlertRuleResponse,
-  Result,
-  RustrakError,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import { queryOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
 
-// ============================================================================
-// Alert Integrations (Global Credential Destinations)
-// ============================================================================
+export const alertQueries = {
+  /** Every integration read, the template previews included. */
+  integrationsRoot: () => ['integrations'] as const,
+  integrations: () =>
+    queryOptions({
+      queryKey: [...alertQueries.integrationsRoot(), 'list'],
+      queryFn: ({ signal }) => orThrow(api().alertChannels.list({ signal })),
+    }),
+  /**
+   * A Custom Webhook body template rendered against a sample payload.
+   *
+   * The dashboard cannot run the template engine, so the preview under the
+   * editor comes from the server: the same renderer a delivery uses, which is
+   * the only way the preview cannot lie about what will be sent. A POST, but
+   * it writes nothing, so it is cached by the template it rendered.
+   */
+  templatePreview: (template: string) =>
+    queryOptions({
+      queryKey: [
+        ...alertQueries.integrationsRoot(),
+        'template-preview',
+        template,
+      ],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().alertChannels.previewTemplate({ body: { template }, signal }),
+        ),
+    }),
 
-export async function listIntegrations(): Promise<
-  Result<AlertIntegration[], RustrakError>
-> {
-  const client = await createClient();
-  return client.alertChannels.list();
-}
-
-export async function listAlertRules(
-  projectId: number,
-): Promise<Result<AlertRuleResponse[], RustrakError>> {
-  const client = await createClient();
-  return client.alertRules.list({ path: { project_id: projectId } });
-}
-
-/** A project's deliveries, newest first; with `ruleId`, only that rule's. */
-export async function listAlertHistory(
-  projectId: number,
-  options?: { ruleId?: number; limit?: number },
-): Promise<Result<AlertHistory[], RustrakError>> {
-  const client = await createClient();
-  return client.alertRules.listHistory({
-    path: { project_id: projectId },
-    query: { rule_id: options?.ruleId, limit: options?.limit },
-  });
-}
-
-/** Deliveries per UTC day over the last `days`, every delivery counted. */
-export async function getAlertHistoryByDay(
-  projectId: number,
-  options: { ruleId?: number; days: number },
-): Promise<Result<AlertHistoryDay[], RustrakError>> {
-  const client = await createClient();
-  return client.alertRules.historyByDay({
-    path: { project_id: projectId },
-    query: { rule_id: options.ruleId, days: options.days },
-  });
-}
-
-export async function getAlertRule(
-  projectId: number,
-  ruleId: number,
-): Promise<Result<AlertRuleResponse, RustrakError>> {
-  const client = await createClient();
-  return client.alertRules.get({
-    path: { project_id: projectId, rule_id: ruleId },
-  });
-}
+  all: (projectId: number) => [...projectScope(projectId), 'alerts'] as const,
+  /** A project's rules: the list and every single rule. */
+  rules: (projectId: number) =>
+    [...alertQueries.all(projectId), 'rules'] as const,
+  ruleList: (projectId: number) =>
+    queryOptions({
+      queryKey: [...alertQueries.rules(projectId), 'list'],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().alertRules.list({ path: { project_id: projectId }, signal }),
+        ),
+    }),
+  rule: (projectId: number, ruleId: number) =>
+    queryOptions({
+      queryKey: [...alertQueries.rules(projectId), 'detail', ruleId],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().alertRules.get({
+            path: { project_id: projectId, rule_id: ruleId },
+            signal,
+          }),
+        ),
+    }),
+  /** A project's deliveries, listed and counted per day. */
+  histories: (projectId: number) =>
+    [...alertQueries.all(projectId), 'history'] as const,
+  /** A project's deliveries, newest first; with `ruleId`, only that rule's. */
+  history: (
+    projectId: number,
+    query: { ruleId?: number; limit?: number } = {},
+  ) =>
+    queryOptions({
+      queryKey: [...alertQueries.histories(projectId), 'list', query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().alertRules.listHistory({
+            path: { project_id: projectId },
+            query: { rule_id: query.ruleId, limit: query.limit },
+            signal,
+          }),
+        ),
+    }),
+  /** Deliveries per UTC day over the last `days`, every delivery counted. */
+  historyByDay: (projectId: number, query: { ruleId?: number; days: number }) =>
+    queryOptions({
+      queryKey: [...alertQueries.histories(projectId), 'by-day', query],
+      queryFn: ({ signal }) =>
+        orThrow(
+          api().alertRules.historyByDay({
+            path: { project_id: projectId },
+            query: { rule_id: query.ruleId, days: query.days },
+            signal,
+          }),
+        ),
+    }),
+};

@@ -8,10 +8,11 @@ import {
   MuteIcon,
   NotificationIcon,
 } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { deleteMonitor, updateMonitor } from '@/features/monitor/api/mutations';
+import { monitorMutations } from '@/features/monitor/api/mutations';
 import { monitorHref } from '@/features/monitor/lib/href';
 import { Link } from '@/shared/ui/components/link';
 import {
@@ -39,34 +40,33 @@ export function MonitorActions({
 }) {
   const t = useTranslations('crons');
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const update = useMutation(monitorMutations.update(projectId));
+  const del = useMutation(monitorMutations.delete(projectId, monitor.slug));
+  const isPending = update.isPending || del.isPending;
   const [confirming, setConfirming] = useState(false);
   const base = `/projects/${projectId}/crons`;
   const href = monitorHref(projectId, monitor.slug);
 
   const toggleMute = () =>
-    startTransition(async () => {
-      const result = await updateMonitor(projectId, monitor.slug, {
-        is_muted: !monitor.is_muted,
-      });
-      if (!result.success) {
-        toast.error(t('actions.updateFailed'));
-        return;
-      }
-      toast.success(t(monitor.is_muted ? 'actions.unmuted' : 'actions.muted'));
-      await router.refresh();
-    });
+    update.mutate(
+      { slug: monitor.slug, body: { is_muted: !monitor.is_muted } },
+      {
+        onError: () => toast.error(t('actions.updateFailed')),
+        onSuccess: () =>
+          toast.success(
+            t(monitor.is_muted ? 'actions.unmuted' : 'actions.muted'),
+          ),
+      },
+    );
 
   const remove = () =>
-    startTransition(async () => {
-      const result = await deleteMonitor(projectId, monitor.slug);
-      if (!result.success) {
-        toast.error(t('actions.deleteFailed'));
-        return;
-      }
-      toast.success(t('actions.deleted'));
-      setConfirming(false);
-      router.push(base);
+    del.mutate(undefined, {
+      onError: () => toast.error(t('actions.deleteFailed')),
+      onSuccess: () => {
+        toast.success(t('actions.deleted'));
+        setConfirming(false);
+        router.push(base);
+      },
     });
 
   return (

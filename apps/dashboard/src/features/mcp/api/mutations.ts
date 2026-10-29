@@ -1,33 +1,37 @@
-import type {
-  AuthorizationRedirect,
-  AuthorizationRequest,
-  McpStatus,
-  Result,
-  RustrakError,
-} from '@rustrak/client';
-import { createClient } from '@/shared/api/rustrak';
+import type { AuthorizationRequest } from '@rustrak/client';
+import { mutationOptions } from '@tanstack/react-query';
+import { orThrow } from '@/shared/api/query';
+import { api } from '@/shared/api/rustrak';
+import { mcpQueries } from './queries';
 
-/** Opens or closes `/mcp`. Instance admins only; anyone else gets a 403. */
-export async function updateMcpSettings(
-  enabled: boolean,
-): Promise<Result<McpStatus, RustrakError>> {
-  const client = await createClient();
-  return client.settings.updateMcp({ body: { enabled } });
-}
-
-/** Answers a consent screen; the server says where to send the browser. */
-export async function decideAuthorization(
-  request: AuthorizationRequest,
-  approve: boolean,
-): Promise<Result<AuthorizationRedirect, RustrakError>> {
-  const client = await createClient();
-  return client.oauth.decideAuthorization({ body: { ...request, approve } });
-}
-
-/** Disconnects an assistant: its tokens stop working at once. */
-export async function revokeConnection(
-  id: number,
-): Promise<Result<void, RustrakError>> {
-  const client = await createClient();
-  return client.oauth.revokeGrant({ path: { id } });
-}
+export const mcpMutations = {
+  /** Opens or closes `/mcp`. Instance admins only; anyone else gets a 403. */
+  updateSettings: () =>
+    mutationOptions({
+      mutationFn: (enabled: boolean) =>
+        orThrow(api().settings.updateMcp({ body: { enabled } })),
+      meta: { invalidates: [mcpQueries.settings().queryKey] },
+    }),
+  /**
+   * Answers a consent screen; the server says where to send the browser. An
+   * approval connects the assistant.
+   */
+  decideAuthorization: (request: AuthorizationRequest) =>
+    mutationOptions({
+      mutationFn: (approve: boolean) =>
+        orThrow(
+          api().oauth.decideAuthorization({ body: { ...request, approve } }),
+        ),
+      meta: { invalidates: [mcpQueries.connections().queryKey] },
+    }),
+  /**
+   * Disconnects an assistant: its tokens stop working at once. The grant is
+   * the variable, so the list is one mutation rather than one per row.
+   */
+  revokeConnection: () =>
+    mutationOptions({
+      mutationFn: (id: number) =>
+        orThrow(api().oauth.revokeGrant({ path: { id } })),
+      meta: { invalidates: [mcpQueries.connections().queryKey] },
+    }),
+};

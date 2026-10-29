@@ -1,11 +1,11 @@
 import type { TransactionDetailResponse } from '@rustrak/client';
 import { CopyIcon, cn, formatSpanDuration, Tag, Waterfall } from '@rustrak/ui';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import { getProject } from '@/features/project/api/queries';
-import { getTransaction } from '@/features/transaction/api/queries';
+import { transactionQueries } from '@/features/transaction/api/queries';
 import {
   type MeasurementRow,
   readMeasurements,
@@ -15,28 +15,28 @@ import {
 } from '@/features/transaction/lib/transaction-payload';
 import { endpointHref } from '@/features/transaction/model/endpoints';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/performance/$txnId',
 )({
-  loader: ({ params }) => {
-    const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      getTransaction(projectId, params.txnId),
-    ]);
-  },
+  // The project is the layout's; the transaction is the page.
+  loader: ({ context: { queryClient }, params }) =>
+    queryClient.query({
+      ...transactionQueries.detail(
+        Number.parseInt(params.id, 10),
+        params.txnId,
+      ),
+      staleTime: 'static',
+    }),
   head: ({ loaderData }) => {
     const t = translator('projectPages');
     return {
       meta: [
         {
-          title: loaderData?.success
+          title: loaderData
             ? t('transaction.meta.title', {
-                name: loaderData.data[1].transaction_name,
+                name: loaderData.transaction_name,
               })
             : t('transaction.meta.fallbackTitle'),
         },
@@ -60,31 +60,24 @@ const RATING_TEXT = {
  */
 function TransactionPage() {
   const t = useTranslations('performance.transaction');
-  const { id } = Route.useParams();
-  const loaded = Route.useLoaderData();
+  const { id, txnId } = Route.useParams();
   const projectId = Number.parseInt(id, 10);
-  const txn = loaded.success ? loaded.data[1] : null;
-  const name = txn?.transaction_name || t('unnamed');
-  const payload = txn ? readTransactionPayload(txn) : null;
-
-  usePageTrail(
-    txn
-      ? [
-          {
-            label: name,
-            mono: true,
-            href: endpointHref(projectId, { name, op: payload?.op ?? null }),
-          },
-          { label: txn.event_id.slice(0, 8), mono: true },
-        ]
-      : [],
+  const { data: txn } = useSuspenseQuery(
+    transactionQueries.detail(projectId, txnId),
   );
+  const name = txn.transaction_name || t('unnamed');
+  const payload = readTransactionPayload(txn);
 
-  if (!loaded.success || !txn || !payload) {
-    return loaded.success ? null : (
-      <LoadFailure error={loaded.error} title={t('loadFailed')} />
-    );
-  }
+  usePageTrail([
+    {
+      label: name,
+      mono: true,
+      href: endpointHref(projectId, { name, op: payload?.op ?? null }),
+    },
+    { label: txn.event_id.slice(0, 8), mono: true },
+  ]);
+
+  if (!payload) return null;
 
   const rows = waterfallSpans(payload, name);
   const measurements = readMeasurements(payload.measurements);

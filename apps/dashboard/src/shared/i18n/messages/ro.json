@@ -1249,14 +1249,12 @@
     "count": "{count, plural, one {# versiune} few {# versiuni} other {# de versiuni}}",
     "released": "Lansată",
     "unreleased": "Nelansată",
-    "loadFailed": "Versiunile nu au putut fi încărcate",
     "emptyWindow": "Nicio versiune",
     "empty": {
       "title": "Încă nu există versiuni",
       "description": "Trimite un <code>release</code> cu evenimentele sau sesiunile tale, sau creează unul din CI cu sentry-cli, ca să vezi aici fiecare versiune."
     },
     "detail": {
-      "loadFailed": "Această versiune nu a putut fi încărcată",
       "copy": "Copiază versiunea",
       "copied": "Versiune copiată",
       "created": "Creată {when}",
@@ -1441,7 +1439,6 @@
     "conversations": {
       "title": "Conversații",
       "metaTitle": "{conversation} | Conversații | Rustrak",
-      "loadFailed": "Conversația nu a putut fi încărcată",
       "empty": "Nicio conversație în această perioadă. Trimite gen_ai.conversation.id pe span-urile agenților pentru a le grupa rundele.",
       "pageOf": "Pagina {page} din {total}",
       "newer": "Conversații mai noi",
@@ -1782,8 +1779,6 @@
   "projectPages": {
     "projectNotFound": "Proiect negăsit | Rustrak",
     "projectTitle": "{project} | Rustrak",
-    "loadProjectFailed": "Proiectul nu a putut fi încărcat",
-    "loadIssueFailed": "Problema nu a putut fi încărcată",
     "projectsList": {
       "meta": {
         "title": "Proiecte | Rustrak",
@@ -1791,8 +1786,7 @@
       },
       "title": "Proiecte",
       "subtitle": "Administrează proiectele tale de urmărire a erorilor",
-      "newProject": "Proiect nou",
-      "loadFailed": "Proiectele nu au putut fi încărcate"
+      "newProject": "Proiect nou"
     },
     "newProject": {
       "meta": {
@@ -1862,9 +1856,7 @@
         "description": "Probleme pentru {project}"
       },
       "title": "Probleme",
-      "subtitle": "Erorile din {project}, grupate după cauză",
-      "loadFailed": "Problemele nu au putut fi încărcate",
-      "loadLatestEventFailed": "Ultimul eveniment nu a putut fi încărcat"
+      "subtitle": "Erorile din {project}, grupate după cauză"
     },
     "logs": {
       "meta": {
@@ -1872,7 +1864,6 @@
         "description": "Jurnale structurate pentru {project}"
       },
       "title": "Jurnale",
-      "loadFailed": "Jurnalele nu au putut fi încărcate",
       "emptyTitle": "Încă nu există jurnale",
       "emptyDescription": "Trimite jurnale structurate din SDK-ul tău (de ex. <code>Sentry.logger.info(...)</code>) pentru a începe colectarea lor aici."
     },
@@ -1935,8 +1926,6 @@
         "issueNotFound": "Problemă negăsită | Rustrak",
         "noEvents": "Niciun eveniment | {issue} | Rustrak"
       },
-      "loadFailed": "Evenimentul nu a putut fi încărcat",
-      "loadNavigationFailed": "Evenimentele din această problemă nu au putut fi încărcate",
       "lastSeen": "Ultima apariție",
       "firstSeen": "Prima apariție",
       "inRelease": "în lansarea <rel>{release}</rel>",
@@ -1980,7 +1969,6 @@
       "meta": {
         "description": "Feedback de la utilizatorii {project}"
       },
-      "loadFailed": "Feedbackul nu a putut fi încărcat",
       "mailbox": {
         "inbox": "Inbox",
         "resolved": "Rezolvate",
@@ -2064,8 +2052,7 @@
     "members": {
       "meta": {
         "title": "Membrii proiectului | Rustrak"
-      },
-      "loadFailed": "Membrii proiectului nu au putut fi încărcați"
+      }
     },
     "tokens": {
       "meta": {
@@ -2074,7 +2061,6 @@
       },
       "title": "Token-uri API",
       "subtitle": "Administrează token-urile tale API pentru acces programatic",
-      "loadFailed": "Token-urile API nu au putut fi încărcate",
       "apiReference": "Referință API",
       "apiReferenceDescription": "Documentația completă pentru toate endpoint-urile, autentificare și exemple de cereri"
     },
@@ -2085,8 +2071,7 @@
       },
       "title": "Membri",
       "subtitle": "Administrează membrii echipei și invitațiile",
-      "notAuthorizedDescription": "Doar administratorii instanței pot administra echipa. Contactează un admin dacă ai nevoie de acces.",
-      "loadFailed": "Echipa nu a putut fi încărcată"
+      "notAuthorizedDescription": "Doar administratorii instanței pot administra echipa. Contactează un admin dacă ai nevoie de acces."
     },
     "integrations": {
       "meta": {
@@ -2107,7 +2092,6 @@
       },
       "title": "Asistenți AI",
       "subtitle": "Lasă Claude, ChatGPT sau Cursor să citească și să trieze erorile tale.",
-      "loadFailed": "Setările MCP nu au putut fi încărcate",
       "copy": "Copiază",
       "copied": "Copiat",
       "copyLabel": "Copiază {label}",
@@ -2333,7 +2317,6 @@
     },
     "repository": {
       "metaTitle": "GitHub",
-      "loadFailed": "Setările GitHub nu au putut fi încărcate",
       "subtitle": "Leagă acest proiect de un depozit ca să deschizi codul din stack trace, să găsești commitul care l-a stricat și să ții issue-urile sincronizate.",
       "unavailable": "GitHub nu este disponibil pentru acest proiect",
       "goToIntegrations": "Deschide integrările",
@@ -2438,7 +2421,6 @@
     },
     "title": "Crons",
     "newMonitor": "Monitor nou",
-    "loadFailed": "Monitoarele nu au putut fi încărcate",
     "loadMonitorFailed": "Acest monitor nu a putut fi încărcat",
     "never": "Niciodată",
     "columns": {
@@ -2682,7 +2664,6 @@
     "count": "{count, plural, one {# endpoint} few {# endpointuri} other {# de endpointuri}}",
     "search": "Caută endpointuri…",
     "environment": "Mediu",
-    "loadFailed": "Endpointurile nu au putut fi încărcate",
     "emptyWindow": "Niciun endpoint",
     "empty": {
       "title": "Încă nu există tranzacții",
@@ -2729,7 +2710,6 @@
       "when": "Când"
     },
     "transaction": {
-      "loadFailed": "Această tranzacție nu a putut fi încărcată",
       "unnamed": "(fără nume)",
       "idCopied": "Id-ul evenimentului copiat",
       "copyId": "Copiază id-ul evenimentului",

@@ -104,28 +104,24 @@ export function CustomWebhookForm({
 
   // The server renders the body against a sample alert a moment after each
   // change; the editor shows the answer underneath and underlines a refusal.
-  const { preview, request: requestPreview } = useTemplatePreview();
+  // An integration being edited already has a body, so the reader sees what
+  // it renders to without having to touch it first.
+  const preview = useTemplatePreview(form.watch('template'));
 
-  // An integration that is being edited already has a body, and the reader
-  // should see what it renders to without having to touch it first. One
-  // request on mount, not a subscription to the field: both dependencies keep
-  // their identity, so this runs once.
+  // A stored body was saved as one line; nobody writes JSON that way, so it
+  // arrives indented the way they would have written it. `form` keeps its
+  // identity, so this runs once.
   useEffect(() => {
-    // A stored body was saved as one line; nobody writes JSON that way, so it
-    // arrives indented the way they would have written it.
     const stored = form.getValues('template');
     const indented = formatTemplate(stored);
     if (indented !== stored) form.setValue('template', indented);
-    requestPreview(indented);
-  }, [form, requestPreview]);
+  }, [form]);
 
-  const setTemplate = (template: string) => {
+  const setTemplate = (template: string) =>
     form.setValue('template', template, {
       shouldValidate: true,
       shouldDirty: true,
     });
-    requestPreview(template);
-  };
 
   // Replacing a body somebody may have been writing deserves a way back that
   // does not depend on knowing the editor has an undo stack.

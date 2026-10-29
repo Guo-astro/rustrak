@@ -1,13 +1,11 @@
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import {
-  getGitHubStatus,
-  getMyGitHubLogin,
-} from '@/features/github/api/queries';
+import { githubQueries } from '@/features/github/api/queries';
 import { GitHubIntegration } from '@/features/github/ui/components/github-integration';
 import { GitHubLoginCard } from '@/features/github/ui/components/github-login-card';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
@@ -15,12 +13,14 @@ export const Route = createFileRoute(
   '/_authenticated/settings/integrations/github',
 )({
   head: () => ({ meta: [{ title: 'GitHub | Rustrak' }] }),
-  loader: async () => {
-    const [status, login] = await Promise.all([
-      getGitHubStatus(),
-      getMyGitHubLogin(),
-    ]);
-    return { status, login };
+  // The connection is the page; the reader's own login is a card that fills
+  // in on its own.
+  loader: ({ context: { queryClient } }) => {
+    void queryClient.prefetchQuery(githubQueries.myLogin());
+    return queryClient.query({
+      ...githubQueries.status(),
+      staleTime: 'static',
+    });
   },
   component: GitHubIntegrationPage,
 });
@@ -29,16 +29,17 @@ export const Route = createFileRoute(
 function GitHubIntegrationPage() {
   const t = useTranslations('settings');
   const tGitHub = useTranslations('github');
-  const { status, login } = Route.useLoaderData();
+  const { data: status } = useSuspenseQuery(githubQueries.status());
+  const login = useQuery(githubQueries.myLogin());
   usePageTrail([{ label: 'GitHub' }]);
-  const loginCard = login.success ? (
-    <GitHubLoginCard login={login.data.login} />
-  ) : (
-    <LoadFailure
-      error={login.error}
+  const loginCard = (
+    <QueryState
+      query={login}
+      placeholder={null}
       title={t('integrations.githubLoadFailed')}
-      notFoundOnMissing={false}
-    />
+    >
+      {(data) => <GitHubLoginCard login={data.login} />}
+    </QueryState>
   );
 
   return (
@@ -54,18 +55,12 @@ function GitHubIntegrationPage() {
         }
         description={tGitHub('connection.description')}
       />
-      {status.success ? (
-        <GitHubIntegration status={status.data} login={loginCard} />
-      ) : status.error.kind === 'forbidden' ? (
+      {status === null ? (
         // The app and its installations are an admin's; which GitHub account
         // is theirs is every member's to set.
         loginCard
       ) : (
-        <LoadFailure
-          error={status.error}
-          title={t('integrations.githubLoadFailed')}
-          notFoundOnMissing={false}
-        />
+        <GitHubIntegration status={status} login={loginCard} />
       )}
     </>
   );

@@ -1,9 +1,4 @@
-import type {
-  IssueResponse,
-  Result,
-  RustrakError,
-  UpdateIssueState,
-} from '@rustrak/client';
+import type { IssueResponse, UpdateIssueState } from '@rustrak/client';
 import {
   Button,
   CopyIcon,
@@ -20,55 +15,50 @@ import {
   Tooltip,
   UnresolveIcon,
 } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import {
   type ReactNode,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  useTransition,
 } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  deleteIssue,
-  resolveIssueInNextRelease,
-  setIssueBookmark,
-  setIssueSubscription,
-  updateIssueState,
-} from '@/features/issue/api/mutations';
+import { issueMutations } from '@/features/issue/api/mutations';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 import { DeleteIssuesDialog } from './issues-table/delete-issues-dialog';
 
+/** A failed write, spoken. */
+const toastFailure = (message: string) => (error: Error) =>
+  toast.error(message, { description: error.message });
+
 /**
- * One request against the issue, refreshed on success and spoken on failure.
- * Everything that changes the issue -- the header's buttons, the rail's
- * pickers, the keyboard -- goes through this, so they all fail and settle
- * the same way.
+ * The writes against the issue, spoken on failure. Everything that changes
+ * the issue -- the header's buttons, the rail's pickers, the keyboard -- goes
+ * through this, so they all fail and settle the same way.
  */
 export function useIssueChange(projectId: number, issue: IssueResponse) {
   const t = useTranslations('issues');
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  const run = (
-    request: () => Promise<Result<unknown, RustrakError>>,
-    failed: string = t('toasts.updateFailed'),
-  ) =>
-    startTransition(async () => {
-      const result = await request();
-      if (!result.success) {
-        toast.error(failed, { description: result.error.message });
-        return;
-      }
-      router.refresh();
-    });
+  const update = useMutation(issueMutations.update(projectId));
+  const bookmark = useMutation({
+    ...issueMutations.bookmark(projectId, issue.id),
+    onError: toastFailure(t('toasts.bookmarkFailed')),
+  });
+  const subscribe = useMutation({
+    ...issueMutations.subscribe(projectId, issue.id),
+    onError: toastFailure(t('toasts.subscriptionFailed')),
+  });
 
   return {
-    isPending,
-    update: (body: UpdateIssueState, failed?: string) =>
-      run(() => updateIssueState(projectId, issue.id, body), failed),
-    run,
+    isPending: update.isPending || bookmark.isPending || subscribe.isPending,
+    update: (body: UpdateIssueState, failed = t('toasts.updateFailed')) =>
+      update.mutate(
+        { issueId: issue.id, state: body },
+        { onError: toastFailure(failed) },
+      ),
+    bookmark: () => bookmark.mutate(!issue.is_bookmarked),
+    subscribe: () => subscribe.mutate(!issue.is_subscribed),
   };
 }
 
@@ -140,9 +130,14 @@ export function IssueActionBar({
 }: IssueActionBarProps) {
   const t = useTranslations('issues');
   const router = useRouter();
-  const { isPending, update, run } = useIssueChange(projectId, issue);
+  const { isPending, update, bookmark, subscribe } = useIssueChange(
+    projectId,
+    issue,
+  );
   const [deleting, setDeleting] = useState(false);
-  const [isDeleting, startDelete] = useTransition();
+  // The callbacks go on `mutate`: here they would replace the factory's
+  // `onSuccess`, which drops the deleted issue from the cache.
+  const remove = useMutation(issueMutations.delete(projectId));
 
   const resolved = issue.status === 'resolved';
   const archived = issue.status === 'ignored';
@@ -154,16 +149,6 @@ export function IssueActionBar({
   // it escalates yet, so the page does not offer to wait for that.
   const archive = () =>
     update(archived ? { status: 'unresolved' } : { status: 'ignored' });
-  const bookmark = () =>
-    run(
-      () => setIssueBookmark(projectId, issue.id, !issue.is_bookmarked),
-      t('toasts.bookmarkFailed'),
-    );
-  const subscribe = () =>
-    run(
-      () => setIssueSubscription(projectId, issue.id, !issue.is_subscribed),
-      t('toasts.subscriptionFailed'),
-    );
   const copy = (text: string, done: string) => {
     navigator.clipboard
       ?.writeText(text)
@@ -185,19 +170,6 @@ export function IssueActionBar({
     i: once(() => update({ assigned_to: me })),
     C: copyLink,
   });
-
-  const confirmDelete = () =>
-    startDelete(async () => {
-      const result = await deleteIssue(projectId, issue.id);
-      if (!result.success) {
-        toast.error(t('toasts.deleteOneFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      setDeleting(false);
-      router.push(`/projects/${projectId}/issues`);
-    });
 
   const overflow: MenuAction[] = [
     {
@@ -283,8 +255,7 @@ export function IssueActionBar({
             {
               id: 'next-release',
               label: t('actions.resolveInNextRelease'),
-              onSelect: () =>
-                run(() => resolveIssueInNextRelease(projectId, issue.id)),
+              onSelect: () => update({ status: 'resolvedInNextRelease' }),
             },
           ]}
         >
@@ -372,8 +343,16 @@ export function IssueActionBar({
         open={deleting}
         onOpenChange={setDeleting}
         count={1}
-        isPending={isDeleting}
-        onConfirm={confirmDelete}
+        isPending={remove.isPending}
+        onConfirm={() =>
+          remove.mutate(issue.id, {
+            onSuccess: () => {
+              setDeleting(false);
+              router.push(`/projects/${projectId}/issues`);
+            },
+            onError: toastFailure(t('toasts.deleteOneFailed')),
+          })
+        }
       />
     </div>
   );

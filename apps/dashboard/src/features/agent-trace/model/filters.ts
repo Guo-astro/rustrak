@@ -82,18 +82,38 @@ export function fillBuckets<T extends { bucket: string }>(
   return filled;
 }
 
+/** The window with no `?period=`; all time is `?period=all`. */
+export const DEFAULT_AGENT_PERIOD: AgentPeriod = '24h';
+
+/** What `?period=` may hold: a window, or all time. */
+export const AGENT_PERIOD_PARAMS = [...AGENT_PERIODS, 'all'] as const;
+
+/** `?period=` for a chosen window (`undefined` is all time): the default is no period at all. */
+export function agentPeriodParam(
+  period: AgentPeriod | undefined,
+): (typeof AGENT_PERIOD_PARAMS)[number] | undefined {
+  if (period === undefined) return 'all';
+  return period === DEFAULT_AGENT_PERIOD ? undefined : period;
+}
+
 /**
  * Resolves the dashboard's filters from raw search params.
  *
- * An unrecognized period falls back to all-time rather than throwing: a
- * hand-edited or stale URL should show the reader something, and showing more
- * data than asked for is the safe direction to fail in.
+ * All time is asked for, never the default: it reads every span the project
+ * ever sent, which on a busy project outlasts the client's timeout. An
+ * unrecognized period gets the default rather than throwing, so a stale URL
+ * still shows something.
  */
 export function resolveAgentFilters(params: {
   period?: string;
   environment?: string;
 }): AgentDashboardFilters {
-  const period = isAgentPeriod(params.period) ? params.period : undefined;
+  const period =
+    params.period === 'all'
+      ? undefined
+      : isAgentPeriod(params.period)
+        ? params.period
+        : DEFAULT_AGENT_PERIOD;
   const environment =
     params.environment != null && params.environment !== ''
       ? params.environment

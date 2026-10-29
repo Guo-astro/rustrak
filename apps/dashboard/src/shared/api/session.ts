@@ -1,5 +1,5 @@
 import type { RustrakError, UserResponse } from '@rustrak/client';
-import { createClient } from './rustrak';
+import { api } from './rustrak';
 
 /**
  * Whether there is a session, and if not, why not.
@@ -30,8 +30,7 @@ export type CurrentUser =
  * the other way round.
  */
 export async function getCurrentUser(): Promise<CurrentUser> {
-  const client = await createClient();
-  const result = await client.auth.getCurrentUser();
+  const result = await api().auth.getCurrentUser();
 
   if (result.success) {
     return { state: 'authenticated', user: result.data };

@@ -9,12 +9,12 @@ import {
   Tabs,
   Text,
 } from '@rustrak/ui';
+import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
-import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { updateIssueState } from '@/features/issue/api/mutations';
-import { listFeedback } from '@/features/issue/api/queries';
+import { issueMutations } from '@/features/issue/api/mutations';
+import { issueQueries } from '@/features/issue/api/queries';
 import {
   landingAfter,
   MAILBOX_FILTER,
@@ -23,16 +23,25 @@ import {
 import { FeedbackDetail } from '@/features/issue/ui/components/feedback-detail';
 import { FeedbackList } from '@/features/issue/ui/components/feedback-list';
 import { useShortcuts } from '@/features/issue/ui/components/issue-actions';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import {
   searchOneOf,
   searchPage,
   searchString,
 } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { useRouter } from '@/shared/ui/hooks/use-router';
+
+/** The page of a mailbox the URL shows, for the loader and the component. */
+function feedbackList(
+  projectId: number,
+  deps: { mailbox: keyof typeof MAILBOX_FILTER; page: number },
+) {
+  return issueQueries.feedback(projectId, {
+    filter: MAILBOX_FILTER[deps.mailbox],
+    page: deps.page,
+    per_page: 25,
+  });
+}
 
 /**
  * User feedback: Sentry's feedback inbox. Every feedback is its own issue of
@@ -53,25 +62,28 @@ export const Route = createFileRoute('/_authenticated/projects/$id/feedback/')({
     mailbox: search.mailbox ?? 'inbox',
     page: search.page ?? 1,
   }),
-  loader: ({ params, deps }) => {
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      listFeedback(projectId, {
-        filter: MAILBOX_FILTER[deps.mailbox],
-        page: deps.page,
-        per_page: 25,
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...feedbackList(projectId, deps),
+        staleTime: 'static',
       }),
     ]);
+    return { project };
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const [project] = loaderData.data;
+    const { project } = loaderData;
     return {
       meta: [
         { title: t('projectTitle', { project: project.name }) },
@@ -93,20 +105,51 @@ function FeedbackPage() {
   const mailbox = search.mailbox ?? 'inbox';
   const page = search.page ?? 1;
   const navigate = Route.useNavigate();
-  const router = useRouter();
   const isLoading = useRouterState({ select: (s) => s.status === 'pending' });
-  const [isUpdating, startUpdate] = useTransition();
-  const loaded = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: feedback } = useSuspenseQuery(
+    feedbackList(projectId, { mailbox, page }),
+  );
 
-  const items = loaded.success ? loaded.data[1].items : [];
+  const items = feedback.items;
   const ids = items.map((item) => item.id);
   // One is always open: the one the URL names, else the newest.
   const current = items.find((item) => item.id === search.selected) ?? items[0];
   // Narrow, the pane shows only once the reader picked a row on this page;
   // a stale `?selected=` falls back to the list, not to `items[0]`'s pane.
   const opened = current !== undefined && current.id === search.selected;
-  const isPending = isLoading || isUpdating;
+  const update = useMutation({
+    ...issueMutations.update(projectId),
+    // Taken when the verb is pressed: the landing belongs to the row acted on.
+    onMutate: ({ issueId }) => ({
+      search,
+      landing: landingAfter(ids, issueId, page),
+    }),
+    // Before the refetch the mutation names, so the pane has moved on by the
+    // time the row leaves the list.
+    onSuccess: (_data, _variables, acted) =>
+      navigate({
+        // A reader who opened another row, page or mailbox while this saved
+        // keeps it.
+        search: (prev) =>
+          prev.selected !== acted.search.selected ||
+          prev.mailbox !== acted.search.mailbox ||
+          prev.page !== acted.search.page
+            ? prev
+            : {
+                ...prev,
+                page: acted.landing.page === 1 ? undefined : acted.landing.page,
+                selected: acted.landing.selected,
+              },
+        replace: true,
+      }),
+    onError: (error) =>
+      toast.error(tIssues('toasts.updateFailed'), {
+        description: error.message,
+      }),
+  });
+  const isPending = isLoading || update.isPending;
 
   const select = (selected: string | undefined) =>
     navigate({ search: (prev) => ({ ...prev, selected }), replace: true });
@@ -117,34 +160,9 @@ function FeedbackPage() {
   };
 
   // Either verb moves the feedback to another mailbox, so the pane moves on.
-  const change = (body: UpdateIssueState) => {
+  const change = (state: UpdateIssueState) => {
     if (!current || isPending) return;
-    startUpdate(async () => {
-      const result = await updateIssueState(projectId, current.id, body);
-      if (!result.success) {
-        toast.error(tIssues('toasts.updateFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      const landing = landingAfter(ids, current.id, page);
-      await navigate({
-        // A reader who opened another row, page or mailbox while this saved
-        // keeps it: the landing belongs to the row they acted on.
-        search: (prev) =>
-          prev.selected !== search.selected ||
-          prev.mailbox !== search.mailbox ||
-          prev.page !== search.page
-            ? prev
-            : {
-                ...prev,
-                page: landing.page === 1 ? undefined : landing.page,
-                selected: landing.selected,
-              },
-        replace: true,
-      });
-      router.refresh();
-    });
+    update.mutate({ issueId: current.id, state });
   };
   const resolve = () =>
     change({
@@ -158,14 +176,6 @@ function FeedbackPage() {
     );
 
   useShortcuts({ j: () => step(1), k: () => step(-1), r: resolve, e: spam });
-
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('feedback.loadFailed')} />
-    );
-  }
-
-  const [project, feedback] = loaded.data;
 
   return (
     <div className="flex h-full flex-col">
