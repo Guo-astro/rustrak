@@ -1,29 +1,56 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import {
   DEFAULT_PERIOD,
   PERIOD_CHOICES,
+  type PeriodChoice,
 } from '@/features/release/model/session-health';
 import { PeriodFilter } from '@/features/release/ui/components/period-filter';
-import {
-  getEndpointTrend,
-  getTransactionStatForGroup,
-  listTransactions,
-} from '@/features/transaction/api/queries';
+import { transactionQueries } from '@/features/transaction/api/queries';
 import { windowHours } from '@/features/transaction/model/endpoints';
 import {
   CallsChart,
   EndpointFacts,
   EndpointFigures,
   LatencyChart,
-  Loaded,
   SlowestSamples,
 } from '@/features/transaction/ui/components/endpoint-detail';
 import { translator } from '@/shared/i18n/intl';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { Panel, RailBlock } from '@/shared/ui/components/panel';
-import { useAsync } from '@/shared/ui/hooks/use-async';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
+
+interface EndpointSearch {
+  name?: string;
+  op?: string;
+  period?: PeriodChoice;
+  environment?: string;
+}
+
+/**
+ * The page's three reads for a URL, built once for the loader and the
+ * components so both name the same cache entries.
+ */
+function endpointReads(projectId: number, search: EndpointSearch) {
+  const period = search.period ?? DEFAULT_PERIOD;
+  const group = {
+    name: search.name ?? '',
+    op: search.op,
+    period: period === 'all' ? undefined : period,
+    environment: search.environment,
+  };
+  return {
+    stats: transactionQueries.group(projectId, group),
+    trend: transactionQueries.groupTrend(projectId, group),
+    samples: transactionQueries.list(projectId, {
+      ...group,
+      sort: 'slowest',
+      per_page: 10,
+    }),
+  };
+}
 
 /**
  * One endpoint, laid out as the release page is: its name and window in the
@@ -34,7 +61,7 @@ import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/performance/summary',
 )({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): EndpointSearch => ({
     name: searchString(search.name),
     op: searchString(search.op),
     period: searchOneOf(search.period, PERIOD_CHOICES),
@@ -43,6 +70,14 @@ export const Route = createFileRoute(
   // The name *is* the address: without it there is no endpoint to show.
   beforeLoad: ({ search }) => {
     if (!search.name) throw notFound();
+  },
+  loaderDeps: ({ search }) => search,
+  // Three panels, each started here and landing on its own.
+  loader: ({ context: { queryClient }, params, deps }) => {
+    const reads = endpointReads(Number.parseInt(params.id, 10), deps);
+    void queryClient.prefetchQuery(reads.stats);
+    void queryClient.prefetchQuery(reads.trend);
+    void queryClient.prefetchQuery(reads.samples);
   },
   head: ({ match }) => {
     const t = translator('projectPages');
@@ -69,33 +104,11 @@ function EndpointPage() {
   const name = search.name ?? '';
   const op = search.op ?? null;
   usePageTrail([{ label: name, mono: true }]);
-  const scope = {
-    period: period === 'all' ? undefined : period,
-    environment: search.environment,
-  };
 
-  // Three panels, each landing on its own.
-  const deps = [projectId, name, op, period, search.environment];
-  const stats = useAsync(
-    () => getTransactionStatForGroup(projectId, name, op ?? undefined, scope),
-    deps,
-  );
-  const trend = useAsync(
-    () => getEndpointTrend(projectId, name, op ?? undefined, scope),
-    deps,
-  );
-  const samples = useAsync(
-    () =>
-      listTransactions(projectId, {
-        name,
-        op,
-        environment: scope.environment,
-        period: scope.period,
-        sort: 'slowest',
-        per_page: 10,
-      }),
-    deps,
-  );
+  const reads = endpointReads(projectId, search);
+  const stats = useQuery(reads.stats);
+  const trend = useQuery(reads.trend);
+  const samples = useQuery(reads.samples);
 
   return (
     <div className="flex h-full flex-col">
@@ -125,7 +138,11 @@ function EndpointPage() {
       <div className="flex min-h-0 flex-1 max-lg:flex-col max-lg:overflow-y-auto">
         <main className="min-w-0 flex-1 lg:overflow-y-auto">
           <div className="flex flex-col gap-5 px-page-gutter pt-5 pb-8">
-            <Loaded read={stats} height={104} title={t('figures')}>
+            <QueryState
+              query={stats}
+              placeholder={<Placeholder height={104} />}
+              title={t('figures')}
+            >
               {(group) =>
                 group ? (
                   <EndpointFigures
@@ -136,29 +153,45 @@ function EndpointPage() {
                   <p className="text-fg-subtle text-meta">{t('noSamples')}</p>
                 )
               }
-            </Loaded>
+            </QueryState>
             <Panel title={t('latency')} hint={t('latencyHint')}>
-              <Loaded read={trend} height={220} title={t('latency')}>
+              <QueryState
+                query={trend}
+                placeholder={<Placeholder height={220} />}
+                title={t('latency')}
+              >
                 {(points) => <LatencyChart points={points} />}
-              </Loaded>
+              </QueryState>
             </Panel>
             <Panel title={t('calls')} hint={t('callsHint')}>
-              <Loaded read={trend} height={220} title={t('calls')}>
+              <QueryState
+                query={trend}
+                placeholder={<Placeholder height={220} />}
+                title={t('calls')}
+              >
                 {(points) => <CallsChart points={points} />}
-              </Loaded>
+              </QueryState>
             </Panel>
             <Panel flush title={t('slowest')} hint={t('slowestHint')}>
-              <Loaded read={samples} height={240} title={t('slowest')}>
+              <QueryState
+                query={samples}
+                placeholder={<Placeholder height={240} />}
+                title={t('slowest')}
+              >
                 {(page) => (
                   <SlowestSamples projectId={projectId} rows={page.items} />
                 )}
-              </Loaded>
+              </QueryState>
             </Panel>
           </div>
         </main>
         <aside className="border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88">
           <RailBlock title={t('details')}>
-            <Loaded read={stats} height={160} title={t('details')}>
+            <QueryState
+              query={stats}
+              placeholder={<Placeholder height={160} />}
+              title={t('details')}
+            >
               {(group) =>
                 group ? (
                   <EndpointFacts
@@ -168,10 +201,19 @@ function EndpointPage() {
                   />
                 ) : null
               }
-            </Loaded>
+            </QueryState>
           </RailBlock>
         </aside>
       </div>
     </div>
+  );
+}
+
+function Placeholder({ height }: { height: number }) {
+  return (
+    <div
+      className="animate-pulse rounded-lg bg-surface-hover motion-reduce:animate-none"
+      style={{ height }}
+    />
   );
 }

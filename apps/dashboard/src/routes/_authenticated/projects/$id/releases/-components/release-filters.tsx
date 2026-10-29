@@ -1,11 +1,11 @@
 import { EnvironmentIcon } from '@rustrak/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'use-intl';
-import { getProjectEnvironments } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import type { PeriodChoice } from '@/features/release/model/session-health';
 import { PeriodSegment } from '@/features/release/ui/components/period-filter';
 import { scopeActions } from '@/shared/lib/scope-actions';
 import { ScopeBar, ScopeSegment } from '@/shared/ui/components/scope-bar';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 
 export interface ReleaseScope {
   environment?: string;
@@ -26,9 +26,9 @@ export function ReleaseFilters({
   onChange: (change: Partial<ReleaseScope>) => void;
 }) {
   const t = useTranslations('projectPages.overview');
-  const read = useAsync(() => getProjectEnvironments(projectId), [projectId]);
+  // No choices while they load or when they fail to: the filter still works.
   const environments =
-    read.state === 'ready' && read.data.success ? read.data.data : [];
+    useQuery(projectQueries.environments(projectId)).data ?? [];
 
   return (
     <ScopeBar>

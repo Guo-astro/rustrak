@@ -9,26 +9,21 @@ import {
   serializeTableQuery,
   Text,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import {
-  getProject,
-  getProjectEnvironments,
-} from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import {
   DEFAULT_PERIOD,
   PERIOD_CHOICES,
   type PeriodChoice,
 } from '@/features/release/model/session-health';
 import { PeriodFilter } from '@/features/release/ui/components/period-filter';
-import { getTransactionStats } from '@/features/transaction/api/queries';
+import { transactionQueries } from '@/features/transaction/api/queries';
 import { endpointHref } from '@/features/transaction/model/endpoints';
 import { EndpointsTable } from '@/features/transaction/ui/components/endpoints-table';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
 const PAGE_SIZE = 25;
@@ -121,19 +116,29 @@ export const Route = createFileRoute(
     period: searchOneOf(search.period, PERIOD_CHOICES),
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ params, deps }) => {
+  // The page is awaited, so the router keeps the previous one on screen while
+  // the next loads; the bar's suggestions are only started.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    return loadAll([
-      getProject(projectId),
-      getTransactionStats(projectId, statsParams(deps)),
+    void queryClient.prefetchQuery(projectQueries.environments(projectId));
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...transactionQueries.stats(projectId, statsParams(deps)),
+        staleTime: 'static',
+      }),
     ]);
+    return { project };
   },
   head: ({ loaderData }) => {
     const tPages = translator('projectPages');
-    if (!loaderData?.success) {
+    if (!loaderData) {
       return { meta: [{ title: tPages('projectNotFound') }] };
     }
-    const [project] = loaderData.data;
+    const { project } = loaderData;
     return {
       meta: [
         { title: tPages('performance.meta.title', { project: project.name }) },
@@ -155,7 +160,6 @@ function PerformancePage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const loaded = Route.useLoaderData();
   const loading = useRouterState({ select: (state) => state.isLoading });
   const projectId = Number.parseInt(id, 10);
   const query = tableQuery(search);
@@ -166,18 +170,16 @@ function PerformancePage() {
     environment: environment ?? undefined,
   };
 
-  const environments = useAsync(
-    () => getProjectEnvironments(projectId),
-    [projectId],
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: page } = useSuspenseQuery(
+    transactionQueries.stats(projectId, statsParams(search)),
   );
+  // What the bar can suggest: none while they load or when they fail.
+  const environments =
+    useQuery(projectQueries.environments(projectId)).data ?? [];
 
   const router = useRouter();
 
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('loadFailed')} />;
-  }
-
-  const [project, page] = loaded.data;
   const filtered = query.search !== '' || query.filters.length > 0;
 
   return (
@@ -195,11 +197,7 @@ function PerformancePage() {
             page={page}
             query={query}
             loading={loading}
-            environments={
-              environments.state === 'ready' && environments.data.success
-                ? environments.data.data
-                : []
-            }
+            environments={environments}
             onOpen={(row) =>
               router.push(
                 endpointHref(

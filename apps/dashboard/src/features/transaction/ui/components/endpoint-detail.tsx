@@ -1,6 +1,4 @@
 import type {
-  Result,
-  RustrakError,
   TransactionResponse,
   TransactionStatsResponse,
   TransactionsGetStatGroupTimeseriesResponse,
@@ -20,8 +18,6 @@ import {
   perMinute,
 } from '@/features/transaction/model/endpoints';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import type { Async } from '@/shared/ui/hooks/use-async';
 
 /*
  * The pieces of an endpoint's page. The page lays them out the way the
@@ -29,44 +25,10 @@ import type { Async } from '@/shared/ui/hooks/use-async';
  * the reading column, the facts that describe it in the rail.
  */
 
-type Read<T> = Async<Result<T, RustrakError>>;
-
 const FAILURE_TEXT = {
   warning: 'text-sev-warning-fg',
   bad: 'text-sev-error-fg',
 } as const;
-
-/** The read's data, a placeholder, or its failure -- never a fake zero. */
-export function Loaded<T>({
-  read,
-  height,
-  title,
-  children,
-}: {
-  read: Read<T>;
-  height: number;
-  title: string;
-  children: (data: T) => ReactNode;
-}) {
-  if (read.state === 'ready' && read.data.success) {
-    return children(read.data.data);
-  }
-  if (read.state === 'ready' && !read.data.success) {
-    return (
-      <LoadFailure
-        error={read.data.error}
-        title={title}
-        notFoundOnMissing={false}
-      />
-    );
-  }
-  return (
-    <div
-      className="animate-pulse rounded-lg bg-surface-hover motion-reduce:animate-none"
-      style={{ height }}
-    />
-  );
-}
 
 /**
  * Four figures in one strip: how much it runs, how slow it gets, how often it

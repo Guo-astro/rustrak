@@ -1,12 +1,4 @@
-import type {
-  IssueResponse,
-  MetricDelta,
-  Result,
-  RustrakError,
-  SessionSummary,
-  SessionsGetTimeseriesResponse,
-  StatsGetEventTimeseriesResponse,
-} from '@rustrak/client';
+import type { IssueResponse, MetricDelta } from '@rustrak/client';
 import {
   BarsChart,
   Button,
@@ -17,39 +9,37 @@ import {
   Sparkline,
   TimeSeriesChart,
 } from '@rustrak/ui';
+import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { listIssues } from '@/features/issue/api/queries';
-import {
-  getProjectEventTimeseries,
-  getProjectStatsSummary,
-} from '@/features/project/api/queries';
+import { issueQueries } from '@/features/issue/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import {
   periodHours,
   withPreviousPeriod,
 } from '@/features/project/lib/overview-series';
-import {
-  getSessionSummary,
-  getSessionTimeseries,
-} from '@/features/release/api/queries';
+import { releaseQueries } from '@/features/release/api/queries';
 import {
   type OverviewPeriod,
   overviewInterval,
 } from '@/features/release/model/session-health';
-import { getTransactionStats } from '@/features/transaction/api/queries';
-import { loadAll } from '@/shared/lib/results';
+import { transactionQueries } from '@/features/transaction/api/queries';
 import { Link } from '@/shared/ui/components/link';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { MetricDeltaText } from '@/shared/ui/components/metric-delta';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { TransactionP95Bars } from '@/shared/ui/components/transaction-p95-bars';
-import { type Async, useAsync } from '@/shared/ui/hooks/use-async';
 
 /*
- * The overview's panels. Each one renders its own placeholder and its own
- * failure, so the page fills in as each read lands rather than at the speed
- * of the slowest. Reads two panels share -- the event series feeds the error
- * KPI's sparkline and the volume chart -- are made once, in
- * `useOverviewData`, and handed to both.
+ * The overview's panels. Each one subscribes to its own reads and renders its
+ * own placeholder and its own failure, so the page fills in as each read
+ * lands rather than at the speed of the slowest. A read two panels share --
+ * the event series feeds the error KPI's sparkline and the volume chart -- is
+ * one cache entry, fetched once.
+ *
+ * A failed read renders as a failure, never as an empty series: a flat line
+ * at zero reads as "nothing is breaking", the most dangerous thing this page
+ * could say while wrong.
  */
 
 export interface OverviewFilters {
@@ -60,74 +50,60 @@ export interface OverviewFilters {
   release?: string;
 }
 
-type Read<T> = Async<Result<T, RustrakError>>;
+const ISSUE_VIEWS = {
+  recent: { sort: 'last_seen' },
+  new: { sort: 'digest_order' },
+  frequent: { sort: 'event_count' },
+} as const;
 
-type EventPoint = StatsGetEventTimeseriesResponse[number] & {
-  previous?: number;
-};
+type IssueView = keyof typeof ISSUE_VIEWS;
 
-export interface OverviewData {
-  events: Read<EventPoint[]>;
-  summary: ReturnType<typeof useSummary>;
-  sessions: Read<[SessionSummary, SessionsGetTimeseriesResponse]>;
-}
-
-function useSummary({
-  projectId,
-  period,
-  environment,
-  release,
-}: OverviewFilters) {
-  return useAsync(
-    () => getProjectStatsSummary(projectId, period, { environment, release }),
-    [projectId, period, environment, release],
-  );
-}
-
-/** The reads more than one panel needs, made once for the page. */
-export function useOverviewData(
-  filters: OverviewFilters,
-  compare: boolean,
-): OverviewData {
+/**
+ * The overview's reads for a URL, built once for the loader and the panels so
+ * both name the same cache entries.
+ */
+export function overviewReads(filters: OverviewFilters, compare: boolean) {
   const { projectId, period, environment, release } = filters;
-  const scope = { environment, release };
+  const scope = { period, environment, release };
   const interval = overviewInterval(period);
-
-  const events = useAsync(async () => {
-    // The current series is always its own request, so turning comparison
-    // on never changes it; the window before comes from twice the window.
-    const [current, doubled] = await Promise.all([
-      getProjectEventTimeseries(projectId, period, interval, scope),
+  return {
+    summary: projectQueries.summary(projectId, scope),
+    // The current series is always its own read, so turning comparison on
+    // never changes it; the window before comes from twice the window.
+    events: projectQueries.eventTimeseries(projectId, { ...scope, interval }),
+    previousEvents:
       compare && period
-        ? getProjectEventTimeseries(
-            projectId,
-            `${periodHours(period) * 2}h`,
+        ? projectQueries.eventTimeseries(projectId, {
+            ...scope,
+            period: `${periodHours(period) * 2}h`,
             interval,
-            scope,
-          )
+          })
         : null,
-    ]);
-    // A failed comparison costs the dashed line, not the chart.
-    if (!current.success || !doubled?.success) return current;
-    return {
-      ...current,
-      data: withPreviousPeriod(current.data, doubled.data),
-    };
-  }, [projectId, period, environment, release, compare]);
-
-  const summary = useSummary(filters);
-
-  const sessions = useAsync(
-    () =>
-      loadAll([
-        getSessionSummary(projectId, period, scope),
-        getSessionTimeseries(projectId, period, interval, scope),
-      ]),
-    [projectId, period, environment, release],
-  );
-
-  return { events, summary, sessions };
+    sessionSummary: releaseQueries.sessionSummary(projectId, scope),
+    sessionTrend: releaseQueries.sessionTimeseries(projectId, {
+      ...scope,
+      interval,
+    }),
+    issues: (view: IssueView) =>
+      issueQueries.list(projectId, {
+        filter: 'open',
+        page: 1,
+        per_page: 6,
+        sort: ISSUE_VIEWS[view].sort,
+        order: 'desc',
+        environment,
+        release,
+      }),
+    // Transaction stats have no window of their own yet, so this panel is all
+    // time whatever the filters say -- said in its description rather than
+    // left to look like it follows them.
+    latency: transactionQueries.stats(projectId, { page: 1, per_page: 20 }),
+    environments: projectQueries.environments(projectId),
+    releases: projectQueries.releaseVersions(projectId),
+  };
 }
+
+export type OverviewReads = ReturnType<typeof overviewReads>;
 
 // ── chrome ───────────────────────────────────────────────────────────────────
 
@@ -175,36 +151,6 @@ function Placeholder({ height }: { height: number }) {
   );
 }
 
-/**
- * Renders the read's data, its placeholder, or its failure. A panel that fell
- * back to an empty series would draw a flat line at zero, which reads as
- * "nothing is breaking" -- the most dangerous thing this page could say
- * while wrong.
- */
-function Loaded<T>({
-  read,
-  height,
-  title,
-  children,
-}: {
-  read: Read<T>;
-  height: number;
-  title: string;
-  children: (data: T) => ReactNode;
-}) {
-  if (read.state === 'pending') return <Placeholder height={height} />;
-  if (!read.data.success) {
-    return (
-      <LoadFailure
-        error={read.data.error}
-        title={title}
-        notFoundOnMissing={false}
-      />
-    );
-  }
-  return children(read.data.data);
-}
-
 /** Bucket labels that say as much as the bucket width can tell. */
 function useBucketLabel(intervalHours: number) {
   const format = useFormatter();
@@ -246,9 +192,7 @@ function Kpi({
         {trend}
       </div>
       {/* A line is kept even when empty, so the cards in a row line up. */}
-      <p className="truncate text-hint text-fg-subtle">
-        {footnote ?? '\u00a0'}
-      </p>
+      <p className="truncate text-hint text-fg-subtle">{footnote ?? ' '}</p>
     </div>
   );
 }
@@ -266,32 +210,34 @@ function KpiPlaceholder() {
 }
 
 export function KpiRow({
-  data,
+  reads,
   filters,
 }: {
-  data: OverviewData;
+  reads: OverviewReads;
   filters: OverviewFilters;
 }) {
   const t = useTranslations('projectPages.overview');
   const format = useFormatter();
-  const { summary, events, sessions } = data;
+  const summary = useQuery(reads.summary);
+  const events = useQuery(reads.events);
+  const health = useQuery(reads.sessionSummary);
+  const trend = useQuery(reads.sessionTrend);
   const percent = (rate: number | null | undefined) =>
     rate == null
       ? '–'
       : format.number(rate, { style: 'percent', maximumFractionDigits: 2 });
 
-  const eventTrend =
-    events.state === 'ready' && events.data.success
-      ? events.data.data.map((p) => p.total)
-      : null;
+  // The sparkline is decoration on the error card: without its series the
+  // card still says what it counts.
+  const eventTrend = events.data?.map((p) => p.total) ?? null;
 
-  const failed = (read: Read<unknown>) =>
-    read.state === 'ready' && !read.data.success ? read.data.error : null;
-  const failure = failed(summary) ?? failed(sessions);
+  const failure = [summary, health, trend].find(
+    (read) => read.data === undefined && read.isError,
+  )?.error;
   if (failure) {
     return (
       <LoadFailure
-        error={failure}
+        error={failure.error}
         title={t('kpisFailed')}
         notFoundOnMissing={false}
       />
@@ -300,12 +246,12 @@ export function KpiRow({
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-      {summary.state === 'ready' && summary.data.success ? (
+      {summary.data ? (
         <>
           <Kpi
             label={t('errors')}
-            value={format.number(summary.data.data.events.current, 'compact')}
-            delta={<Delta metric={summary.data.data.events} />}
+            value={format.number(summary.data.events.current, 'compact')}
+            delta={<Delta metric={summary.data.events} />}
             footnote={
               [filters.environment, filters.release]
                 .filter(Boolean)
@@ -324,10 +270,10 @@ export function KpiRow({
           />
           <Kpi
             label={t('newIssues')}
-            value={format.number(summary.data.data.new_issues.current)}
-            delta={<Delta metric={summary.data.data.new_issues} />}
+            value={format.number(summary.data.new_issues.current)}
+            delta={<Delta metric={summary.data.new_issues} />}
             footnote={t('openIssues', {
-              count: format.number(summary.data.data.open_issues),
+              count: format.number(summary.data.open_issues),
             })}
           />
         </>
@@ -338,45 +284,39 @@ export function KpiRow({
         </>
       )}
 
-      {sessions.state === 'ready' && sessions.data.success ? (
-        (() => {
-          const [health, series] = sessions.data.data;
-          const none = health.total === 0;
-          return (
-            <>
-              <Kpi
-                label={t('crashFreeSessions')}
-                value={percent(health.crash_free_sessions_rate)}
-                footnote={
-                  none
-                    ? t('noSessions')
-                    : t('sessionsCount', {
-                        count: format.number(health.total, 'compact'),
-                      })
-                }
-                trend={
-                  none ? null : (
-                    <Sparkline
-                      values={series.map((p) => p.crashed)}
-                      tone="danger"
-                      label={t('crashes')}
-                      className="hidden h-8 w-28 shrink-0 sm:block"
-                    />
-                  )
-                }
-              />
-              <Kpi
-                label={t('crashFreeUsers')}
-                value={percent(health.crash_free_users_rate)}
-                footnote={
-                  none
-                    ? t('noSessions')
-                    : t('activeReleases', { count: health.active_releases })
-                }
-              />
-            </>
-          );
-        })()
+      {health.data && trend.data ? (
+        <>
+          <Kpi
+            label={t('crashFreeSessions')}
+            value={percent(health.data.crash_free_sessions_rate)}
+            footnote={
+              health.data.total === 0
+                ? t('noSessions')
+                : t('sessionsCount', {
+                    count: format.number(health.data.total, 'compact'),
+                  })
+            }
+            trend={
+              health.data.total === 0 ? null : (
+                <Sparkline
+                  values={trend.data.map((p) => p.crashed)}
+                  tone="danger"
+                  label={t('crashes')}
+                  className="hidden h-8 w-28 shrink-0 sm:block"
+                />
+              )
+            }
+          />
+          <Kpi
+            label={t('crashFreeUsers')}
+            value={percent(health.data.crash_free_users_rate)}
+            footnote={
+              health.data.total === 0
+                ? t('noSessions')
+                : t('activeReleases', { count: health.data.active_releases })
+            }
+          />
+        </>
       ) : (
         <>
           <KpiPlaceholder />
@@ -390,12 +330,12 @@ export function KpiRow({
 // ── error volume ─────────────────────────────────────────────────────────────
 
 export function ErrorVolumePanel({
-  data,
+  reads,
   filters,
   compare,
   onCompareChange,
 }: {
-  data: OverviewData;
+  reads: OverviewReads;
   filters: OverviewFilters;
   compare: boolean;
   onCompareChange: (compare: boolean) => void;
@@ -404,11 +344,16 @@ export function ErrorVolumePanel({
   const format = useFormatter();
   const interval = overviewInterval(filters.period);
   const label = useBucketLabel(interval);
-  const read = data.events;
-  const total =
-    read.state === 'ready' && read.data.success
-      ? read.data.data.reduce((sum, p) => sum + p.total, 0)
-      : null;
+  const events = useQuery(reads.events);
+  // Not asked for unless comparing: without the window before, the
+  // observer stands on the current series and stays disabled.
+  const previous = useQuery({
+    ...(reads.previousEvents ?? reads.events),
+    enabled: reads.previousEvents !== null,
+  });
+  // A comparison that did not load costs the dashed line, not the chart.
+  const comparison = reads.previousEvents ? previous.data : undefined;
+  const total = events.data?.reduce((sum, p) => sum + p.total, 0) ?? null;
 
   return (
     <Panel
@@ -434,11 +379,18 @@ export function ErrorVolumePanel({
         </Button>
       }
     >
-      <Loaded read={read} height={280} title={t('errorVolume')}>
+      <QueryState
+        query={events}
+        placeholder={<Placeholder height={280} />}
+        title={t('errorVolume')}
+      >
         {(points) =>
           compare ? (
             <TimeSeriesChart
-              data={points.map((p) => ({
+              data={(comparison
+                ? withPreviousPeriod(points, comparison)
+                : points.map((p) => ({ ...p, previous: undefined }))
+              ).map((p) => ({
                 t: new Date(p.bucket).getTime(),
                 total: p.total,
                 previous: p.previous,
@@ -449,9 +401,9 @@ export function ErrorVolumePanel({
                   label: t('thisPeriod'),
                   color: 'var(--sev-error)',
                 },
-                // No `previous` means the comparison did not load: no line,
-                // rather than a line of zeros that reads as a quiet period.
-                ...(points.some((p) => p.previous !== undefined)
+                // No comparison means no line, rather than a line of zeros
+                // that reads as a quiet period.
+                ...(comparison
                   ? [
                       {
                         key: 'previous',
@@ -501,20 +453,12 @@ export function ErrorVolumePanel({
             />
           )
         }
-      </Loaded>
+      </QueryState>
     </Panel>
   );
 }
 
 // ── issues ───────────────────────────────────────────────────────────────────
-
-const ISSUE_VIEWS = {
-  recent: { sort: 'last_seen' },
-  new: { sort: 'digest_order' },
-  frequent: { sort: 'event_count' },
-} as const;
-
-type IssueView = keyof typeof ISSUE_VIEWS;
 
 const LEVEL_MARK: Record<string, string> = {
   fatal: 'bg-sev-error',
@@ -526,23 +470,16 @@ const LEVEL_MARK: Record<string, string> = {
  * The open issues to look at: the ones firing now, the newest, or the
  * loudest. In an environment, only the issues seen there.
  */
-export function IssuesPanel({ filters }: { filters: OverviewFilters }) {
+export function IssuesPanel({
+  reads,
+  projectId,
+}: {
+  reads: OverviewReads;
+  projectId: number;
+}) {
   const t = useTranslations('projectPages.overview');
   const [view, setView] = useState<IssueView>('recent');
-  const { projectId, environment, release } = filters;
-  const read = useAsync(
-    () =>
-      listIssues(projectId, {
-        filter: 'open',
-        page: 1,
-        per_page: 6,
-        sort: ISSUE_VIEWS[view].sort,
-        order: 'desc',
-        environment,
-        release,
-      }),
-    [projectId, environment, release, view],
-  );
+  const issues = useQuery(reads.issues(view));
 
   return (
     <Panel
@@ -568,7 +505,11 @@ export function IssuesPanel({ filters }: { filters: OverviewFilters }) {
         </Link>
       }
     >
-      <Loaded read={read} height={288} title={t('issues')}>
+      <QueryState
+        query={issues}
+        placeholder={<Placeholder height={288} />}
+        title={t('issues')}
+      >
         {(page) =>
           page.items.length === 0 ? (
             <p className="flex h-72 items-center justify-center text-meta text-fg-subtle">
@@ -582,7 +523,7 @@ export function IssuesPanel({ filters }: { filters: OverviewFilters }) {
             </ul>
           )
         }
-      </Loaded>
+      </QueryState>
     </Panel>
   );
 }
@@ -641,77 +582,92 @@ function IssueRow({
 // ── sessions ─────────────────────────────────────────────────────────────────
 
 export function SessionsPanel({
-  data,
+  reads,
   filters,
 }: {
-  data: OverviewData;
+  reads: OverviewReads;
   filters: OverviewFilters;
 }) {
   const t = useTranslations('projectPages.overview');
   const format = useFormatter();
   const label = useBucketLabel(overviewInterval(filters.period));
+  const health = useQuery(reads.sessionSummary);
+  const trend = useQuery(reads.sessionTrend);
+  const placeholder = <Placeholder height={288} />;
 
   return (
     <Panel title={t('sessionHealth')} description={t('sessionHealthSubtitle')}>
-      <Loaded read={data.sessions} height={288} title={t('sessionHealth')}>
-        {([health, series]) =>
-          health.total === 0 ? (
-            <div className="flex h-72 flex-col items-center justify-center gap-1.5 text-center">
-              <p className="text-value font-medium text-fg">
-                {t('noSessions')}
-              </p>
-              <p className="max-w-xs text-meta text-fg-subtle">
-                {t('noSessionsHint')}
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <dl className="grid grid-cols-3 gap-3">
-                <Figure
-                  label={t('sessions')}
-                  value={format.number(health.total, 'compact')}
-                />
-                <Figure
-                  label={t('errored')}
-                  value={format.number(health.errored, 'compact')}
-                  tone="text-sev-warning-fg"
-                />
-                <Figure
-                  label={t('crashed')}
-                  value={format.number(health.crashed, 'compact')}
-                  tone="text-sev-error-fg"
-                />
-              </dl>
-              <TimeSeriesChart
-                data={series.map((p) => ({
-                  t: new Date(p.bucket).getTime(),
-                  rate:
-                    p.crash_free_sessions_rate == null
-                      ? null
-                      : p.crash_free_sessions_rate * 100,
-                }))}
-                series={[
-                  {
-                    key: 'rate',
-                    label: t('crashFreeSessions'),
-                    color: 'var(--chart-3)',
-                  },
-                ]}
-                xKey="t"
-                height={208}
-                formatX={label}
-                formatY={(v) =>
-                  format.number(v / 100, {
-                    style: 'percent',
-                    maximumFractionDigits: 1,
-                  })
-                }
-                label={t('crashFreeSessions')}
-              />
-            </div>
-          )
-        }
-      </Loaded>
+      <QueryState
+        query={health}
+        placeholder={placeholder}
+        title={t('sessionHealth')}
+      >
+        {(health) => (
+          <QueryState
+            query={trend}
+            placeholder={placeholder}
+            title={t('sessionHealth')}
+          >
+            {(series) =>
+              health.total === 0 ? (
+                <div className="flex h-72 flex-col items-center justify-center gap-1.5 text-center">
+                  <p className="text-value font-medium text-fg">
+                    {t('noSessions')}
+                  </p>
+                  <p className="max-w-xs text-meta text-fg-subtle">
+                    {t('noSessionsHint')}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <dl className="grid grid-cols-3 gap-3">
+                    <Figure
+                      label={t('sessions')}
+                      value={format.number(health.total, 'compact')}
+                    />
+                    <Figure
+                      label={t('errored')}
+                      value={format.number(health.errored, 'compact')}
+                      tone="text-sev-warning-fg"
+                    />
+                    <Figure
+                      label={t('crashed')}
+                      value={format.number(health.crashed, 'compact')}
+                      tone="text-sev-error-fg"
+                    />
+                  </dl>
+                  <TimeSeriesChart
+                    data={series.map((p) => ({
+                      t: new Date(p.bucket).getTime(),
+                      rate:
+                        p.crash_free_sessions_rate == null
+                          ? null
+                          : p.crash_free_sessions_rate * 100,
+                    }))}
+                    series={[
+                      {
+                        key: 'rate',
+                        label: t('crashFreeSessions'),
+                        color: 'var(--chart-3)',
+                      },
+                    ]}
+                    xKey="t"
+                    height={208}
+                    formatX={label}
+                    formatY={(v) =>
+                      format.number(v / 100, {
+                        style: 'percent',
+                        maximumFractionDigits: 1,
+                      })
+                    }
+                    label={t('crashFreeSessions')}
+                  />
+                </div>
+              )
+            }
+          </QueryState>
+        )}
+      </QueryState>
     </Panel>
   );
 }
@@ -735,24 +691,27 @@ function Figure({
 
 // ── latency ──────────────────────────────────────────────────────────────────
 
-export function LatencyPanel({ projectId }: { projectId: number }) {
+export function LatencyPanel({
+  reads,
+  projectId,
+}: {
+  reads: OverviewReads;
+  projectId: number;
+}) {
   const t = useTranslations('projectPages.overview');
-
-  // Transaction stats have no window of their own yet, so this panel is all
-  // time whatever the filters say -- said in its description rather than
-  // left to look like it follows them.
-  const read = useAsync(
-    () => getTransactionStats(projectId, { page: 1, per_page: 20 }),
-    [projectId],
-  );
+  const stats = useQuery(reads.latency);
 
   return (
     <Panel title={t('latency')} description={t('latencySubtitle')}>
-      <Loaded read={read} height={250} title={t('latency')}>
+      <QueryState
+        query={stats}
+        placeholder={<Placeholder height={250} />}
+        title={t('latency')}
+      >
         {(stats) => (
           <TransactionP95Bars projectId={projectId} rows={stats.items} />
         )}
-      </Loaded>
+      </QueryState>
     </Panel>
   );
 }

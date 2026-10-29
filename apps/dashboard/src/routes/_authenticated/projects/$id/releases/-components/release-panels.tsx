@@ -2,8 +2,6 @@ import type {
   IssueResponse,
   ReleaseHealthRow,
   ReleaseSummary,
-  Result,
-  RustrakError,
   SessionSummary,
   SessionsGetTimeseriesResponse,
 } from '@rustrak/client';
@@ -16,6 +14,7 @@ import {
   ExternalLinkIcon,
   Tag,
 } from '@rustrak/ui';
+import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -24,11 +23,11 @@ import {
   AdoptionBar,
   HealthRate,
 } from '@/features/release/ui/components/release-figures';
+import type { ApiError } from '@/shared/api/query';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import type { Async } from '@/shared/ui/hooks/use-async';
+import { QueryState } from '@/shared/ui/components/query-state';
 
-type Read<T> = Async<Result<T, RustrakError>>;
+type Read<T> = UseQueryResult<T, ApiError>;
 
 const LEVEL_MARK: Record<string, string> = {
   fatal: 'bg-sev-error',
@@ -197,21 +196,19 @@ function Loaded<T>({
   inset?: boolean;
   children: (data: T) => ReactNode;
 }) {
-  if (read.state === 'ready' && read.data.success) {
-    return children(read.data.data);
-  }
-  return (
-    <div className={inset ? 'px-5' : undefined}>
-      {read.state === 'pending' ? (
-        <Placeholder height={height} />
-      ) : read.data.success ? null : (
-        <LoadFailure
-          error={read.data.error}
-          title={title}
-          notFoundOnMissing={false}
-        />
-      )}
-    </div>
+  const state = (
+    <QueryState
+      query={read}
+      placeholder={<Placeholder height={height} />}
+      title={title}
+    >
+      {children}
+    </QueryState>
+  );
+  return inset && read.data === undefined ? (
+    <div className="px-5">{state}</div>
+  ) : (
+    state
   );
 }
 
@@ -258,8 +255,10 @@ export function ReleaseKpis({
   const average = (
     rate: 'crash_free_sessions_rate' | 'crash_free_users_rate',
   ) => {
-    if (project.state !== 'ready' || !project.data.success) return null;
-    const value = percent(project.data.data[rate]);
+    // The comparison is a footnote: without it the release's own rate
+    // still stands.
+    if (!project.data) return null;
+    const value = percent(project.data[rate]);
     return value ? t('projectAverage', { rate: value }) : null;
   };
   const none = release.sessions === 0;

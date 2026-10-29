@@ -8,17 +8,15 @@ import {
   serializeTableQuery,
   Text,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import {
   createFileRoute,
   redirect,
   useRouterState,
 } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import {
-  getProject,
-  getProjectEnvironments,
-} from '@/features/project/api/queries';
-import { listReleases } from '@/features/release/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
+import { releaseQueries } from '@/features/release/api/queries';
 import {
   DEFAULT_PERIOD,
   PERIOD_CHOICES,
@@ -27,10 +25,7 @@ import {
 import { PeriodFilter } from '@/features/release/ui/components/period-filter';
 import { ReleasesTable } from '@/features/release/ui/components/releases-table';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { useAsync } from '@/shared/ui/hooks/use-async';
 
 const PAGE_SIZE = 25;
 /** `list_releases`'s own cap on `per_page`. */
@@ -69,6 +64,19 @@ function environmentOf(query: DataTableQuery): string | undefined {
   return Array.isArray(value) ? value[0] : undefined;
 }
 
+/** The page of releases a URL shows, the same entry for loader and page. */
+function releasesList(projectId: number, search: ReleasesSearch) {
+  const query = tableQuery(search);
+  const period = search.period ?? DEFAULT_PERIOD;
+  return releaseQueries.list(projectId, {
+    environment: environmentOf(query),
+    query: query.search || undefined,
+    period: period === 'all' ? undefined : period,
+    page: query.pagination.pageIndex + 1,
+    per_page: query.pagination.pageSize,
+  });
+}
+
 export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
   validateSearch: (search: Record<string, unknown>): ReleasesSearch => ({
     q: searchString(search.q),
@@ -77,46 +85,46 @@ export const Route = createFileRoute('/_authenticated/projects/$id/releases/')({
     per: searchString(String(search.per ?? '')) || undefined,
   }),
   loaderDeps: ({ search }) => search,
-  loader: async ({ params, deps }) => {
+  // The page is awaited, so the router keeps the previous one on screen while
+  // the next loads; the bar's suggestions are only started.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
     const query = tableQuery(deps);
-    const period = deps.period ?? DEFAULT_PERIOD;
-    const loaded = await loadAll([
-      getProject(projectId),
-      listReleases(projectId, {
-        environment: environmentOf(query),
-        query: query.search || undefined,
-        period: period === 'all' ? undefined : period,
-        page: query.pagination.pageIndex + 1,
-        per_page: query.pagination.pageSize,
+    void queryClient.prefetchQuery(projectQueries.environments(projectId));
+    const [project, page] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({
+        ...releasesList(projectId, deps),
+        staleTime: 'static',
       }),
     ]);
 
     // A stale or shared `?page=` past the end lands on the last page, not on
     // an empty table under a positive count.
-    if (loaded.success) {
-      const { total_pages } = loaded.data[1];
-      if (query.pagination.pageIndex + 1 > Math.max(total_pages, 1)) {
-        throw redirect({
-          to: '/projects/$id/releases',
-          params: { id: params.id },
-          search: {
-            ...deps,
-            page: total_pages > 1 ? String(total_pages) : undefined,
-          },
-        });
-      }
+    const { total_pages } = page;
+    if (query.pagination.pageIndex + 1 > Math.max(total_pages, 1)) {
+      throw redirect({
+        to: '/projects/$id/releases',
+        params: { id: params.id },
+        search: {
+          ...deps,
+          page: total_pages > 1 ? String(total_pages) : undefined,
+        },
+      });
     }
-    return loaded;
+    return { project };
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
 
-    const [project] = loaderData.data;
+    const { project } = loaderData;
     return {
       meta: [
         { title: t('releases.meta.title', { project: project.name }) },
@@ -136,23 +144,18 @@ function ReleasesPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const loaded = Route.useLoaderData();
   const loading = useRouterState({ select: (state) => state.isLoading });
   const projectId = Number.parseInt(id, 10);
   const query = tableQuery(search);
   const period = search.period ?? DEFAULT_PERIOD;
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: page } = useSuspenseQuery(releasesList(projectId, search));
 
-  // What the bar can suggest; not the list, so the list does not wait for it.
-  const environments = useAsync(
-    () => getProjectEnvironments(projectId),
-    [projectId],
-  );
+  // What the bar can suggest; not the list, so the list does not wait for
+  // it, and no suggestions while it loads or when it fails.
+  const environments =
+    useQuery(projectQueries.environments(projectId)).data ?? [];
 
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={tReleases('loadFailed')} />;
-  }
-
-  const [project, page] = loaded.data;
   const filtered = query.search !== '' || query.filters.length > 0;
 
   return (
@@ -182,11 +185,7 @@ function ReleasesPage() {
             page={page}
             query={query}
             loading={loading}
-            environments={
-              environments.state === 'ready' && environments.data.success
-                ? environments.data.data
-                : []
-            }
+            environments={environments}
             onQueryChange={(updater) => {
               const params = serializeTableQuery(
                 updater(query),
