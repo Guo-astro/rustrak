@@ -1,11 +1,4 @@
-import type {
-  AgentModelRow,
-  AgentSummary,
-  AgentsConversationsResponse,
-  AgentsTracesData,
-  AgentsTracesResponse,
-  AgentToolRow,
-} from '@rustrak/client';
+import type { AgentSummary, AgentsTracesData } from '@rustrak/client';
 import {
   type DataTableQuery,
   EmptyIcon,
@@ -19,19 +12,11 @@ import {
   Tabs,
   Text,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
-import {
-  getAgentConversations,
-  getAgentDuration,
-  getAgentEnvironments,
-  getAgentModelsTable,
-  getAgentRuns,
-  getAgentSummary,
-  getAgentToolsTable,
-  getAgentTraces,
-} from '@/features/agent-trace/api/queries';
+import { agentQueries } from '@/features/agent-trace/api/queries';
 import {
   AGENT_PERIOD_PARAMS,
   type AgentDashboardFilters,
@@ -49,14 +34,12 @@ import {
 } from '@/features/agent-trace/ui/components/agent-overview';
 import { AgentScope } from '@/features/agent-trace/ui/components/agent-scope';
 import { AgentTracesTable } from '@/features/agent-trace/ui/components/agent-traces-table';
-import { getProject } from '@/features/project/api/queries';
+import { projectQueries } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { firstFailure, loadAll, okOrNull } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { Panel } from '@/shared/ui/components/panel';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { useRouter } from '@/shared/ui/hooks/use-router';
-import { Deferred } from './-components/deferred';
 
 const PAGE_SIZE = 25;
 const VIEWS = ['overview', 'traces', 'conversations'] as const;
@@ -109,6 +92,50 @@ function filterValue(query: DataTableQuery, id: string): string | undefined {
 }
 
 /**
+ * The page's reads for a URL, built once for the loader and the components so
+ * both name the same cache entries. One window for every widget: a chart on
+ * 24h beside a table on all time is a reader's trap, not a feature.
+ */
+function agentReads(projectId: number, search: AgentsSearch) {
+  const filters = resolveAgentFilters(search);
+  const window = {
+    period_hours: filters.periodHours,
+    environment: filters.environment,
+  };
+  const series = { ...window, interval_hours: filters.intervalHours };
+  const query = tableQuery(search);
+  const sort = query.sorting[0]?.id as TraceSort | undefined;
+  return {
+    filters,
+    query,
+    summary: agentQueries.summary(projectId, window),
+    // Not filtered by the current environment: the picker has to keep
+    // offering the option you would switch back to.
+    environments: agentQueries.environments(projectId),
+    runs: agentQueries.runs(projectId, series),
+    duration: agentQueries.duration(projectId, series),
+    models: agentQueries.models(projectId, window),
+    tools: agentQueries.tools(projectId, window),
+    traces: agentQueries.traces(projectId, {
+      ...window,
+      agent: filterValue(query, 'agent'),
+      model: filterValue(query, 'model'),
+      tool: filterValue(query, 'tool'),
+      errors: filterValue(query, 'status') === 'failing' || undefined,
+      sort:
+        sort && SORTS.includes(sort) && sort !== 'newest' ? sort : undefined,
+      page: query.pagination.pageIndex + 1,
+      per_page: PAGE_SIZE,
+    }),
+    conversations: agentQueries.conversations(projectId, {
+      ...window,
+      page: Number(search.page ?? 1) || 1,
+      per_page: PAGE_SIZE,
+    }),
+  };
+}
+
+/**
  * Agents: Sentry's AI agents insights. The overview answers how the agents
  * are doing -- runs, calls, tokens, latency, failures, by model and by tool
  * -- and the traces tab lists every run, a row a click on a model or tool
@@ -124,91 +151,47 @@ export const Route = createFileRoute('/_authenticated/projects/$id/agents/')({
     page: searchString(String(search.page ?? '')) || undefined,
   }),
   loaderDeps: ({ search }) => search,
-  // Only what the header and the open tab need is awaited; the overview's
-  // panels arrive on their own. Awaiting all nine reads made every tab as slow
-  // as the slowest, and one that timed out failed the page.
-  loader: async ({ params, deps }) => {
+  // The header and the open tab are awaited; the overview's panels are only
+  // started. Awaiting all nine reads made every tab as slow as the slowest,
+  // and one that timed out failed the page.
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    // One window for every widget on the page: a chart on 24h beside a table
-    // on all-time is a reader's trap, not a feature.
-    const filters = resolveAgentFilters(deps);
-    const window = {
-      period_hours: filters.periodHours,
-      environment: filters.environment,
-    };
-    const query = tableQuery(deps);
-    const sort = query.sorting[0]?.id as TraceSort | undefined;
+    const reads = agentReads(projectId, deps);
     const view = deps.view ?? 'overview';
-    const header = loadAll([
-      getProject(projectId),
-      getAgentSummary(projectId, window),
-      // Not filtered by the current environment: the picker has to keep
-      // offering the option you would switch back to.
-      getAgentEnvironments(projectId),
+    if (view === 'overview') {
+      void queryClient.prefetchQuery(reads.runs);
+      void queryClient.prefetchQuery(reads.duration);
+      void queryClient.prefetchQuery(reads.models);
+      void queryClient.prefetchQuery(reads.tools);
+    }
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({ ...reads.summary, staleTime: 'static' }),
+      queryClient.query({ ...reads.environments, staleTime: 'static' }),
+      // The models and tools are the traces table's filter options.
+      view === 'traces' &&
+        Promise.all([
+          queryClient.query({ ...reads.traces, staleTime: 'static' }),
+          queryClient.query({ ...reads.models, staleTime: 'static' }),
+          queryClient.query({ ...reads.tools, staleTime: 'static' }),
+        ]),
+      view === 'conversations' &&
+        queryClient.query({ ...reads.conversations, staleTime: 'static' }),
     ]);
-    const overview =
-      view === 'overview'
-        ? {
-            runs: getAgentRuns(projectId, {
-              ...window,
-              interval_hours: filters.intervalHours,
-            }),
-            duration: getAgentDuration(projectId, {
-              ...window,
-              interval_hours: filters.intervalHours,
-            }),
-            models: getAgentModelsTable(projectId, window),
-            tools: getAgentToolsTable(projectId, window),
-          }
-        : null;
-    // The models and tools are the traces table's filter options.
-    const traces =
-      view === 'traces'
-        ? loadAll([
-            getAgentTraces(projectId, {
-              ...window,
-              agent: filterValue(query, 'agent'),
-              model: filterValue(query, 'model'),
-              tool: filterValue(query, 'tool'),
-              errors: filterValue(query, 'status') === 'failing' || undefined,
-              sort:
-                sort && SORTS.includes(sort) && sort !== 'newest'
-                  ? sort
-                  : undefined,
-              page: query.pagination.pageIndex + 1,
-              per_page: PAGE_SIZE,
-            }),
-            getAgentModelsTable(projectId, window),
-            getAgentToolsTable(projectId, window),
-          ])
-        : null;
-    const conversations =
-      view === 'conversations'
-        ? getAgentConversations(projectId, {
-            ...window,
-            page: Number(deps.page ?? 1) || 1,
-            per_page: PAGE_SIZE,
-          })
-        : null;
-    return {
-      header: await header,
-      overview,
-      traces: await traces,
-      conversations: await conversations,
-    };
+    return { project };
   },
   head: ({ loaderData }) => {
     const tPages = translator('projectPages');
-    if (!loaderData?.header.success) {
-      return { meta: [{ title: tPages('projectNotFound') }] };
-    }
-    const [project] = loaderData.header.data;
+    const name = loaderData?.project.name ?? '';
     return {
       meta: [
-        { title: tPages('agents.meta.title', { project: project.name }) },
+        { title: tPages('agents.meta.title', { project: name }) },
         {
           name: 'description',
-          content: tPages('agents.meta.description', { project: project.name }),
+          content: tPages('agents.meta.description', { project: name }),
         },
       ],
     };
@@ -222,26 +205,14 @@ function AgentsPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const loaded = Route.useLoaderData();
   const loading = useRouterState({ select: (s) => s.isLoading });
   const projectId = Number.parseInt(id, 10);
   const view = search.view ?? 'overview';
-  const filters = resolveAgentFilters(search);
-
-  const failure = firstFailure([
-    loaded.header,
-    loaded.traces,
-    loaded.conversations,
-  ]);
-  if (failure) {
-    return <LoadFailure error={failure} title={tPages('agents.loadFailed')} />;
-  }
-  if (!loaded.header.success) return null;
-
-  const [project, summary, environments] = loaded.header.data;
-  const traces = okOrNull(loaded.traces);
-  const conversations = okOrNull(loaded.conversations);
-  const query = tableQuery(search);
+  const reads = agentReads(projectId, search);
+  const { filters, query } = reads;
+  const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
+  const { data: summary } = useSuspenseQuery(reads.summary);
+  const { data: environments } = useSuspenseQuery(reads.environments);
 
   // A model or tool row opens the traces that used it.
   const openTraces = (key: 'model' | 'tool', value: string) => {
@@ -334,98 +305,92 @@ function AgentsPage() {
             {tPages('agents.emptyDescription')}
           </Text>
         </div>
-      ) : conversations ? (
+      ) : view === 'conversations' ? (
         <AgentsConversations
-          conversations={conversations}
+          reads={reads}
           loading={loading}
           scope={scope}
           projectId={projectId}
         />
-      ) : traces ? (
+      ) : view === 'traces' ? (
         <AgentsTraces
-          traces={traces}
-          query={query}
+          reads={reads}
           loading={loading}
           scope={scope}
           projectId={projectId}
         />
-      ) : loaded.overview ? (
+      ) : (
         <AgentsOverview
-          overview={loaded.overview}
+          reads={reads}
           summary={summary}
-          filters={filters}
           scope={scope}
           onOpen={openTraces}
         />
-      ) : null}
+      )}
     </div>
   );
 }
 
 /** The overview's panels, each arriving with its own read. */
 function AgentsOverview({
-  overview,
+  reads,
   summary,
-  filters,
   scope,
-  onOpen,
+  onOpen: openTraces,
 }: {
-  overview: {
-    runs: ReturnType<typeof getAgentRuns>;
-    duration: ReturnType<typeof getAgentDuration>;
-    models: ReturnType<typeof getAgentModelsTable>;
-    tools: ReturnType<typeof getAgentToolsTable>;
-  };
+  reads: AgentReads;
   summary: AgentSummary;
-  filters: AgentDashboardFilters;
   scope: ReactNode;
   onOpen: (key: 'model' | 'tool', value: string) => void;
 }) {
   const t = useTranslations('agents');
   const loadFailed = useTranslations('projectPages')('agents.loadFailed');
-  const loaded = { overview };
-  const openTraces = onOpen;
+  const { filters } = reads;
+  const runs = useQuery(reads.runs);
+  const duration = useQuery(reads.duration);
+  const models = useQuery(reads.models);
+  const tools = useQuery(reads.tools);
   return (
     <Page>
       <div className="flex justify-end">{scope}</div>
       <AgentFigures summary={summary} />
       <div className="grid shrink-0 gap-5 xl:grid-cols-2">
         <Panel title={t('charts.runs')} hint={t('charts.runsHint')}>
-          <Deferred
-            promise={loaded.overview.runs}
-            height={200}
+          <QueryState
+            query={runs}
+            placeholder={<PanelPlaceholder height={200} />}
             title={loadFailed}
           >
-            {(runs) => (
+            {(points) => (
               <RunsChart
                 points={fillBuckets(
-                  runs,
+                  points,
                   filters.intervalHours,
                   filters.periodHours,
                   (bucket) => ({ bucket, value: 0, errors: 0 }),
                 )}
               />
             )}
-          </Deferred>
+          </QueryState>
         </Panel>
         <Panel title={t('charts.duration')} hint={t('charts.durationHint')}>
           {/* An empty bucket is a gap in the line, not a zero. */}
-          <Deferred
-            promise={loaded.overview.duration}
-            height={200}
+          <QueryState
+            query={duration}
+            placeholder={<PanelPlaceholder height={200} />}
             title={loadFailed}
           >
-            {(duration) => (
+            {(points) => (
               <DurationChart
                 points={fillBuckets(
-                  duration,
+                  points,
                   filters.intervalHours,
                   filters.periodHours,
                   (bucket) => ({ bucket, avg_ms: 0, p95_ms: 0 }),
                 )}
               />
             )}
-          </Deferred>
+          </QueryState>
         </Panel>
       </div>
       <div className="grid shrink-0 gap-5 xl:grid-cols-2">
@@ -434,32 +399,32 @@ function AgentsOverview({
           title={t('modelsTable.title')}
           hint={t('modelsTable.hint')}
         >
-          <Deferred
-            promise={loaded.overview.models}
-            height={240}
+          <QueryState
+            query={models}
+            placeholder={<PanelPlaceholder height={240} />}
             title={loadFailed}
           >
-            {(models) => (
+            {(rows) => (
               <ModelsTable
-                rows={models}
+                rows={rows}
                 onOpen={(model) => openTraces('model', model)}
               />
             )}
-          </Deferred>
+          </QueryState>
         </Panel>
         <Panel flush title={t('toolsTable.title')} hint={t('toolsTable.hint')}>
-          <Deferred
-            promise={loaded.overview.tools}
-            height={240}
+          <QueryState
+            query={tools}
+            placeholder={<PanelPlaceholder height={240} />}
             title={loadFailed}
           >
-            {(tools) => (
+            {(rows) => (
               <ToolsTable
-                rows={tools}
+                rows={rows}
                 onOpen={(tool) => openTraces('tool', tool)}
               />
             )}
-          </Deferred>
+          </QueryState>
         </Panel>
       </div>
     </Page>
@@ -468,20 +433,22 @@ function AgentsOverview({
 
 /** The traces tab: every run, filtered, sorted and paged through the URL. */
 function AgentsTraces({
-  traces: [page, models, tools],
-  query,
+  reads,
   loading,
   scope,
   projectId,
 }: {
-  traces: [AgentsTracesResponse, AgentModelRow[], AgentToolRow[]];
-  query: DataTableQuery;
+  reads: AgentReads;
   loading: boolean;
   scope: ReactNode;
   projectId: number;
 }) {
   const navigate = Route.useNavigate();
   const router = useRouter();
+  const { query } = reads;
+  const { data: page } = useSuspenseQuery(reads.traces);
+  const { data: models } = useSuspenseQuery(reads.models);
+  const { data: tools } = useSuspenseQuery(reads.tools);
   return (
     <Page scroll={false}>
       <AgentTracesTable
@@ -523,18 +490,19 @@ function AgentsTraces({
 
 /** The conversations tab: a page of them, the most recently active first. */
 function AgentsConversations({
-  conversations,
+  reads,
   loading,
   scope,
   projectId,
 }: {
-  conversations: AgentsConversationsResponse;
+  reads: AgentReads;
   loading: boolean;
   scope: ReactNode;
   projectId: number;
 }) {
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
+  const { data: conversations } = useSuspenseQuery(reads.conversations);
   return (
     <Page scroll={false}>
       <div className="flex justify-end">{scope}</div>
@@ -572,5 +540,16 @@ function isNothingYet(
     empty &&
     filters.environment === undefined &&
     (filters.period === undefined || environments.length === 0)
+  );
+}
+
+type AgentReads = ReturnType<typeof agentReads>;
+
+function PanelPlaceholder({ height }: { height: number }) {
+  return (
+    <div
+      className="w-full animate-pulse rounded-lg bg-surface-hover motion-reduce:animate-none"
+      style={{ height }}
+    />
   );
 }

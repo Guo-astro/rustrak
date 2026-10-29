@@ -1,4 +1,9 @@
-import { createRootRoute, HeadContent, Outlet } from '@tanstack/react-router';
+import type { QueryClient } from '@tanstack/react-query';
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+} from '@tanstack/react-router';
 
 /**
  * Everything above routing.
@@ -13,8 +18,13 @@ import { createRootRoute, HeadContent, Outlet } from '@tanstack/react-router';
  * `<HeadContent />` is what makes `head` on a route reach the document. It is
  * the browser tab's title and nothing else here: there is no crawler to serve,
  * because there is no page in this application that is not behind a login.
+ *
+ * The context carries the one `QueryClient`, so every loader reads and fills
+ * the same cache the components subscribe to.
  */
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
   component: RootLayout,
 });
 

@@ -1,11 +1,11 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { getAgentConversation } from '@/features/agent-trace/api/queries';
+import { agentQueries } from '@/features/agent-trace/api/queries';
 import { conversationTurns } from '@/features/agent-trace/model/conversation';
 import { ConversationTranscript } from '@/features/agent-trace/ui/components/agent-conversations';
 import { translator } from '@/shared/i18n/intl';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 /**
@@ -16,8 +16,14 @@ import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/agents/conversations/$conversationId',
 )({
-  loader: ({ params }) =>
-    getAgentConversation(Number.parseInt(params.id, 10), params.conversationId),
+  loader: ({ context: { queryClient }, params }) =>
+    queryClient.query({
+      ...agentQueries.conversation(
+        Number.parseInt(params.id, 10),
+        params.conversationId,
+      ),
+      staleTime: 'static',
+    }),
   head: ({ params }) => ({
     meta: [
       {
@@ -34,17 +40,16 @@ function ConversationPage() {
   const t = useTranslations('agents.conversations');
   const format = useFormatter();
   const { id, conversationId } = Route.useParams();
-  const loaded = Route.useLoaderData();
+  const {
+    data: { spans },
+  } = useSuspenseQuery(
+    agentQueries.conversation(Number.parseInt(id, 10), conversationId),
+  );
   usePageTrail([
     { label: t('title'), href: `/projects/${id}/agents?view=conversations` },
     { label: conversationId, mono: true },
   ]);
 
-  if (!loaded.success) {
-    return <LoadFailure error={loaded.error} title={t('loadFailed')} />;
-  }
-
-  const { spans } = loaded.data;
   const turns = conversationTurns(spans);
   const agents = [...new Set(turns.flatMap((turn) => turn.agents))];
   const errors = turns.reduce((sum, turn) => sum + turn.errors, 0);

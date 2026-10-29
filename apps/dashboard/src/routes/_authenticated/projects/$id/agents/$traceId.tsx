@@ -1,20 +1,14 @@
-import type {
-  Result,
-  RustrakError,
-  SpanResponse,
-  SpansListResponse,
-} from '@rustrak/client';
-import { Ok } from '@rustrak/client';
 import {
   formatSpanDuration,
   SegmentedControl,
   SegmentedItem,
   Waterfall,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { getSpan, listSpans } from '@/features/agent-trace/api/queries';
+import { agentQueries } from '@/features/agent-trace/api/queries';
 import { conversationHref } from '@/features/agent-trace/model/conversation';
 import {
   resolveSelectedSpan,
@@ -23,53 +17,10 @@ import {
 } from '@/features/agent-trace/model/trace-summary';
 import { AgentGraphView } from '@/features/agent-trace/ui/components/agent-graph';
 import { SpanDetailPane } from '@/features/agent-trace/ui/components/span-detail-pane';
-import { getProject } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { loadAll } from '@/shared/lib/results';
 import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { Link } from '@/shared/ui/components/link';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
-
-const PER_PAGE = 100;
-
-/**
- * A trace can hold more spans than one page: the totals and the waterfall are
- * only correct over the whole trace, so pull the remaining pages too.
- */
-async function collectAllSpans(
-  projectId: number,
-  traceId: string,
-  firstPage: SpansListResponse,
-): Promise<Result<SpanResponse[], RustrakError>> {
-  if (firstPage.total_pages <= 1) {
-    return Ok(firstPage.items);
-  }
-
-  const rest = await Promise.all(
-    Array.from({ length: firstPage.total_pages - 1 }, (_, i) =>
-      listSpans(projectId, {
-        trace_id: traceId,
-        per_page: PER_PAGE,
-        page: i + 2,
-      }),
-    ),
-  );
-
-  const spans = [...firstPage.items];
-
-  for (const page of rest) {
-    // A missing page is not an empty page: the waterfall's timings are only
-    // correct over the whole trace, so a partial set would draw a plausible
-    // and wrong picture.
-    if (!page.success) {
-      return page;
-    }
-    spans.push(...page.data.items);
-  }
-
-  return Ok(spans);
-}
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/agents/$traceId',
@@ -79,45 +30,20 @@ export const Route = createFileRoute(
     view: searchOneOf(search.view, ['graph'] as const),
   }),
   loaderDeps: ({ search }) => ({ span: search.span }),
-  loader: async ({ params, deps }) => {
+  loader: async ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const { traceId } = params;
-
-    const loaded = await loadAll([
-      getProject(projectId),
-      listSpans(projectId, { trace_id: traceId, per_page: PER_PAGE }),
-    ]);
-
-    if (!loaded.success) return { failure: loaded.error, trace: null };
-
-    const collected = await collectAllSpans(projectId, traceId, loaded.data[1]);
-
-    if (!collected.success) return { failure: collected.error, trace: null };
-
-    const spans = collected.data;
-
+    const spans = await queryClient.query({
+      ...agentQueries.trace(projectId, params.traceId),
+      staleTime: 'static',
+    });
     if (spans.length === 0) throw notFound();
-
-    const { selectedSpanId, requestedMissing } = resolveSelectedSpan(
-      spans,
-      deps.span,
-    );
-
-    // Only the selected span: attributes are the one part of a span that is
-    // never trimmed server-side, so they are pulled one at a time.
-    const selected =
-      selectedSpanId != null ? await getSpan(projectId, selectedSpanId) : null;
-
-    return {
-      failure: null,
-      trace: {
-        spans,
-        summary: summarizeTrace(spans),
-        selectedSpanId,
-        requestedMissing,
-        selected,
-      },
-    };
+    // The pane's span is not awaited: the waterfall can be read without it.
+    const { selectedSpanId } = resolveSelectedSpan(spans, deps.span);
+    if (selectedSpanId != null) {
+      void queryClient.prefetchQuery(
+        agentQueries.span(projectId, selectedSpanId),
+      );
+    }
   },
   head: ({ params }) => {
     const t = translator('projectPages');
@@ -136,24 +62,20 @@ function AgentTraceDetailPage() {
   const tAgents = useTranslations('agents');
   const format = useFormatter();
   const navigate = Route.useNavigate();
-  const { failure, trace } = Route.useLoaderData();
+  const spanParam = Route.useSearch({ select: (search) => search.span });
   usePageTrail([{ label: traceId.slice(0, 8), mono: true }]);
-
-  if (failure !== null || trace === null) {
-    return (
-      <LoadFailure
-        error={
-          failure ?? {
-            kind: 'unknown',
-            message: t('trace.loadFailed'),
-          }
-        }
-        title={t('trace.loadFailed')}
-      />
-    );
-  }
-
-  const { spans, summary, selectedSpanId, requestedMissing, selected } = trace;
+  const { data: spans } = useSuspenseQuery(
+    agentQueries.trace(projectId, traceId),
+  );
+  const summary = summarizeTrace(spans);
+  const { selectedSpanId, requestedMissing } = resolveSelectedSpan(
+    spans,
+    spanParam,
+  );
+  const selected = useQuery({
+    ...agentQueries.span(projectId, selectedSpanId ?? ''),
+    enabled: selectedSpanId != null,
+  });
   const conversation = spans.find(
     (span) => span.gen_ai_conversation_id,
   )?.gen_ai_conversation_id;
@@ -299,7 +221,7 @@ function AgentTraceDetailPage() {
         <aside className="border-border-divider bg-panel max-lg:border-t lg:w-[30rem] lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-[34rem]">
           <div className="px-5 py-5">
             <SpanDetailPane
-              selected={selected}
+              selected={selectedSpanId == null ? null : selected}
               requestedMissing={requestedMissing}
             />
           </div>
