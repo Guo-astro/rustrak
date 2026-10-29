@@ -1,13 +1,10 @@
-import type { IssueLink, Result, RustrakError } from '@rustrak/client';
+import type { IssueLink } from '@rustrak/client';
+import { useMutation } from '@tanstack/react-query';
 import { ChevronDown, Link2, Loader2, Plus, Unlink } from 'lucide-react';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import {
-  createGitHubIssue,
-  linkGitHubIssue,
-  unlinkGitHubIssue,
-} from '@/features/github/api/mutations';
+import { githubMutations } from '@/features/github/api/mutations';
 import { cn } from '@/shared/lib/utils';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
 import { Button, buttonVariants } from '@/shared/ui/components/shadcn/button';
@@ -27,7 +24,6 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/ui/components/shadcn/dropdown-menu';
 import { Input } from '@/shared/ui/components/shadcn/input';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface IssueGitHubButtonProps {
   projectId: number;
@@ -48,26 +44,23 @@ export function IssueGitHubButton({
   canLink = true,
 }: IssueGitHubButtonProps) {
   const t = useTranslations('github');
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [linking, setLinking] = useState(false);
   const [reference, setReference] = useState('');
-
-  const run = (
-    failure: string,
-    action: () => Promise<Result<unknown, RustrakError>>,
-    after?: () => void,
-  ) => {
-    startTransition(async () => {
-      const result = await action();
-      if (!result.success) {
-        toast.error(failure, { description: result.error.message });
-        return;
-      }
-      after?.();
-      router.refresh();
-    });
-  };
+  const failed = (failure: string) => (error: Error) =>
+    toast.error(failure, { description: error.message });
+  const create = useMutation({
+    ...githubMutations.createIssue(projectId, issueId),
+    onError: failed(t('issue.createFailed')),
+  });
+  const linkIssue = useMutation({
+    ...githubMutations.linkIssue(projectId, issueId),
+    onError: failed(t('issue.linkFailed')),
+  });
+  const unlink = useMutation({
+    ...githubMutations.unlinkIssue(projectId, issueId),
+    onError: failed(t('issue.unlinkFailed')),
+  });
+  const isPending = create.isPending || linkIssue.isPending || unlink.isPending;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -114,13 +107,7 @@ export function IssueGitHubButton({
         <DropdownMenuContent align="start" className="w-56">
           {canLink && (
             <>
-              <DropdownMenuItem
-                onClick={() =>
-                  run(t('issue.createFailed'), () =>
-                    createGitHubIssue(projectId, issueId),
-                  )
-                }
-              >
+              <DropdownMenuItem onClick={() => create.mutate()}>
                 <Plus className="mr-2 size-4" />
                 {t('issue.create')}
               </DropdownMenuItem>
@@ -134,11 +121,7 @@ export function IssueGitHubButton({
           {links.map((link) => (
             <DropdownMenuItem
               key={link.id}
-              onClick={() =>
-                run(t('issue.unlinkFailed'), () =>
-                  unlinkGitHubIssue(projectId, issueId, link.id),
-                )
-              }
+              onClick={() => unlink.mutate(link.id)}
             >
               <Unlink className="mr-2 size-4" />
               {t('issue.unlink', { number: link.number })}
@@ -153,14 +136,12 @@ export function IssueGitHubButton({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              run(
-                t('issue.linkFailed'),
-                () => linkGitHubIssue(projectId, issueId, reference.trim()),
-                () => {
+              linkIssue.mutate(reference.trim(), {
+                onSuccess: () => {
                   setLinking(false);
                   setReference('');
                 },
-              );
+              });
             }}
           >
             <DialogHeader>

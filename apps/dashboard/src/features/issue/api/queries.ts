@@ -9,7 +9,7 @@ import type {
   IssuesGetStatsData,
   IssuesListData,
 } from '@rustrak/client';
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { projectScope } from '@/shared/api/keys';
 import { orThrow } from '@/shared/api/query';
 import { api } from '@/shared/api/rustrak';
@@ -86,18 +86,24 @@ export const issueQueries = {
           }),
         ),
     }),
-  /** A page of the feedback users sent about the issue, newest first. */
-  userReports: (projectId: number, issueId: string, page?: number) =>
-    queryOptions({
-      queryKey: [...issueQueries.one(projectId, issueId), 'user-reports', page],
-      queryFn: ({ signal }) =>
+  /**
+   * The feedback users sent about the issue, newest first, a page at a time:
+   * older pages are read on request.
+   */
+  userReports: (projectId: number, issueId: string) =>
+    infiniteQueryOptions({
+      queryKey: [...issueQueries.one(projectId, issueId), 'user-reports'],
+      queryFn: ({ signal, pageParam }) =>
         orThrow(
           api().issues.listUserReports({
             path: { project_id: projectId, issue_id: issueId },
-            query: { page },
+            query: { page: pageParam },
             signal,
           }),
         ),
+      initialPageParam: 1,
+      getNextPageParam: (last) =>
+        last.page < last.total_pages ? last.page + 1 : undefined,
     }),
   /** The project's whole feedback mailbox, with what each user submitted. */
   feedback: (projectId: number, query: FeedbackListQuery = {}) =>

@@ -1,7 +1,6 @@
-import type { IssuesListUserReportsResponse } from '@rustrak/client';
-import { useState } from 'react';
+import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'use-intl';
-import { listUserReports } from '@/features/issue/api/queries';
+import { issueQueries } from '@/features/issue/api/queries';
 import { Button } from '@/shared/ui/components/shadcn/button';
 
 /**
@@ -11,36 +10,24 @@ import { Button } from '@/shared/ui/components/shadcn/button';
 export function UserFeedback({
   projectId,
   issueId,
-  firstPage,
 }: {
   projectId: number;
   issueId: string;
-  firstPage: IssuesListUserReportsResponse;
 }) {
   const t = useTranslations('projectPages.event.feedback');
   const format = useFormatter();
-  // The first page stays the loader's, so a re-run shows new reports.
-  const [older, setOlder] = useState<IssuesListUserReportsResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const pages = [firstPage, ...older];
+  const {
+    data: { pages },
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = useSuspenseInfiniteQuery(issueQueries.userReports(projectId, issueId));
   const last = pages[pages.length - 1]!;
   // A report sent while paging shifts the offsets; keep each one once.
   const reports = [
     ...new Map(pages.flatMap((p) => p.items).map((r) => [r.id, r])).values(),
   ];
-
-  async function showOlder() {
-    setLoading(true);
-    setFailed(false);
-    try {
-      const next = await listUserReports(projectId, issueId, last.page + 1);
-      if (next.success) setOlder([...older, next.data]);
-      else setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div className="space-y-3">
@@ -70,19 +57,19 @@ export function UserFeedback({
         ))}
       </ul>
 
-      {last.page < last.total_pages && (
+      {hasNextPage && (
         <Button
           variant="outline"
           size="sm"
-          disabled={loading}
-          onClick={showOlder}
+          disabled={isFetchingNextPage}
+          onClick={() => fetchNextPage()}
         >
           {t('showOlder', {
             count: Math.max(last.total_count - reports.length, 0),
           })}
         </Button>
       )}
-      {failed && (
+      {isFetchNextPageError && (
         <p className="text-xs text-destructive">{t('showOlderFailed')}</p>
       )}
     </div>

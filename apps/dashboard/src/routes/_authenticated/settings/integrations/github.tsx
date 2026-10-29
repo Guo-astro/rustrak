@@ -1,13 +1,11 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import {
-  getGitHubStatus,
-  getMyGitHubLogin,
-} from '@/features/github/api/queries';
+import { githubQueries } from '@/features/github/api/queries';
 import { GitHubIntegration } from '@/features/github/ui/components/github-integration';
 import { GitHubLoginCard } from '@/features/github/ui/components/github-login-card';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { QueryState } from '@/shared/ui/components/query-state';
 import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
@@ -15,13 +13,13 @@ export const Route = createFileRoute(
   '/_authenticated/settings/integrations/github',
 )({
   head: () => ({ meta: [{ title: 'GitHub | Rustrak' }] }),
-  loader: async () => {
-    const [status, login] = await Promise.all([
-      getGitHubStatus(),
-      getMyGitHubLogin(),
-    ]);
-    return { status, login };
-  },
+  // Both are the page, so it paints once both have answered; neither throws,
+  // because a member's forbidden status still leaves them their login to set.
+  loader: ({ context: { queryClient } }) =>
+    Promise.all([
+      queryClient.prefetchQuery(githubQueries.status()),
+      queryClient.prefetchQuery(githubQueries.myLogin()),
+    ]),
   component: GitHubIntegrationPage,
 });
 
@@ -29,16 +27,18 @@ export const Route = createFileRoute(
 function GitHubIntegrationPage() {
   const t = useTranslations('settings');
   const tGitHub = useTranslations('github');
-  const { status, login } = Route.useLoaderData();
+  // The loader already retried a failure; mounting does not ask again.
+  const status = useQuery({ ...githubQueries.status(), retryOnMount: false });
+  const login = useQuery({ ...githubQueries.myLogin(), retryOnMount: false });
   usePageTrail([{ label: 'GitHub' }]);
-  const loginCard = login.success ? (
-    <GitHubLoginCard login={login.data.login} />
-  ) : (
-    <LoadFailure
-      error={login.error}
+  const loginCard = (
+    <QueryState
+      query={login}
+      placeholder={null}
       title={t('integrations.githubLoadFailed')}
-      notFoundOnMissing={false}
-    />
+    >
+      {(data) => <GitHubLoginCard login={data.login} />}
+    </QueryState>
   );
 
   return (
@@ -54,18 +54,18 @@ function GitHubIntegrationPage() {
         }
         description={tGitHub('connection.description')}
       />
-      {status.success ? (
-        <GitHubIntegration status={status.data} login={loginCard} />
-      ) : status.error.kind === 'forbidden' ? (
+      {status.error?.error.kind === 'forbidden' ? (
         // The app and its installations are an admin's; which GitHub account
         // is theirs is every member's to set.
         loginCard
       ) : (
-        <LoadFailure
-          error={status.error}
+        <QueryState
+          query={status}
+          placeholder={null}
           title={t('integrations.githubLoadFailed')}
-          notFoundOnMissing={false}
-        />
+        >
+          {(data) => <GitHubIntegration status={data} login={loginCard} />}
+        </QueryState>
       )}
     </>
   );

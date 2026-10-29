@@ -24,23 +24,12 @@ import {
   UnresolveIcon,
   useDataTable,
 } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import type { Row } from '@tanstack/react-table';
-import {
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import {
-  bulkDeleteIssues,
-  bulkUpdateIssues,
-  deleteIssue,
-  updateIssueState,
-} from '@/features/issue/api/mutations';
+import { issueMutations } from '@/features/issue/api/mutations';
 import type { IssueView } from '@/features/issue/model/issue-table';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 import { DeleteIssuesDialog } from './delete-issues-dialog';
@@ -94,7 +83,6 @@ export function IssuesTable({
   const t = useTranslations('issues');
   const format = useFormatter();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [deleting, setDeleting] = useState<IssueResponse[] | null>(null);
   // The clock the relative times are read against, taken once per page.
   const [now] = useState(() => Date.now());
@@ -127,55 +115,62 @@ export function IssuesTable({
     [columns, environments, releases, t],
   );
 
-  const apply = (issues: IssueResponse[], change: Change) =>
-    startTransition(async () => {
-      const ids = issues.map((issue) => issue.id);
-      // Status and priority go in one request; the API assigns one issue at
-      // a time, so a batch assignment is one request per issue.
-      const result =
-        'assigned_to' in change
-          ? (
-              await Promise.all(
-                ids.map((id) => updateIssueState(projectId, id, change)),
-              )
-            ).find((r) => !r.success)
-          : await bulkUpdateIssues(projectId, { ids, ...change });
-
-      if (result && !result.success) {
-        toast.error(t('toasts.updateFailed'), {
-          description: result.error.message,
-        });
-      } else {
-        table.resetRowSelection();
-      }
-      // On a failure too: in a batch assignment the others went through, and
-      // the rows have to show what the server now holds.
-      router.refresh();
-    });
-
-  const confirmDelete = () =>
-    startTransition(async () => {
-      if (!deleting) return;
-      const [single] = deleting;
-      const result =
-        deleting.length === 1 && single
-          ? await deleteIssue(projectId, single.id)
-          : await bulkDeleteIssues(projectId, {
-              ids: deleting.map((issue) => issue.id),
-            });
-      if (!result.success) {
-        toast.error(
-          deleting.length === 1
-            ? t('toasts.deleteOneFailed')
-            : t('toasts.deleteManyFailed'),
-          { description: result.error.message },
-        );
-        return;
-      }
+  const updated = {
+    onSuccess: () => table.resetRowSelection(),
+    onError: (error: Error) =>
+      toast.error(t('toasts.updateFailed'), { description: error.message }),
+  };
+  const bulkUpdate = useMutation({
+    ...issueMutations.bulkUpdate(projectId),
+    ...updated,
+  });
+  const assign = useMutation({
+    ...issueMutations.assign(projectId),
+    ...updated,
+  });
+  const deleted = {
+    onSuccess: () => {
       table.resetRowSelection();
       setDeleting(null);
-      router.refresh();
-    });
+    },
+    onError: (error: Error) =>
+      toast.error(
+        deleting?.length === 1
+          ? t('toasts.deleteOneFailed')
+          : t('toasts.deleteManyFailed'),
+        { description: error.message },
+      ),
+  };
+  const deleteOne = useMutation({
+    ...issueMutations.delete(projectId),
+    ...deleted,
+  });
+  const bulkDelete = useMutation({
+    ...issueMutations.bulkDelete(projectId),
+    ...deleted,
+  });
+  const isPending =
+    bulkUpdate.isPending ||
+    assign.isPending ||
+    deleteOne.isPending ||
+    bulkDelete.isPending;
+
+  // Status and priority go in one request; an assignment is one per issue.
+  const apply = (issues: IssueResponse[], change: Change) => {
+    const ids = issues.map((issue) => issue.id);
+    if ('assigned_to' in change) {
+      assign.mutate({ ids, assignedTo: change.assigned_to });
+    } else {
+      bulkUpdate.mutate({ ids, ...change });
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deleting) return;
+    const [single] = deleting;
+    if (deleting.length === 1 && single) deleteOne.mutate(single.id);
+    else bulkDelete.mutate({ ids: deleting.map((issue) => issue.id) });
+  };
 
   const { priorityItems, assignItems, rowMenu } = useIssueMenus({
     members,

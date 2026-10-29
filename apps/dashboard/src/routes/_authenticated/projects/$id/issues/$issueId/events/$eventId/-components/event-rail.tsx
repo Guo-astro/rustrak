@@ -40,8 +40,8 @@ export function EventRail({
   activity: ActivityEntry[];
   /** What GitHub says about the issue; `null` when it could not be loaded. */
   code: IssueGitHub | null;
-  /** Whether the project has a repository; `null` when that is unknown. */
-  connected: boolean | null;
+  /** Whether the project has a repository. */
+  connected: boolean;
   members: Assignable[];
   me: number;
 }) {
@@ -50,10 +50,8 @@ export function EventRail({
   // A connected repository with nothing to say about this issue gets no
   // block; an unconnected one gets the line that offers to connect it.
   const showCode =
-    connected === false ||
-    (connected === true &&
-      !!code &&
-      (code.suspect_commits.length > 0 || code.owners.length > 0));
+    !connected ||
+    (!!code && (code.suspect_commits.length > 0 || code.owners.length > 0));
 
   return (
     <div className="flex flex-col">

@@ -15,11 +15,12 @@ import {
   TeamIcon,
   WarningIcon,
 } from '@rustrak/ui';
+import { useMutation } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import { disconnectGitHub, getManifest } from '@/features/github/api/mutations';
+import { githubMutations } from '@/features/github/api/mutations';
 import { unreachableFromGitHub } from '@/features/github/lib/webhook-url';
 import { cn } from '@/shared/lib/utils';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
@@ -39,7 +40,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 /**
  * Posts the manifest to GitHub the only way GitHub accepts it: a form the
@@ -76,24 +76,18 @@ export function GitHubIntegration({
   login?: ReactNode;
 }) {
   const t = useTranslations('github');
-  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const { mutate, isPending } = useMutation({
+    ...githubMutations.disconnect(),
+    onSuccess: () => setConfirming(false),
+    onError: (error) =>
+      toast.error(t('connection.disconnectFailed'), {
+        description: error.message,
+      }),
+  });
   const { app, installations } = status;
 
-  const disconnect = () => {
-    startTransition(async () => {
-      const result = await disconnectGitHub();
-      if (!result.success) {
-        toast.error(t('connection.disconnectFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      setConfirming(false);
-      router.refresh();
-    });
-  };
+  const disconnect = () => mutate();
 
   // Said before anything is created: an app GitHub cannot deliver to would
   // half work, and the fix is on this server, not on GitHub.
@@ -170,21 +164,17 @@ export function GitHubIntegration({
 function Setup({ status }: { status: GitHubStatus }) {
   const t = useTranslations('github');
   const [organization, setOrganization] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const { mutate, isPending } = useMutation({
+    ...githubMutations.manifest(),
+    onSuccess: (data) => submitManifest(data.action_url, data.manifest),
+    onError: (error) =>
+      toast.error(t('connection.connectFailed'), {
+        description: error.message,
+      }),
+  });
   const { app } = status;
 
-  const connect = () => {
-    startTransition(async () => {
-      const result = await getManifest(organization.trim() || undefined);
-      if (!result.success) {
-        toast.error(t('connection.connectFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-      submitManifest(result.data.action_url, result.data.manifest);
-    });
-  };
+  const connect = () => mutate(organization.trim() || undefined);
 
   return (
     <>

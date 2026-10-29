@@ -12,7 +12,7 @@ import type {
 } from '@rustrak/client';
 import { mutationOptions } from '@tanstack/react-query';
 import { projectScope } from '@/shared/api/keys';
-import { orThrow } from '@/shared/api/query';
+import { ApiError, orThrow } from '@/shared/api/query';
 import { api } from '@/shared/api/rustrak';
 import { issueQueries } from './queries';
 
@@ -21,16 +21,53 @@ export const issueMutations = {
    * Resolve, mute, reprioritise… `{ status: 'resolvedInNextRelease' }` marks
    * the issue resolved but tracks the pending release, so a regression before
    * the deploy reopens it and a recorded deploy finalises it.
+   *
+   * The issue is a variable, not a parameter: a list acts on whichever row
+   * the reader is on.
    */
-  update: (projectId: number, issueId: string) =>
+  update: (projectId: number) =>
     mutationOptions({
-      mutationFn: (state: UpdateIssueState) =>
+      mutationFn: ({
+        issueId,
+        state,
+      }: {
+        issueId: string;
+        state: UpdateIssueState;
+      }) =>
         orThrow(
           api().issues.update({
             path: { project_id: projectId, issue_id: issueId },
             body: state,
           }),
         ),
+      meta: { invalidates: [projectScope(projectId)] },
+    }),
+  /**
+   * Assigns some issues. The API assigns one issue at a time, so this is one
+   * request per issue, all of them settled before the first failure is
+   * thrown: the others went through, and the refetch has to show them.
+   */
+  assign: (projectId: number) =>
+    mutationOptions({
+      mutationFn: async ({
+        ids,
+        assignedTo,
+      }: {
+        ids: string[];
+        assignedTo: number | null;
+      }) => {
+        const results = await Promise.all(
+          ids.map((id) =>
+            api().issues.update({
+              path: { project_id: projectId, issue_id: id },
+              body: { assigned_to: assignedTo },
+            }),
+          ),
+        );
+        for (const result of results) {
+          if (!result.success) throw new ApiError(result.error);
+        }
+      },
       meta: { invalidates: [projectScope(projectId)] },
     }),
   bulkUpdate: (projectId: number) =>
@@ -49,9 +86,9 @@ export const issueMutations = {
         ),
       meta: { invalidates: [projectScope(projectId)] },
     }),
-  delete: (projectId: number, issueId: string) =>
+  delete: (projectId: number) =>
     mutationOptions({
-      mutationFn: () =>
+      mutationFn: (issueId: string) =>
         orThrow(
           api().issues.delete({
             path: { project_id: projectId, issue_id: issueId },

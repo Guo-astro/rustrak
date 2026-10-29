@@ -1,14 +1,3 @@
-import type {
-  ActivityEntry,
-  AttachmentInfo,
-  EventDetailResponse,
-  IssueAggregates,
-  IssueGitHub,
-  IssueResponse,
-  IssueStatsResponse,
-  IssuesListUserReportsResponse,
-  ProjectRepository,
-} from '@rustrak/client';
 import {
   Button,
   CollapsePanelIcon,
@@ -16,15 +5,11 @@ import {
   ExpandPanelIcon,
   Tooltip,
 } from '@rustrak/ui';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslations } from 'use-intl';
-import {
-  type EventNavigation,
-  getEventDetail,
-  getEventNavigation,
-  listEventAttachments,
-} from '@/features/event/api/queries';
+import { eventQueries } from '@/features/event/api/queries';
 import {
   type EventJumpTarget,
   eventJumpTargets,
@@ -33,24 +18,14 @@ import {
   readEventPayload,
   splitIssueTitle,
 } from '@/features/event/lib/event-payload';
-import {
-  getIssueGitHub,
-  getProjectRepository,
-} from '@/features/github/api/queries';
+import { githubQueries } from '@/features/github/api/queries';
 import { frameSourceUrl } from '@/features/github/lib/source-url';
 import { IssueGitHubButton } from '@/features/github/ui/components/issue-github-button';
-import {
-  getIssue,
-  getIssueActivity,
-  getIssueAggregates,
-  getIssueStats,
-  listUserReports,
-} from '@/features/issue/api/queries';
-import { type Assignable, assignable } from '@/features/issue/model/assignable';
-import { getProject } from '@/features/project/api/queries';
-import { listProjectMembers } from '@/features/user/api/queries';
+import { issueQueries } from '@/features/issue/api/queries';
+import { assignable } from '@/features/issue/model/assignable';
+import { projectQueries } from '@/features/project/api/queries';
+import { userQueries } from '@/features/user/api/queries';
 import { translator } from '@/shared/i18n/intl';
-import { LoadFailure } from '@/shared/ui/components/load-failure';
 import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 import { EventLoading } from './$eventId/-components/event-loading';
 import { EventNavigator } from './$eventId/-components/event-navigator';
@@ -59,188 +34,90 @@ import { EventSections } from './$eventId/-components/event-sections';
 import { EventTrends } from './$eventId/-components/event-trends';
 import { IssueHeader } from './$eventId/-components/issue-header';
 
+/** The page's reads, built once for the loader and the component. */
+function eventReads(projectId: number, issueId: string, eventId: string) {
+  return {
+    issue: issueQueries.detail(projectId, issueId),
+    event: eventQueries.detail(projectId, issueId, eventId),
+    navigation: eventQueries.navigation(projectId, issueId, eventId),
+    repository: githubQueries.repository(projectId),
+    userReports: issueQueries.userReports(projectId, issueId),
+    attachments: eventQueries.attachments(projectId, issueId, eventId),
+    stats30d: issueQueries.stats(projectId, issueId, '30d'),
+    aggregates: issueQueries.aggregates(projectId, issueId),
+    activity: issueQueries.activity(projectId, issueId),
+    code: githubQueries.issue(projectId, issueId),
+    members: userQueries.members(projectId),
+  };
+}
+
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/issues/$issueId/events/$eventId',
 )({
-  loader: async ({ params }) => {
+  // The event and what frames it are awaited; the trends, the rail and the
+  // GitHub button are only started, and render empty if they fail: an issue
+  // with no tags and a failed aggregates read genuinely render the same
+  // panel, and neither is worth taking the event view down for.
+  loader: async ({ context: { queryClient }, params }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const { issueId, eventId } = params;
-
-    const [
-      project,
-      issue,
-      event,
-      navigation,
-      aggregates,
-      stats,
-      activity,
-      repository,
-      code,
-      userReports,
-      attachments,
-      members,
-    ] = await Promise.all([
-      getProject(projectId),
-      getIssue(projectId, issueId),
-      getEventDetail(projectId, issueId, eventId),
-      getEventNavigation(projectId, issueId, eventId),
-      getIssueAggregates(projectId, issueId),
-      getIssueStats(projectId, issueId, '30d'),
-      getIssueActivity(projectId, issueId),
-      getProjectRepository(projectId),
-      getIssueGitHub(projectId, issueId),
-      listUserReports(projectId, issueId),
-      listEventAttachments(projectId, issueId, eventId),
-      listProjectMembers(projectId),
+    const reads = eventReads(projectId, params.issueId, params.eventId);
+    void queryClient.prefetchQuery(reads.stats30d);
+    void queryClient.prefetchQuery(reads.aggregates);
+    void queryClient.prefetchQuery(reads.activity);
+    void queryClient.prefetchQuery(reads.code);
+    void queryClient.prefetchQuery(reads.members);
+    const [project] = await Promise.all([
+      queryClient.query({
+        ...projectQueries.detail(projectId),
+        staleTime: 'static',
+      }),
+      queryClient.query({ ...reads.issue, staleTime: 'static' }),
+      queryClient.query({ ...reads.event, staleTime: 'static' }),
+      queryClient.query({ ...reads.navigation, staleTime: 'static' }),
+      queryClient.query({ ...reads.repository, staleTime: 'static' }),
+      queryClient.infiniteQuery({ ...reads.userReports, staleTime: 'static' }),
+      queryClient.query({ ...reads.attachments, staleTime: 'static' }),
     ]);
-
-    return {
-      project,
-      issue,
-      event,
-      navigation,
-      aggregates,
-      stats,
-      activity,
-      repository,
-      code,
-      userReports,
-      attachments,
-      members,
-    };
+    return { project };
   },
   head: ({ loaderData }) => {
     const t = translator('projectPages');
 
-    if (!loaderData?.project.success || !loaderData.event.success) {
+    if (!loaderData) {
       return { meta: [{ title: t('event.meta.eventNotFound') }] };
     }
 
     return {
       meta: [
-        {
-          title: t('projectTitle', { project: loaderData.project.data.name }),
-        },
+        { title: t('projectTitle', { project: loaderData.project.name }) },
         { name: 'description', content: t('event.meta.description') },
       ],
     };
   },
-  // The event view is seven requests behind one loader, so it is the one
-  // screen with a visible wait. This is the same skeleton Next rendered from
-  // `loading.tsx`, mounted the same way: after `defaultPendingMs`, so a fast
+  // The event view awaits six requests, so it is the one screen with a
+  // visible wait: this skeleton, mounted after `defaultPendingMs`, so a fast
   // network never flashes it.
   pendingComponent: EventLoading,
-  component: EventPage,
+  component: EventView,
 });
 
-function EventPage() {
-  const t = useTranslations('projectPages');
-  const { id, issueId } = Route.useParams();
+function EventView() {
+  const { id, issueId, eventId } = Route.useParams();
   const context = Route.useRouteContext();
-  const {
-    project: projectResult,
-    issue: issueResult,
-    event: eventResult,
-    navigation: navigationResult,
-    aggregates: aggregatesResult,
-    stats: statsResult,
-    activity: activityResult,
-    repository: repositoryResult,
-    code: codeResult,
-    userReports: userReportsResult,
-    attachments: attachmentsResult,
-    members: membersResult,
-  } = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
-
-  // The four the page cannot render without.
-  if (!projectResult.success) {
-    return (
-      <LoadFailure error={projectResult.error} title={t('loadProjectFailed')} />
-    );
-  }
-  if (!issueResult.success) {
-    return (
-      <LoadFailure error={issueResult.error} title={t('loadIssueFailed')} />
-    );
-  }
-  if (!eventResult.success) {
-    return (
-      <LoadFailure error={eventResult.error} title={t('event.loadFailed')} />
-    );
-  }
-  if (!navigationResult.success) {
-    return (
-      <LoadFailure
-        error={navigationResult.error}
-        title={t('event.loadNavigationFailed')}
-      />
-    );
-  }
-
-  // The three that decorate the page. Each already degraded on failure before
-  // the Result conversion; the degradation is now written out rather than
-  // hidden behind a `.catch()`, and it stays deliberate: an issue with no tags
-  // and an aggregates endpoint that failed genuinely render the same panel, and
-  // neither is worth taking the event view down for.
-  return (
-    <EventView
-      projectId={projectId}
-      issueId={issueId}
-      issue={issueResult.data}
-      event={eventResult.data}
-      navigation={navigationResult.data}
-      aggregates={aggregatesResult.success ? aggregatesResult.data : null}
-      stats30d={statsResult.success ? statsResult.data : null}
-      activity={activityResult.success ? activityResult.data : []}
-      repository={repositoryResult.success ? repositoryResult.data : undefined}
-      code={codeResult.success ? codeResult.data : null}
-      userReports={userReportsResult.success ? userReportsResult.data : null}
-      attachments={attachmentsResult.success ? attachmentsResult.data : []}
-      members={assignable(
-        membersResult.success ? membersResult.data : [],
-        context.state === 'authenticated' ? context.user : null,
-      )}
-      me={context.state === 'authenticated' ? context.user.id : 0}
-    />
-  );
-}
-
-function EventView({
-  projectId,
-  issueId,
-  issue,
-  event,
-  navigation,
-  aggregates,
-  stats30d,
-  activity,
-  repository,
-  code,
-  userReports,
-  attachments,
-  members,
-  me,
-}: {
-  projectId: number;
-  issueId: string;
-  issue: IssueResponse;
-  event: EventDetailResponse;
-  navigation: EventNavigation;
-  aggregates: IssueAggregates | null;
-  stats30d: IssueStatsResponse | null;
-  activity: ActivityEntry[];
-  /** The project's GitHub repository: `null` without one, `undefined` when
-   * it could not be loaded. */
-  repository: ProjectRepository | null | undefined;
-  code: IssueGitHub | null;
-  /** The newest page of feedback users sent about this issue. */
-  userReports: IssuesListUserReportsResponse | null;
-  /** Files sent with the event. */
-  attachments: AttachmentInfo[];
-  members: Assignable[];
-  me: number;
-}) {
+  const reads = eventReads(projectId, issueId, eventId);
+  const { data: issue } = useSuspenseQuery(reads.issue);
+  const { data: event } = useSuspenseQuery(reads.event);
+  const { data: navigation } = useSuspenseQuery(reads.navigation);
+  const { data: repository } = useSuspenseQuery(reads.repository);
+  const { data: attachments } = useSuspenseQuery(reads.attachments);
+  const stats30d = useQuery(reads.stats30d).data ?? null;
+  const aggregates = useQuery(reads.aggregates).data ?? null;
+  const activity = useQuery(reads.activity).data ?? [];
+  const code = useQuery(reads.code).data ?? null;
+  const user = context.state === 'authenticated' ? context.user : null;
+  const members = assignable(useQuery(reads.members).data ?? [], user);
+  const me = user?.id ?? 0;
   const t = useTranslations('projectPages');
   usePageTrail([{ label: issue.short_id, mono: true }]);
   const eventData = event.data as Record<string, unknown>;
@@ -273,7 +150,7 @@ function EventView({
       aggregates={aggregates}
       activity={activity}
       code={code}
-      connected={repository === undefined ? null : repository !== null}
+      connected={repository !== null}
       members={members}
       me={me}
     />
@@ -326,7 +203,6 @@ function EventView({
             <EventSections
               projectId={projectId}
               issueId={issueId}
-              userReports={userReports}
               attachments={attachments}
               event={event}
               payload={payload}

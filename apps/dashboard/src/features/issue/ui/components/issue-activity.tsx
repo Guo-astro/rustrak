@@ -1,11 +1,11 @@
 import type { ActivityEntry } from '@rustrak/client';
 import { Button, CommentIcon, cn, Textarea } from '@rustrak/ui';
-import { useState, useTransition } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
-import { addIssueComment } from '@/features/issue/api/mutations';
+import { issueMutations } from '@/features/issue/api/mutations';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
-import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface IssueActivityProps {
   projectId: number;
@@ -101,9 +101,17 @@ export function IssueActivity({
 }: IssueActivityProps) {
   const format = useFormatter();
   const t = useTranslations('issues');
-  const router = useRouter();
   const [text, setText] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const { mutate, isPending } = useMutation({
+    ...issueMutations.comment(projectId, issueId),
+    onSuccess: () => setText(''),
+    // Keep the text in the box: clearing it on a failure destroys what the
+    // user wrote and leaves no trace that anything went wrong.
+    onError: (error) =>
+      toast.error(t('activity.commentFailed'), {
+        description: error.message,
+      }),
+  });
 
   const entries = [...activity].sort(
     (a, b) =>
@@ -116,21 +124,7 @@ export function IssueActivity({
     if (!body) {
       return;
     }
-    startTransition(async () => {
-      const result = await addIssueComment(projectId, issueId, body);
-
-      if (!result.success) {
-        // Keep the text in the box: clearing it on a failure destroys what the
-        // user wrote and leaves no trace that anything went wrong.
-        toast.error(t('activity.commentFailed'), {
-          description: result.error.message,
-        });
-        return;
-      }
-
-      setText('');
-      router.refresh();
-    });
+    mutate(body);
   };
 
   return (
