@@ -166,7 +166,11 @@
     "navigate": "navigate",
     "open": "open",
     "close": "close",
-    "hidePages": "hide pages"
+    "hidePages": "hide pages",
+    "crons": "Crons",
+    "cronsDescription": "Scheduled jobs and how their runs went.",
+    "feedback": "User Feedback",
+    "feedbackDescription": "What your users reported from the app."
   },
   "charts": {
     "errors": "Errors",

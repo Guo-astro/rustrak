@@ -7,7 +7,6 @@ import {
   PROJECT_PAGE_COUNT,
 } from '@/shared/config/commands';
 import { cn } from '@/shared/lib/utils';
-import { IconTile } from '../primitives/icon-tile';
 
 /**
  * The preview column: the pages of whichever project is selected.
@@ -77,39 +76,33 @@ export function ProjectPanel({
     <div
       onKeyDown={handleKeyDown}
       className={cn(
-        'hidden w-[18rem] shrink-0 flex-col overflow-hidden p-5 md:flex',
-        // `--border` is four points of luminance off the popover here, so the
-        // column is separated by its own surface, not by an invisible line.
-        'border-l border-foreground/10 bg-foreground/[0.03]',
+        'hidden w-[15rem] shrink-0 flex-col overflow-hidden p-1.5 md:flex',
+        // A step down from the floating surface, so the column reads as a
+        // pane beside the list rather than more of it.
+        'border-border-divider border-l bg-surface',
       )}
     >
-      <div className="flex shrink-0 flex-col items-center gap-3 text-center">
-        <IconTile size="detail">
-          <PlatformIcon
-            platform={project.platform ?? 'other'}
-            size={32}
-            format="lg"
-            className="rounded-md"
-          />
-        </IconTile>
-        <div className="flex flex-col gap-1">
-          <p className="text-base leading-tight font-semibold">
-            {project.name}
-          </p>
-          <p className="text-xs text-muted-foreground">
+      <div className="flex shrink-0 items-center gap-2.5 px-2.5 pt-2.5 pb-3">
+        <PlatformIcon
+          platform={project.platform ?? 'other'}
+          size={28}
+          format="lg"
+          className="shrink-0 rounded-md"
+        />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="truncate text-card-title text-fg">{project.name}</p>
+          <p className="truncate font-mono text-fg-subtle text-mono-sm">
             {project.platform ?? t('commands.noPlatformSet')}
           </p>
         </div>
       </div>
 
-      <div className="my-5 h-px shrink-0 bg-foreground/10" />
-
-      <p className="mb-2 shrink-0 text-[11px] font-semibold tracking-[0.09em] text-muted-foreground/60 uppercase">
+      <p className="shrink-0 px-2.5 pt-2 pb-1.5 font-mono text-column text-fg-meta uppercase">
         {PROJECT_PAGE_COUNT} {t('commands.pages')}
       </p>
 
       {/* Only the page list scrolls; the identity above it stays put. */}
-      <ul className="-mx-2 flex min-h-0 flex-1 flex-col overflow-y-auto px-2">
+      <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {ALL_PROJECT_PAGES.map((page, index) => (
           <li key={page.segment}>
             <button
@@ -121,9 +114,9 @@ export function ProjectPanel({
               // walked with the arrows, so only the active page is a tab stop.
               tabIndex={focusIndex === index ? 0 : -1}
               onClick={() => onNavigate(`${base}${page.segment}`)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors duration-100 outline-none hover:bg-primary/10 hover:text-primary focus-visible:bg-primary/10 focus-visible:text-primary"
+              className="group/page flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-control text-fg-muted outline-none hover:bg-surface-hover hover:text-fg focus-visible:bg-surface-selected focus-visible:text-fg"
             >
-              <page.icon className="size-3.5 shrink-0 opacity-70" />
+              <page.icon className="size-icon-md shrink-0 text-fg-ghost group-hover/page:text-fg-subtle group-focus-visible/page:text-fg-subtle" />
               <span className="truncate">{t(page.labelKey)}</span>
             </button>
           </li>

@@ -166,7 +166,11 @@
     "navigate": "naviguer",
     "open": "ouvrir",
     "close": "fermer",
-    "hidePages": "masquer les pages"
+    "hidePages": "masquer les pages",
+    "crons": "Crons",
+    "cronsDescription": "Les tâches planifiées et le déroulement de leurs exécutions.",
+    "feedback": "Retours utilisateurs",
+    "feedbackDescription": "Ce que vos utilisateurs ont signalé depuis l’app."
   },
   "charts": {
     "errors": "Erreurs",

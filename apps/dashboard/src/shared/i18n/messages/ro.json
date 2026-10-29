@@ -166,7 +166,11 @@
     "navigate": "navighează",
     "open": "deschide",
     "close": "închide",
-    "hidePages": "ascunde paginile"
+    "hidePages": "ascunde paginile",
+    "crons": "Crons",
+    "cronsDescription": "Sarcinile programate și cum au decurs rulările lor.",
+    "feedback": "Feedback utilizatori",
+    "feedbackDescription": "Ce au raportat utilizatorii din aplicație."
   },
   "charts": {
     "errors": "Erori",

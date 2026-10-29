@@ -166,7 +166,11 @@
     "navigate": "导航",
     "open": "打开",
     "close": "关闭",
-    "hidePages": "隐藏页面"
+    "hidePages": "隐藏页面",
+    "crons": "Crons",
+    "cronsDescription": "定时任务及其运行情况。",
+    "feedback": "用户反馈",
+    "feedbackDescription": "用户在应用中提交的反馈。"
   },
   "charts": {
     "errors": "错误",

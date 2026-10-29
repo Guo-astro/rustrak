@@ -2,7 +2,7 @@ import { PlatformIcon } from 'platformicons';
 import type { CommandProject } from '@/shared/config/commands';
 
 const BADGE =
-  'flex min-w-0 shrink-0 items-center gap-1 rounded-md border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground';
+  'flex min-w-0 shrink-0 items-center gap-1.5 font-mono text-fg-subtle text-mono-sm';
 
 /**
  * Marks where a row lives once the search flattens everything into one list.
@@ -15,11 +15,11 @@ export function ProjectBadge({ project }: { project: CommandProject }) {
     <span className={BADGE}>
       <PlatformIcon
         platform={project.platform ?? 'other'}
-        size={11}
+        size={12}
         format="lg"
         className="shrink-0 rounded-[2px]"
       />
-      <span className="max-w-28 truncate">{project.name}</span>
+      <span className="max-w-32 truncate">{project.name}</span>
     </span>
   );
 }

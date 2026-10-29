@@ -1,3 +1,4 @@
+import { Kbd } from '@rustrak/ui';
 import { PlatformIcon } from 'platformicons';
 import { type Ref, useMemo } from 'react';
 import { useTranslations } from 'use-intl';
@@ -15,10 +16,9 @@ import {
   CommandEmpty,
   CommandList,
 } from '@/shared/ui/components/shadcn/command';
-import { Kbd } from '@/shared/ui/components/shadcn/kbd';
 import { Section } from '../primitives/section';
 import { ProjectBadge, ScopeBadge } from './badges';
-import { CommandRow } from './command-row';
+import { CommandRow, ROW_ICON } from './command-row';
 
 /**
  * How many project-page rows a search will render.
@@ -102,7 +102,7 @@ export function ResultsList({
       label={t(page.labelKey)}
       description={t(page.descriptionKey)}
       badge={<ProjectBadge project={project} />}
-      media={<page.icon className="size-[18px] text-muted-foreground" />}
+      media={<page.icon className={ROW_ICON} />}
       onSelect={() => onNavigate(`/projects/${project.id}${page.segment}`)}
       onHover={() => onHighlight(value)}
     />
@@ -117,15 +117,15 @@ export function ResultsList({
         label={t(link.labelKey)}
         description={t(link.descriptionKey)}
         badge={badgeLabel ? <ScopeBadge label={badgeLabel} /> : undefined}
-        media={<link.icon className="size-[18px] text-muted-foreground" />}
+        media={<link.icon className={ROW_ICON} />}
         onSelect={() => onNavigate(link.href)}
         onHover={() => onHighlight(t(link.labelKey))}
       />
     ));
 
   return (
-    <CommandList ref={ref} className="max-h-none min-w-0 flex-1 p-2">
-      <CommandEmpty className="px-4 py-16 text-center text-sm text-muted-foreground">
+    <CommandList ref={ref} className="max-h-none min-w-0 flex-1 p-1.5">
+      <CommandEmpty className="px-4 py-16 text-center text-body text-fg-subtle">
         {t('commands.noResultsFor', { query: query.trim() })}
       </CommandEmpty>
 
@@ -153,7 +153,7 @@ export function ResultsList({
                 media={
                   <PlatformIcon
                     platform={project.platform ?? 'other'}
-                    size={20}
+                    size={16}
                     format="lg"
                     className="rounded-[3px]"
                   />
@@ -166,7 +166,7 @@ export function ResultsList({
                 // Advertises the shortcut on the row it applies to, which is
                 // the only place anyone would look for it.
                 trailing={
-                  <Kbd className="opacity-0 transition-opacity duration-100 group-data-[selected=true]/command-item:opacity-100">
+                  <Kbd className="opacity-0 group-data-[selected=true]/command-item:opacity-100">
                     ⇥
                   </Kbd>
                 }
