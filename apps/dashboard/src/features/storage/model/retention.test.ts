@@ -12,6 +12,7 @@ import {
   deletesAnything,
   elapsed,
   estimateBytes,
+  estimateSize,
   nextReadIn,
   presetsWith,
   removedParts,
@@ -189,6 +190,27 @@ describe('summarize', () => {
       [2, 20, true],
     ]);
     expect(s.projects[0]?.share).toBeCloseTo(1_200 / 1_220);
+  });
+});
+
+describe('estimateSize', () => {
+  const counts = {
+    events: 3,
+    transactions: 0,
+    spans: 0,
+    logs: 3,
+    issues_removed: 0,
+    source_maps: 0,
+  };
+
+  it('is not guessed before the figures to price it are in', () => {
+    // The dialogs open before the storage figures arrive; a size of 0 B would
+    // read as "deletes nothing worth mentioning".
+    expect(estimateSize(counts, null)).toBe('…');
+  });
+
+  it('adds what is freed besides the rows', () => {
+    expect(estimateSize(counts, projects, 614)).toBe('1.0 KB');
   });
 });
 

@@ -52,7 +52,6 @@ export interface StorageFigures {
 export function StorageView({
   retention: initialRetention,
   figures,
-  reloading,
   title,
   subtitle,
   onChanged,
@@ -60,8 +59,6 @@ export function StorageView({
   retention: RetentionResponse;
   /** `null` while loading. */
   figures: { data: StorageFigures } | { error: RustrakError } | null;
-  /** The figures shown are the last ones; newer are on their way. */
-  reloading: boolean;
   title: string;
   subtitle: string;
   /** Reads the page's data again, after a cleanup. */
@@ -106,7 +103,7 @@ export function StorageView({
   }, [retention]);
 
   const data = figures && 'data' in figures ? figures.data : null;
-  const projects = data?.projects ?? [];
+  const projects = data?.projects ?? null;
   const summary = useMemo(
     () =>
       data &&
@@ -132,14 +129,14 @@ export function StorageView({
         title={title}
         description={subtitle}
         actions={
-          // Shown at once, enabled once the current figures are in: both
-          // dialogs price what they delete from the projects' sizes.
+          // Usable at once: the figures only price what the dialogs delete,
+          // and the price fills in when they land.
           <>
             <Button
               variant="danger"
               icon={DeleteIcon}
               onClick={() => setDeleting(true)}
-              disabled={cleanup.running || !data || reloading}
+              disabled={cleanup.running}
             >
               {t('deleteAction')}
             </Button>
@@ -147,7 +144,6 @@ export function StorageView({
               variant="primary"
               icon={ConfigureIcon}
               onClick={() => setEditing(true)}
-              disabled={!data || reloading}
             >
               {t('action')}
             </Button>

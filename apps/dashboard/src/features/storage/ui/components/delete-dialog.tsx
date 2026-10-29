@@ -16,7 +16,7 @@ import {
   previewStorageSourceMapGc,
 } from '@/features/storage/api/mutations';
 import {
-  estimateBytes,
+  estimateSize,
   impactState,
   KINDS,
   type Kind,
@@ -59,7 +59,8 @@ export function DeleteDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   onStarted: (job: CleanupStatus) => void;
   /** Reads the page again after a deletion that was not a job. */
   onChanged: () => void;
@@ -94,7 +95,8 @@ function Editor({
   startTransition,
   onDone,
 }: {
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   isPending: boolean;
   startTransition: (run: () => Promise<void>) => void;
   /** With the started job, or `null` when only source maps went. */
@@ -276,11 +278,12 @@ function Scope({
   onDays: (days: number) => void;
   project: string;
   onProject: (project: string) => void;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   disabled?: boolean;
 }) {
   const t = useTranslations('storage');
-  const byName = [...projects].sort((a, b) =>
+  const byName = [...(projects ?? [])].sort((a, b) =>
     a.project_name.localeCompare(b.project_name),
   );
   return (
@@ -361,16 +364,18 @@ function useCount(options: CleanupRequest) {
 function whatGoes(
   counts: CleanupCounts | null | 'failed',
   unused: SourceMapGcResult | null,
-  projects: readonly ProjectStorage[],
+  projects: readonly ProjectStorage[] | null,
   t: (key: string, values?: Record<string, string | number>) => string,
 ) {
   const known = counts === null || counts === 'failed' ? null : counts;
   const maps = unused?.files_removed ?? 0;
   const rows = known ? KINDS.reduce((sum, k) => sum + known[k], 0) : 0;
   const parts = known ? removedParts({ ...known, source_maps: maps }, t) : [];
-  const bytes =
-    (known ? estimateBytes(known, projects) : 0) + (unused?.bytes_freed ?? 0);
-  return { maps, rows, parts, size: formatBytes(bytes) };
+  const freed = unused?.bytes_freed ?? 0;
+  const size = known
+    ? estimateSize(known, projects, freed)
+    : formatBytes(freed);
+  return { maps, rows, parts, size };
 }
 
 /** The source maps no upload uses: one count, with no age or project. */
@@ -409,7 +414,7 @@ function joined(
 function useDeletion(
   options: CleanupRequest,
   chosen: { rows: boolean; sourceMaps: boolean },
-  projects: readonly ProjectStorage[],
+  projects: readonly ProjectStorage[] | null,
 ) {
   const t = useTranslations('storage');
   const { counts, retry } = useCount(options);

@@ -67,3 +67,21 @@ export async function loadAll<T extends readonly PendingResult[] | []>(
 
   return Ok(data as Unwrapped<T>);
 }
+
+/**
+ * The first failure among results a page needs, skipping the ones it did not
+ * ask for (`null`): a tab's read is only made while the tab is open.
+ */
+export function firstFailure(
+  results: readonly (Result<unknown, RustrakError> | null)[],
+): RustrakError | undefined {
+  for (const result of results) {
+    if (result && !result.success) return result.error;
+  }
+  return undefined;
+}
+
+/** A result's data, or `null` for a failure or a read never made. */
+export function okOrNull<T>(result: Result<T, RustrakError> | null): T | null {
+  return result?.success ? result.data : null;
+}

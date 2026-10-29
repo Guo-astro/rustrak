@@ -41,7 +41,8 @@ export function RetentionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   retention: RetentionResponse;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   onDone: (saved: RetentionResponse, job: CleanupStatus | null) => void;
 }) {
   return (
@@ -70,7 +71,8 @@ function Editor({
   onCancel,
 }: {
   retention: RetentionResponse;
-  projects: readonly ProjectStorage[];
+  /** `null` until the storage figures are in. */
+  projects: readonly ProjectStorage[] | null;
   onDone: (saved: RetentionResponse, job: CleanupStatus | null) => void;
   onCancel: () => void;
 }) {

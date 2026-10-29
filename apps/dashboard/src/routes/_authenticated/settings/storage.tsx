@@ -81,17 +81,15 @@ function StorageContent() {
   const t = useTranslations('settings');
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  // Each answer keeps the version it was read for. The view is keyed by the
-  // retention's, so it starts afresh from the new retention rather than the
+  // The retention keeps the version it was read for. The view is keyed by it, so it starts afresh from the new retention rather than the
   // old one the moment a reload is asked for.
   const [retention, setRetention] = useState<{
     version: number;
     result: Result<RetentionResponse, RustrakError>;
   } | null>(null);
-  const [figures, setFigures] = useState<{
-    version: number;
-    answer: { data: StorageFigures } | { error: RustrakError };
-  } | null>(null);
+  const [figures, setFigures] = useState<
+    { data: StorageFigures } | { error: RustrakError } | null
+  >(null);
   // Not `useAsync`, which drops its answer while the next one loads. A
   // newer read wins; an older one is dropped.
   useEffect(() => {
@@ -99,9 +97,7 @@ function StorageContent() {
     void getRetention().then(
       (result) => live && setRetention({ version, result }),
     );
-    void loadFigures().then(
-      (answer) => live && setFigures({ version, answer }),
-    );
+    void loadFigures().then((answer) => live && setFigures(answer));
     return () => {
       live = false;
     };
@@ -127,8 +123,7 @@ function StorageContent() {
       title={t('storage.title')}
       subtitle={t('storage.subtitle')}
       retention={retention.result.data}
-      figures={figures?.answer ?? null}
-      reloading={figures !== null && figures.version !== version}
+      figures={figures}
       onChanged={reload}
     />
   );

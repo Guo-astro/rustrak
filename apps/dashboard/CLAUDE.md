@@ -126,6 +126,11 @@ it on `router.invalidate()`. Every method on `@rustrak/client` returns a
 `Result` and never throws for an expected failure, so a loader returns it as-is
 and the component renders both branches. Do not `unwrap`.
 
+A loader awaits only what the page cannot paint without; a panel that can
+arrive later is returned as an unawaited promise and rendered through
+`<Await>` (the agents page's `Deferred`). Awaiting nine reads made the page as
+slow as the slowest, and one that timed out failed all of it.
+
 `useAsync` (`shared/ui/hooks`) is the exception, and it is a narrow one. Three
 surfaces are genuinely a grid of independent panels — the project overview, the
 storage page, the command bar — and each panel must appear when *its* query

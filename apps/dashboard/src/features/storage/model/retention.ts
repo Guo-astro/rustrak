@@ -7,6 +7,7 @@ import type {
   StorageAge,
 } from '@rustrak/client';
 import type { Translate } from '@/shared/lib/error-copy';
+import { formatBytes } from '@/shared/lib/utils';
 
 /** The kinds of data a retention window applies to. */
 export type Kind = 'events' | 'transactions' | 'logs';
@@ -216,6 +217,20 @@ export function estimateBytes(
       return sum + (rows > 0 ? (counts[kind] * bytes) / rows : 0);
     }, 0),
   );
+}
+
+/**
+ * {@link estimateBytes} as words, plus `extra` bytes freed besides the rows.
+ * `…` while the projects to price them are not in yet, rather than a 0 B that
+ * reads as nothing worth mentioning.
+ */
+export function estimateSize(
+  counts: CleanupCounts,
+  projects: readonly ProjectStorage[] | null,
+  extra = 0,
+): string {
+  if (projects === null) return '…';
+  return formatBytes(estimateBytes(counts, projects) + extra);
 }
 
 /** "2 errors", "3 logs"… for what a run removed, leaving out the zeros. */

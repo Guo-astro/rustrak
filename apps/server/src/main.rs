@@ -278,6 +278,11 @@ async fn main() -> std::io::Result<()> {
     // Built outside the worker factory so every worker shares the one job and
     // a second cleanup is refused no matter which worker takes the request.
     let cleanup_job_data = web::Data::new(rustrak::services::CleanupJob::default());
+    tokio::spawn({
+        let job = cleanup_job_data.clone();
+        let pool = db_pool.clone();
+        async move { job.warm_snapshot(&pool).await }
+    });
     let client_metadata_data: web::Data<Arc<dyn rustrak::services::oauth::ClientMetadataSource>> =
         web::Data::new(Arc::new(rustrak::services::oauth::HttpClientMetadata));
 

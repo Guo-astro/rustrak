@@ -150,11 +150,44 @@ fn free_disk_bytes(_file: &std::path::Path) -> Option<i64> {
 #[derive(Default)]
 pub struct CleanupJob {
     status: Arc<Mutex<CleanupStatus>>,
-    snapshot: Arc<tokio::sync::Mutex<Option<CachedSnapshot>>>,
+    snapshot: Arc<Mutex<Option<CachedSnapshot>>>,
+    /// Held by the one read of the figures in flight.
+    reading: Arc<tokio::sync::Mutex<()>>,
 }
 
 /// A snapshot and when its read began.
 type CachedSnapshot = (chrono::DateTime<Utc>, Arc<StorageSnapshot>);
+
+fn store(
+    cache: &Mutex<Option<CachedSnapshot>>,
+    read_at: chrono::DateTime<Utc>,
+    snapshot: Arc<StorageSnapshot>,
+) {
+    *cache.lock().unwrap_or_else(PoisonError::into_inner) = Some((read_at, snapshot));
+}
+
+/// What a request for the figures gets, given the kept snapshot.
+#[derive(Debug, PartialEq)]
+enum Serve {
+    Kept,
+    /// The kept one now, and a read in the background for the next request.
+    KeptAndRefresh,
+    /// A cleanup changed what is stored: the kept figures would be wrong, so
+    /// the request waits for a new read.
+    Read,
+}
+
+fn serve(read_at: chrono::DateTime<Utc>, now: chrono::DateTime<Utc>, job: &CleanupStatus) -> Serve {
+    if job.finished_at.is_some_and(|f| f >= read_at) {
+        Serve::Read
+    } else if job.state != CleanupState::Running
+        && now - read_at >= chrono::Duration::minutes(SNAPSHOT_TTL_MINUTES)
+    {
+        Serve::KeptAndRefresh
+    } else {
+        Serve::Kept
+    }
+}
 
 /// The status is plain data, so a panic while it was locked leaves nothing
 /// half-written worth refusing to read.
@@ -185,44 +218,89 @@ impl CleanupJob {
         lock(&self.status).clone()
     }
 
-    /// The storage page's figures: the last snapshot, unless it is older than
-    /// [`SNAPSHOT_TTL_MINUTES`] or a cleanup has run since its read began.
+    /// The storage page's figures.
     ///
-    /// The read runs in its own task, so a client that gives up does not
-    /// cancel it and the next request finds it done. The lock makes requests
-    /// that arrive meanwhile wait for that read instead of starting their own,
-    /// even while a cleanup runs: a read that began after the request arrived
-    /// is as fresh as one it would start.
+    /// The kept snapshot answers at once, even past [`SNAPSHOT_TTL_MINUTES`]:
+    /// on a large instance the read takes longer than a client waits, so a
+    /// request that waited for it would time out every time the figures went
+    /// stale. A stale one starts a read in the background instead, and the
+    /// next request gets that. Only with nothing kept, or after a cleanup,
+    /// does a request wait for a read (see [`serve`]).
     pub async fn snapshot(&self, pool: &DbPool) -> AppResult<Arc<StorageSnapshot>> {
         let asked_at = Utc::now();
+        let kept = self
+            .snapshot
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        if let Some((read_at, snapshot)) = kept {
+            match serve(read_at, asked_at, &self.status()) {
+                Serve::Kept => return Ok(snapshot),
+                Serve::KeptAndRefresh => {
+                    // One read at a time: a read already running is the refresh.
+                    if let Ok(guard) = Arc::clone(&self.reading).try_lock_owned() {
+                        let cache = Arc::clone(&self.snapshot);
+                        let pool = pool.clone();
+                        tokio::spawn(async move {
+                            let _guard = guard;
+                            match StorageService::snapshot(&pool).await {
+                                Ok(fresh) => store(&cache, asked_at, Arc::new(fresh)),
+                                Err(e) => log::warn!("Refreshing the storage figures failed: {e}"),
+                            }
+                        });
+                    }
+                    return Ok(snapshot);
+                }
+                Serve::Read => {}
+            }
+        }
+        self.read(pool, asked_at).await
+    }
+
+    /// A read of the figures that began after `asked_at`, run in its own task
+    /// so a client that gives up does not cancel it and the next request
+    /// finds it done. Requests that arrive meanwhile wait for that one read
+    /// instead of starting their own.
+    async fn read(
+        &self,
+        pool: &DbPool,
+        asked_at: chrono::DateTime<Utc>,
+    ) -> AppResult<Arc<StorageSnapshot>> {
         let cache = Arc::clone(&self.snapshot);
-        let status = Arc::clone(&self.status);
+        let reading = Arc::clone(&self.reading);
         let pool = pool.clone();
         tokio::spawn(async move {
-            let mut cached = cache.lock().await;
-            let job = lock(&status).clone();
-            let now = Utc::now();
-            if let Some((read_at, snapshot)) = cached.as_ref() {
-                let cleaned_since = job.finished_at.is_some_and(|f| f >= *read_at);
-                let fresh = *read_at >= asked_at
-                    || (job.state != CleanupState::Running
-                        && now - *read_at < chrono::Duration::minutes(SNAPSHOT_TTL_MINUTES));
-                if fresh && !cleaned_since {
+            let _guard = reading.lock().await;
+            if let Some((read_at, snapshot)) = cache
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_ref()
+            {
+                if *read_at >= asked_at {
                     return Ok(Arc::clone(snapshot));
                 }
             }
+            let read_at = Utc::now();
             let snapshot = Arc::new(StorageService::snapshot(&pool).await?);
-            *cached = Some((now, Arc::clone(&snapshot)));
+            store(&cache, read_at, Arc::clone(&snapshot));
             Ok(snapshot)
         })
         .await
         .map_err(|e| AppError::Internal(format!("The storage read stopped unexpectedly: {e}")))?
     }
 
+    /// Reads the figures once at startup, so the first visit to the storage
+    /// page does not wait for them.
+    pub async fn warm_snapshot(&self, pool: &DbPool) {
+        if let Err(e) = self.read(pool, Utc::now()).await {
+            log::warn!("Reading the storage figures at startup failed: {e}");
+        }
+    }
+
     /// Drops the kept snapshot, after a change that does not go through a
     /// cleanup (a source-map GC).
     pub async fn forget_snapshot(&self) {
-        *self.snapshot.lock().await = None;
+        *self.snapshot.lock().unwrap_or_else(PoisonError::into_inner) = None;
     }
 
     /// Validates the window and starts the cleanup in the background,
@@ -1417,6 +1495,34 @@ mod tests {
         // 100 counted, 90 deleted before the sample: the 10 left are the answer.
         assert_eq!(scale_sample(1_000, 10, SIZE_SAMPLE_ROWS, 100), 1_000);
         assert_eq!(scale_sample(0, 0, SIZE_SAMPLE_ROWS, 5), 0);
+    }
+
+    #[test]
+    fn kept_figures_answer_at_once_unless_a_cleanup_changed_them() {
+        let read_at = Utc::now();
+        let job = |state, finished_at| CleanupStatus {
+            state,
+            finished_at,
+            ..CleanupStatus::default()
+        };
+        let idle = job(CleanupState::Idle, None);
+        let later = read_at + chrono::Duration::minutes(SNAPSHOT_TTL_MINUTES + 1);
+
+        assert_eq!(serve(read_at, read_at, &idle), Serve::Kept);
+        assert_eq!(serve(read_at, later, &idle), Serve::KeptAndRefresh);
+        // A refresh would compete with the cleanup for the same rows.
+        assert_eq!(
+            serve(read_at, later, &job(CleanupState::Running, None)),
+            Serve::Kept
+        );
+        assert_eq!(
+            serve(
+                read_at,
+                read_at,
+                &job(CleanupState::Completed, Some(read_at))
+            ),
+            Serve::Read
+        );
     }
 
     #[test]
