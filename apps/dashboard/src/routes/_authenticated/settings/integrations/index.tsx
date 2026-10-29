@@ -31,13 +31,11 @@ export const Route = createFileRoute('/_authenticated/settings/integrations/')({
       ],
     };
   },
-  // Awaited, but a failure fills the cache rather than failing the page: the
-  // catalogue stands without either read, and says which one failed.
-  loader: async ({ context: { queryClient } }) => {
-    await Promise.all([
-      queryClient.prefetchQuery(alertQueries.integrations()),
-      queryClient.prefetchQuery(githubQueries.status()),
-    ]);
+  // Started, not awaited: the catalogue stands without either read, and a
+  // card's status fills in when its read lands or says which one failed.
+  loader: ({ context: { queryClient } }) => {
+    void queryClient.prefetchQuery(alertQueries.integrations());
+    void queryClient.prefetchQuery(githubQueries.status());
   },
   component: IntegrationsPage,
 });
@@ -78,8 +76,7 @@ function IntegrationsPage() {
         }
       />
 
-      {/* A failed read is said, not shown as nothing configured. GitHub's
-          403 is a member's normal answer: the connection is an admin's. */}
+      {/* A failed read is said, not shown as nothing configured. */}
       {integrations.isError ? (
         <LoadFailure
           error={integrations.error.error}
@@ -87,7 +84,7 @@ function IntegrationsPage() {
           notFoundOnMissing={false}
         />
       ) : null}
-      {github.isError && github.error.error.kind !== 'forbidden' ? (
+      {github.isError ? (
         <LoadFailure
           error={github.error.error}
           title={t('integrations.githubLoadFailed')}

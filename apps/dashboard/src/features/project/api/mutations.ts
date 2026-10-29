@@ -6,6 +6,7 @@
  */
 import type { CreateProject, UpdateProject } from '@rustrak/client';
 import { mutationOptions } from '@tanstack/react-query';
+import { projectScope } from '@/shared/api/keys';
 import { orThrow } from '@/shared/api/query';
 import { api } from '@/shared/api/rustrak';
 import { projectQueries } from './queries';
@@ -38,6 +39,10 @@ export const projectMutations = {
     mutationOptions({
       mutationFn: (id: number) =>
         orThrow(api().projects.delete({ path: { id } })),
-      meta: { invalidates: [['projects']] },
+      // Everything of the project goes before the lists refetch: asking
+      // again for any of it can only answer 404.
+      onSuccess: (_data, id, _result, { client }) =>
+        client.removeQueries({ queryKey: projectScope(id) }),
+      meta: { invalidates: [projectQueries.lists()] },
     }),
 };

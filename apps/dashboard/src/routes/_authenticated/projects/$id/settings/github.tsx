@@ -15,15 +15,13 @@ export const Route = createFileRoute(
   }),
   loader: ({ context: { queryClient }, params }) => {
     const projectId = Number.parseInt(params.id, 10);
-    // The repository list is awaited but never throws: its failure is how
-    // the page says GitHub is not connected yet.
-    return Promise.all([
-      queryClient.query({
-        ...githubQueries.repository(projectId),
-        staleTime: 'static',
-      }),
-      queryClient.prefetchQuery(githubQueries.repositories(projectId)),
-    ]);
+    // The picker's choices fill in on their own; their failure is how the
+    // page says GitHub is not connected yet.
+    void queryClient.prefetchQuery(githubQueries.repositories(projectId));
+    return queryClient.query({
+      ...githubQueries.repository(projectId),
+      staleTime: 'static',
+    });
   },
   component: GitHubSettingsPage,
 });

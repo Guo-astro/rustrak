@@ -94,6 +94,12 @@ export const issueMutations = {
             path: { project_id: projectId, issue_id: issueId },
           }),
         ),
+      // Dropped before the project refetches: asking again for what was
+      // just deleted can only answer 404.
+      onSuccess: (_data, issueId, _result, { client }) =>
+        client.removeQueries({
+          queryKey: issueQueries.one(projectId, issueId),
+        }),
       meta: { invalidates: [projectScope(projectId)] },
     }),
   /** A note on the issue's activity log. */

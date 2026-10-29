@@ -5,7 +5,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 import { projectScope } from '@/shared/api/keys';
-import { orThrow } from '@/shared/api/query';
+import { ApiError, orThrow } from '@/shared/api/query';
 import { api } from '@/shared/api/rustrak';
 
 export const githubQueries = {
@@ -13,10 +13,19 @@ export const githubQueries = {
   root: () => ['github'] as const,
   /** Every GitHub read of one project. */
   all: (projectId: number) => [...projectScope(projectId), 'github'] as const,
+  /**
+   * The app and its installations, or `null` for a member: the connection is
+   * an admin's, and the server's 403 is that answer, not a failure.
+   */
   status: () =>
     queryOptions({
       queryKey: [...githubQueries.root(), 'status'],
-      queryFn: ({ signal }) => orThrow(api().github.status({ signal })),
+      queryFn: async ({ signal }) => {
+        const result = await api().github.status({ signal });
+        if (result.success) return result.data;
+        if (result.error.kind === 'forbidden') return null;
+        throw new ApiError(result.error);
+      },
     }),
   /** The reader's own GitHub login, which maps GitHub users to them. */
   myLogin: () =>

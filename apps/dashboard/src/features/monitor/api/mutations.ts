@@ -35,6 +35,12 @@ export const monitorMutations = {
         orThrow(
           api().monitors.delete({ path: { project_id: projectId, slug } }),
         ),
+      // Dropped before the monitors refetch: asking again for a deleted
+      // monitor can only answer 404.
+      onSuccess: (_data, _variables, _result, { client }) =>
+        client.removeQueries({
+          queryKey: monitorQueries.monitor(projectId, slug),
+        }),
       meta: { invalidates: [monitorQueries.all(projectId)] },
     }),
 };

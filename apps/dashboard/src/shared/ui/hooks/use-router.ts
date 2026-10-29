@@ -12,24 +12,17 @@ import { useMemo } from 'react';
  * Keeping the shape meant the framework move touched the import line of those
  * files and nothing else, which is the difference between a diff a reviewer
  * can read and one they can only trust.
- *
- * `refresh` is the one worth reading twice. Under Next it re-ran the Server
- * Components for the current URL and reconciled, so scroll position and open
- * dialogs survived. `router.invalidate()` is the same promise kept the same
- * way: it re-runs the route loaders and re-renders from their answers, without
- * unmounting the tree. `location.reload()` would have been neither.
  */
 export interface AppRouter {
   push(href: string): void;
   replace(href: string): void;
   back(): void;
   /**
-   * Re-run the loaders for the routes currently on screen. A loaded route
-   * revalidates in the background, so the promise settles before the new data
-   * unless `sync` is set: then it waits for the loaders, which is what an
-   * optimistic update awaiting it inside a transition needs.
+   * Re-run the routes on screen: their loaders, which the query cache
+   * answers, and their `head`. Never to see a write — the cache does that —
+   * only for what lives outside it, like a tab title `head` translated.
    */
-  refresh(options?: { sync?: boolean }): Promise<void>;
+  refresh(): Promise<void>;
 }
 
 export function useRouter(): AppRouter {
@@ -47,7 +40,7 @@ export function useRouter(): AppRouter {
       back: () => {
         router.history.back();
       },
-      refresh: (options) => router.invalidate({ sync: options?.sync }),
+      refresh: () => router.invalidate(),
     }),
     [navigate, router],
   );

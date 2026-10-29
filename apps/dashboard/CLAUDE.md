@@ -73,7 +73,7 @@ the build if they disagree.
 
 Everything follows from that:
 
-- `createClient()` builds against `window.location.origin`
+- `api()` builds the client against `window.location.origin`
   (`src/shared/api/rustrak.ts`). No API URL to configure, in either environment.
 - The session cookie is first-party in both, so no `SameSite=None`, no
   third-party cookie policy to fight, and nothing parses `Set-Cookie` by hand.
@@ -209,8 +209,12 @@ export const issueMutations = {
 
 - **A mutation names what it changed in `meta.invalidates`**; the cache
   refetches those keys once it settles (`shared/api/query.ts`), and
-  `mutateAsync` resolves after they are back. Nothing calls `invalidateQueries`
-  by hand, and nothing calls `router.invalidate()` to see a write.
+  `mutateAsync` resolves after they are back. Nothing calls `router.invalidate()`
+  to see a write, and `invalidateQueries` by hand is only for a change no
+  mutation settles: a background job (a storage cleanup) finishing.
+- **A delete drops what it deleted** in its factory's `onSuccess`
+  (`client.removeQueries`), before the invalidation refetches: a still-mounted
+  page would otherwise ask again for a record that can only answer 404.
 - Components use `useMutation(factory(...))`: `isPending` for the button, the
   `ApiError` in `onError` (a toast) or in a form's submit handler (field
   errors through `form-errors.ts`).

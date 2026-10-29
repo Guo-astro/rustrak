@@ -97,6 +97,12 @@ export const alertMutations = {
             path: { project_id: projectId, rule_id: ruleId },
           }),
         ),
+      // Dropped before the alerts refetch: the rule's page is still mounted,
+      // and asking for a deleted rule can only answer 404.
+      onSuccess: (_data, _variables, _result, { client }) =>
+        client.removeQueries({
+          queryKey: alertQueries.rule(projectId, ruleId).queryKey,
+        }),
       meta: { invalidates: [alertQueries.all(projectId)] },
     }),
 };

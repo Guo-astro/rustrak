@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { githubQueries } from '@/features/github/api/queries';
@@ -13,13 +13,15 @@ export const Route = createFileRoute(
   '/_authenticated/settings/integrations/github',
 )({
   head: () => ({ meta: [{ title: 'GitHub | Rustrak' }] }),
-  // Both are the page, so it paints once both have answered; neither throws,
-  // because a member's forbidden status still leaves them their login to set.
-  loader: ({ context: { queryClient } }) =>
-    Promise.all([
-      queryClient.prefetchQuery(githubQueries.status()),
-      queryClient.prefetchQuery(githubQueries.myLogin()),
-    ]),
+  // The connection is the page; the reader's own login is a card that fills
+  // in on its own.
+  loader: ({ context: { queryClient } }) => {
+    void queryClient.prefetchQuery(githubQueries.myLogin());
+    return queryClient.query({
+      ...githubQueries.status(),
+      staleTime: 'static',
+    });
+  },
   component: GitHubIntegrationPage,
 });
 
@@ -27,9 +29,8 @@ export const Route = createFileRoute(
 function GitHubIntegrationPage() {
   const t = useTranslations('settings');
   const tGitHub = useTranslations('github');
-  // The loader already retried a failure; mounting does not ask again.
-  const status = useQuery({ ...githubQueries.status(), retryOnMount: false });
-  const login = useQuery({ ...githubQueries.myLogin(), retryOnMount: false });
+  const { data: status } = useSuspenseQuery(githubQueries.status());
+  const login = useQuery(githubQueries.myLogin());
   usePageTrail([{ label: 'GitHub' }]);
   const loginCard = (
     <QueryState
@@ -54,18 +55,12 @@ function GitHubIntegrationPage() {
         }
         description={tGitHub('connection.description')}
       />
-      {status.error?.error.kind === 'forbidden' ? (
+      {status === null ? (
         // The app and its installations are an admin's; which GitHub account
         // is theirs is every member's to set.
         loginCard
       ) : (
-        <QueryState
-          query={status}
-          placeholder={null}
-          title={t('integrations.githubLoadFailed')}
-        >
-          {(data) => <GitHubIntegration status={data} login={loginCard} />}
-        </QueryState>
+        <GitHubIntegration status={status} login={loginCard} />
       )}
     </>
   );

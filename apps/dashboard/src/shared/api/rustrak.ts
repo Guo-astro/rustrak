@@ -39,7 +39,3 @@ export function api(): RustrakClient {
   client ??= new RustrakClient({ baseUrl: baseUrl() });
   return client;
 }
-
-export async function createClient(): Promise<RustrakClient> {
-  return api();
-}

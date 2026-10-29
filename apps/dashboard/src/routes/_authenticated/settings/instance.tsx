@@ -1,9 +1,8 @@
-import { queryOptions, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useFormatter, useTranslations } from 'use-intl';
 import { projectQueries } from '@/features/project/api/queries';
-import { orThrow } from '@/shared/api/query';
-import { getServerVersion } from '@/shared/api/server-version';
+import { serverVersionQuery } from '@/shared/api/server-version';
 import { APP_VERSION } from '@/shared/config/constants';
 import { translator } from '@/shared/i18n/intl';
 import { describeError } from '@/shared/lib/error-copy';
@@ -22,17 +21,10 @@ export const Route = createFileRoute('/_authenticated/settings/instance')({
   },
   // Both are rows the page paints without: started, not awaited.
   loader: ({ context: { queryClient } }) => {
-    void queryClient.prefetchQuery(serverVersionQuery);
+    void queryClient.prefetchQuery(serverVersionQuery());
     void queryClient.prefetchQuery(projectQueries.rateLimits());
   },
   component: InstancePage,
-});
-
-// ponytail: route-local until `shared/api/server-version.ts` exports a factory
-// the update check can share.
-const serverVersionQuery = queryOptions({
-  queryKey: ['server-version'],
-  queryFn: () => orThrow(getServerVersion()),
 });
 
 const LINKS = [
@@ -51,7 +43,7 @@ function InstancePage() {
   const tProjects = useTranslations('projects');
   const rootT = useTranslations();
   const format = useFormatter();
-  const serverVersion = useQuery(serverVersionQuery);
+  const serverVersion = useQuery(serverVersionQuery());
   const limits = useQuery(projectQueries.rateLimits());
 
   const limit = (value: number) =>

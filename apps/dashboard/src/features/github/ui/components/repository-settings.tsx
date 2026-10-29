@@ -57,12 +57,7 @@ export function RepositorySettings({
 }: RepositorySettingsProps) {
   const t = useTranslations('github');
   const format = useFormatter();
-  // The loader already retried it: a failure on screen is not fetched again
-  // on mount, which would swap the notice for an empty picker meanwhile.
-  const repositories = useQuery({
-    ...githubQueries.repositories(projectId),
-    retryOnMount: false,
-  });
+  const repositories = useQuery(githubQueries.repositories(projectId));
   const failed = (failure: string) => (error: Error) =>
     toast.error(failure, { description: error.message });
   const setRepository = useMutation({
