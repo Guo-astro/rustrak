@@ -141,10 +141,9 @@ export function IssuesTable({
         { description: error.message },
       ),
   };
-  const deleteOne = useMutation({
-    ...issueMutations.delete(projectId),
-    ...deleted,
-  });
+  // On `mutate`, not here: spread here they would replace the factory's
+  // `onSuccess`, which drops the deleted issue from the cache.
+  const deleteOne = useMutation(issueMutations.delete(projectId));
   const bulkDelete = useMutation({
     ...issueMutations.bulkDelete(projectId),
     ...deleted,
@@ -168,7 +167,7 @@ export function IssuesTable({
   const confirmDelete = () => {
     if (!deleting) return;
     const [single] = deleting;
-    if (deleting.length === 1 && single) deleteOne.mutate(single.id);
+    if (deleting.length === 1 && single) deleteOne.mutate(single.id, deleted);
     else bulkDelete.mutate({ ids: deleting.map((issue) => issue.id) });
   };
 

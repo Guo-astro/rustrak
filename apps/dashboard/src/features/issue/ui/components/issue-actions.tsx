@@ -135,14 +135,9 @@ export function IssueActionBar({
     issue,
   );
   const [deleting, setDeleting] = useState(false);
-  const remove = useMutation({
-    ...issueMutations.delete(projectId),
-    onSuccess: () => {
-      setDeleting(false);
-      router.push(`/projects/${projectId}/issues`);
-    },
-    onError: toastFailure(t('toasts.deleteOneFailed')),
-  });
+  // The callbacks go on `mutate`: here they would replace the factory's
+  // `onSuccess`, which drops the deleted issue from the cache.
+  const remove = useMutation(issueMutations.delete(projectId));
 
   const resolved = issue.status === 'resolved';
   const archived = issue.status === 'ignored';
@@ -349,7 +344,15 @@ export function IssueActionBar({
         onOpenChange={setDeleting}
         count={1}
         isPending={remove.isPending}
-        onConfirm={() => remove.mutate(issue.id)}
+        onConfirm={() =>
+          remove.mutate(issue.id, {
+            onSuccess: () => {
+              setDeleting(false);
+              router.push(`/projects/${projectId}/issues`);
+            },
+            onError: toastFailure(t('toasts.deleteOneFailed')),
+          })
+        }
       />
     </div>
   );

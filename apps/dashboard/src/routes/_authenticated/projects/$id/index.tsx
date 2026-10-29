@@ -14,13 +14,15 @@ import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { OverviewFilters } from './-components/overview-filters';
 import {
   ErrorVolumePanel,
-  type OverviewFilters as Filters,
   IssuesPanel,
   KpiRow,
   LatencyPanel,
-  overviewReads,
   SessionsPanel,
 } from './-components/overview-panels';
+import {
+  type OverviewFilters as Filters,
+  overviewReads,
+} from './-components/overview-reads';
 
 interface OverviewSearch {
   period?: PeriodChoice;

@@ -177,8 +177,13 @@ enum Serve {
     Read,
 }
 
+/// Whether a cleanup finished after a read began, so its figures are wrong.
+fn cleaned_since(read_at: chrono::DateTime<Utc>, job: &CleanupStatus) -> bool {
+    job.finished_at.is_some_and(|f| f >= read_at)
+}
+
 fn serve(read_at: chrono::DateTime<Utc>, now: chrono::DateTime<Utc>, job: &CleanupStatus) -> Serve {
-    if job.finished_at.is_some_and(|f| f >= read_at) {
+    if cleaned_since(read_at, job) {
         Serve::Read
     } else if job.state != CleanupState::Running
         && now - read_at >= chrono::Duration::minutes(SNAPSHOT_TTL_MINUTES)
@@ -254,19 +259,16 @@ impl CleanupJob {
                 Serve::Read => {}
             }
         }
-        self.read(pool, asked_at).await
+        self.read(pool).await
     }
 
-    /// A read of the figures that began after `asked_at`, run in its own task
-    /// so a client that gives up does not cancel it and the next request
+    /// A read of the figures no cleanup has changed since, run in its own
+    /// task so a client that gives up does not cancel it and the next request
     /// finds it done. Requests that arrive meanwhile wait for that one read
-    /// instead of starting their own.
-    async fn read(
-        &self,
-        pool: &DbPool,
-        asked_at: chrono::DateTime<Utc>,
-    ) -> AppResult<Arc<StorageSnapshot>> {
+    /// and share it instead of starting their own.
+    async fn read(&self, pool: &DbPool) -> AppResult<Arc<StorageSnapshot>> {
         let cache = Arc::clone(&self.snapshot);
+        let status = Arc::clone(&self.status);
         let reading = Arc::clone(&self.reading);
         let pool = pool.clone();
         tokio::spawn(async move {
@@ -276,7 +278,7 @@ impl CleanupJob {
                 .unwrap_or_else(PoisonError::into_inner)
                 .as_ref()
             {
-                if *read_at >= asked_at {
+                if !cleaned_since(*read_at, &lock(&status)) {
                     return Ok(Arc::clone(snapshot));
                 }
             }
@@ -292,15 +294,26 @@ impl CleanupJob {
     /// Reads the figures once at startup, so the first visit to the storage
     /// page does not wait for them.
     pub async fn warm_snapshot(&self, pool: &DbPool) {
-        if let Err(e) = self.read(pool, Utc::now()).await {
+        if let Err(e) = self.read(pool).await {
             log::warn!("Reading the storage figures at startup failed: {e}");
         }
     }
 
     /// Drops the kept snapshot, after a change that does not go through a
     /// cleanup (a source-map GC).
-    pub async fn forget_snapshot(&self) {
+    ///
+    /// Again once the read running now is done, since it began before the
+    /// change and would store figures from before it. That wait is queued in
+    /// the background so the caller does not sit through a slow read, and a
+    /// read asked for after this queues behind it.
+    pub fn forget_snapshot(&self) {
         *self.snapshot.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        let cache = Arc::clone(&self.snapshot);
+        let reading = Arc::clone(&self.reading);
+        tokio::spawn(async move {
+            let _guard = reading.lock().await;
+            *cache.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        });
     }
 
     /// Validates the window and starts the cleanup in the background,
@@ -1523,6 +1536,23 @@ mod tests {
             ),
             Serve::Read
         );
+    }
+
+    #[test]
+    fn a_read_begun_after_the_cleanup_is_shared_with_requests_that_waited_for_it() {
+        let finished = Utc::now();
+        let job = CleanupStatus {
+            state: CleanupState::Completed,
+            finished_at: Some(finished),
+            ..CleanupStatus::default()
+        };
+        // Began after the cleanup, so a request that arrived while it ran
+        // takes it rather than reading again.
+        assert!(!cleaned_since(
+            finished + chrono::Duration::seconds(1),
+            &job
+        ));
+        assert!(cleaned_since(finished - chrono::Duration::seconds(1), &job));
     }
 
     #[test]

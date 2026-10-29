@@ -118,9 +118,13 @@ function CronsPage() {
     refetchInterval: (query) =>
       query.state.data?.length === 0 ? EMPTY_POLL_MS : false,
   });
-  const { data: stats } = useSuspenseQuery(
-    monitorQueries.stats(projectId, { period }),
-  );
+  // Asks again with the list, or the monitor the first check-in created
+  // would show "waiting" next to the strip that check-in drew.
+  const { data: stats } = useSuspenseQuery({
+    ...monitorQueries.stats(projectId, { period }),
+    refetchInterval: (query) =>
+      query.state.data?.length === 0 ? EMPTY_POLL_MS : false,
+  });
   const failing = monitors.filter((m) => monitorHealth(m) === 'failing').length;
   const shown = monitors
     .filter((m) => matches(m, search.q ?? '', search.state))

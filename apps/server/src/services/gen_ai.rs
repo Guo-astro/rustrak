@@ -56,10 +56,12 @@ pub fn extract_gen_ai_columns(span_data: &mut Value, op: Option<&str>) -> GenAiC
     normalize_gen_ai_attributes(span_data, op);
 
     // Cut to the VARCHAR column each value lands in: Postgres rejects longer.
-    let get_str = |data: &Value, key: &str, max_chars: usize| {
+    // Bytes, not chars: four names of 255 four-byte chars in one covering
+    // index entry pass Postgres's ~2704-byte B-tree limit and fail the insert.
+    let get_str = |data: &Value, key: &str, max_bytes: usize| {
         data.get(key)
             .and_then(|v| v.as_str())
-            .map(|s| s.chars().take(max_chars).collect::<String>())
+            .map(|s| s[..s.floor_char_boundary(max_bytes)].to_string())
     };
     let get_f64 = |data: &Value, key: &str| data.get(key).and_then(|v| v.as_f64());
 

@@ -204,7 +204,7 @@ pub async fn gc_source_maps(
 ) -> AppResult<HttpResponse> {
     require_admin(&actor)?;
     let result = StorageService::gc_source_maps(pool.get_ref(), store.get_ref().as_ref()).await?;
-    job.forget_snapshot().await;
+    job.forget_snapshot();
     Ok(HttpResponse::Ok().json(result))
 }
 
