@@ -4,6 +4,7 @@ import {
   QueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
+import type { SessionStore } from './session';
 
 /**
  * A failed `Result`, thrown.
@@ -84,4 +85,26 @@ export function createQueryClient(): QueryClient {
     }),
   });
   return queryClient;
+}
+
+/**
+ * Empties the cache whenever the reader changes: a sign-out, or a sign-in as
+ * someone else. What one reader was allowed to see must not be on screen for
+ * the next, even for the moment a refetch would take to replace it.
+ */
+export function clearOnUserChange(
+  queryClient: QueryClient,
+  session: SessionStore,
+): () => void {
+  const reader = () => {
+    const current = session.peek();
+    return current?.state === 'authenticated' ? current.user.id : null;
+  };
+  let last = reader();
+  return session.subscribe(() => {
+    const next = reader();
+    if (next === last) return;
+    last = next;
+    queryClient.clear();
+  });
 }

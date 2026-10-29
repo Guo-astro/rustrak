@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { checkForUpdate } from '@/shared/api/version-check';
-import type { UpdateCheck } from '@/shared/lib/version';
+import { useQuery } from '@tanstack/react-query';
+import { updateCheckQuery } from '@/shared/api/version-check';
 import { UpdateBanner } from '@/shared/ui/components/update-banner';
 
 /**
@@ -19,21 +18,10 @@ import { UpdateBanner } from '@/shared/ui/components/update-banner';
  * the page. Arriving late shifts nothing, because the banner is fixed-
  * positioned.
  *
- * Once per mount of the shell, not once per navigation: it is mounted by the
- * authenticated layout, which survives every route change under it.
+ * Once per tab: the query never goes stale.
  */
 export function UpdateBannerSlot() {
-  const [check, setCheck] = useState<UpdateCheck | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    void checkForUpdate().then((result) => {
-      if (live) setCheck(result);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
+  const { data: check } = useQuery(updateCheckQuery());
 
   return check?.state === 'update-available' ? (
     <UpdateBanner info={check.info} />
