@@ -1,7 +1,7 @@
 use super::span::{insert_span_rows, SpanRow};
 use super::{clamp, clamp_opt, extract_timestamp, is_stale, relay_level, Processor, ProcessorCtx};
 use crate::error::{AppError, AppResult};
-use crate::services::gen_ai::{extract_gen_ai_columns, GenAiColumns};
+use crate::services::gen_ai::{extract_gen_ai_columns, is_ai_span, GenAiColumns};
 use bytes::Bytes;
 use uuid::Uuid;
 
@@ -26,6 +26,9 @@ impl Processor for TransactionProcessor {
         }
         if let Some(spans) = data.get_mut("spans").and_then(|s| s.as_array_mut()) {
             spans.retain(|span| !is_stale(span, "start_timestamp") && !is_stale(span, "timestamp"));
+        }
+        if !ctx.keep_ai_spans {
+            strip_ai_data(&mut data);
         }
 
         let timestamp = extract_timestamp(&data, "timestamp").unwrap_or(ctx.ingested_at);
@@ -216,11 +219,33 @@ impl Processor for TransactionProcessor {
             }
         }
 
-        insert_span_rows(&mut tx, ctx.project_id, rows).await?;
+        insert_span_rows(&mut tx, ctx.project_id, ctx.keep_ai_spans, rows).await?;
 
         tx.commit().await?;
 
         Ok(())
+    }
+}
+
+/// With agents off, the AI spans and an AI root's attributes are left out of
+/// the stored payload too: the `spans` rows are not the only copy, and the
+/// transaction endpoint returns this one.
+fn strip_ai_data(data: &mut serde_json::Value) {
+    let ai = |span: &serde_json::Value| {
+        is_ai_span(
+            span.get("data").unwrap_or(&serde_json::Value::Null),
+            span.get("op").and_then(|op| op.as_str()),
+        )
+    };
+    if let Some(spans) = data.get_mut("spans").and_then(|s| s.as_array_mut()) {
+        spans.retain(|span| !ai(span));
+    }
+    if let Some(trace) = data.pointer_mut("/contexts/trace") {
+        if ai(trace) {
+            if let Some(trace) = trace.as_object_mut() {
+                trace.remove("data");
+            }
+        }
     }
 }
 

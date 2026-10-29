@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { Avatar } from '../avatar/avatar';
 import { Button } from '../button/button';
 import {
   AssignIcon,
@@ -157,5 +158,37 @@ export const EscapeReturnsFocus: Story = {
     // Base UI hands focus back once the popup has finished leaving, and it
     // leaves over `duration-fast`. Asserting straight away races the exit.
     await waitFor(() => expect(trigger).toHaveFocus());
+  },
+};
+
+/** The option in effect -- the project you are in -- is ticked, and says so. */
+export const MarksTheCurrentOption: Story = {
+  args: {
+    trigger: <Button variant="secondary">storefront-web</Button>,
+    actions: ['storefront-web', 'billing-api', 'mobile-ios'].map((name) => ({
+      id: name,
+      label: name,
+      leading: (
+        <Avatar
+          shape="square"
+          size="xs"
+          tone={name === 'storefront-web' ? 'brand' : 'default'}
+          name={name}
+        />
+      ),
+      selected: name === 'storefront-web',
+    })),
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button'));
+
+    const current = await within(document.body).findByRole('menuitem', {
+      name: /storefront-web/,
+    });
+
+    await expect(current).toHaveAttribute('aria-current', 'true');
+    await expect(
+      within(document.body).getByRole('menuitem', { name: /billing-api/ }),
+    ).not.toHaveAttribute('aria-current');
   },
 };

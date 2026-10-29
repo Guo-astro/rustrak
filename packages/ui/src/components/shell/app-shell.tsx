@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import { tv } from '../../lib/tv';
 import { TooltipProvider } from '../tooltip/tooltip';
 import {
   SidebarProvider,
@@ -11,7 +12,6 @@ import {
 
 export interface AppShellProps
   extends Omit<SidebarProviderProps, 'children' | 'shortcutKey'> {
-  topbar: ReactNode;
   sidebar: ReactNode;
   children: ReactNode;
   className?: string;
@@ -20,7 +20,16 @@ export interface AppShellProps
 }
 
 /**
- * The application frame: topbar across the top, sidebar and content below it.
+ * The application frame: the sidebar on the canvas, and beside it the sheet
+ * the pages sit on -- inset by 8 px, rounded, one step lighter. The page's own
+ * `Topbar` goes at the top of the sheet, as its first child.
+ *
+ * The inset is the hierarchy. The canvas around the edge is the application;
+ * the sheet is the page. Nothing else is needed to say which is which, so the
+ * sidebar carries no border and no fill of its own.
+ *
+ * On a phone the sheet goes edge to edge: 8 px of frame on a 375 px screen is
+ * 4 % of the width spent on a border.
  *
  * It occupies exactly the window and the only thing that scrolls is the
  * content. An error tracker is a place you spend the day jumping between a list
@@ -36,7 +45,6 @@ export interface AppShellProps
  * out the full delay seven times.
  */
 export function AppShell({
-  topbar,
   sidebar,
   children,
   className,
@@ -48,20 +56,22 @@ export function AppShell({
       <SidebarProvider shortcutKey={collapseShortcut} {...sidebarState}>
         <div
           className={cn(
-            'flex h-dvh flex-col overflow-hidden bg-canvas text-fg',
+            'relative flex h-dvh overflow-hidden bg-canvas text-fg',
             className,
           )}
         >
-          {topbar}
+          {sidebar}
+          <DrawerScrim />
 
-          <div className="relative flex min-h-0 flex-1">
-            {sidebar}
-            <DrawerScrim />
-
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              {children}
-            </main>
-          </div>
+          <main
+            className={cn(
+              'flex min-w-0 flex-1 flex-col overflow-hidden bg-panel',
+              'md:my-frame md:me-frame md:rounded-3xl',
+              'md:border md:border-border-subtle',
+            )}
+          >
+            {children}
+          </main>
         </div>
       </SidebarProvider>
     </TooltipProvider>
@@ -149,69 +159,102 @@ export function Page({ children, className, scroll = true }: PageProps) {
 
 Page.displayName = 'Page';
 
+/**
+ * With tabs, their own rule is the header's bottom edge: a border here as
+ * well would draw a second line under it, and the lime indicator would sit on
+ * one and not the other.
+ */
+const pageHeader = tv({
+  base: 'shrink-0 px-page-gutter pt-7',
+  variants: {
+    tabs: { true: '', false: 'border-b border-border-divider pb-6' },
+  },
+});
+
 export interface PageHeaderProps {
   title: ReactNode;
-  /** One line under the title: what it is made of, in mono. */
-  meta?: ReactNode;
-  /** Pushed to the right and aligned with the title's baseline block. */
+  /**
+   * The page's state in a few facts, read left to right and separated by
+   * dots: `3 projects`, `1 with fatal errors`, `65 events today`. Facts, not
+   * a description: "Manage your projects" tells nobody anything twice.
+   */
+  summary?: ReactNode[];
+  /** Pushed to the right, level with the title. */
   actions?: ReactNode;
+  /** The page's tabs, under everything, sitting on the bottom rule. */
+  tabs?: ReactNode;
   className?: string;
 }
 
-/** A page's heading row: the title, what it is made of, and its actions. */
+/**
+ * A page's heading: what it is, how it stands, and what can be done to it.
+ *
+ * No icon and no box. The sidebar already says which route this is, and a
+ * tile beside the title is the same signal said a second time, louder. What
+ * the header adds instead is the summary -- the two or three facts someone
+ * opened the page to learn.
+ *
+ * It ends on a rule the width of the sheet, with the tabs sitting on it when
+ * there are any. It sits outside the page's scroller (`Page`), so it stays put
+ * while the content moves under it: the title and the actions are always one
+ * glance away, however far down the list you are.
+ */
 export function PageHeader({
   title,
-  meta,
+  summary,
   actions,
+  tabs,
   className,
 }: PageHeaderProps) {
+  // Not `filter(Boolean)`: a `0` is a fact worth reading.
+  const facts =
+    summary?.filter((fact) => fact != null && fact !== false && fact !== '') ??
+    [];
+
   return (
-    <div
-      className={cn('flex shrink-0 items-end justify-between gap-6', className)}
-    >
-      <div className="min-w-0">
-        <h1 className="truncate text-page-title text-fg">{title}</h1>
-        {meta ? <div className="mt-1.5 min-w-0">{meta}</div> : null}
+    <div className={pageHeader({ tabs: Boolean(tabs), className })}>
+      {/* Wraps instead of squeezing: on a phone the actions -- a page's
+          filters, say -- drop under the title rather than crushing it. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 max-w-full">
+          <h1 className="truncate text-page-title text-fg">{title}</h1>
+          {facts.length > 0 ? (
+            <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 text-value text-fg-subtle">
+              {facts.map((fact, index) => (
+                // Facts are positional: the order is the reading order, and
+                // a fact is any node, so there is no identity to key on.
+                // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+                <span key={index} className="flex items-center gap-2">
+                  {/* On a phone the facts wrap, and a dot would lead the new line. */}
+                  {index > 0 ? (
+                    <span
+                      aria-hidden="true"
+                      className="hidden text-fg-ghost sm:inline"
+                    >
+                      ·
+                    </span>
+                  ) : null}
+                  {fact}
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex min-w-0 max-w-full grow flex-wrap items-center justify-end gap-2">
+            {actions}
+          </div>
+        ) : null}
       </div>
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      {/* Out to the page's edges, so the rule runs as wide as a border would;
+          the gutter moves inside the strip. */}
+      {tabs ? (
+        <div className="-mx-page-gutter mt-5 [&_[data-slot=tab-frame]]:before:bg-border-divider [&_[data-slot=tab-strip]]:px-page-gutter">
+          {tabs}
+        </div>
       ) : null}
     </div>
   );
 }
 
 PageHeader.displayName = 'PageHeader';
-
-export interface SubHeaderProps {
-  /** Usually the breadcrumb trail. */
-  children: ReactNode;
-  /** Pushed right: record pagination, a counter. */
-  actions?: ReactNode;
-  className?: string;
-}
-
-/**
- * The 42 px strip between the topbar and the page: where you are on the left,
- * how to step through records on the right.
- *
- * It only exists on a record screen. On a list the page title already says
- * where you are, and a trail that reads "Issues / Issues" is noise.
- */
-export function SubHeader({ children, actions, className }: SubHeaderProps) {
-  return (
-    <div
-      className={cn(
-        'flex h-subheader shrink-0 items-center justify-between gap-4',
-        'border-b border-border-subtle px-page-gutter',
-        className,
-      )}
-    >
-      {children}
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
-      ) : null}
-    </div>
-  );
-}
-
-SubHeader.displayName = 'SubHeader';

@@ -1,15 +1,12 @@
 /**
- * Reads for the transaction feature, called straight from Server Components.
- *
- * `import 'server-only'` is a build-time poison pill rather than a directive:
- * if this module reaches the client bundle the build fails, instead of shipping
- * a browser bundle that holds the session cookie.
+ * Reads for the transaction feature: endpoints and their samples.
  */
 import type {
   Result,
   RustrakError,
   TransactionDetailResponse,
   TransactionStatsResponse,
+  TransactionsGetStatGroupTimeseriesResponse,
   TransactionsGetStatsData,
   TransactionsGetStatsResponse,
   TransactionsListData,
@@ -63,11 +60,12 @@ export async function getTransactionStatForGroup(
   projectId: number,
   name: string,
   op?: string,
+  scope?: EndpointScope,
 ): Promise<Result<TransactionStatsResponse | null, RustrakError>> {
   const client = await createClient();
   const result = await client.transactions.getStatGroup({
     path: { project_id: projectId },
-    query: { name, op },
+    query: { name, op, ...scope },
   });
 
   if (!result.success && result.error.kind === 'not_found') {
@@ -75,4 +73,24 @@ export async function getTransactionStatForGroup(
   }
 
   return result;
+}
+
+/** The window and environment an endpoint is read in. */
+export interface EndpointScope {
+  period?: string;
+  environment?: string;
+}
+
+/** One endpoint's runs, failures, p50 and p95 per bucket over the window. */
+export async function getEndpointTrend(
+  projectId: number,
+  name: string,
+  op: string | undefined,
+  scope: EndpointScope,
+): Promise<Result<TransactionsGetStatGroupTimeseriesResponse, RustrakError>> {
+  const client = await createClient();
+  return client.transactions.getStatGroupTimeseries({
+    path: { project_id: projectId },
+    query: { name, op, ...scope },
+  });
 }

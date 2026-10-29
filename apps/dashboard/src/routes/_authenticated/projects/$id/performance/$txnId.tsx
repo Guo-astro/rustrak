@@ -1,16 +1,23 @@
+import type { TransactionDetailResponse } from '@rustrak/client';
+import { CopyIcon, cn, formatSpanDuration, Tag, Waterfall } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
-import { useTranslations } from 'use-intl';
+import { type ReactNode, useState } from 'react';
+import { toast } from 'sonner';
+import { useFormatter, useTranslations } from 'use-intl';
 import { getProject } from '@/features/project/api/queries';
 import { getTransaction } from '@/features/transaction/api/queries';
-import { readTransactionPayload } from '@/features/transaction/lib/transaction-payload';
-import { MeasurementsCard } from '@/features/transaction/ui/components/measurements-card';
-import { SpanWaterfall } from '@/features/transaction/ui/components/span-waterfall';
+import {
+  type MeasurementRow,
+  readMeasurements,
+  readTransactionPayload,
+  type WaterfallRow,
+  waterfallSpans,
+} from '@/features/transaction/lib/transaction-payload';
+import { endpointHref } from '@/features/transaction/model/endpoints';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
-import { Link } from '@/shared/ui/components/link';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { TransactionBadges } from './$txnId/-components/transaction-badges';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/performance/$txnId',
@@ -36,123 +43,267 @@ export const Route = createFileRoute(
       ],
     };
   },
-  component: TransactionDetailPage,
+  component: TransactionPage,
 });
 
-/** Renders the primitive entries of an object as a key/value list. */
-function KeyValuePanel({
-  title,
-  data,
-}: {
-  title: string;
-  data: Record<string, unknown>;
-}) {
-  const entries = Object.entries(data).filter(
-    ([, v]) => v != null && typeof v !== 'object',
+const RATING_TEXT = {
+  good: 'text-success-fg',
+  meh: 'text-sev-warning-fg',
+  poor: 'text-sev-error-fg',
+} as const;
+
+/**
+ * One transaction, laid out as the issue page is: what it was and how it
+ * ended in the header, its trace in the reading column, the request, tags
+ * and user it carried in the rail. The breadcrumbs lead back to its
+ * endpoint and to the list.
+ */
+function TransactionPage() {
+  const t = useTranslations('performance.transaction');
+  const { id } = Route.useParams();
+  const loaded = Route.useLoaderData();
+  const projectId = Number.parseInt(id, 10);
+  const txn = loaded.success ? loaded.data[1] : null;
+  const name = txn?.transaction_name || t('unnamed');
+  const payload = txn ? readTransactionPayload(txn) : null;
+
+  usePageTrail(
+    txn
+      ? [
+          {
+            label: name,
+            mono: true,
+            href: endpointHref(projectId, { name, op: payload?.op ?? null }),
+          },
+          { label: txn.event_id.slice(0, 8), mono: true },
+        ]
+      : [],
   );
-  if (entries.length === 0) return null;
+
+  if (!loaded.success || !txn || !payload) {
+    return loaded.success ? null : (
+      <LoadFailure error={loaded.error} title={t('loadFailed')} />
+    );
+  }
+
+  const rows = waterfallSpans(payload, name);
+  const measurements = readMeasurements(payload.measurements);
 
   return (
-    <div className="rounded-lg border">
-      <div className="border-b px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        {title}
-      </div>
-      <dl className="divide-y">
-        {entries.map(([key, value]) => (
-          <div
-            key={key}
-            className="flex items-start justify-between gap-4 px-4 py-2 text-sm"
-          >
-            <dt className="font-mono text-muted-foreground">{key}</dt>
-            <dd className="font-mono text-right break-all">{String(value)}</dd>
+    <div className="flex h-full flex-col max-lg:overflow-y-auto">
+      <TransactionHeader
+        txn={txn}
+        name={name}
+        op={payload.op}
+        status={payload.status}
+      />
+      <div className="flex min-h-0 flex-1 max-lg:flex-col">
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">
+          <div className="flex flex-col gap-5 px-page-gutter pt-5 pb-8">
+            {measurements.length > 0 ? <Vitals rows={measurements} /> : null}
+            <Trace rows={rows} name={name} />
           </div>
-        ))}
-      </dl>
+        </main>
+        <aside className="border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88">
+          <RailBlock title={t('request')} data={payload.request} />
+          <RailBlock title={t('tags')} data={payload.tags} />
+          <RailBlock title={t('user')} data={payload.user} />
+        </aside>
+      </div>
     </div>
   );
 }
 
-function TransactionDetailPage() {
-  const t = useTranslations('projectPages');
-  const { id } = Route.useParams();
-  const loaded = Route.useLoaderData();
-  const projectId = Number.parseInt(id, 10);
-
-  if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('transaction.loadFailed')} />
-    );
-  }
-
-  const [, txn] = loaded.data;
-
-  const {
-    trace,
-    spans,
-    measurements,
-    tags,
-    request,
-    user,
-    transactionStart,
-    transactionEnd,
-    op,
-    status,
-  } = readTransactionPayload(txn);
+/** What ran, how long it took, how it ended, where and when. */
+function TransactionHeader({
+  txn,
+  name,
+  op,
+  status,
+}: {
+  txn: TransactionDetailResponse;
+  name: string;
+  op: string | undefined;
+  status: string | undefined;
+}) {
+  const t = useTranslations('performance.transaction');
+  const format = useFormatter();
+  const failed = status != null && status !== 'ok';
+  const copyId = () =>
+    navigator.clipboard
+      ?.writeText(txn.event_id)
+      .then(() => toast.success(t('idCopied')))
+      .catch(() => {});
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Header */}
-      <div className="shrink-0 w-full px-4 md:px-8 py-4 md:py-6 border-b">
-        <Link
-          href={`/projects/${projectId}/performance`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
-        >
-          <ArrowLeft className="size-4" />
-          {t('performance.backLink')}
-        </Link>
-        <h1 className="font-mono text-lg font-semibold break-all">
-          {txn.transaction_name || t('transaction.unnamed')}
-        </h1>
-        <TransactionBadges txn={txn} op={op} status={status} />
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 overflow-auto w-full px-4 md:px-8 py-4 md:py-6 space-y-6">
-        {measurements && <MeasurementsCard measurements={measurements} />}
-
-        <section className="rounded-lg border">
-          <div className="border-b px-4 py-2.5 flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {t('transaction.spans')}
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {t('spanCount', { count: spans.length })}
-            </span>
-          </div>
-          <div className="p-3">
-            {spans.length === 0 && !trace ? (
-              <p className="text-sm text-muted-foreground px-1 py-4 text-center">
-                {t('transaction.noSpans')}
-              </p>
-            ) : (
-              <SpanWaterfall
-                spans={spans}
-                trace={trace}
-                transactionStart={transactionStart}
-                transactionEnd={transactionEnd}
-              />
-            )}
-          </div>
-        </section>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {tags && <KeyValuePanel title={t('transaction.tags')} data={tags} />}
-          {request && (
-            <KeyValuePanel title={t('transaction.request')} data={request} />
-          )}
-          {user && <KeyValuePanel title={t('transaction.user')} data={user} />}
+    <header className="shrink-0 border-border-divider border-b px-page-gutter pt-6 pb-5">
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={copyId}
+            title={t('copyId')}
+            className="group/id inline-flex items-center gap-1.5 rounded-sm font-mono text-fg-meta text-mono-sm hover:text-fg"
+          >
+            {txn.event_id.slice(0, 8)}
+            <CopyIcon
+              size="sm"
+              aria-hidden="true"
+              className="opacity-0 group-hover/id:opacity-100"
+            />
+          </button>
+          {status ? (
+            <Tag variant="soft" tone={failed ? 'error' : 'neutral'}>
+              {status}
+            </Tag>
+          ) : null}
+          {op ? <span className="text-fg-meta text-meta">{op}</span> : null}
         </div>
+        <h1 className="break-all font-mono text-fg text-page-title">{name}</h1>
+        <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-fg-subtle text-meta">
+          <span className="font-mono text-fg-secondary">
+            {txn.duration_ms == null
+              ? '–'
+              : formatSpanDuration(txn.duration_ms)}
+          </span>
+          <span title={format.dateTime(new Date(txn.timestamp), 'precise')}>
+            {format.relativeTime(new Date(txn.timestamp))}
+          </span>
+          {txn.environment ? <span>{txn.environment}</span> : null}
+          {txn.release ? (
+            <span className="font-mono">{txn.release}</span>
+          ) : null}
+          {txn.platform ? <span>{txn.platform}</span> : null}
+        </p>
       </div>
-    </div>
+    </header>
+  );
+}
+
+/** The measurements in one strip, the web vitals rated by web.dev's lines. */
+function Vitals({ rows }: { rows: MeasurementRow[] }) {
+  const t = useTranslations('transactions.measurements');
+  return (
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border-subtle bg-border-subtle sm:grid-cols-3 xl:grid-cols-6">
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          className="flex min-w-0 flex-col gap-1.5 bg-surface px-4 py-3.5"
+        >
+          <dt className="truncate text-fg-meta text-meta">
+            {row.vital ? t(row.key.toLowerCase() as 'lcp') : row.key}
+          </dt>
+          <dd
+            className={cn(
+              'text-title tabular-nums',
+              row.rating ? RATING_TEXT[row.rating] : 'text-fg',
+            )}
+          >
+            {measurement(row)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function measurement(row: MeasurementRow): string {
+  if (row.unit === 'millisecond' || row.unit == null || row.unit === '') {
+    return row.key.toLowerCase() === 'cls'
+      ? row.value.toFixed(3)
+      : formatSpanDuration(row.value);
+  }
+  if (row.unit === 'second') return formatSpanDuration(row.value * 1000);
+  if (row.unit === 'ratio' || row.unit === 'none') return row.value.toFixed(3);
+  return `${row.value} ${row.unit}`;
+}
+
+/** The trace, the selected span's facts opening under its row. */
+function Trace({ rows, name }: { rows: WaterfallRow[]; name: string }) {
+  const t = useTranslations('performance.transaction');
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <section className="flex min-w-0 flex-col rounded-2xl border border-border-subtle bg-surface">
+      <header className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-3">
+        <h2 className="text-card-title text-fg">{t('trace')}</h2>
+        <span className="text-fg-subtle text-meta">
+          {t('spans', { count: rows.length - 1 })}
+        </span>
+      </header>
+      {rows.length > 1 ? (
+        <Waterfall
+          spans={rows}
+          selectedId={selected}
+          onSelect={(span) => setSelected(span?.id ?? null)}
+          renderDetail={(span) => {
+            // The waterfall hands back its own span type; ours has self time.
+            const row = rows.find((r) => r.id === span.id);
+            return row ? <SpanFacts span={row} /> : null;
+          }}
+          showMissingInstrumentation
+          label={t('traceOf', { name })}
+        />
+      ) : (
+        <p className="px-5 pb-5 text-fg-subtle text-meta">{t('noSpans')}</p>
+      )}
+    </section>
+  );
+}
+
+function SpanFacts({ span }: { span: WaterfallRow }) {
+  const t = useTranslations('performance.transaction');
+  const facts: [string, ReactNode][] = [
+    [t('op'), span.op],
+    [t('description'), span.description],
+    [t('duration'), formatSpanDuration(span.endMs - span.startMs)],
+    [t('selfTime'), formatSpanDuration(span.selfMs)],
+    [t('start'), `+${formatSpanDuration(span.startMs)}`],
+    [t('status'), span.status],
+    [t('spanId'), span.id],
+  ];
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-meta">
+      {facts
+        .filter(([, value]) => value)
+        .map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-fg-subtle">{label}</dt>
+            <dd className="min-w-0 break-all font-mono text-fg-secondary text-mono-sm">
+              {value}
+            </dd>
+          </div>
+        ))}
+    </dl>
+  );
+}
+
+/** A block of the rail: the scalar fields of one part of the payload. */
+function RailBlock({
+  title,
+  data,
+}: {
+  title: string;
+  data: Record<string, unknown> | null;
+}) {
+  const entries = Object.entries(data ?? {}).filter(
+    ([, value]) => value != null && typeof value !== 'object',
+  );
+  if (entries.length === 0) return null;
+  return (
+    <section className="border-border-divider border-b px-5 py-4 last:border-b-0">
+      <h2 className="mb-3 font-mono text-column text-fg-meta uppercase">
+        {title}
+      </h2>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-meta">
+        {entries.map(([key, value]) => (
+          <div key={key} className="contents">
+            <dt className="text-fg-subtle">{key}</dt>
+            <dd className="min-w-0 break-all text-right font-mono text-fg-secondary text-mono-sm">
+              {String(value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

@@ -47,7 +47,7 @@ export function Closing() {
           <Heading
             className="display-lg mx-auto max-w-[20ch]"
             lead="Yours end to end."
-            rest="The server, the dashboard and the data. GPL-3.0, deployed wherever you say."
+            rest="The server, the dashboard and the data. AGPL-3.0, deployed wherever you say."
             scrub
           />
 

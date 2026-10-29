@@ -5,7 +5,7 @@ use rmcp::schemars::{self, JsonSchema};
 use rmcp::{tool, tool_router};
 use serde::{Deserialize, Serialize};
 
-use super::{args, reply, ProjectPageArgs, RustrakMcp};
+use super::{args, reply, RustrakMcp};
 use crate::routes::agents;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -18,6 +18,39 @@ pub struct TimeseriesArgs {
     /// Bucket width in hours (default: 1)
     #[serde(skip_serializing_if = "Option::is_none")]
     interval_hours: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct AgentTracesArgs {
+    /// Project ID
+    project_id: i32,
+    /// Page number (1-indexed, default 1)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<i64>,
+    /// Items per page (default 20, max 100)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    per_page: Option<i64>,
+    /// Lookback window in hours (default: all time)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    period_hours: Option<i64>,
+    /// Only spans reporting this environment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    environment: Option<String>,
+    /// Only traces where this agent ran (exact gen_ai.agent.name)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    agent: Option<String>,
+    /// Only traces that called this model (response model, else request model)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
+    /// Only traces that used this tool (exact gen_ai.tool.name)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool: Option<String>,
+    /// Only traces with a failing AI span
+    #[serde(skip_serializing_if = "Option::is_none")]
+    errors: Option<bool>,
+    /// newest (default), duration, tokens, llm_calls, tool_calls or errors; all but newest are largest first
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sort: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -129,12 +162,12 @@ impl RustrakMcp {
     }
 
     #[tool(
-        description = "List AI agent traces for a Rustrak project — one row per trace_id with duration, total tokens, and tool call count aggregated across every AI span in that trace (standalone or transaction-embedded). Offset-paginated, newest trace first. This is the AI Agent Monitoring \"Traces\" table — use list_spans with trace_id to drill into one trace's individual spans.",
+        description = "List AI agent traces for a Rustrak project — one row per trace_id with its agents, duration, total tokens, LLM and tool call counts and error count, aggregated across every AI span in that trace (standalone or transaction-embedded). Offset-paginated, newest trace first unless sorted by another total. Narrow to the traces of one agent, model or tool, or to failing ones. This is the AI Agent Monitoring \"Traces\" table — use list_spans with trace_id to drill into one trace's individual spans.",
         annotations(read_only_hint = true)
     )]
     async fn list_agent_traces(
         &self,
-        Parameters(a): Parameters<ProjectPageArgs>,
+        Parameters(a): Parameters<AgentTracesArgs>,
     ) -> CallToolResult {
         reply(async {
             agents::agent_traces(

@@ -1,14 +1,16 @@
 import {
+  type ColumnSizingState,
   type ColumnVisibilityState,
   functionalUpdate,
   type ReactTable,
   type Row,
   type RowData,
   type RowSelectionState,
+  type Table,
   type Updater,
   useTable,
 } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import { OverflowIcon } from '../icon/icon-catalog';
@@ -19,6 +21,7 @@ import {
   type DataTableFeatures,
   dataTableFeatures,
 } from './features';
+import { useDataTableLabels } from './labels';
 import type { DataTableQuery } from './query';
 
 /** The table instance, with the Rustrak features baked into the type. */
@@ -55,6 +58,33 @@ export interface UseDataTableOptions<TData extends RowData> {
    * a new function every render rebuilds the table's column model with it.
    */
   rowMenu?: (row: Row<DataTableFeatures, TData>) => MenuAction[];
+  /**
+   * Where the reader's layout is kept between visits: which columns they
+   * hid and how wide they dragged them. In this browser only, by name --
+   * these are reading preferences, which is why they never go in the URL.
+   */
+  storageKey?: string;
+  /**
+   * Columns that start hidden until the reader shows them: the ones worth
+   * having but not worth the width by default.
+   */
+  initialVisibility?: ColumnVisibilityState;
+}
+
+interface StoredLayout {
+  visibility: ColumnVisibilityState;
+  sizing: ColumnSizingState;
+}
+
+/** What `storageKey` last saved, or nothing when storage is unavailable. */
+function readLayout(key: string | undefined): StoredLayout | null {
+  if (!key) return null;
+  try {
+    const raw = window.localStorage.getItem(`rustrak:table:${key}`);
+    return raw ? (JSON.parse(raw) as StoredLayout) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -86,6 +116,8 @@ export function useDataTable<TData extends RowData>({
   getRowId,
   enableSelection = false,
   rowMenu,
+  storageKey,
+  initialVisibility = {},
 }: UseDataTableOptions<TData>): DataTableInstance<TData> {
   if (process.env.NODE_ENV !== 'production' && enableSelection && !getRowId) {
     // TanStack falls back to the row's index, which selection can't survive:
@@ -98,7 +130,40 @@ export function useDataTable<TData extends RowData>({
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] =
-    useState<ColumnVisibilityState>({});
+    useState<ColumnVisibilityState>(
+      () => readLayout(storageKey)?.visibility ?? initialVisibility,
+    );
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
+    () => readLayout(storageKey)?.sizing ?? {},
+  );
+
+  /*
+   * A selection only holds rows the reader can see. When a filter, a sort or
+   * a refetch takes a ticked row off the page, its tick goes with it --
+   * otherwise "2 selected" would act on a row nobody is looking at.
+   */
+  useEffect(() => {
+    if (!getRowId) return;
+    const present = new Set(data.map(getRowId));
+    setRowSelection((previous) => {
+      const kept = Object.keys(previous).filter((id) => present.has(id));
+      return kept.length === Object.keys(previous).length
+        ? previous
+        : Object.fromEntries(kept.map((id) => [id, true]));
+    });
+  }, [data, getRowId]);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      window.localStorage.setItem(
+        `rustrak:table:${storageKey}`,
+        JSON.stringify({ visibility: columnVisibility, sizing: columnSizing }),
+      );
+    } catch {
+      // Private mode, full storage: the layout lasts as long as the page.
+    }
+  }, [storageKey, columnVisibility, columnSizing]);
 
   const allColumns = useMemo(
     () => [
@@ -141,6 +206,7 @@ export function useDataTable<TData extends RowData>({
       pagination: query.pagination,
       rowSelection,
       columnVisibility,
+      columnSizing,
     },
     onSortingChange: (updater) => applyQuery('sorting', updater),
     onColumnFiltersChange: (updater) => applyQuery('filters', updater),
@@ -152,6 +218,7 @@ export function useDataTable<TData extends RowData>({
       })),
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnSizingChange: setColumnSizing,
   });
 }
 
@@ -170,26 +237,42 @@ function selectionColumn<TData extends RowData>(): DataTableColumnDef<TData> {
     id: 'select',
     enableSorting: false,
     enableHiding: false,
-    header: ({ table }) => {
-      const all = table.getIsAllPageRowsSelected();
-      return (
-        <Checkbox
-          aria-label="Select all rows on this page"
-          checked={all}
-          indeterminate={table.getIsSomePageRowsSelected() && !all}
-          onCheckedChange={() => table.toggleAllPageRowsSelected()}
-        />
-      );
-    },
-    cell: ({ row }) => (
-      <Checkbox
-        aria-label="Select row"
-        checked={row.getIsSelected()}
-        disabled={!row.getCanSelect()}
-        onCheckedChange={(checked) => row.toggleSelected(checked)}
-      />
-    ),
+    header: ({ table }) => <SelectAllBox table={table} />,
+    cell: ({ row }) => <SelectRowBox row={row} />,
   };
+}
+
+function SelectAllBox<TData extends RowData>({
+  table,
+}: {
+  table: Table<DataTableFeatures, TData>;
+}) {
+  const labels = useDataTableLabels();
+  const all = table.getIsAllPageRowsSelected();
+  return (
+    <Checkbox
+      aria-label={labels.selectAllRows}
+      checked={all}
+      indeterminate={table.getIsSomePageRowsSelected() && !all}
+      onCheckedChange={() => table.toggleAllPageRowsSelected()}
+    />
+  );
+}
+
+function SelectRowBox<TData extends RowData>({
+  row,
+}: {
+  row: Row<DataTableFeatures, TData>;
+}) {
+  const labels = useDataTableLabels();
+  return (
+    <Checkbox
+      aria-label={labels.selectRow}
+      checked={row.getIsSelected()}
+      disabled={!row.getCanSelect()}
+      onCheckedChange={(checked) => row.toggleSelected(checked)}
+    />
+  );
 }
 
 /**
@@ -208,22 +291,31 @@ function menuColumn<TData extends RowData>(
     id: 'actions',
     enableSorting: false,
     enableHiding: false,
-    header: () => <span className="sr-only">Actions</span>,
-    cell: ({ row }) => (
-      <span className="flex items-center justify-end">
-        <Menu
-          align="end"
-          actions={rowMenu(row)}
-          trigger={
-            <Button
-              variant="ghost"
-              size="xs"
-              icon={OverflowIcon}
-              aria-label="Row actions"
-            />
-          }
-        />
-      </span>
-    ),
+    header: () => <ActionsHeading />,
+    cell: ({ row }) => <RowMenu actions={rowMenu(row)} />,
   };
+}
+
+function ActionsHeading() {
+  return <span className="sr-only">{useDataTableLabels().actions}</span>;
+}
+
+function RowMenu({ actions }: { actions: MenuAction[] }) {
+  const labels = useDataTableLabels();
+  return (
+    <span className="flex items-center justify-end">
+      <Menu
+        align="end"
+        actions={actions}
+        trigger={
+          <Button
+            variant="ghost"
+            size="xs"
+            icon={OverflowIcon}
+            aria-label={labels.rowActions}
+          />
+        }
+      />
+    </span>
+  );
 }

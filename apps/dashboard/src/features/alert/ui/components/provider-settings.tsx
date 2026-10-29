@@ -1,0 +1,360 @@
+import type { AlertIntegration, ProviderType } from '@rustrak/client';
+import {
+  BackIcon,
+  Button,
+  DeleteIcon,
+  Menu,
+  MoreIcon,
+  NewIcon,
+  Tag,
+  TestIcon,
+} from '@rustrak/ui';
+import { useState, useTransition } from 'react';
+import { toast } from 'sonner';
+import { useTranslations } from 'use-intl';
+import {
+  deleteIntegration,
+  testIntegration,
+} from '@/features/alert/api/mutations';
+import { slackDefaults } from '@/features/alert/model/integration-forms';
+import { ConfirmDeleteDialog } from '@/features/alert/ui/components/confirm-delete-dialog';
+import { ProviderForm } from '@/features/alert/ui/components/integration-config-dialog/provider-form';
+import { ProviderIcon } from '@/features/alert/ui/components/provider-icon';
+import {
+  SettingSection,
+  SettingsEmpty,
+  SettingsListItem,
+} from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
+import { useRouter } from '@/shared/ui/hooks/use-router';
+
+/** What `?edit=` asks for: a new integration, or the one with this id. */
+export type EditParam = 'new' | number | undefined;
+
+/**
+ * One alert provider's settings page: the integrations configured for it, or
+ * the form for one of them -- never both, so the form has the page.
+ *
+ * Which one is in the URL (`?edit=new`, `?edit=3`) rather than in state, so
+ * the browser's back button leaves the form the way it leaves any page, and a
+ * link can open an integration directly. With nothing configured yet the form
+ * is what the page opens on, since adding the first is the only thing to do.
+ */
+export function ProviderSettings({
+  provider,
+  name,
+  description,
+  integrations,
+  edit,
+  onEdit,
+}: {
+  provider: ProviderType;
+  name: string;
+  description: string;
+  integrations: AlertIntegration[];
+  edit: EditParam;
+  /** Moves the page to the list (`undefined`) or to a form. */
+  onEdit: (edit: EditParam) => void;
+}) {
+  const t = useTranslations('alerts');
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [deleting, setDeleting] = useState<AlertIntegration | null>(null);
+
+  const editing: AlertIntegration | 'new' | null =
+    edit === 'new' || (edit === undefined && integrations.length === 0)
+      ? 'new'
+      : // An id that is gone -- deleted in another tab -- is the list.
+        (integrations.find((i) => i.id === edit) ?? null);
+
+  const handleTest = (
+    integration: AlertIntegration,
+    routingOverride?: Record<string, unknown>,
+  ) => startTransition(() => sendTest(integration, routingOverride, t));
+
+  const handleDelete = () => {
+    if (!deleting) return;
+    startTransition(async () => {
+      const result = await deleteIntegration(deleting.id);
+      if (!result.success) {
+        toast.error(t('integrations.deleteFailed'), {
+          description: result.error.message,
+        });
+        return;
+      }
+      toast.success(t('integrations.deleted'));
+      setDeleting(null);
+      if (editing !== null) onEdit(undefined);
+      router.refresh();
+    });
+  };
+
+  const closeForm = () => {
+    // With nothing configured the list is the form again, so the way out of
+    // a form nobody filled in is the catalogue.
+    if (integrations.length === 0) {
+      router.push('/settings/integrations');
+      return;
+    }
+    onEdit(undefined);
+    router.refresh();
+  };
+
+  return (
+    <>
+      <ProviderHeader
+        provider={provider}
+        name={name}
+        description={description}
+        editing={editing}
+        hasIntegrations={integrations.length > 0}
+        onEdit={onEdit}
+      />
+
+      {editing !== null ? (
+        <ProviderForm
+          // A new form per integration, so each seeds its defaults once.
+          key={editing === 'new' ? 'new' : editing.id}
+          provider={provider}
+          existingIntegration={editing === 'new' ? null : editing}
+          onOpenChange={(open) => {
+            if (!open) closeForm();
+          }}
+          onTest={handleTest}
+          onDelete={setDeleting}
+          isPending={isPending}
+        />
+      ) : integrations.length > 0 ? (
+        <SettingSection
+          title={t('manage.configuredCount', { count: integrations.length })}
+        >
+          {integrations.map((integration) => (
+            <IntegrationRow
+              key={integration.id}
+              integration={integration}
+              provider={provider}
+              onConfigure={() => onEdit(integration.id)}
+              onTest={() =>
+                asksForDestination(provider, integration)
+                  ? onEdit(integration.id)
+                  : handleTest(integration)
+              }
+              onDelete={() => setDeleting(integration)}
+            />
+          ))}
+        </SettingSection>
+      ) : (
+        <SettingSection title={name}>
+          <SettingsEmpty
+            icon={<ProviderIcon type={provider} className="size-6" />}
+            title={t('integrations.notConfigured')}
+            action={<AddButton name={name} onEdit={onEdit} />}
+          />
+        </SettingSection>
+      )}
+
+      <ConfirmDeleteDialog
+        open={!!deleting}
+        title={t('integrations.deleteTitle')}
+        description={t('integrations.deleteDescription', {
+          name: deleting?.name ?? '',
+        })}
+        isPending={isPending}
+        onConfirm={handleDelete}
+        onClose={() => setDeleting(null)}
+      />
+    </>
+  );
+}
+
+/**
+ * Email and a Slack bot are told where a test goes, and their form is where
+ * that is asked: from the list, Test opens it rather than sending nowhere.
+ */
+function asksForDestination(
+  provider: ProviderType,
+  integration: AlertIntegration,
+): boolean {
+  return (
+    provider === 'email' ||
+    (provider === 'slack' && slackDefaults(integration).method === 'bot_token')
+  );
+}
+
+/** One configured integration: its state, and the ways into it. */
+function IntegrationRow({
+  integration,
+  provider,
+  onConfigure,
+  onTest,
+  onDelete,
+}: {
+  integration: AlertIntegration;
+  provider: ProviderType;
+  onConfigure: () => void;
+  onTest: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations('alerts');
+  return (
+    <SettingsListItem
+      leading={
+        <span className="flex size-8 items-center justify-center rounded-lg border border-border-subtle text-fg-secondary">
+          <ProviderIcon type={provider} className="size-4" />
+        </span>
+      }
+      title={integration.name}
+      meta={
+        <Tag variant="soft" tone={integration.is_enabled ? 'brand' : 'neutral'}>
+          {integration.is_enabled
+            ? t('integrations.connected')
+            : t('integrations.disabled')}
+        </Tag>
+      }
+      actions={
+        <>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onConfigure}
+            aria-label={t('integrations.configureAria', {
+              name: integration.name,
+            })}
+          >
+            {t('integrations.configure')}
+          </Button>
+          <Menu
+            align="end"
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={MoreIcon}
+                aria-label={t('manage.more', {
+                  name: integration.name,
+                })}
+              />
+            }
+            actions={[
+              {
+                id: 'test',
+                label: t('common.test'),
+                icon: TestIcon,
+                onSelect: onTest,
+              },
+              {
+                id: 'delete',
+                label: t('common.delete'),
+                icon: DeleteIcon,
+                tone: 'danger',
+                separated: true,
+                onSelect: onDelete,
+              },
+            ]}
+          />
+        </>
+      }
+    />
+  );
+}
+
+/** Sends a test through a saved integration and says how it went. */
+async function sendTest(
+  integration: AlertIntegration,
+  routingOverride: Record<string, unknown> | undefined,
+  t: ReturnType<typeof useTranslations<'alerts'>>,
+) {
+  const result = await testIntegration(integration.id, routingOverride);
+  if (!result.success) {
+    // The request itself failed, which is not the same as the provider
+    // refusing the message: that comes back as a successful request.
+    toast.error(t('integrations.testFailed'), {
+      description: result.error.message,
+    });
+    return;
+  }
+  if (!result.data.success) {
+    toast.error(t('integrations.testFailedResult'), {
+      description: result.data.message,
+    });
+    return;
+  }
+  // Delivery is judged by the HTTP status and the body is never
+  // interpreted, so a body to read is shown as neutral, not as success.
+  if (result.data.response_body) {
+    toast.info(t('integrations.testAnswered'), {
+      description: result.data.response_body,
+    });
+    return;
+  }
+  toast.success(t('integrations.testSent'));
+}
+
+function AddButton({
+  name,
+  onEdit,
+}: {
+  name: string;
+  onEdit: (edit: EditParam) => void;
+}) {
+  const t = useTranslations('alerts');
+  return (
+    <Button variant="primary" icon={NewIcon} onClick={() => onEdit('new')}>
+      {t('manage.addProvider', { name })}
+    </Button>
+  );
+}
+
+/** The page's title: the provider, or the integration being edited. */
+function ProviderHeader({
+  provider,
+  name,
+  description,
+  editing,
+  hasIntegrations,
+  onEdit,
+}: {
+  provider: ProviderType;
+  name: string;
+  description: string;
+  editing: AlertIntegration | 'new' | null;
+  hasIntegrations: boolean;
+  onEdit: (edit: EditParam) => void;
+}) {
+  const t = useTranslations('alerts');
+  const title =
+    editing === null
+      ? name
+      : editing === 'new'
+        ? t('manage.addProvider', { name })
+        : editing.name;
+
+  return (
+    <SettingsHeader
+      title={
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border-subtle text-fg-secondary">
+            <ProviderIcon type={provider} className="size-5" />
+          </span>
+          <span className="truncate">{title}</span>
+        </span>
+      }
+      description={description}
+      actions={
+        // Nothing to go back to, or to add beside, while the form is the
+        // only thing the provider has.
+        !hasIntegrations ? null : editing === null ? (
+          <AddButton name={name} onEdit={onEdit} />
+        ) : (
+          <Button
+            variant="ghost"
+            icon={BackIcon}
+            onClick={() => onEdit(undefined)}
+          >
+            {t('page.back', { name })}
+          </Button>
+        )
+      }
+    />
+  );
+}

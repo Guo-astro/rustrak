@@ -6,6 +6,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::{Grouping, Issue};
 use crate::pagination::{IssueCategory, IssueCursor, IssueFilter, IssueSort, SortOrder};
 use crate::services::grouping::DenormalizedFields;
+use crate::services::scope::Scope;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -39,6 +40,9 @@ pub struct IssueTagValue {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TagSummary {
     pub key: String,
+    /// The scanned events carrying the tag, whatever its value: Sentry's
+    /// `totalValues` (`GroupTagKey.count`), so each top value's share is its
+    /// `count` over this.
     pub total_values: usize,
     pub top_values: Vec<TagValueCount>,
 }
@@ -76,6 +80,26 @@ pub struct IssueListStats {
 const LIST_TREND_BUCKETS: i64 = 24;
 const LIST_TREND_BUCKET_SECS: i64 = 3600;
 
+/// Who an issue list is narrowed to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Assignee {
+    Nobody,
+    User(i32),
+}
+
+/// The issue table's own filters, beyond status and scope. Empty narrows
+/// nothing, which is what every caller but the table passes.
+#[derive(Debug, Default, Clone)]
+pub struct IssueFilters {
+    pub levels: Vec<String>,
+    pub priorities: Vec<String>,
+    pub assigned: Option<Assignee>,
+    pub first_seen_hours: Option<i64>,
+    pub last_seen_hours: Option<i64>,
+    pub events_min: Option<i64>,
+    pub events_max: Option<i64>,
+}
+
 pub struct IssueService;
 
 /// Derives an initial issue priority from the event level, mirroring Sentry's
@@ -96,7 +120,18 @@ pub(crate) fn derive_priority(level: Option<&str>) -> &'static str {
 /// Extracts (key, value) tag pairs from an event payload. Handles both the
 /// object form (`tags: {k: v}`) and the normalized array form
 /// (`tags: [[k, v]]` or `tags: [{"key": k, "value": v}]`).
+///
+/// Each key once, the first occurrence kept: Relay deduplicates an event's
+/// tags the same way (`normalize_event_tags`), so a key sent twice counts as
+/// one event carrying it, not two.
 fn extract_tags(data: &serde_json::Value) -> Vec<(String, String)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut tags = extract_raw_tags(data);
+    tags.retain(|(key, _)| seen.insert(key.clone()));
+    tags
+}
+
+fn extract_raw_tags(data: &serde_json::Value) -> Vec<(String, String)> {
     let Some(tags) = data.get("tags") else {
         return Vec::new();
     };
@@ -473,10 +508,10 @@ impl IssueService {
             // IssueCursor has no event-count field, so cursor-based EventCount
             // pagination isn't implemented — the live sort=event_count path is
             // IssueService::list_offset.
-            (IssueSort::EventCount, _, _) => {
-                return Err(AppError::Validation(
-                    "EventCount sort is not supported for cursor-based pagination".to_string(),
-                ));
+            (IssueSort::EventCount | IssueSort::FirstSeen | IssueSort::Priority, _, _) => {
+                return Err(AppError::Validation(format!(
+                    "{sort} sort is not supported for cursor-based pagination"
+                )));
             }
         };
 
@@ -525,7 +560,8 @@ impl IssueService {
         page: i64,
         per_page: i64,
         search: Option<&str>,
-        environment: Option<&str>,
+        scope: Scope<'_>,
+        filters: &IssueFilters,
     ) -> AppResult<(Vec<Issue>, i64)> {
         if page < 1 {
             return Err(AppError::Validation(format!(
@@ -549,6 +585,16 @@ impl IssueService {
             (IssueSort::LastSeen, SortOrder::Asc) => "last_seen ASC, id ASC",
             (IssueSort::EventCount, SortOrder::Desc) => "digested_event_count DESC, id DESC",
             (IssueSort::EventCount, SortOrder::Asc) => "digested_event_count ASC, id ASC",
+            (IssueSort::FirstSeen, SortOrder::Desc) => "first_seen DESC, id DESC",
+            (IssueSort::FirstSeen, SortOrder::Asc) => "first_seen ASC, id ASC",
+            (IssueSort::Priority, SortOrder::Desc) => {
+                "CASE priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 \
+                 ELSE 0 END DESC, last_seen DESC, id DESC"
+            }
+            (IssueSort::Priority, SortOrder::Asc) => {
+                "CASE priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 \
+                 ELSE 0 END ASC, last_seen DESC, id DESC"
+            }
         };
 
         Self::list_window(
@@ -560,13 +606,14 @@ impl IssueService {
             offset,
             per_page,
             search,
-            environment,
+            scope,
+            filters,
         )
         .await
     }
 
     /// One window of a project's issues: `filter`, `category`, `search` and
-    /// `environment` as in [`Self::list_offset`], ordered by a trusted
+    /// `scope` as in [`Self::list_offset`], ordered by a trusted
     /// `order_clause`.
     ///
     /// Returns (issues, total_count) where total_count is the total matching issues.
@@ -580,7 +627,8 @@ impl IssueService {
         offset: i64,
         per_page: i64,
         search: Option<&str>,
-        environment: Option<&str>,
+        scope: Scope<'_>,
+        filters: &IssueFilters,
     ) -> AppResult<(Vec<Issue>, i64)> {
         let status_clause = filter_clause(filter, category);
         // Bound after `$1` (project_id), in order.
@@ -590,16 +638,16 @@ impl IssueService {
         // environment's first/last seen and count (Sentry's
         // `GroupEnvironment` and `__seen_stats_impl`). The rows read as
         // `issues`, so every clause below applies unchanged.
-        let source = match environment {
-            Some(env) => {
-                binds.push(env.to_string());
-                format!(
-                    "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
-                     JOIN issue_environments e ON e.issue_id = i.id \
-                     WHERE e.project_id = $1 AND e.environment = ${}) AS issues",
-                    binds.len() + 1
-                )
-            }
+        let env_param = scope.environment.map(|env| {
+            binds.push(env.to_string());
+            binds.len() + 1
+        });
+        let source = match env_param {
+            Some(n) => format!(
+                "(SELECT {ENV_SCOPED_COLUMNS} FROM issues i \
+                 JOIN issue_environments e ON e.issue_id = i.id \
+                 WHERE e.project_id = $1 AND e.environment = ${n}) AS issues"
+            ),
             None => "issues".to_string(),
         };
 
@@ -633,7 +681,27 @@ impl IssueService {
             }
             None => String::new(),
         };
-        let from = format!("FROM {source} WHERE {status_clause} {search_clause}");
+        // In a release, only the issues that had an event in it -- in the
+        // environment too when there is one: an issue seen in production on
+        // 1.0 and in staging on 2.0 was never in production on 2.0.
+        let release_clause = match scope.release {
+            Some(release) => {
+                binds.push(release.to_string());
+                let env_clause = env_param
+                    .map(|n| format!(" AND environment = ${n}"))
+                    .unwrap_or_default();
+                format!(
+                    "AND id IN (SELECT issue_id FROM events \
+                     WHERE project_id = $1 AND release = ${}{env_clause})",
+                    binds.len() + 1
+                )
+            }
+            None => String::new(),
+        };
+        let filter_clause = narrowing_clause(filters, &mut binds);
+        let from = format!(
+            "FROM {source} WHERE {status_clause} {search_clause} {release_clause} {filter_clause}"
+        );
 
         let count_query = format!("SELECT COUNT(*) {from}");
         let mut count =
@@ -658,11 +726,16 @@ impl IssueService {
         Ok((issues, total_count.0))
     }
 
-    /// The environments a project's issues have been seen in, by name.
+    /// The environments a project has seen, by name: its issues', and its
+    /// sessions' -- a healthy environment has sessions and no issue at all.
+    /// Sentry's environments are the project's, not its issues'.
     pub async fn environments(pool: &DbPool, project_id: i32) -> AppResult<Vec<String>> {
         let rows: Vec<(String,)> = sqlx::query_as(
-            "SELECT DISTINCT environment FROM issue_environments \
-             WHERE project_id = $1 ORDER BY environment",
+            "SELECT environment FROM issue_environments WHERE project_id = $1 \
+             UNION \
+             SELECT environment FROM session_counts \
+             WHERE project_id = $1 AND environment <> '' \
+             ORDER BY environment",
         )
         .bind(project_id)
         .fetch_all(pool)
@@ -1282,7 +1355,7 @@ impl IssueService {
         let mut tags: Vec<TagSummary> = tag_counts
             .into_iter()
             .map(|(key, values)| {
-                let total_values = values.len();
+                let total_values = values.values().sum::<i64>().max(0) as usize;
                 let mut top_values = sort_counts(values);
                 top_values.truncate(10);
                 TagSummary {
@@ -1423,7 +1496,7 @@ impl IssueService {
     pub async fn list_stats(
         pool: &DbPool,
         issue_ids: &[Uuid],
-        environment: Option<&str>,
+        scope: Scope<'_>,
     ) -> AppResult<HashMap<Uuid, IssueListStats>> {
         if issue_ids.is_empty() {
             return Ok(HashMap::new());
@@ -1445,11 +1518,13 @@ impl IssueService {
         let rows: Vec<(Uuid, Option<serde_json::Value>, DateTime<Utc>)> = sqlx::query_as(
             "SELECT issue_id, data -> 'user', ingested_at FROM events \
              WHERE issue_id = ANY($1) AND ingested_at >= $2 \
-             AND ($3::TEXT IS NULL OR environment = $3)",
+             AND ($3::TEXT IS NULL OR environment = $3) \
+             AND ($4::TEXT IS NULL OR release = $4)",
         )
         .bind(issue_ids)
         .bind(start_dt)
-        .bind(environment)
+        .bind(scope.environment)
+        .bind(scope.release)
         .fetch_all(pool)
         .await?;
 
@@ -1466,9 +1541,13 @@ impl IssueService {
             qb.push(") AND datetime(ingested_at) >= datetime(");
             qb.push_bind(start_dt.naive_utc());
             qb.push(")");
-            if let Some(env) = environment {
+            if let Some(env) = scope.environment {
                 qb.push(" AND environment = ");
                 qb.push_bind(env);
+            }
+            if let Some(release) = scope.release {
+                qb.push(" AND release = ");
+                qb.push_bind(release);
             }
             qb.build_query_as().fetch_all(pool).await?
         };
@@ -1643,6 +1722,63 @@ const ENV_SCOPED_COLUMNS: &str = "i.id, i.project_id, i.digest_order, i.numeric_
     i.last_frame_module, i.last_frame_function, i.level, i.platform, i.status, i.substatus, \
     i.priority, i.priority_locked_at, i.culprit, i.logger, i.status_details, i.assigned_to, \
     i.assignee_type, i.issue_type, i.issue_category, i.first_release, i.last_release";
+
+/// The `AND ...` for the table's own filters. Text values are bound, in
+/// order after whatever `binds` already holds; numbers are inlined, which is
+/// safe because an `i32`/`i64` can only render as digits and a sign.
+fn narrowing_clause(filters: &IssueFilters, binds: &mut Vec<String>) -> String {
+    let mut clause = String::new();
+
+    // An issue stored without a level is an error, as Sentry reads an event
+    // that sent none and as the list shows it: the filter has to agree.
+    for (column, values) in [
+        ("COALESCE(level, 'error')", &filters.levels),
+        ("priority", &filters.priorities),
+    ] {
+        if values.is_empty() {
+            continue;
+        }
+        let placeholders: Vec<String> = values
+            .iter()
+            .map(|value| {
+                binds.push(value.clone());
+                format!("${}", binds.len() + 1)
+            })
+            .collect();
+        clause.push_str(&format!(" AND {column} IN ({})", placeholders.join(", ")));
+    }
+
+    match filters.assigned {
+        Some(Assignee::Nobody) => clause.push_str(" AND assigned_to IS NULL"),
+        Some(Assignee::User(id)) => clause.push_str(&format!(" AND assigned_to = {id}")),
+        None => {}
+    }
+
+    for (column, hours) in [
+        ("first_seen", filters.first_seen_hours),
+        ("last_seen", filters.last_seen_hours),
+    ] {
+        if let Some(hours) = hours {
+            #[cfg(feature = "postgres")]
+            clause.push_str(&format!(
+                " AND {column} >= NOW() - INTERVAL '{hours} hours'"
+            ));
+            #[cfg(not(feature = "postgres"))]
+            clause.push_str(&format!(
+                " AND datetime({column}) >= datetime('now', '-{hours} hours')"
+            ));
+        }
+    }
+
+    if let Some(min) = filters.events_min {
+        clause.push_str(&format!(" AND digested_event_count >= {min}"));
+    }
+    if let Some(max) = filters.events_max {
+        clause.push_str(&format!(" AND digested_event_count <= {max}"));
+    }
+
+    clause
+}
 
 /// WHERE clause for an issue filter; `$1` is the project id.
 fn filter_clause(filter: IssueFilter, category: IssueCategory) -> String {

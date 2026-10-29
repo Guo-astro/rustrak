@@ -37,7 +37,8 @@
   "theme": {
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "system": "System",
+    "label": "Theme"
   },
   "update": {
     "srAvailable": "Rustrak {version} is available.",
@@ -76,7 +77,39 @@
     "lastPage": "Last page",
     "selectAllPageRows": "Select all rows on this page",
     "selectRow": "Select row",
-    "expand": "Expand"
+    "expand": "Expand",
+    "selected": "{count, plural, other {# selected}}",
+    "clearSelection": "Clear",
+    "selectionToolbar": "Actions for the selected rows",
+    "noMatches": "Nothing matches the current filters.",
+    "nothingYet": "There is nothing here yet.",
+    "clearFilters": "Clear filters",
+    "actions": "Actions",
+    "rowActions": "Row actions",
+    "columns": "Columns",
+    "chooseColumns": "Choose columns",
+    "resizeColumn": "Resize column",
+    "filterValues": "Filter values",
+    "filterValuesPlaceholder": "Filter values…",
+    "nothingMatches": "Nothing matches",
+    "contains": "Contains…",
+    "filterText": "Filter text",
+    "min": "Min",
+    "max": "Max",
+    "lowestFirst": "Lowest first",
+    "highestFirst": "Highest first",
+    "aToZ": "A to Z",
+    "zToA": "Z to A",
+    "clearFilter": "Clear filter",
+    "hideColumn": "Hide column",
+    "range": "{first}–{last} of {total}",
+    "rowsPerPage": "Rows {size}",
+    "rowsOption": "{size} rows",
+    "filterBy": "Filter by",
+    "suggestions": "Suggestions",
+    "filterAndSearch": "Filter by key:value, or search…",
+    "addFilter": "Add a filter…",
+    "clearAll": "Clear filters and search"
   },
   "commands": {
     "overview": "Overview",
@@ -133,7 +166,11 @@
     "navigate": "navigate",
     "open": "open",
     "close": "close",
-    "hidePages": "hide pages"
+    "hidePages": "hide pages",
+    "crons": "Crons",
+    "cronsDescription": "Scheduled jobs and how their runs went.",
+    "feedback": "User Feedback",
+    "feedbackDescription": "What your users reported from the app."
   },
   "charts": {
     "errors": "Errors",
@@ -193,18 +230,35 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "Level",
-      "message": "Message",
-      "trace": "Trace",
-      "time": "Time"
-    },
     "emptyValue": "(empty)",
+    "volumeFailed": "Could not load the volume chart",
+    "lineFailed": "This line could not be opened. It may have been deleted.",
     "attributes": "Attributes",
-    "allLevels": "All",
     "empty": {
-      "title": "No logs match this filter",
-      "hint": "Try a different level or clear the filter."
+      "title": "No logs match this search in this window"
+    },
+    "lines": "Log lines",
+    "pageOf": "Page {page} of {total}",
+    "newer": "Newer logs",
+    "older": "Older logs",
+    "back": "Back to the logs",
+    "close": "Close",
+    "time": "Time",
+    "severity": "Severity",
+    "trace": "Trace",
+    "span": "Span",
+    "sameTrace": "Logs in this trace",
+    "level": "Level",
+    "search": "Search messages, or filter by level: or trace:",
+    "volume": "Logs over time by level",
+    "count": "{count, plural, one {# log} other {# logs}}",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Warning",
+      "error": "Error",
+      "fatal": "Fatal"
     }
   },
   "issues": {
@@ -214,7 +268,10 @@
       "age": "Age",
       "events": "Events",
       "users": "Users",
-      "lastSeen": "Last seen"
+      "lastSeen": "Last seen",
+      "level": "Level",
+      "assignee": "Assignee",
+      "firstSeen": "First seen"
     },
     "actionsTitle": "Actions",
     "actionsFor": "Actions for {title}",
@@ -306,6 +363,61 @@
     "card": {
       "usersAffected": "{count, plural, =1 {# user affected} other {# users affected}}",
       "eventCount": "{count, plural, =1 {# event} other {# events}}"
+    },
+    "table": {
+      "windows": {
+        "1h": "Last hour",
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "14d": "Last 14 days",
+        "30d": "Last 30 days"
+      },
+      "levels": {
+        "fatal": "Fatal",
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Info"
+      },
+      "fewest": "Fewest events",
+      "most": "Most events",
+      "lowestPriority": "Lowest priority first",
+      "highestPriority": "Highest priority first",
+      "me": "Me",
+      "unassigned": "Unassigned",
+      "assigned": "Assigned",
+      "oldest": "Oldest first",
+      "newest": "Newest first",
+      "environment": "Environment",
+      "release": "Release",
+      "assign": "Assign",
+      "assignToMe": "Assign to me",
+      "unassign": "Unassign",
+      "copyId": "Copy ID",
+      "copied": "ID copied",
+      "count": "{count, plural, one {{display} issue} other {{display} issues}}",
+      "views": {
+        "open": "Open",
+        "resolved": "Resolved",
+        "muted": "Muted",
+        "all": "All"
+      }
+    },
+    "detail": {
+      "linkCopied": "Link copied",
+      "copyLink": "Copy link",
+      "status": "Status",
+      "firstSeen": "First seen {when}",
+      "lastSeen": "Last seen {when}",
+      "activity30d": "Events, last 30 days",
+      "activity30dHint": "Every event this issue grouped, per day",
+      "noActivity": "No events in the last 30 days",
+      "eventPosition": "Event {current} of {total}",
+      "copyEventId": "Copy event ID",
+      "jumpTo": "Jump to",
+      "properties": "Properties",
+      "tags": "Tags",
+      "code": "Code",
+      "activity": "Activity"
     }
   },
   "roles": {
@@ -515,7 +627,12 @@
       "logs": "Logs",
       "settings": "Settings",
       "crons": "Crons",
-      "feedback": "User Feedback"
+      "feedback": "User Feedback",
+      "groupTriage": "Triage",
+      "groupMonitor": "Monitor",
+      "alerts": "Alerts",
+      "docs": "Docs",
+      "jumpTo": "Jump to"
     },
     "collapse": {
       "expand": "Expand",
@@ -523,7 +640,10 @@
     },
     "switcher": {
       "projects": "Projects",
-      "fallback": "Project"
+      "fallback": "Project",
+      "all": "All projects",
+      "new": "New project",
+      "count": "{count, plural, one {# project} other {# projects}}"
     },
     "copyUnavailable": "Clipboard unavailable",
     "copyUnavailableHint": "Select the {label} and copy it manually, or access Rustrak over HTTPS.",
@@ -561,6 +681,19 @@
       "invalid": "Enter a whole number of at least 1, or leave it empty.",
       "dropped": "Dropped by the limit",
       "droppedDescription": "Events that were accepted but not stored because a limit was already reached."
+    },
+    "card": {
+      "newIssues": "New issues",
+      "openIssues": "Open issues",
+      "stored": "Stored",
+      "rising": "Issues rising",
+      "waiting": "Waiting for the first event",
+      "actions": "Actions for {name}",
+      "lastDay": "Last 24 hours"
+    },
+    "summary": {
+      "withFatal": "{count, plural, one {# with fatal errors} other {# with fatal errors}}",
+      "events24h": "{count, plural, one {{display} event in 24 h} other {{display} events in 24 h}}"
     }
   },
   "alerts": {
@@ -586,7 +719,9 @@
       "templateRequired": "Template is required",
       "headerNameRequired": "Header name is required",
       "headerNameInvalid": "Not a valid HTTP header name: no spaces or symbols like : or @",
-      "headerNameDuplicate": "This header is already set"
+      "headerNameDuplicate": "This header is already set",
+      "cooldownMinutes": "Enter a whole number of minutes, 0 or more",
+      "minEvents": "Enter a whole number, 1 or more"
     },
     "routing": {
       "slackChannelRequired": "Slack channel is required for \"{name}\"",
@@ -627,7 +762,7 @@
       "increaseCooldown": "Increase cooldown by {count} minutes",
       "minutesUnit": "min",
       "noCooldownLimit": "No limit — alert fires every time",
-      "cooldownLimit": "{count, plural, =1 {At most one alert every minute per issue} other {At most one alert every # minutes per issue}}",
+      "cooldownLimit": "{count, plural, =1 {At most one alert per minute} other {At most one alert every # minutes}}",
       "fieldAlertType": "That alert type",
       "saveFailed": "Failed to save rule",
       "updated": "Alert rule updated",
@@ -816,31 +951,8 @@
       "edit": "Edit",
       "deleteAria": "Delete {name}",
       "close": "Close",
-      "addProvider": "Add {name}"
-    },
-    "table": {
-      "rule": "Rule",
-      "trigger": "Trigger",
-      "channels": "Channels",
-      "enabled": "Enabled",
-      "actionsAria": "Actions",
-      "enableAria": "Enable {name}",
-      "editAria": "Edit {name}",
-      "deleteAria": "Delete {name}"
-    },
-    "settings": {
-      "title": "Alert Settings",
-      "description": "Configure when to send notifications for this project.",
-      "addRule": "Add Alert Rule",
-      "noIntegrationsTitle": "No integrations configured",
-      "noIntegrationsHint": "Go to <link>Settings → Integrations</link> to add integrations first.",
-      "noRulesTitle": "No alert rules yet",
-      "noRulesHint": "Create one to start receiving notifications.",
-      "updateFailed": "Failed to update rule",
-      "deleteFailed": "Failed to delete rule",
-      "deleted": "Alert rule deleted",
-      "deleteRuleTitle": "Delete Alert Rule",
-      "deleteRuleDescription": "Are you sure you want to delete \"{name}\"? This action cannot be undone."
+      "addProvider": "Add {name}",
+      "more": "More actions for {name}"
     },
     "providers": {
       "slack": {
@@ -856,21 +968,172 @@
         "description": "POST a body you write yourself, in whatever shape the endpoint expects."
       }
     },
-    "newIssue": {
-      "name": "New Issue",
-      "description": "A new issue is first detected"
+    "page": {
+      "general": "General",
+      "connection": "Connection",
+      "server": "Server",
+      "authentication": "Authentication",
+      "authenticationDescription": "Only if your SMTP server asks for a login.",
+      "nameDescription": "How it is listed when an alert rule picks where to send.",
+      "methodDescription": "A webhook posts to one fixed channel. A bot token can post to any channel the bot is in.",
+      "portDescription": "Usually 587 for STARTTLS, 465 for TLS.",
+      "fromDescription": "The sender alerts arrive from.",
+      "testTitle": "Send a test",
+      "testDescription": "Sends a sample alert with the settings last saved, not unsaved edits.",
+      "dangerTitle": "Danger zone",
+      "deleteTitle": "Delete this integration",
+      "deleteDescription": "Alert rules that send through it stop delivering here.",
+      "unsaved": "Unsaved changes",
+      "back": "All {name} integrations"
     },
-    "regression": {
-      "name": "Regression",
-      "description": "A resolved issue reappears"
+    "types": {
+      "new_issue": {
+        "name": "New issue",
+        "description": "An error Rustrak has never seen before appears."
+      },
+      "regression": {
+        "name": "Regression",
+        "description": "An issue you resolved comes back."
+      },
+      "unmute": {
+        "name": "Reactivated",
+        "description": "An issue you archived starts happening again."
+      },
+      "new_feedback": {
+        "name": "New feedback",
+        "description": "A user sends feedback from your app."
+      }
     },
-    "unmute": {
-      "name": "Unmute",
-      "description": "A muted issue is unmuted"
+    "sentence": {
+      "when": {
+        "new_issue": "When <strong>a new issue</strong> appears",
+        "regression": "When <strong>a resolved issue comes back</strong>",
+        "unmute": "When <strong>an archived issue reactivates</strong>",
+        "new_feedback": "When <strong>a user sends feedback</strong>"
+      },
+      "inEnvironments": " in <strong>{envs}</strong>",
+      "atLevel": ", of level <strong>{level}</strong> or higher",
+      "afterEvents": ", once it reaches <strong>{count} events</strong>",
+      "notify": ", notify <strong>{channels}</strong>",
+      "notifyNobody": ", notify <strong>nobody yet</strong>",
+      "atMostOnce": {
+        "minute": ", at most once every <strong>{count, plural, one {minute} other {# minutes}}</strong>.",
+        "hour": ", at most once every <strong>{count, plural, one {hour} other {# hours}}</strong>.",
+        "day": ", at most once every <strong>{count, plural, one {day} other {# days}}</strong>."
+      },
+      "everyTime": ", every time."
     },
-    "newFeedback": {
-      "name": "New feedback",
-      "description": "A user submits feedback"
+    "editor": {
+      "when": "When",
+      "environments": "Environments",
+      "allEnvironments": "All",
+      "level": "Level",
+      "anyLevel": "Any level",
+      "levelOrHigher": "{level} or higher",
+      "minEvents": "After this many events",
+      "minEventsHint": "Wait until a new issue has happened this many times, to skip one-off errors.",
+      "notify": "Notify",
+      "notifyHint": "Channels are shared by every project; <link>manage channels</link>.",
+      "noChannels": "No channels yet. Add one in Settings → Integrations first.",
+      "frequency": "At most",
+      "frequencyHint": "How often this alert can notify, so a burst of errors sends one alert.",
+      "every": {
+        "minute": "{count, plural, one {Once a minute} other {Every # minutes}}",
+        "hour": "{count, plural, one {Once an hour} other {Every # hours}}",
+        "day": "{count, plural, one {Once a day} other {Every # days}}"
+      },
+      "everyTime": "Every time",
+      "customMinutes": "Custom, in minutes",
+      "test": "Send a test",
+      "testSent": "Test sent to {channel}",
+      "testFailed": "The test to {channel} failed",
+      "create": "Create alert",
+      "name": "Name",
+      "namePlaceholder": "e.g. New issues in production by email",
+      "environmentsHint": "Where it has to happen.",
+      "summary": "Summary",
+      "newEnvironment": "New environment",
+      "addEnvironment": "Add"
+    },
+    "list": {
+      "paused": "Paused",
+      "lastTriggered": "Last triggered {when}",
+      "neverTriggered": "Has not fired yet",
+      "enabled": "Turn {name} on or off",
+      "resumed": "Alert resumed",
+      "pausedToast": "Alert paused"
+    },
+    "overview": {
+      "metaTitle": "Alerts | Rustrak",
+      "ruleMetaTitle": "{name} | Alerts | Rustrak",
+      "title": "Alerts",
+      "loadFailed": "Could not load alerts",
+      "activeCount": "{count, plural, =0 {No alert active} one {# alert active} other {# alerts active}}",
+      "channels": "{count, plural, =0 {Channels} one {# channel} other {# channels}}",
+      "noChannelsTitle": "Add a channel first",
+      "noChannelsDescription": "Alerts are sent through channels — email, Slack or a webhook. <link>Add one in Settings → Integrations</link>, then pick it here.",
+      "active": "Active",
+      "delete": "Delete",
+      "deleted": "Alert deleted",
+      "deleteFailed": "Could not delete the alert",
+      "deleteTitle": "Delete {name}?",
+      "deleteDescription": "Nothing more is sent for it. Its delivery history is kept.",
+      "new": "New alert",
+      "newSummary": "What it catches, whom it tells, how often.",
+      "newMetaTitle": "New alert | Rustrak",
+      "edit": "Edit",
+      "editTitle": "Edit {name}",
+      "editMetaTitle": "Edit {name} | Alerts | Rustrak",
+      "emptyTitle": "No alerts yet",
+      "emptyDescription": "Pick what you want to hear about to start. You can have as many alerts as you like — say, new issues in production by email and every new issue to Slack.",
+      "failedCount": "{count, plural, one {# failed delivery} other {# failed deliveries}}",
+      "tabRules": "Alerts",
+      "tabDeliveries": "Deliveries"
+    },
+    "history": {
+      "title": "Deliveries",
+      "last14": "Last 14 days",
+      "chart": "Deliveries per day",
+      "empty": "Nothing sent yet.",
+      "openIssue": "Open issue",
+      "status": {
+        "sent": "Sent",
+        "failed": "Failed",
+        "pending": "Pending",
+        "skipped": "Skipped"
+      },
+      "lastTriggered": "Last triggered",
+      "chartHint": "Deliveries per day: sent, skipped by the cooldown, and failed",
+      "ruleHint": "Every delivery of this alert, with the reason when one failed or was skipped",
+      "columns": {
+        "status": "Status",
+        "alert": "Alert",
+        "channel": "Channel",
+        "detail": "Issue and reason",
+        "when": "When"
+      },
+      "deletedAlert": "Deleted alert"
+    },
+    "starters": {
+      "new_issue": "Hear about new issues",
+      "regression": "Hear about regressions",
+      "unmute": "Hear about reactivated issues",
+      "new_feedback": "Hear about user feedback"
+    },
+    "table": {
+      "alert": "Alert",
+      "when": "When",
+      "conditions": "Only if",
+      "notifies": "Notifies",
+      "frequency": "At most",
+      "lastSent": "Last triggered",
+      "active": "Active",
+      "afterEvents": "after {count} events"
+    },
+    "detail": {
+      "created": "Created",
+      "setup": "Setup",
+      "channelFailing": "Failing"
     }
   },
   "events": {
@@ -973,39 +1236,66 @@
     "openInGitHub": "Open in GitHub"
   },
   "releases": {
-    "all": "All",
-    "empty": {
-      "title": "No releases in this window",
-      "hint": "Try a longer period or clear the filter."
-    },
     "columns": {
-      "release": "Release"
+      "release": "Release",
+      "adoption": "Adoption",
+      "crashFreeSessions": "Crash-free",
+      "crashFreeUsers": "Crash-free users",
+      "sessions": "Sessions",
+      "newIssues": "New issues",
+      "events": "Events",
+      "lastEvent": "Last event"
     },
-    "sessions": "Sessions",
-    "crashFree": "Crash-free",
-    "crashFreeSessions": "Crash-free sessions",
-    "crashFreeUsers": "Crash-free users",
-    "crashed": "Crashed",
-    "users": "Users",
-    "healthy": "Healthy",
-    "noSessionData": "No session data",
-    "enableReleaseHealth": "Enable release health in your SDK to track crash-free rates",
-    "noTrendHistory": "Not enough history to chart a trend",
-    "noSessionDataForPeriod": "No session data for this period"
+    "count": "{count, plural, one {# release} other {# releases}}",
+    "released": "Released",
+    "unreleased": "Unreleased",
+    "loadFailed": "Could not load the releases",
+    "emptyWindow": "No releases",
+    "empty": {
+      "title": "No releases yet",
+      "description": "Send a <code>release</code> with your events or sessions, or create one from CI with sentry-cli, to see each version here."
+    },
+    "detail": {
+      "loadFailed": "Could not load this release",
+      "copy": "Copy version",
+      "copied": "Version copied",
+      "created": "Created {when}",
+      "releasedOn": "Released {when}",
+      "crashFreeSessions": "Crash-free sessions",
+      "crashFreeUsers": "Crash-free users",
+      "adoption": "Adoption",
+      "adoptionHint": "of all sessions in the window",
+      "sessions": "Sessions",
+      "crashedSessions": "{count} crashed",
+      "newIssues": "New issues",
+      "newIssuesHint": "First seen in this release",
+      "events": "Events",
+      "lastEvent": "Last {when}",
+      "projectAverage": "Project {rate}",
+      "noSessions": "No sessions",
+      "noSessionsHint": "Turn on release health in the SDK to see how many sessions crash.",
+      "sessionsPanel": "Sessions",
+      "sessionsPanelHint": "Healthy and crashed sessions in the window",
+      "healthy": "Healthy",
+      "crashed": "Crashed",
+      "noNewIssues": "No new issues in this release",
+      "viewInIssues": "View its issues",
+      "environments": "Environments",
+      "sessionsCount": "{count} sessions",
+      "details": "Details",
+      "version": "Version",
+      "package": "Package",
+      "commit": "Commit",
+      "createdAt": "Created",
+      "releasedAt": "Released",
+      "notReleased": "Not yet",
+      "firstEvent": "First event",
+      "lastEventAt": "Last event"
+    },
+    "search": "Search versions…",
+    "environment": "Environment"
   },
   "transactions": {
-    "columns": {
-      "transaction": "Transaction",
-      "duration": "Duration",
-      "lastSeen": "Last Seen",
-      "count": "Count",
-      "failures": "Failures"
-    },
-    "unnamed": "(unnamed)",
-    "empty": {
-      "title": "No transactions yet",
-      "sdkHint": "Configure your SDK with <code>tracesSampleRate</code> to start capturing performance data."
-    },
     "measurements": {
       "lcp": "LCP",
       "fcp": "FCP",
@@ -1013,21 +1303,6 @@
       "inp": "INP",
       "ttfb": "TTFB",
       "cls": "CLS"
-    },
-    "waterfall": {
-      "rootFallback": "transaction",
-      "spanFallback": "span",
-      "expand": "Expand",
-      "collapse": "Collapse",
-      "detail": {
-        "op": "op",
-        "description": "description",
-        "status": "status",
-        "duration": "duration",
-        "selfTime": "self time",
-        "spanId": "span_id",
-        "parentSpanId": "parent_span_id"
-      }
     },
     "p95": {
       "barTitle": "{name} — {count, plural, =1 {# event} other {# events}}",
@@ -1048,34 +1323,17 @@
     "unnamedAgent": "(unnamed agent)",
     "charts": {
       "noData": "No data yet",
-      "durationTooltip": "avg {avg} · p95 {p95}"
-    },
-    "waterfall": {
-      "expand": "Expand",
-      "collapse": "Collapse",
-      "spanFallback": "span"
+      "durationTooltip": "avg {avg} · p95 {p95}",
+      "runs": "Agent runs",
+      "runsHint": "Runs started per interval",
+      "duration": "Duration",
+      "durationHint": "Average and p95 time of agent runs and model calls",
+      "avg": "Average",
+      "runsOk": "Runs",
+      "runsFailed": "Failed"
     },
     "empty": {
       "noSpans": "This trace has no spans."
-    },
-    "detail": {
-      "op": "op",
-      "description": "description",
-      "status": "status",
-      "duration": "duration",
-      "selfTime": "self time",
-      "spanId": "span_id",
-      "parentSpanId": "parent_span_id",
-      "operationType": "operation type",
-      "agentName": "agent name",
-      "toolName": "tool name",
-      "requestModel": "request model",
-      "responseModel": "response model",
-      "conversationId": "conversation id",
-      "inputTokens": "input tokens",
-      "outputTokens": "output tokens",
-      "totalTokens": "total tokens",
-      "genAiSection": "gen_ai"
     },
     "spanDetail": {
       "agentName": "Agent",
@@ -1104,11 +1362,28 @@
       "totalTokens": "Tokens",
       "avgDuration": "Avg duration",
       "p95Duration": "P95 duration",
-      "errors": "Errors"
+      "errors": "Errors",
+      "avg": "avg {duration}",
+      "errorRate": "{rate} of AI spans"
     },
     "filters": {
       "allTime": "All time",
-      "allEnvironments": "All environments"
+      "allEnvironments": "All environments",
+      "agent": "Agent",
+      "model": "Model",
+      "tool": "Tool",
+      "status": "Status",
+      "failing": "Failing",
+      "search": "Filter by agent:, model:, tool: or status:",
+      "environment": "Environment",
+      "noEnvironments": "No environments yet",
+      "allTimeShort": "All",
+      "periods": {
+        "1h": "Last hour",
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days"
+      }
     },
     "modelsTable": {
       "empty": "No model calls in this window.",
@@ -1120,7 +1395,9 @@
       "input": "Input",
       "cached": "Cached",
       "output": "Output",
-      "reasoning": "Reasoning"
+      "reasoning": "Reasoning",
+      "title": "Models",
+      "hint": "Calls, failures, tokens and latency per model; a row opens its traces"
     },
     "toolsTable": {
       "empty": "No tool calls in this window.",
@@ -1128,7 +1405,62 @@
       "calls": "Calls",
       "errors": "Errors",
       "avg": "Avg",
-      "p95": "P95"
+      "p95": "P95",
+      "title": "Tools",
+      "hint": "Calls, failures and latency per tool; a row opens its traces"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "traces": "Traces",
+      "conversations": "Conversations"
+    },
+    "runsCount": "{count, plural, one {# agent run} other {# agent runs}}",
+    "errorsCount": "{count, plural, one {# failed span} other {# failed spans}}",
+    "spanCount": "{count, plural, one {# span} other {# spans}}",
+    "table": {
+      "most": "Largest first",
+      "newest": "Newest first",
+      "empty": "No trace matches these filters"
+    },
+    "trace": {
+      "models": "Models",
+      "waterfallOf": "Spans of trace {traceId}",
+      "conversation": "Conversation"
+    },
+    "graph": {
+      "viewLabel": "How to show the trace",
+      "waterfall": "Waterfall",
+      "graph": "Agents",
+      "empty": "No agent ran in this trace.",
+      "handoff": "{count, plural, one {handoff} other {# handoffs}}",
+      "then": "then",
+      "runs": "{count, plural, one {# run} other {# runs}}",
+      "models": "Models",
+      "tools": "Tools"
+    },
+    "conversations": {
+      "title": "Conversations",
+      "metaTitle": "{conversation} | Conversations | Rustrak",
+      "loadFailed": "Could not load this conversation",
+      "empty": "No conversations in this window. Send gen_ai.conversation.id on your agent spans to group their turns.",
+      "pageOf": "Page {page} of {total}",
+      "newer": "Newer conversations",
+      "older": "Older conversations",
+      "unnamed": "(unnamed agent)",
+      "turns": "{count, plural, one {# turn} other {# turns}}",
+      "calls": "{count, plural, one {# LLM call} other {# LLM calls}}",
+      "tools": "{count, plural, one {# tool call} other {# tool calls}}",
+      "tokens": "{count} tokens",
+      "errors": "{count, plural, one {# failed} other {# failed}}",
+      "turn": "Turn {number}",
+      "openTrace": "Open trace",
+      "user": "User",
+      "assistant": "Assistant",
+      "noAnswer": "The turn failed before answering.",
+      "turnsLabel": "Turns",
+      "tokensLabel": "Tokens",
+      "errorsLabel": "Errors",
+      "started": "Started"
     }
   },
   "tokens": {
@@ -1365,22 +1697,17 @@
       "title": "Log in | Rustrak",
       "description": "Sign in to your Rustrak account"
     },
-    "heroTitle": "Welcome back to Rustrak",
-    "heroDescription": "Lightweight, self-hosted error tracking. Access your dashboard to monitor system health and resolve critical incidents.",
-    "statMemoryFootprint": "Memory footprint",
-    "statIngestionLatency": "Ingestion latency",
-    "statEventsPerSecond": "Events/second",
     "form": {
-      "title": "Log in",
+      "title": "Log in to Rustrak",
       "subtitle": "Enter your credentials to access the platform.",
-      "emailLabel": "Email Address",
+      "emailLabel": "Email",
       "emailPlaceholder": "name@company.com",
       "passwordLabel": "Password",
       "passwordPlaceholder": "Enter your password",
       "hidePassword": "Hide password",
       "showPassword": "Show password",
-      "signingIn": "Signing in...",
-      "login": "Login",
+      "signingIn": "Logging in…",
+      "login": "Log in",
       "continueWithSso": "Continue with {provider}",
       "ssoRedirecting": "Redirecting...",
       "ssoFailure": "Single sign-on failed. Please try again.",
@@ -1416,6 +1743,9 @@
       "expiredTitle": "Nothing to link",
       "expiredDescription": "This request has expired or was already completed. Sign in again to start over.",
       "backToLogin": "Back to login"
+    },
+    "footer": {
+      "docs": "Docs"
     }
   },
   "invite": {
@@ -1454,7 +1784,6 @@
     "projectTitle": "{project} | Rustrak",
     "loadProjectFailed": "Could not load project",
     "loadIssueFailed": "Could not load issue",
-    "spanCount": "{count, plural, =1 {# span} other {# spans}}",
     "projectsList": {
       "meta": {
         "title": "Projects | Rustrak",
@@ -1478,26 +1807,62 @@
       "meta": {
         "description": "Overview for {project}"
       },
-      "periodAll": "All",
-      "errorVolume": "Error volume by severity",
-      "events": "Events",
+      "errorVolume": "Errors over time",
       "newIssues": "New issues",
       "openIssues": "{count} open",
       "crashFreeSessions": "Crash-free sessions",
       "sessionHealth": "Session health",
-      "sessionHealthSubtitle": "Healthy and crashed sessions over time",
+      "sessionHealthSubtitle": "Crash-free sessions over the window",
       "latency": "Latency",
       "latencySubtitle": "Slowest transactions by p95, all time",
-      "topIssues": "Top issues",
-      "topIssuesSubtitle": "Open issues by total events, all time",
-      "noIssuesYet": "No issues yet"
+      "noIssuesYet": "No issues yet",
+      "allEnvironments": "All environments",
+      "compare": "Compare",
+      "storedEvents": "{count} events stored",
+      "kpisFailed": "Could not load the headline figures",
+      "errors": "Errors",
+      "crashes": "Crashed sessions",
+      "sessionsCount": "{count} sessions",
+      "noSessions": "No sessions yet",
+      "noSessionsHint": "Release health appears once your SDK sends sessions (auto session tracking).",
+      "crashFreeUsers": "Crash-free users",
+      "activeReleases": "{count, plural, =1 {# release} other {# releases}}",
+      "eventsInWindow": "{count} events in this window",
+      "thisPeriod": "This period",
+      "previousPeriod": "Previous period",
+      "levelError": "Error",
+      "levelWarning": "Warning",
+      "levelInfo": "Info",
+      "issues": "Open issues",
+      "issuesDescription": "What to look at first, all time",
+      "issuesRecent": "Latest",
+      "issuesNew": "New",
+      "issuesFrequent": "Most events",
+      "viewAllIssues": "View all issues",
+      "issueTrend": "Events over time",
+      "sessions": "Sessions",
+      "errored": "Errored",
+      "crashed": "Crashed",
+      "allReleases": "All releases",
+      "noEnvironments": "No environments yet",
+      "noReleases": "No releases yet",
+      "periods": {
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "14d": "Last 14 days",
+        "30d": "Last 30 days",
+        "all": "All time",
+        "allShort": "All"
+      },
+      "environment": "Environment",
+      "release": "Release"
     },
     "issues": {
       "meta": {
         "description": "Issues for {project}"
       },
       "title": "Issues",
-      "subtitle": "Open issues for {project}",
+      "subtitle": "Errors from {project}, grouped by what caused them",
       "loadFailed": "Could not load issues",
       "loadLatestEventFailed": "Could not load the latest event"
     },
@@ -1507,7 +1872,6 @@
         "description": "Structured logs for {project}"
       },
       "title": "Logs",
-      "subtitle": "Structured logs for {project}, newest first",
       "loadFailed": "Could not load logs",
       "emptyTitle": "No logs yet",
       "emptyDescription": "Send structured logs from your SDK (e.g. <code>Sentry.logger.info(...)</code>) to start collecting them here."
@@ -1517,59 +1881,32 @@
         "title": "Performance | {project} | Rustrak",
         "description": "Transaction performance for {project}"
       },
-      "title": "Performance",
-      "subtitle": "Transactions for {project}, grouped by name and operation",
-      "loadFailed": "Could not load transactions",
-      "emptyTitle": "No transactions yet",
-      "emptyDescription": "Configure your SDK with <code>tracesSampleRate</code> to start capturing performance data.",
-      "backLink": "Performance"
+      "title": "Performance"
     },
     "transaction": {
       "meta": {
         "title": "{name} | Performance | Rustrak",
         "fallbackTitle": "Transaction | Rustrak"
-      },
-      "loadFailed": "Could not load transaction",
-      "unnamed": "(unnamed transaction)",
-      "spans": "Spans",
-      "noSpans": "This transaction has no spans.",
-      "tags": "Tags",
-      "request": "Request",
-      "user": "User"
+      }
     },
     "summary": {
       "meta": {
         "title": "{name} | Performance | Rustrak",
         "fallbackName": "Transaction"
-      },
-      "metricCount": "Count",
-      "metricP50": "p50",
-      "metricP95": "p95",
-      "metricP99": "p99",
-      "metricFailureRate": "Failure rate",
-      "samples": "Samples"
+      }
     },
     "releases": {
       "meta": {
         "title": "Releases | {project} | Rustrak",
         "description": "Release health for {project}"
       },
-      "title": "Releases",
-      "subtitle": "Session health per release for {project}",
-      "loadFailed": "Could not load release health",
-      "emptyTitle": "No releases yet",
-      "emptyDescription": "Send a <code>release</code> attribute with your events or sessions to start tracking release health."
+      "title": "Releases"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "Release health for {release}"
-      },
-      "loadFailed": "Could not load this release",
-      "subtitle": "Release health for {project}",
-      "newIssues": "New Issues",
-      "newIssuesEmpty": "No new issues introduced in this release",
-      "loadNewIssuesFailed": "Could not load new issues"
+      }
     },
     "agents": {
       "meta": {
@@ -1577,40 +1914,17 @@
         "description": "AI agent monitoring for {project}"
       },
       "title": "Agents",
-      "subtitle": "AI agent runs, tokens, and tool usage for {project}",
       "loadFailed": "Could not load agent activity",
       "emptyTitle": "No agent activity yet",
-      "emptyDescription": "Instrument your AI agent with a Sentry SDK using OpenTelemetry GenAI semantic conventions to start capturing agent runs.",
-      "cardRuns": "Agent Runs",
-      "cardRunsDescription": "Runs started per interval",
-      "cardDuration": "Duration",
-      "cardDurationDescription": "Avg and p95 agent run time",
-      "cardModelsByCalls": "LLM Calls by Model",
-      "cardModelsByCallsDescription": "Top models by call count",
-      "cardModelsByTokens": "Tokens Used by Model",
-      "cardModelsByTokensDescription": "Top models by token volume",
-      "cardTools": "Tool Calls by Tool",
-      "cardToolsDescription": "Top tools by call count",
-      "cardTraces": "Traces",
-      "cardTracesDescription": "One row per trace, aggregating every AI span it contains",
-      "cardModelsTable": "Models",
-      "cardModelsTableDescription": "Volume, failures, latency and token split per model.",
-      "cardToolsTable": "Tools",
-      "cardToolsTableDescription": "Call volume and failure rate per tool."
+      "emptyDescription": "Instrument your AI agent with a Sentry SDK using OpenTelemetry GenAI semantic conventions to start capturing agent runs."
     },
     "trace": {
       "meta": {
         "title": "{traceId} | Agents | Rustrak"
       },
       "loadFailed": "Could not load trace",
-      "backLink": "Agents",
       "unnamed": "(unnamed agent)",
-      "tokens": "{count} tokens",
-      "toolCalls": "{count, plural, =1 {# tool call} other {# tool calls}}",
       "spans": "Spans",
-      "llmCalls": "{count} LLM calls",
-      "errors": "{count} errors",
-      "spanDetail": "Span detail",
       "selectSpan": "Select a span to see its prompt, response and attributes.",
       "spanUnavailable": "That span is no longer available."
     },
@@ -1676,8 +1990,21 @@
         "title": "No feedback here",
         "description": "Feedback sent with the SDK's feedback widget or captureFeedback shows up here"
       },
-      "anonymous": "Anonymous"
-    }
+      "anonymous": "Anonymous",
+      "count": "{count, plural, one {# report} other {# reports}}",
+      "pageOf": "Page {page} of {total}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "attachments": "{count, plural, one {# attachment} other {# attachments}}",
+      "linkedError": "Linked error",
+      "noLinkedError": "Sent without an error",
+      "viewError": "View the error it is about",
+      "page": "Page",
+      "received": "Received",
+      "openIssue": "Open as an issue",
+      "back": "Back to the list"
+    },
+    "spanCount": "{count, plural, =1 {# span} other {# spans}}"
   },
   "settings": {
     "meta": {
@@ -1689,11 +2016,11 @@
       "general": "General",
       "alerts": "Alerts",
       "members": "Members",
-      "clientKeys": "Client Keys",
+      "clientKeys": "SDK",
       "apiTokens": "API Tokens",
       "integrations": "Integrations",
-      "mcp": "AI assistants (MCP)",
-      "team": "Team",
+      "mcp": "AI assistants",
+      "team": "Members",
       "storage": "Storage",
       "account": "Account",
       "appearance": "Appearance",
@@ -1702,7 +2029,14 @@
       "projectSettingsTitle": "Project Settings",
       "openSettingsMenu": "Open settings menu",
       "settingsTitle": "Settings",
-      "github": "GitHub"
+      "github": "Repository",
+      "products": "Products",
+      "groupAccount": "Account",
+      "groupWorkspace": "Workspace",
+      "profile": "Profile",
+      "preferences": "Preferences",
+      "instance": "Instance",
+      "data": "Data"
     },
     "loadProjectFailed": "Could not load project",
     "loadProjectsFailed": "Could not load projects",
@@ -1718,7 +2052,7 @@
       "meta": {
         "title": "Client Keys | Rustrak"
       },
-      "title": "Client Keys (DSN)",
+      "title": "SDK",
       "subtitle": "Connect an application to this project."
     },
     "alerts": {
@@ -1749,7 +2083,7 @@
         "title": "Team | Rustrak",
         "description": "Manage your team members and invitations"
       },
-      "title": "Team",
+      "title": "Members",
       "subtitle": "Manage your team members and invitations",
       "notAuthorizedDescription": "Only instance administrators can manage the team. Contact an admin if you need access.",
       "loadFailed": "Could not load the team"
@@ -1761,7 +2095,7 @@
       },
       "title": "Integrations",
       "subtitle": "Connect Rustrak with your tools and services to automate workflows and stay on top of errors.",
-      "backToAlerts": "Back to alert settings",
+      "backToAlerts": "Back to alerts",
       "backToProjects": "Back to projects",
       "loadFailed": "Could not load integrations",
       "githubLoadFailed": "Could not load the GitHub connection"
@@ -1771,8 +2105,8 @@
         "title": "AI assistants | Rustrak",
         "description": "Connect AI assistants to Rustrak over MCP"
       },
-      "title": "AI assistants (MCP)",
-      "subtitle": "Let Claude, ChatGPT, Cursor and other AI assistants read and triage your errors, with the permissions of whoever connects them.",
+      "title": "AI assistants",
+      "subtitle": "Let Claude, ChatGPT or Cursor read and triage your errors.",
       "loadFailed": "Could not load the MCP settings",
       "copy": "Copy",
       "copied": "Copied",
@@ -1832,6 +2166,28 @@
         "revokeFailed": "Could not disconnect the assistant",
         "revoked": "{name} disconnected",
         "loadFailed": "Could not load your connected assistants"
+      },
+      "page": {
+        "offTitle": "The MCP server is off",
+        "offAdmin": "Turn it on to connect an assistant.",
+        "offMember": "Ask an instance admin to turn it on.",
+        "enable": "Turn on",
+        "connect": "Connect an assistant",
+        "webHint": "Add a custom connector and paste the URL above. You sign in to Rustrak and approve.",
+        "tokenHint": "This server has no PUBLIC_URL, so assistants connect with an API token.",
+        "help": "How it works",
+        "helpTitle": "Two ways to connect",
+        "helpIntro": "Both work at the same time: use whichever your assistant supports.",
+        "oauthName": "Sign in",
+        "tokenName": "API token",
+        "oauth1": "claude.ai, ChatGPT, Claude Code, Cursor, VS Code",
+        "oauth2": "You sign in to Rustrak and approve",
+        "oauth3": "Nothing to copy or renew",
+        "token1": "Scripts, CI, clients that cannot sign in",
+        "token2": "You paste a token into the client",
+        "token3": "Revoking the token disconnects it",
+        "publicUrl": "Sign in needs PUBLIC_URL: the address this server is reached at.",
+        "tokenSetup": "Set up with a token"
       }
     },
     "storage": {
@@ -1902,6 +2258,49 @@
       "githubRepository": "GitHub Repository",
       "reportAnIssue": "Report an Issue",
       "sentryDocs": "Sentry SDK Documentation"
+    },
+    "products": {
+      "title": "Products",
+      "subtitle": "What this project keeps, and the order its sidebar lists it in.",
+      "note": "Turning a product off removes it from the sidebar and stops storing its data as it arrives: the SDK keeps sending it, and Rustrak drops it. What is already stored is kept, and shows again when you turn it back on.",
+      "alwaysOn": "Always on",
+      "saved": "Saved",
+      "saveFailed": "Could not save the products",
+      "drag": "Drag to reorder {name}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "items": {
+        "issues": "Errors and exceptions, grouped into issues.",
+        "feedback": "What users send through the feedback widget.",
+        "releases": "Release health, from sessions.",
+        "performance": "Transactions and spans.",
+        "logs": "Structured logs from the SDK.",
+        "crons": "Check-ins from scheduled jobs.",
+        "agents": "AI agent traces: the gen_ai spans inside performance data."
+      }
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Who you are on this instance, and how you sign in."
+    },
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "How Rustrak reads to you: language, time zone and theme.",
+      "display": "Display",
+      "theme": "Theme",
+      "themeDescription": "Light, dark, or follow your system."
+    },
+    "instance": {
+      "title": "Instance",
+      "subtitle": "What this Rustrak runs, and the limits it applies.",
+      "version": "Version",
+      "limits": "Ingest limits",
+      "limitsDescription": "The server’s limits per project. A project can only set lower ones, in its Data settings.",
+      "unlimited": "No limit"
+    },
+    "data": {
+      "title": "Data",
+      "subtitle": "What this project keeps, and how much it accepts."
     }
   },
   "github": {
@@ -1994,6 +2393,31 @@
       "description": "Assigning you an issue in Rustrak assigns you its linked GitHub issues, and the other way round.",
       "saved": "GitHub username saved",
       "saveFailed": "Could not save your GitHub username"
+    },
+    "setup": {
+      "title": "Set up GitHub",
+      "createTitle": "Create the GitHub App",
+      "createDescription": "GitHub shows you the app before creating it, and it stays private to your account or organization.",
+      "created": "Created as {slug}",
+      "organization": "Organization",
+      "organizationHint": "Leave it empty for your personal account. The app can only be installed where it is created.",
+      "installTitle": "Choose repositories",
+      "installDescription": "Install the app and pick the repositories Rustrak may read.",
+      "linkTitle": "Link each project to its repository",
+      "linkDescription": "In each project’s settings, under GitHub.",
+      "featuresTitle": "What it adds",
+      "active": "Active",
+      "you": "You",
+      "features": {
+        "code": "Code in stack traces",
+        "codeDescription": "Open the line that failed, at the commit that ran it.",
+        "commits": "Suspect commits",
+        "commitsDescription": "The commit that most likely broke it, on the issue.",
+        "issues": "GitHub issues",
+        "issuesDescription": "Open or link issues, and resolve errors from commits.",
+        "owners": "Code owners",
+        "ownersDescription": "Who owns the failing code, from CODEOWNERS."
+      }
     }
   },
   "conditions": {
@@ -2013,7 +2437,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "Know when a scheduled job doesn't run, fails or runs too long",
     "newMonitor": "New monitor",
     "loadFailed": "Could not load monitors",
     "loadMonitorFailed": "Could not load this monitor",
@@ -2021,7 +2444,6 @@
     "columns": {
       "monitor": "Monitor",
       "schedule": "Schedule",
-      "recent": "Recent runs",
       "lastCheckIn": "Last check-in",
       "nextCheckIn": "Next expected"
     },
@@ -2045,15 +2467,30 @@
       "active": "Waiting for a successful run"
     },
     "timeline": {
-      "label": "Recent check-ins, oldest first",
-      "took": "Took {duration}"
+      "noRuns": "no runs",
+      "avg": "avg {duration}",
+      "now": "now"
     },
     "empty": {
       "title": "Monitor your scheduled jobs",
       "description": "Rustrak tells you when a cron job doesn't run on time, fails, or runs longer than it should. Add a check-in to your job: its monitor is created on the first run.",
       "upsertNote": "This example checks in to the my-job monitor every hour and creates it on the first run. Change the slug and the schedule to your job's.",
       "orManual": "Prefer to set it up by hand?",
-      "manual": "Create a monitor"
+      "manual": "Create a monitor",
+      "steps": {
+        "checkIn": {
+          "title": "Add a check-in",
+          "description": "Paste the snippet into your job. Your DSN is already filled in."
+        },
+        "run": {
+          "title": "Run the job",
+          "description": "Its monitor is created on the first check-in, with the schedule it sends."
+        },
+        "alert": {
+          "title": "Get notified",
+          "description": "Rustrak tells you when a run is missed, fails or takes too long."
+        }
+      }
     },
     "setup": {
       "copy": "Copy",
@@ -2089,7 +2526,20 @@
       "nextCheckIn": "Next expected",
       "minutes": "{count, plural, one {# minute} other {# minutes}}",
       "failures": "{count, plural, one {# failed check-in} other {# failed check-ins in a row}}",
-      "successes": "{count, plural, one {# successful check-in} other {# successful check-ins in a row}}"
+      "successes": "{count, plural, one {# successful check-in} other {# successful check-ins in a row}}",
+      "took": "took {duration}",
+      "late": "Late",
+      "successRate": "Success rate",
+      "inWindow": "Of the runs in this window",
+      "avgDuration": "Average duration",
+      "ofMax": "Max runtime {duration}",
+      "duration": "Duration",
+      "durationHint": "How long the runs took on average, by environment",
+      "created": "Created",
+      "timeline": "Timeline",
+      "timelineHint": "Each tick is the worst run of its slot, on the same axis for every environment",
+      "checkInsHint": "Every run, newest first",
+      "instrumentHint": "Check in from your job with one of these"
     },
     "checkInColumns": {
       "status": "Status",
@@ -2158,6 +2608,24 @@
       "numberRange": "Between {min} and {max}",
       "tooLong": "At most {max} characters",
       "timezoneRequired": "Choose a timezone"
+    },
+    "noMatch": "No monitor matches this search",
+    "late": "Late",
+    "state": "State",
+    "search": "Search monitors, or filter by state:",
+    "count": "{count, plural, one {# monitor} other {# monitors}}",
+    "failingCount": "{count} failing",
+    "pageOf": "Page {page} of {total}",
+    "newer": "Newer check-ins",
+    "older": "Older check-ins",
+    "periods": {
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days"
+    },
+    "legend": {
+      "timeout": "Timed out (over {count, plural, one {# min} other {# min}})",
+      "missed": "Missed (no check-in within {count, plural, one {# min} other {# min}})"
     }
   },
   "schedule": {
@@ -2209,5 +2677,76 @@
     "decideFailed": "Could not complete the authorization",
     "failedTitle": "This request cannot be completed",
     "failedDescription": "The assistant sent an authorization request Rustrak could not verify, so nothing was shared. Start the connection again from the assistant."
+  },
+  "performance": {
+    "count": "{count, plural, one {# endpoint} other {# endpoints}}",
+    "search": "Search endpoints…",
+    "environment": "Environment",
+    "loadFailed": "Could not load the endpoints",
+    "emptyWindow": "No endpoints",
+    "empty": {
+      "title": "No transactions yet",
+      "description": "Set <code>tracesSampleRate</code> in your SDK to see how long each endpoint takes."
+    },
+    "columns": {
+      "endpoint": "Endpoint",
+      "timeSpent": "Time spent",
+      "calls": "Calls",
+      "avg": "Average",
+      "failures": "Failures",
+      "lastSeen": "Last seen"
+    },
+    "table": {
+      "most": "Most first"
+    },
+    "detail": {
+      "figures": "Figures",
+      "noSamples": "No samples in this window",
+      "latency": "Latency",
+      "latencyHint": "p50 and p95 over the window",
+      "calls": "Calls",
+      "callsHint": "How often it ran, and how often it failed",
+      "ok": "OK",
+      "failed": "Failed",
+      "slowest": "Slowest samples",
+      "slowestHint": "Open one to see its trace",
+      "callsFigure": "Calls",
+      "perMinute": "{rate} per minute",
+      "failures": "Failures",
+      "timeSpent": "Time spent",
+      "totalTime": "{time} in all",
+      "p50": "p50 {time}",
+      "failedCalls": "{count} failed",
+      "operation": "Operation",
+      "environment": "Environment",
+      "allEnvironments": "All",
+      "average": "Average",
+      "lastSeen": "Last seen",
+      "details": "Details",
+      "duration": "Duration",
+      "release": "Release",
+      "status": "Status",
+      "when": "When"
+    },
+    "transaction": {
+      "loadFailed": "Could not load this transaction",
+      "unnamed": "(unnamed)",
+      "idCopied": "Event id copied",
+      "copyId": "Copy event id",
+      "request": "Request",
+      "tags": "Tags",
+      "user": "User",
+      "trace": "Trace",
+      "spans": "{count, plural, one {# span} other {# spans}}",
+      "traceOf": "Trace of {name}",
+      "noSpans": "This transaction sent no spans",
+      "op": "Operation",
+      "description": "Description",
+      "duration": "Duration",
+      "selfTime": "Self time",
+      "start": "Start",
+      "status": "Status",
+      "spanId": "Span id"
+    }
   }
 }

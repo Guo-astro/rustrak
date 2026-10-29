@@ -72,25 +72,25 @@ describe('dark theme', () => {
   const on = (fg: string, bg: string) => round(ratio(fg, bg, dark));
 
   it('reads text on the canvas', () => {
-    expect(on('--fg', '--surface-canvas')).toBe(17.95);
-    expect(on('--fg-secondary', '--surface-canvas')).toBe(13.79);
-    expect(on('--fg-tertiary', '--surface-canvas')).toBe(9.76);
-    expect(on('--fg-muted', '--surface-canvas')).toBe(6.58);
-    expect(on('--fg-subtle', '--surface-canvas')).toBe(5.28);
+    expect(on('--fg', '--surface-canvas')).toBe(17.72);
+    expect(on('--fg-secondary', '--surface-canvas')).toBe(13.87);
+    expect(on('--fg-tertiary', '--surface-canvas')).toBe(9.95);
+    expect(on('--fg-muted', '--surface-canvas')).toBe(6.91);
+    expect(on('--fg-subtle', '--surface-canvas')).toBe(5.04);
   });
 
   it('reads text on a panel and on a surface', () => {
-    expect(on('--fg', '--surface-panel')).toBe(17.34);
-    expect(on('--fg', '--surface')).toBe(16.67);
-    expect(on('--fg-muted', '--surface')).toBe(6.11);
-    expect(on('--fg-subtle', '--surface')).toBe(4.91);
+    expect(on('--fg', '--surface-panel')).toBe(17.08);
+    expect(on('--fg', '--surface')).toBe(16.5);
+    expect(on('--fg-muted', '--surface')).toBe(6.43);
+    expect(on('--fg-subtle', '--surface')).toBe(4.7);
   });
 
   it('reads lime everywhere it lands', () => {
-    expect(on('--fg-brand', '--surface-canvas')).toBe(14.25);
-    expect(on('--fg-brand', '--surface')).toBe(13.24);
+    expect(on('--fg-brand', '--surface-canvas')).toBe(15.86);
+    expect(on('--fg-brand', '--surface')).toBe(14.77);
     // The primary button: near-black on lime, never white.
-    expect(on('--fg-on-brand', '--surface-brand')).toBe(13.24);
+    expect(on('--fg-on-brand', '--surface-brand')).toBe(14.38);
   });
 
   /*
@@ -101,14 +101,14 @@ describe('dark theme', () => {
    * a black chip, invisible, and nothing else in the suite noticed.
    */
   it('reads the tooltip on its own chip', () => {
-    expect(on('--fg-on-tooltip', '--surface-tooltip')).toBe(15.06);
+    expect(on('--fg-on-tooltip', '--surface-tooltip')).toBe(14.65);
   });
 
   it('reads severity text on the surface it is written on', () => {
-    expect(on('--sev-error-fg', '--surface-panel')).toBe(6.48);
-    expect(on('--sev-error-fg', '--surface')).toBe(6.23);
-    expect(on('--sev-warning-fg', '--surface-panel')).toBe(7.95);
-    expect(on('--sev-warning-fg', '--surface')).toBe(7.65);
+    expect(on('--sev-error-fg', '--surface-panel')).toBe(6.87);
+    expect(on('--sev-error-fg', '--surface')).toBe(6.64);
+    expect(on('--sev-warning-fg', '--surface-panel')).toBe(8.43);
+    expect(on('--sev-warning-fg', '--surface')).toBe(8.14);
   });
 });
 
@@ -126,9 +126,9 @@ describe('dark theme · the supporting greys are below AA on purpose', () => {
   const on = (fg: string) => round(ratio(fg, '--surface-panel', dark));
 
   it('pins what each one costs', () => {
-    expect(on('--fg-meta')).toBe(4.04);
-    expect(on('--fg-ghost')).toBe(3.15);
-    expect(on('--fg-placeholder')).toBe(2.43);
+    expect(on('--fg-meta')).toBe(3.48);
+    expect(on('--fg-ghost')).toBe(2.69);
+    expect(on('--fg-placeholder')).toBe(2.69);
   });
 
   it('keeps everything above them at AA', () => {

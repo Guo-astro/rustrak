@@ -1,5 +1,5 @@
+import { TeamIcon } from '@rustrak/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { ShieldX } from 'lucide-react';
 import { useTranslations } from 'use-intl';
 import { listTeam } from '@/features/user/api/mutations';
 import { listInvitations } from '@/features/user/api/queries';
@@ -10,7 +10,8 @@ import { session } from '@/shared/api/session';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { Card, CardContent } from '@/shared/ui/components/shadcn/card';
+import { SettingsEmpty } from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
 import { useSessionUser } from '@/shared/ui/hooks/use-session-user';
 
 export const Route = createFileRoute('/_authenticated/settings/team')({
@@ -46,12 +47,7 @@ function TeamPage() {
   const loaded = Route.useLoaderData();
 
   const heading = (
-    <div className="mb-6 md:mb-8">
-      <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-        {t('team.title')}
-      </h1>
-      <p className="text-muted-foreground mt-1">{t('team.subtitle')}</p>
-    </div>
+    <SettingsHeader title={t('team.title')} description={t('team.subtitle')} />
   );
 
   // Guard: only instance admins may manage the team. The "we could not ask"
@@ -62,15 +58,13 @@ function TeamPage() {
     return (
       <>
         {heading}
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ShieldX className="size-12 text-muted-foreground/50 mb-4" />
-            <p className="font-semibold">{t('notAuthorized')}</p>
-            <p className="text-muted-foreground mt-1 text-sm max-w-sm">
-              {t('team.notAuthorizedDescription')}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+          <SettingsEmpty
+            icon={<TeamIcon size="2xl" />}
+            title={t('notAuthorized')}
+            description={t('team.notAuthorizedDescription')}
+          />
+        </div>
       </>
     );
   }
@@ -94,12 +88,9 @@ function TeamPage() {
   return (
     <>
       {heading}
-
-      <div className="space-y-6">
-        <InviteForm />
-        <TeamMembersList members={members} currentUserId={user.id} />
-        <PendingInvitations invitations={pendingInvitations} />
-      </div>
+      <InviteForm />
+      <TeamMembersList members={members} currentUserId={user.id} />
+      <PendingInvitations invitations={pendingInvitations} />
     </>
   );
 }

@@ -1,13 +1,13 @@
+import { Input } from '@rustrak/ui';
 import { type FieldValues, type Path, useFormContext } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
 import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
+import { FieldRow } from './form-chrome';
 
 /**
  * What the integration is called, which every provider asks for identically.
@@ -32,13 +32,15 @@ export function NameField<T extends FieldValues & { name: string }>({
       name={'name' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            {t('common.name')}
-          </FormLabel>
-          <FormControl>
-            <Input placeholder={placeholder} disabled={disabled} {...field} />
-          </FormControl>
-          <FormMessage />
+          <FieldRow
+            title={t('common.name')}
+            description={t('page.nameDescription')}
+          >
+            <FormControl>
+              <Input placeholder={placeholder} disabled={disabled} {...field} />
+            </FormControl>
+            <FormMessage className="mt-1.5" />
+          </FieldRow>
         </FormItem>
       )}
     />

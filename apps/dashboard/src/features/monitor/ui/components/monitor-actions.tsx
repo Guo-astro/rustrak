@@ -1,5 +1,13 @@
 import type { MonitorResponse } from '@rustrak/client';
-import { Bell, BellOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  Button,
+  DeleteIcon,
+  EditIcon,
+  Menu,
+  MoreIcon,
+  MuteIcon,
+  NotificationIcon,
+} from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -16,17 +24,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/shared/ui/components/shadcn/dropdown-menu';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
-/** Edit, and behind the menu, mute and delete. */
+/**
+ * Mute, the verb a failing monitor gets most, then edit, and delete behind
+ * the menu with a confirmation.
+ */
 export function MonitorActions({
   projectId,
   monitor,
@@ -69,42 +72,35 @@ export function MonitorActions({
   return (
     <div className="flex items-center gap-2">
       <Button
-        variant="outline"
-        size="sm"
-        nativeButton={false}
-        render={<Link href={`${href}/edit`} />}
+        icon={monitor.is_muted ? NotificationIcon : MuteIcon}
+        disabled={isPending}
+        onClick={toggleMute}
       >
-        <Pencil />
+        {t(monitor.is_muted ? 'actions.unmute' : 'actions.mute')}
+      </Button>
+      <Button icon={EditIcon} render={<Link href={`${href}/edit`} />}>
         {t('actions.edit')}
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label={t('actions.more')}
-              disabled={isPending}
-            >
-              <MoreHorizontal />
-            </Button>
-          }
-        />
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem onClick={toggleMute}>
-            {monitor.is_muted ? <Bell /> : <BellOff />}
-            {t(monitor.is_muted ? 'actions.unmute' : 'actions.mute')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => setConfirming(true)}
-          >
-            <Trash2 />
-            {t('actions.delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Menu
+        align="end"
+        trigger={
+          <Button
+            variant="ghost"
+            icon={MoreIcon}
+            aria-label={t('actions.more')}
+            disabled={isPending}
+          />
+        }
+        actions={[
+          {
+            id: 'delete',
+            label: t('actions.delete'),
+            icon: DeleteIcon,
+            tone: 'danger',
+            onSelect: () => setConfirming(true),
+          },
+        ]}
+      />
 
       <AlertDialog
         open={confirming}

@@ -208,11 +208,19 @@ export function useQueryBar({
     );
 
     const rest = filters.filter((filter) => filter.id !== field.key);
+    // The input is the search: what is written ahead of the field being
+    // filled, not whatever was sent last. A search deleted from the input
+    // and never re-sent would otherwise come back with the next filter.
+    const nextSearch = parseFilterQuery(prefix, variants).search;
+    // Sent from here, so it is not a change from outside: the draft below
+    // keeps its trailing space, where the next value is typed, instead of
+    // being reset to the bare search and read as the field's value.
+    lastSearch.current = nextSearch;
     onChange({
       filters: nextValues.length
         ? [...rest, { id: field.key, value: nextValues }]
         : rest,
-      search,
+      search: nextSearch,
     });
 
     /*
@@ -261,7 +269,7 @@ export function useQueryBar({
   function removeFilter(key: string) {
     onChange({
       filters: filters.filter((filter) => filter.id !== key),
-      search,
+      search: parseFilterQuery(draft, variants).search,
     });
     inputRef.current?.focus();
   }

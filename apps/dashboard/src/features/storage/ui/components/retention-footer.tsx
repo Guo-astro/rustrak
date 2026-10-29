@@ -1,5 +1,5 @@
 import type { CleanupCounts, ProjectStorage } from '@rustrak/client';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@rustrak/ui';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
@@ -17,7 +17,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import { DialogFooter } from '@/shared/ui/components/shadcn/dialog';
 import { ImpactLine } from './impact-line';
 
@@ -64,14 +63,17 @@ export function RetentionFooter({
           {t('cancel')}
         </Button>
         <Button
-          variant="outline"
           onClick={() => setConfirming(true)}
           disabled={isPending || parts.length === 0}
         >
           {t('dialog.saveAndClean')}
         </Button>
-        <Button onClick={() => onSave(false)} disabled={isPending}>
-          {isPending && !confirming && <Loader2 className="animate-spin" />}
+        <Button
+          variant="primary"
+          onClick={() => onSave(false)}
+          disabled={isPending}
+          loading={isPending && !confirming}
+        >
           {t('dialog.save')}
         </Button>
       </DialogFooter>
@@ -94,11 +96,10 @@ export function RetentionFooter({
               {t('cancel')}
             </AlertDialogCancel>
             <Button
-              variant="destructive"
+              variant="danger-primary"
               onClick={() => onSave(true)}
-              disabled={isPending}
+              loading={isPending}
             >
-              {isPending && <Loader2 className="animate-spin" />}
               {t('dialog.confirmAction', { size })}
             </Button>
           </AlertDialogFooter>

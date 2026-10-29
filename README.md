@@ -6,7 +6,7 @@
 [![Server coverage](https://img.shields.io/codecov/c/github/rustrak/rustrak/main?flag=rust&label=server%20coverage&logo=codecov)](https://codecov.io/gh/rustrak/rustrak)
 [![Client coverage](https://img.shields.io/codecov/c/github/rustrak/rustrak/main?flag=typescript&label=client%20coverage&logo=codecov)](https://codecov.io/gh/rustrak/rustrak)
 [![Release](https://img.shields.io/github/v/release/rustrak/rustrak)](https://github.com/rustrak/rustrak/releases)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Docker pulls](https://img.shields.io/docker/pulls/rustrak/rustrak-server)](https://hub.docker.com/r/rustrak/rustrak-server)
 [![Sponsors](https://img.shields.io/github/sponsors/AbianS?label=sponsors&color=db61a2)](https://github.com/sponsors/AbianS)
 
@@ -340,4 +340,4 @@ GitHub Sponsors and [Open Collective](https://opencollective.com/rustrak).
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE). Copyright © 2026 Abian Suarez.
+AGPL-3.0, except `@rustrak/client`, which is MIT. See [LICENSING.md](LICENSING.md). Copyright © 2026 Abian Suarez.

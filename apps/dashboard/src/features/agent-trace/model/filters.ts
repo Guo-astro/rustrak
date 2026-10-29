@@ -43,6 +43,46 @@ export interface AgentDashboardFilters {
 }
 
 /**
+ * A timeseries with its empty buckets put back, from the window's start (or
+ * the first busy bucket, over all time) to now. The server sends only the
+ * buckets that held something, and a chart spaces its points evenly: without
+ * them, 09:00, 10:00 and 20:00 read as equally far apart. Buckets are aligned
+ * to the epoch, as the server's are.
+ */
+export function fillBuckets<T extends { bucket: string }>(
+  points: T[],
+  intervalHours: number,
+  periodHours: number | undefined,
+  empty: (bucket: string) => T,
+  now = Date.now(),
+): T[] {
+  const step = intervalHours * 3_600_000;
+  const align = (ms: number) => Math.floor(ms / step) * step;
+  const byBucket = new Map(points.map((p) => [align(Date.parse(p.bucket)), p]));
+  const busy = [...byBucket.keys()];
+  if (busy.length === 0 && periodHours === undefined) return points;
+  const first =
+    periodHours !== undefined
+      ? align(now - periodHours * 3_600_000)
+      : Math.min(...busy);
+  // Gaps are filled up to now and no further: a span from a clock far ahead
+  // would otherwise ask for a bucket per interval up to it. A busy bucket
+  // past now still counts -- the browser's clock may be the one behind -- so
+  // it follows as it is, unfilled.
+  const last = align(now);
+  const filled: T[] = [];
+  for (let at = first; at <= last; at += step) {
+    filled.push(byBucket.get(at) ?? empty(new Date(at).toISOString()));
+  }
+  const ahead = busy.filter((at) => at > last).sort((a, b) => a - b);
+  for (const at of ahead) {
+    const point = byBucket.get(at);
+    if (point) filled.push(point);
+  }
+  return filled;
+}
+
+/**
  * Resolves the dashboard's filters from raw search params.
  *
  * An unrecognized period falls back to all-time rather than throwing: a
@@ -67,29 +107,6 @@ export function resolveAgentFilters(params: {
     intervalHours: period ? PERIOD_INTERVAL_HOURS[period] : 24,
     environment,
   };
-}
-
-/**
- * Rebuilds the dashboard's query string with one filter changed.
- *
- * Omitting a filter rather than writing an empty value keeps the URL honest:
- * `?period=7d` and `?period=7d&environment=` mean the same thing, and only
- * one of them should exist.
- */
-export function agentDashboardQuery(
-  current: { period?: string; environment?: string },
-  change: { period?: string | null; environment?: string | null },
-): string {
-  const next = new URLSearchParams();
-  const period = change.period !== undefined ? change.period : current.period;
-  const environment =
-    change.environment !== undefined ? change.environment : current.environment;
-
-  if (period) next.set('period', period);
-  if (environment) next.set('environment', environment);
-
-  const query = next.toString();
-  return query ? `?${query}` : '';
 }
 
 /**

@@ -93,7 +93,7 @@ impl Processor for SpanV2Processor {
         }
 
         let mut tx = ctx.pool.begin().await?;
-        insert_span_rows(&mut tx, ctx.project_id, rows).await?;
+        insert_span_rows(&mut tx, ctx.project_id, ctx.keep_ai_spans, rows).await?;
         tx.commit().await?;
         Ok(())
     }

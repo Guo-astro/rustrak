@@ -1,7 +1,9 @@
 import type {
+  MonitorEnvironmentStats,
   MonitorResponse,
   MonitorsListCheckinsData,
   MonitorsListCheckinsResponse,
+  MonitorsStatsData,
   Result,
   RustrakError,
 } from '@rustrak/client';
@@ -30,6 +32,17 @@ export async function listCheckIns(
   const client = await createClient();
   return client.monitors.listCheckins({
     path: { project_id: projectId, slug },
+    query: options,
+  });
+}
+
+export async function getMonitorStats(
+  projectId: number,
+  options?: MonitorsStatsData['query'],
+): Promise<Result<MonitorEnvironmentStats[], RustrakError>> {
+  const client = await createClient();
+  return client.monitors.stats({
+    path: { project_id: projectId },
     query: options,
   });
 }

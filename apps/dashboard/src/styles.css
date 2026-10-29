@@ -1,13 +1,33 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* The design system's tokens. Additive on purpose: the reset that closes the
+   system (`@rustrak/ui/styles.css`) comes in the day the last shadcn utility
+   below has gone. Until then both vocabularies compile side by side. */
+@import "@rustrak/ui/tokens.css";
+@import "@rustrak/ui/base.css";
+
+/* Tailwind only emits what it sees. The design system's classes are read from
+   its source, not its bundle: the source is what the dev server watches, so a
+   change there regenerates the CSS without a rebuild. */
+@source "../../../packages/ui/src";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * The shadcn vocabulary, bridged onto the design system.
+ *
+ * Every name the existing screens use (`bg-card`, `text-muted-foreground`,
+ * `border-input`) resolves to a semantic token of `@rustrak/ui`, so the screens
+ * not yet rebuilt already wear the new palette, follow the same theme switch,
+ * and can be moved one at a time. What the design system already publishes --
+ * `border`, `ring`, `chart-*`, `sev-*`, the fonts and the radii -- is not
+ * redeclared here: it comes from the tokens above.
+ *
+ * This block shrinks as pages move over, and goes when it is empty.
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -16,18 +36,8 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-sev-error: var(--sev-error);
-  --color-sev-warning: var(--sev-warning);
-  --color-sev-info: var(--sev-info);
   --color-status-ok: var(--status-ok);
-  --color-ring: var(--ring);
   --color-input: var(--input);
-  --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -41,153 +51,49 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 :root {
-  /* The two families the design has always used.
-     `next/font/google` used to declare them and hand back a class that set
-     these very variables on `<body>`; the faces are now self-hosted through
-     `@fontsource-variable/*` (imported in `main.tsx`) and the variables are
-     declared here instead. Same names, so `@theme inline` above and every
-     `font-mono` in the app are untouched. Still self-hosted, so no request
-     leaves the instance to render a page. */
-  --font-geist-sans:
-    "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-geist-mono:
-    "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
-    Consolas, "Liberation Mono", monospace;
+  /* Still read by a few components by name. The faces are self-hosted through
+     `@fontsource-variable/*` (imported in `main.tsx`). */
+  --font-geist-sans: var(--font-sans);
+  --font-geist-mono: var(--font-mono);
+  --radius: 0.5rem;
 
-  --radius: 0.625rem;
-  /* Brand colors - Light mode */
-  --primary: oklch(0.65 0.18 127); /* #84C800 darker lime */
-  --primary-foreground: oklch(0.98 0 0); /* White text on lime */
+  /* The page is the sheet, not the frame around it. */
+  --background: var(--surface-panel);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--surface-floating);
+  --popover-foreground: var(--fg);
+  --primary: var(--surface-brand);
+  --primary-foreground: var(--fg-on-brand);
+  --secondary: var(--surface-active);
+  --secondary-foreground: var(--fg);
+  --muted: var(--surface-hover);
+  --muted-foreground: var(--fg-subtle);
+  --accent: var(--surface-hover);
+  --accent-foreground: var(--fg);
+  --input: var(--border-field);
+  --destructive: var(--danger);
 
-  /* Backgrounds - Light mode */
-  --background: oklch(1 0 0); /* #FFFFFF white */
-  --foreground: oklch(0.15 0 0); /* #111827 dark text */
+  --sidebar: var(--surface-canvas);
+  --sidebar-foreground: var(--fg);
+  --sidebar-primary: var(--surface-brand);
+  --sidebar-primary-foreground: var(--fg-on-brand);
+  --sidebar-accent: var(--surface-hover);
+  --sidebar-accent-foreground: var(--fg);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 
-  /* Surfaces - Light mode */
-  --card: oklch(0.98 0 0); /* #F8F9FA light gray */
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
-
-  /* Neutral elements - Light mode */
-  --secondary: oklch(0.96 0 0); /* #F1F3F5 */
-  --secondary-foreground: oklch(0.15 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.48 0 0); /* #6B7280 gray */
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.15 0 0);
-
-  /* Borders and inputs - Light mode */
-  --border: oklch(0.91 0 0); /* #E5E7EB */
-  --input: oklch(0.91 0 0);
-  --ring: oklch(0.65 0.18 127); /* Lime focus ring */
-
-  /* Status colors */
-  --destructive: oklch(0.58 0.24 29); /* Red */
-
-  /* Chart series - Light mode.
-     Categorical slots in fixed order: assign by entity, never cycle, never
-     reorder when a filter changes the series count. Validated against the
-     light card surface (#f8f9fa) for the lightness band, chroma floor,
-     colorblind separation, normal-vision separation and contrast. Slots 3-5
-     sit below 3:1 on this surface, so charts using them carry visible labels
-     or a table view. */
-  --chart-1: oklch(0.575 0.163 255.5); /* blue */
-  --chart-2: oklch(0.671 0.175 40.6); /* orange */
-  --chart-3: oklch(0.669 0.141 162.1); /* aqua */
-  --chart-4: oklch(0.764 0.161 75.1); /* yellow */
-  --chart-5: oklch(0.716 0.141 357.4); /* magenta */
-
-  /* Severity - Light mode. Reserved: never reused as a series color, and
-     always paired with a label so meaning never rests on hue alone.
-     `error` covers fatal too (the chart folds them; the tooltip breaks them
-     out). `info` is the de-emphasis gray: info and debug are context, not
-     something an error chart should shout about. */
-  --sev-error: oklch(0.623 0.191 24.9);
-  --sev-warning: oklch(0.764 0.161 75.1);
-  --sev-info: oklch(0.77 0 0);
   /* A healthy run, the counterpart of `--sev-error` on a cron timeline.
      Never the only signal: every tick also names its status. */
   --status-ok: oklch(0.627 0.17 149);
-
-  /* Sidebar - Light mode */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.65 0.18 127);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.96 0 0);
-  --sidebar-accent-foreground: oklch(0.15 0 0);
-  --sidebar-border: oklch(0.91 0 0);
-  --sidebar-ring: oklch(0.65 0.18 127);
 }
 
 .dark {
-  /* Brand colors - Dark mode */
-  --primary: oklch(0.91 0.18 127); /* #C5F11E lime green */
-  --primary-foreground: oklch(0.2 0 0); /* Dark text on lime */
-
-  /* Backgrounds - Dark mode */
-  --background: oklch(0.14 0 0); /* #121212 almost black */
-  --foreground: oklch(0.98 0 0); /* #FAFAFA white text */
-
-  /* Surfaces - Dark mode */
-  --card: oklch(0.18 0 0); /* #1A1A1A surface */
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(0.98 0 0);
-
-  /* Neutral elements - Dark mode */
-  --secondary: oklch(0.22 0 0); /* #2A2A2A elevated */
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.58 0 0); /* #888888 muted text */
-  --accent: oklch(0.22 0 0);
-  --accent-foreground: oklch(0.98 0 0);
-
-  /* Borders and inputs - Dark mode */
-  --border: oklch(0.22 0 0); /* #2A2A2A */
-  --input: oklch(0.22 0 0);
-  --ring: oklch(0.91 0.18 127); /* Lime focus ring */
-
-  /* Status colors */
-  --destructive: oklch(0.63 0.24 29); /* Red */
-
-  /* Chart series - Dark mode. The same five hues re-stepped for the dark card
-     surface (#1a1a1a), not an automatic flip of the light values: all five
-     clear 3:1 here. */
-  --chart-1: oklch(0.622 0.161 255.1); /* blue */
-  --chart-2: oklch(0.622 0.173 40.1); /* orange */
-  --chart-3: oklch(0.621 0.128 163.1); /* aqua */
-  --chart-4: oklch(0.67 0.143 73.2); /* yellow */
-  --chart-5: oklch(0.622 0.171 0.8); /* magenta */
-
-  /* Severity - Dark mode. Re-stepped for the dark surface: the light pair
-     lands too close together against #1a1a1a to tell apart. */
-  --sev-error: oklch(0.584 0.209 26.6);
-  --sev-warning: oklch(0.67 0.143 73.2);
-  --sev-info: oklch(0.468 0 0);
   --status-ok: oklch(0.7 0.16 149);
-
-  /* Sidebar - Dark mode */
-  --sidebar: oklch(0.18 0 0);
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.91 0.18 127);
-  --sidebar-primary-foreground: oklch(0.2 0 0);
-  --sidebar-accent: oklch(0.22 0 0);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.22 0 0);
-  --sidebar-ring: oklch(0.91 0.18 127);
 }
 
 @layer base {
@@ -203,5 +109,114 @@
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+/*
+ * shadcn's Card, worn as the design system's card, from outside: the same
+ * radius, hairline and flat surface as `SettingSection`, and its title in the
+ * card-title step. Unlayered on purpose, so it beats the utilities baked into
+ * the CLI output. It goes with the rest of the bridge once no screen uses Card.
+ */
+[data-slot="card"] {
+  border-radius: var(--radius-2xl);
+  border-color: var(--border-subtle);
+  background-color: var(--surface);
+  box-shadow: none;
+}
+
+[data-slot="card-title"] {
+  font-size: var(--text-card-title);
+  line-height: var(--text-card-title--line-height);
+  font-weight: var(--text-card-title--font-weight);
+  color: var(--fg);
+}
+
+[data-slot="card-description"] {
+  font-size: var(--text-meta);
+  color: var(--fg-subtle);
+}
+
+/*
+ * The login's light coming on: the beam swings in from a steeper angle while
+ * it fades up, the shadow settles, and only then does the card catch it -- the
+ * edge first, then the highlight running along the top away from the source.
+ * Every animation ends where the static page already is, so `motion-safe:`
+ * alone is the reduced-motion story: without it nothing moves and the light is
+ * simply there.
+ */
+@theme {
+  --animate-login-beam: login-beam 1.8s var(--ease-entrance) both;
+  --animate-login-fade: login-fade 1.2s var(--ease-entrance) both;
+  --animate-login-wipe: login-wipe 1.6s var(--ease-entrance) both;
+  --animate-login-rise: login-rise 0.7s var(--ease-entrance) both;
+  --animate-login-sweep: login-sweep 1.6s var(--ease-entrance) both;
+
+  @keyframes login-beam {
+    from {
+      opacity: 0;
+      rotate: 14deg;
+    }
+  }
+
+  @keyframes login-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes login-rise {
+    from {
+      opacity: 0;
+      translate: 0 6px;
+      filter: blur(4px);
+    }
+  }
+
+  /* Light coming on from a corner: it brightens while its reach grows, and
+     the reach is a mask with a long feathered edge rather than a clip, so
+     there is never a hard front. The mask is a radial gradient anchored at
+     the source and scaled up; the element's own classes hold the end size. */
+  @keyframes login-sweep {
+    from {
+      opacity: 0;
+      mask-size: 60% 60%;
+    }
+  }
+
+  /* The highlight along the top edge, arriving from the source side. A
+     feathered mask slides across instead of a clip, so it has no hard front;
+     the element's own classes hold the end position. */
+  @keyframes login-wipe {
+    from {
+      opacity: 0;
+      mask-position: 0% 0%;
+    }
+  }
+}
+
+/* The login form's own blocks -- heading, SSO, the fields, the button --
+   follow the card in one after another, a beat apart. The form itself does
+   not move; its children do, so a block is never animated twice. */
+@media (prefers-reduced-motion: no-preference) {
+  .login-stagger > div > :not(form),
+  .login-stagger form > * {
+    animation: var(--animate-login-rise);
+    animation-delay: 250ms;
+  }
+  .login-stagger > div > :nth-child(2):not(form) {
+    animation-delay: 320ms;
+  }
+  .login-stagger > div > :nth-child(3):not(form) {
+    animation-delay: 390ms;
+  }
+  .login-stagger form > :nth-child(1) {
+    animation-delay: 340ms;
+  }
+  .login-stagger form > :nth-child(2) {
+    animation-delay: 410ms;
+  }
+  .login-stagger form > :nth-child(n + 3) {
+    animation-delay: 480ms;
   }
 }

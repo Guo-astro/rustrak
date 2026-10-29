@@ -43,6 +43,7 @@ pub async fn process_error_event(
         event_id: Uuid::parse_str(&metadata.event_id).unwrap_or_else(|_| Uuid::nil()),
         ingested_at: metadata.ingested_at,
         remote_addr: metadata.remote_addr.clone(),
+        keep_ai_spans: true,
     };
     processor.process(metadata.clone(), &ctx).await
 }

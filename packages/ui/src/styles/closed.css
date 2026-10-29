@@ -1,0 +1,28 @@
+/*
+ * What turns the tokens into a closed system.
+ *
+ * Tailwind's inherited namespaces are reset so there is no `bg-red-500` and no
+ * `text-sm` to smuggle a value in through: if a utility is not declared in
+ * `tokens.css`, it does not belong to the design. Storybook and any consumer
+ * built only on this package import it (through `index.css`). An application
+ * still migrating onto the package imports `tokens.css` alone, keeps its own
+ * utilities, and adds this file the day the last of them is gone.
+ */
+
+/*
+ * Dark is what you get by default, including with no attribute at all, so the
+ * `dark:` variant is written as "anything that is not light".
+ */
+@custom-variant dark (
+  &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *)
+);
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
+@theme {
+  --color-*: initial;
+  --shadow-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --ease-*: initial;
+}

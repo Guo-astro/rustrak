@@ -1,3 +1,5 @@
+import { Kbd, SearchIcon } from '@rustrak/ui';
+import { Command as CommandPrimitive } from 'cmdk';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
@@ -6,8 +8,7 @@ import {
   PROJECT_COMMANDS,
 } from '@/shared/config/commands';
 import { filterCommand } from '@/shared/lib/command-score';
-import { cn } from '@/shared/lib/utils';
-import { Command, CommandInput } from '@/shared/ui/components/shadcn/command';
+import { Command } from '@/shared/ui/components/shadcn/command';
 import {
   Dialog,
   DialogContent,
@@ -196,7 +197,7 @@ export function CommandBarDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="top-[10vh] flex max-h-[80svh] w-[calc(100%-2rem)] translate-y-0 flex-col gap-0 overflow-hidden rounded-xl! p-0 sm:max-w-[52rem]"
+        className="top-[14vh] flex max-h-[76svh] w-[calc(100%-2rem)] translate-y-0 flex-col gap-0 overflow-hidden rounded-2xl! border border-border bg-surface-floating p-0 text-fg shadow-overlay ring-0 sm:max-w-[42rem]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">
@@ -211,17 +212,14 @@ export function CommandBarDialog({
           filter={filterCommand}
           value={selected}
           onValueChange={setSelected}
-          className="min-h-0 flex-1 p-0"
+          className="min-h-0 flex-1 rounded-none! bg-transparent p-0"
         >
-          <div
-            className={cn(
-              'flex shrink-0 items-center gap-2 p-3',
-              '*:data-[slot=command-input-wrapper]:min-w-0',
-              '*:data-[slot=command-input-wrapper]:flex-1',
-              '*:data-[slot=command-input-wrapper]:p-0',
-            )}
-          >
-            <CommandInput
+          {/* The field is the palette's top edge rather than a box inside it:
+              no frame of its own, a rule under it, the way the design
+              system's search fields sit in their surface. */}
+          <div className="flex h-14 shrink-0 items-center gap-3 border-border-divider border-b px-4">
+            <SearchIcon size="lg" className="text-fg-ghost" />
+            <CommandPrimitive.Input
               ref={inputRef}
               // Base UI parks focus on the dialog popup itself, and cmdk
               // listens for arrow keys on its own root below that, so without
@@ -231,15 +229,16 @@ export function CommandBarDialog({
               value={query}
               onValueChange={search}
               onKeyDown={handleKeyDown}
-              className="h-10! text-[15px]!"
+              className="h-full min-w-0 flex-1 bg-transparent text-fg text-section font-normal tracking-normal outline-none placeholder:text-fg-placeholder"
               placeholder={t('commands.searchPlaceholder')}
             />
+            <Kbd>esc</Kbd>
           </div>
 
           {/* Fixed height so the list does not resize under the selection as
               it shortens with the query. It gives way only when the dialog
               hits its own cap, which is the short-viewport case. */}
-          <div className="flex h-[30rem] min-h-0 border-t border-foreground/10">
+          <div className="flex h-[26rem] min-h-0">
             <ResultsList
               ref={listRef}
               projects={projects}

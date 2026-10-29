@@ -1,75 +1,78 @@
-import type { IssueAggregates, IssueStatsResponse } from '@rustrak/client';
+import type { IssueStatsResponse } from '@rustrak/client';
+import { BarsChart, Text } from '@rustrak/ui';
 import { useFormatter, useTranslations } from 'use-intl';
-import { TagDistribution } from '@/features/issue/ui/components/tag-distribution';
-import { EventChart } from '@/shared/ui/components/event-chart';
 
 /**
- * The issue's last thirty days above the event: its counts and chart, and the
- * tags it spreads across.
+ * The issue over the last thirty days, as the first thing under the header:
+ * whether it is getting worse is the question every reader brings.
  *
- * Both inputs are decoration. `null` means the request failed, and renders the
- * same empty state as an issue that genuinely has no data.
+ * Lifetime totals are the rail's; this panel counts the window it draws, so
+ * the figure and the bars always agree. No user count here: the one there is
+ * read from the latest events with no date bound, and beside "30 days" it
+ * would claim a window it was not counted over. The rail has it.
  */
-export function EventTrends({
-  stats,
-  aggregates,
-}: {
-  stats: IssueStatsResponse | null;
-  aggregates: IssueAggregates | null;
-}) {
-  const t = useTranslations('projectPages');
+export function EventTrends({ stats }: { stats: IssueStatsResponse | null }) {
+  const t = useTranslations('issues');
   const format = useFormatter();
   // The spec types each bucket as `number[]`; the server sends a
-  // `[timestamp, count]` pair.
+  // `[timestamp, count]` pair, the timestamp in seconds.
   const buckets = (stats?.data ?? []) as [number, number][];
   const total = buckets.reduce((sum, [, count]) => sum + count, 0);
-  const tags = aggregates?.tags ?? [];
+  const data = buckets.map(([ts, count]) => ({
+    t: ts < 1e12 ? ts * 1000 : ts,
+    events: count,
+  }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
-      <div className="rounded-lg border bg-card p-4 flex gap-5">
-        <div className="shrink-0 space-y-3">
-          <Counter
-            label={t('event.events')}
-            value={format.number(total, 'compact')}
-          />
-          <Counter
-            label={t('event.users')}
-            value={format.number(aggregates?.user_count ?? 0, 'compact')}
-          />
+    <section className="rounded-xl border border-border-subtle bg-surface">
+      <header className="flex flex-wrap items-end justify-between gap-4 px-5 pt-4">
+        <div>
+          <h2 className="text-card-title text-fg">{t('detail.activity30d')}</h2>
+          <Text variant="meta" tone="subtle">
+            {t('detail.activity30dHint')}
+          </Text>
         </div>
-        <div className="flex-1 min-w-0">
-          {buckets.length > 0 ? (
-            <EventChart data={buckets} />
-          ) : (
-            <div className="h-[130px] flex items-center justify-center text-xs text-muted-foreground">
-              {t('event.noEventData')}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border bg-card p-4">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          {t('event.tags')}
-        </h3>
-        {tags.length > 0 ? (
-          <TagDistribution tags={tags.slice(0, 5)} />
+        <dl className="flex gap-6">
+          <Figure label={t('columns.events')} value={format.number(total)} />
+        </dl>
+      </header>
+      <div className="px-3 pt-3 pb-4">
+        {data.length > 0 ? (
+          <BarsChart
+            data={data}
+            series={[
+              {
+                key: 'events',
+                label: t('columns.events'),
+                color: 'var(--chart-1)',
+              },
+            ]}
+            xKey="t"
+            height={140}
+            formatX={(value) =>
+              format.dateTime(new Date(value), {
+                month: 'short',
+                day: 'numeric',
+              })
+            }
+            formatY={(value) => format.number(value, 'compact')}
+            label={t('detail.activity30d')}
+          />
         ) : (
-          <p className="text-xs text-muted-foreground">{t('event.noTags')}</p>
+          <p className="flex h-36 items-center justify-center text-meta text-fg-subtle">
+            {t('detail.noActivity')}
+          </p>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
-function Counter({ label, value }: { label: string; value: string }) {
+function Figure({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
+    <div className="flex flex-col sm:items-end">
+      <dt className="text-hint text-fg-meta">{label}</dt>
+      <dd className="text-section text-fg tabular-nums">{value}</dd>
     </div>
   );
 }

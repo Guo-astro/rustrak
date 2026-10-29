@@ -71,6 +71,7 @@ export const zAgentSummary = z.object({
  */
 export const zAgentTimeseriesPoint = z.object({
     bucket: z.iso.datetime({ offset: true }),
+    errors: z.int(),
     value: z.number()
 });
 
@@ -100,6 +101,17 @@ export const zAgentTraceSummary = z.object({
     tool_call_count: z.int(),
     total_tokens: z.number(),
     trace_id: z.string()
+});
+
+/**
+ * One UTC day of deliveries, by outcome: one rule's when the request named
+ * a rule, the whole project's otherwise.
+ */
+export const zAlertHistoryDay = z.object({
+    day: z.iso.datetime({ offset: true }),
+    failed: z.int(),
+    sent: z.int(),
+    skipped: z.int()
 });
 
 /**
@@ -425,6 +437,33 @@ export const zConfirmSsoLinkRequest = z.object({
     password: z.string()
 });
 
+export const zConversationSpan = z.object({
+    agent_name: z.string().nullable(),
+    duration_ms: z.number().nullable(),
+    id: z.uuid(),
+    input: z.string().nullable(),
+    model: z.string().nullable(),
+    operation_type: z.string(),
+    output: z.string().nullable(),
+    parent_span_id: z.string().nullable(),
+    span_id: z.string().nullable(),
+    start_timestamp: z.iso.datetime({ offset: true }).nullable(),
+    status: z.string().nullable(),
+    tool_calls: z.string().nullable(),
+    tool_name: z.string().nullable(),
+    total_tokens: z.number().nullable(),
+    trace_id: z.string()
+});
+
+/**
+ * A conversation in full: its AI spans across every turn, oldest first,
+ * each with what went in and came out, for a transcript.
+ */
+export const zAgentConversation = z.object({
+    conversation_id: z.string(),
+    spans: z.array(zConversationSpan)
+});
+
 /**
  * DTO for creating an alert rule
  */
@@ -739,7 +778,9 @@ export const zIssuePriority = z.enum([
 export const zIssueSort = z.enum([
     'digest_order',
     'last_seen',
-    'event_count'
+    'event_count',
+    'first_seen',
+    'priority'
 ]);
 
 export const zIssueStatsResponse = z.object({
@@ -887,6 +928,19 @@ export const zLogResponse = z.object({
     trace_id: z.string().nullable()
 });
 
+/**
+ * One bucket of the log volume: how many logs of each level it holds.
+ */
+export const zLogVolumePoint = z.object({
+    bucket: z.iso.datetime({ offset: true }),
+    debug: z.int(),
+    error: z.int(),
+    fatal: z.int(),
+    info: z.int(),
+    trace: z.int(),
+    warn: z.int()
+});
+
 export const zLoginRequest = z.object({
     email: z.string(),
     password: z.string()
@@ -956,6 +1010,31 @@ export const zMonitorEnvironmentResponse = z.object({
 });
 
 /**
+ * The check-ins of one bucket, counted by status.
+ */
+export const zMonitorStatsBucket = z.object({
+    avg_duration_ms: z.number().nullable(),
+    bucket: z.iso.datetime({ offset: true }),
+    duration_count: z.int(),
+    error: z.int(),
+    in_progress: z.int(),
+    missed: z.int(),
+    ok: z.int(),
+    timeout: z.int()
+});
+
+/**
+ * One environment of a monitor over a window, bucket by bucket: what
+ * `GET /monitor-stats` returns, Sentry's `monitors-stats`.
+ */
+export const zMonitorEnvironmentStats = z.object({
+    buckets: z.array(zMonitorStatsBucket),
+    environment: z.string(),
+    monitor_environment_id: z.uuid(),
+    monitor_slug: z.string()
+});
+
+/**
  * A connected client, as its user sees it.
  */
 export const zOAuthGrant = z.object({
@@ -990,6 +1069,23 @@ export const zPreviewTemplateResponse = z.object({
     ok: z.boolean(),
     rendered: z.string().nullish()
 });
+
+/**
+ * A kind of data a project can keep, and a route in its sidebar.
+ *
+ * Turning one off is not a view setting: its items are dropped at ingest,
+ * with a 200 as Relay drops filtered data, so nothing new is stored and the
+ * SDK does not retry. What was already stored stays.
+ */
+export const zProduct = z.enum([
+    'issues',
+    'feedback',
+    'releases',
+    'performance',
+    'agents',
+    'logs',
+    'crons'
+]);
 
 export const zProjectAge = z.object({
     events: zKindAge,
@@ -1033,10 +1129,12 @@ export const zProjectRepository = z.object({
 export const zProjectResponse = z.object({
     created_at: z.iso.datetime({ offset: true }),
     digested_event_count: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    disabled_products: z.array(zProduct),
     dsn: z.string(),
     id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
     name: z.string(),
     platform: z.string().nullable(),
+    product_order: z.array(zProduct),
     rate_limit_per_hour: z.int().nullable(),
     rate_limit_per_minute: z.int().nullable(),
     rate_limited_event_count: z.int(),
@@ -1199,6 +1297,32 @@ export const zReleaseResponse = z.object({
     dateCreated: z.iso.datetime({ offset: true }),
     dateReleased: z.iso.datetime({ offset: true }).nullable(),
     ref: z.string().nullable(),
+    url: z.string().nullable(),
+    version: z.string()
+});
+
+/**
+ * One release as the releases page reads it: its record, if CI created
+ * one, and what it brought -- events, new issues, environments and session
+ * health -- the shape of Sentry's release list with `health=1`.
+ *
+ * Counts and rates cover the asked window and environment; the dates do not,
+ * so a release keeps its age however narrow the window.
+ */
+export const zReleaseSummary = z.object({
+    adoption: z.number().nullable(),
+    crash_free_sessions: z.number().nullable(),
+    crash_free_users: z.number().nullable(),
+    crashed: z.int(),
+    date_created: z.iso.datetime({ offset: true }),
+    date_released: z.iso.datetime({ offset: true }).nullable(),
+    environments: z.array(z.string()),
+    event_count: z.int(),
+    first_event: z.iso.datetime({ offset: true }).nullable(),
+    last_event: z.iso.datetime({ offset: true }).nullable(),
+    new_issues: z.int(),
+    ref: z.string().nullable(),
+    sessions: z.int(),
     url: z.string().nullable(),
     version: z.string()
 });
@@ -1731,6 +1855,7 @@ export const zTransactionResponse = z.object({
     platform: z.string(),
     release: z.string(),
     start_timestamp: z.iso.datetime({ offset: true }).nullable(),
+    status: z.string().nullable(),
     timestamp: z.iso.datetime({ offset: true }),
     transaction_name: z.string()
 });
@@ -1742,13 +1867,29 @@ export const zTransactionResponse = z.object({
  * interpolation, matching Postgres `percentile_cont`).
  */
 export const zTransactionStatsResponse = z.object({
+    avg_ms: z.number(),
     count: z.int(),
     failure_rate: z.number(),
+    last_seen: z.iso.datetime({ offset: true }),
     op: z.string().nullable(),
     p50_ms: z.number(),
     p95_ms: z.number(),
     p99_ms: z.number(),
+    time_share: z.number(),
+    total_ms: z.number(),
     transaction_name: z.string()
+});
+
+/**
+ * One bucket of an endpoint's trend: how often it ran, how often it failed
+ * and how long it took.
+ */
+export const zTransactionTimeseriesPoint = z.object({
+    bucket: z.iso.datetime({ offset: true }),
+    count: z.int(),
+    failures: z.int(),
+    p50_ms: z.number(),
+    p95_ms: z.number()
 });
 
 /**
@@ -1764,6 +1905,7 @@ export const zUpdateAlertIntegration = z.object({
  * DTO for updating an alert rule
  */
 export const zUpdateAlertRule = z.object({
+    alert_type: zAlertType.nullish(),
     channels: z.array(zAlertRuleChannelInput).nullish(),
     conditions: z.record(z.string(), z.unknown()).nullish(),
     cooldown_minutes: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }).nullish(),
@@ -1815,8 +1957,10 @@ export const zUpdatePreferencesRequest = z.object({
  * DTO for updating a project
  */
 export const zUpdateProject = z.object({
+    disabled_products: z.array(zProduct).nullish(),
     name: z.string().nullish(),
     platform: z.string().nullish(),
+    product_order: z.array(zProduct).nullish(),
     rate_limit_per_hour: z.int().nullish(),
     rate_limit_per_minute: z.int().nullish(),
     slug: z.string().nullish()
@@ -2319,10 +2463,12 @@ export const zProjectsListResponse = z.object({
     items: z.array(z.object({
         created_at: z.iso.datetime({ offset: true }),
         digested_event_count: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+        disabled_products: z.array(zProduct),
         dsn: z.string(),
         id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
         name: z.string(),
         platform: z.string().nullable(),
+        product_order: z.array(zProduct),
         rate_limit_per_hour: z.int().nullable(),
         rate_limit_per_minute: z.int().nullable(),
         rate_limited_event_count: z.int(),
@@ -2373,6 +2519,48 @@ export const zProjectsUpdatePath = z.object({
  * Project updated
  */
 export const zProjectsUpdateResponse = zProjectResponse;
+
+export const zAgentsConversationsPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zAgentsConversationsQuery = z.object({
+    period_hours: z.int().nullish(),
+    environment: z.string().nullish(),
+    page: z.int().gte(1).optional(),
+    per_page: z.int().gte(1).lte(100).optional()
+});
+
+/**
+ * Offset-based paginated response wrapper
+ */
+export const zAgentsConversationsResponse = z.object({
+    items: z.array(z.object({
+        agent_names: z.array(z.string()),
+        conversation_id: z.string(),
+        error_count: z.int(),
+        first_seen: z.iso.datetime({ offset: true }).nullable(),
+        last_seen: z.iso.datetime({ offset: true }).nullable(),
+        llm_call_count: z.int(),
+        tool_call_count: z.int(),
+        total_tokens: z.number(),
+        turn_count: z.int()
+    })),
+    page: z.int(),
+    per_page: z.int(),
+    total_count: z.int(),
+    total_pages: z.int()
+});
+
+export const zAgentsConversationPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    conversation_id: z.string()
+});
+
+/**
+ * The conversation's AI spans across its turns
+ */
+export const zAgentsConversationResponse = zAgentConversation;
 
 export const zAgentsDurationPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
@@ -2508,7 +2696,19 @@ export const zAgentsTracesQuery = z.object({
     period_hours: z.int().nullish(),
     environment: z.string().nullish(),
     page: z.int().gte(1).optional(),
-    per_page: z.int().gte(1).lte(100).optional()
+    per_page: z.int().gte(1).lte(100).optional(),
+    agent: z.string().nullish(),
+    model: z.string().nullish(),
+    tool: z.string().nullish(),
+    errors: z.boolean().optional(),
+    sort: z.enum([
+        'newest',
+        'duration',
+        'tokens',
+        'llm_calls',
+        'tool_calls',
+        'errors'
+    ]).optional()
 });
 
 /**
@@ -2536,13 +2736,28 @@ export const zAlertRulesListHistoryPath = z.object({
 });
 
 export const zAlertRulesListHistoryQuery = z.object({
-    limit: z.int().optional()
+    limit: z.int().optional(),
+    rule_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }).optional()
 });
 
 /**
  * Alert history
  */
 export const zAlertRulesListHistoryResponse = z.array(zAlertHistory);
+
+export const zAlertRulesHistoryByDayPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zAlertRulesHistoryByDayQuery = z.object({
+    days: z.int().optional(),
+    rule_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }).optional()
+});
+
+/**
+ * Deliveries per UTC day, oldest first
+ */
+export const zAlertRulesHistoryByDayResponse = z.array(zAlertHistoryDay);
 
 export const zAlertRulesListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
@@ -2631,7 +2846,9 @@ export const zStatsGetEventTimeseriesPath = z.object({
 
 export const zStatsGetEventTimeseriesQuery = z.object({
     period: z.string().optional(),
-    interval: z.int().optional()
+    interval: z.int().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -2731,7 +2948,15 @@ export const zIssuesListQuery = z.object({
     filter: zIssueFilter.optional(),
     category: zIssueCategory.optional(),
     q: z.string().nullish(),
-    environment: z.string().nullish()
+    environment: z.string().nullish(),
+    release: z.string().nullish(),
+    level: z.string().nullish(),
+    priority: z.string().nullish(),
+    assigned: z.string().nullish(),
+    first_seen: z.string().nullish(),
+    last_seen: z.string().nullish(),
+    events_min: z.int().nullish(),
+    events_max: z.int().nullish()
 });
 
 /**
@@ -3068,7 +3293,9 @@ export const zLogsListQuery = z.object({
     page: z.int().gte(1).optional(),
     per_page: z.int().gte(1).lte(100).optional(),
     level: z.string().nullish(),
-    trace_id: z.string().nullish()
+    trace_id: z.string().nullish(),
+    query: z.string().nullish(),
+    period: z.string().nullish()
 });
 
 /**
@@ -3091,6 +3318,32 @@ export const zLogsListResponse = z.object({
     total_count: z.int(),
     total_pages: z.int()
 });
+
+export const zLogsVolumePath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zLogsVolumeQuery = z.object({
+    level: z.string().nullish(),
+    trace_id: z.string().nullish(),
+    query: z.string().nullish(),
+    period: z.string().nullish()
+});
+
+/**
+ * Log counts per level, bucket by bucket
+ */
+export const zLogsVolumeResponse = z.array(zLogVolumePoint);
+
+export const zLogsGetPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    log_id: z.uuid()
+});
+
+/**
+ * The log
+ */
+export const zLogsGetResponse = zLogResponse;
 
 export const zMembersListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
@@ -3121,6 +3374,20 @@ export const zMembersRemovePath = z.object({
  * Member removed
  */
 export const zMembersRemoveResponse = z.void();
+
+export const zMonitorsStatsPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zMonitorsStatsQuery = z.object({
+    period: z.string().nullish(),
+    slug: z.string().nullish()
+});
+
+/**
+ * Each monitor environment's check-ins by status, in sixty buckets on one axis
+ */
+export const zMonitorsStatsResponse = z.array(zMonitorEnvironmentStats);
 
 export const zMonitorsListPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
@@ -3204,6 +3471,60 @@ export const zMonitorsListCheckinsResponse = z.object({
     total_pages: z.int()
 });
 
+export const zReleasesListPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zReleasesListQuery = z.object({
+    environment: z.string().optional(),
+    period: z.string().optional(),
+    query: z.string().optional(),
+    page: z.int().optional(),
+    per_page: z.int().optional()
+});
+
+/**
+ * Offset-based paginated response wrapper
+ */
+export const zReleasesListResponse = z.object({
+    items: z.array(z.object({
+        adoption: z.number().nullable(),
+        crash_free_sessions: z.number().nullable(),
+        crash_free_users: z.number().nullable(),
+        crashed: z.int(),
+        date_created: z.iso.datetime({ offset: true }),
+        date_released: z.iso.datetime({ offset: true }).nullable(),
+        environments: z.array(z.string()),
+        event_count: z.int(),
+        first_event: z.iso.datetime({ offset: true }).nullable(),
+        last_event: z.iso.datetime({ offset: true }).nullable(),
+        new_issues: z.int(),
+        ref: z.string().nullable(),
+        sessions: z.int(),
+        url: z.string().nullable(),
+        version: z.string()
+    })),
+    page: z.int(),
+    per_page: z.int(),
+    total_count: z.int(),
+    total_pages: z.int()
+});
+
+export const zReleasesGetPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
+    release: z.string()
+});
+
+export const zReleasesGetQuery = z.object({
+    environment: z.string().optional(),
+    period: z.string().optional()
+});
+
+/**
+ * The release
+ */
+export const zReleasesGetResponse = zReleaseSummary;
+
 export const zReleasesNewIssuesPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),
     release: z.string()
@@ -3255,7 +3576,9 @@ export const zSessionsGetSummaryPath = z.object({
 });
 
 export const zSessionsGetSummaryQuery = z.object({
-    period: z.string().optional()
+    period: z.string().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -3269,7 +3592,9 @@ export const zSessionsGetTimeseriesPath = z.object({
 
 export const zSessionsGetTimeseriesQuery = z.object({
     period: z.string().optional(),
-    interval: z.int().optional()
+    interval: z.int().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -3343,7 +3668,9 @@ export const zStatsGetSummaryPath = z.object({
 });
 
 export const zStatsGetSummaryQuery = z.object({
-    period: z.string().optional()
+    period: z.string().optional(),
+    environment: z.string().optional(),
+    release: z.string().optional()
 });
 
 /**
@@ -3362,7 +3689,12 @@ export const zTransactionsListQuery = z.object({
     op: z.string().nullish(),
     status: z.string().nullish(),
     environment: z.string().nullish(),
-    release: z.string().nullish()
+    release: z.string().nullish(),
+    period: z.string().nullish(),
+    sort: z.union([
+        z.literal('recent'),
+        z.literal('slowest')
+    ]).nullish()
 });
 
 /**
@@ -3378,6 +3710,7 @@ export const zTransactionsListResponse = z.object({
         platform: z.string(),
         release: z.string(),
         start_timestamp: z.iso.datetime({ offset: true }).nullable(),
+        status: z.string().nullable(),
         timestamp: z.iso.datetime({ offset: true }),
         transaction_name: z.string()
     })),
@@ -3393,7 +3726,16 @@ export const zTransactionsGetStatsPath = z.object({
 
 export const zTransactionsGetStatsQuery = z.object({
     page: z.int().gte(1).optional(),
-    per_page: z.int().gte(1).lte(100).optional()
+    per_page: z.int().gte(1).lte(100).optional(),
+    environment: z.string().nullish(),
+    period: z.string().nullish(),
+    query: z.string().nullish(),
+    sort: z.enum([
+        'time_spent',
+        'count',
+        'avg',
+        'failure_rate'
+    ]).optional()
 });
 
 /**
@@ -3401,12 +3743,16 @@ export const zTransactionsGetStatsQuery = z.object({
  */
 export const zTransactionsGetStatsResponse = z.object({
     items: z.array(z.object({
+        avg_ms: z.number(),
         count: z.int(),
         failure_rate: z.number(),
+        last_seen: z.iso.datetime({ offset: true }),
         op: z.string().nullable(),
         p50_ms: z.number(),
         p95_ms: z.number(),
         p99_ms: z.number(),
+        time_share: z.number(),
+        total_ms: z.number(),
         transaction_name: z.string()
     })),
     page: z.int(),
@@ -3421,13 +3767,31 @@ export const zTransactionsGetStatGroupPath = z.object({
 
 export const zTransactionsGetStatGroupQuery = z.object({
     name: z.string(),
-    op: z.string().nullish()
+    op: z.string().nullish(),
+    environment: z.string().nullish(),
+    period: z.string().nullish()
 });
 
 /**
  * Aggregate stats for one (transaction, op) group
  */
 export const zTransactionsGetStatGroupResponse = zTransactionStatsResponse;
+
+export const zTransactionsGetStatGroupTimeseriesPath = z.object({
+    project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zTransactionsGetStatGroupTimeseriesQuery = z.object({
+    name: z.string(),
+    op: z.string().nullish(),
+    environment: z.string().nullish(),
+    period: z.string().nullish()
+});
+
+/**
+ * The endpoint's runs, failures, p50 and p95 per bucket, oldest first
+ */
+export const zTransactionsGetStatGroupTimeseriesResponse = z.array(zTransactionTimeseriesPoint);
 
 export const zTransactionsGetPath = z.object({
     project_id: z.int().min(-2147483648, { error: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' }),

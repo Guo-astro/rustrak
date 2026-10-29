@@ -1,5 +1,5 @@
 import type { RetentionSettings } from '@rustrak/client';
-import { Pencil, Search } from 'lucide-react';
+import { Button, EditIcon, Input, SearchIcon, Tag } from '@rustrak/ui';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import {
@@ -9,17 +9,10 @@ import {
   windowsFor,
 } from '@/features/storage/model/retention';
 import { formatBytes } from '@/shared/lib/utils';
-import { Badge } from '@/shared/ui/components/shadcn/badge';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { Input } from '@/shared/ui/components/shadcn/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/components/shadcn/table';
+import { SettingSection } from '@/shared/ui/components/setting-row';
+
+/** Header and body cells share their padding; the outer ones meet the card's. */
+const CELL = 'px-3 py-3 first:pl-5 last:pr-5';
 
 /** Past this many projects the table gets a search box. */
 const SEARCH_FROM = 8;
@@ -45,118 +38,121 @@ export function StorageProjects({
     days === null ? t('keep.forever') : t('keep.days', { count: days });
 
   return (
-    <section aria-labelledby="storage-projects" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2
-          id="storage-projects"
-          className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
-        >
-          {t('projects.title')}
-        </h2>
-        {projects.length > SEARCH_FROM && (
-          <div className="relative w-64">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('projects.search')}
-              aria-label={t('projects.search')}
-              className="pl-8"
-            />
-          </div>
-        )}
-      </div>
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('projects.project')}</TableHead>
-              <TableHead className="sm:w-[28%]">{t('projects.size')}</TableHead>
+    <SettingSection
+      title={t('projects.title')}
+      actions={
+        projects.length > SEARCH_FROM && (
+          <Input
+            size="sm"
+            boxClassName="w-64"
+            leading={<SearchIcon size="sm" aria-hidden="true" />}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('projects.search')}
+            aria-label={t('projects.search')}
+          />
+        )
+      }
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-value">
+          <thead>
+            <tr className="border-b border-border-divider text-start text-label text-fg-meta">
+              <th className={`${CELL} text-start font-medium`}>
+                {t('projects.project')}
+              </th>
+              <th className={`${CELL} text-start font-medium sm:w-1/4`}>
+                {t('projects.size')}
+              </th>
               {KINDS.map((k) => (
-                <TableHead key={k} className="hidden text-right lg:table-cell">
+                <th
+                  key={k}
+                  className={`${CELL} hidden text-end font-medium lg:table-cell`}
+                >
                   {t(`kind.${k}`)}
-                </TableHead>
+                </th>
               ))}
-              <TableHead className="text-right">
+              <th className={`${CELL} text-end font-medium`}>
                 {t('projects.retention')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
             {shown.length === 0 && (
-              <TableRow>
-                <TableCell
+              <tr>
+                <td
                   colSpan={6}
-                  className="py-8 text-center text-sm text-muted-foreground"
+                  className="px-5 py-8 text-center text-meta text-fg-subtle"
                 >
                   {projects.length === 0
                     ? t('projects.empty')
                     : t('projects.noMatch')}
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-            {shown.map((p) => {
-              return (
-                <TableRow key={p.id}>
-                  <TableCell className="max-w-36 truncate font-medium sm:max-w-56">
-                    {p.name}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="hidden h-1.5 flex-1 overflow-hidden rounded-full bg-muted sm:block">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${p.share * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-right font-medium tabular-nums sm:w-20">
-                        {formatBytes(p.bytes)}
-                      </span>
+            {shown.map((p) => (
+              <tr
+                key={p.id}
+                className="border-b border-border-divider last:border-b-0 hover:bg-surface-hover"
+              >
+                <td
+                  className={`${CELL} max-w-36 truncate font-medium text-fg sm:max-w-56`}
+                >
+                  {p.name}
+                </td>
+                <td className={CELL}>
+                  <div className="flex items-center gap-3">
+                    <div className="hidden h-1.5 flex-1 overflow-hidden rounded-full bg-surface-chip sm:block">
+                      <div
+                        className="h-full rounded-full bg-chart-1"
+                        style={{ width: `${p.share * 100}%` }}
+                      />
                     </div>
-                  </TableCell>
-                  {KINDS.map((k) => (
-                    <TableCell
-                      key={k}
-                      className="hidden text-right tabular-nums text-muted-foreground lg:table-cell"
-                    >
-                      {formatBytes(p.byKind[k])}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right">
-                    {/* The value is the action: one tap target, no extra
-                        column to crowd a phone. */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        onEditRetention({ id: p.id, name: p.name })
-                      }
-                      aria-label={t('projects.change', { project: p.name })}
-                      title={
-                        p.custom
-                          ? KINDS.map(
-                              (k) =>
-                                `${t(`kind.${k}`)} ${keep(windowsFor(settings, p.id)[WINDOW_FIELD[k]])}`,
-                            ).join(' · ')
-                          : undefined
-                      }
-                    >
-                      {p.custom ? (
-                        <Badge variant="secondary">{t('projects.own')}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {t('projects.general')}
-                        </span>
-                      )}
-                      <Pencil className="size-3.5 text-muted-foreground" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    <span className="text-end font-medium tabular-nums text-fg sm:w-20">
+                      {formatBytes(p.bytes)}
+                    </span>
+                  </div>
+                </td>
+                {KINDS.map((k) => (
+                  <td
+                    key={k}
+                    className={`${CELL} hidden text-end tabular-nums text-fg-subtle lg:table-cell`}
+                  >
+                    {formatBytes(p.byKind[k])}
+                  </td>
+                ))}
+                <td className={`${CELL} text-end`}>
+                  {/* The value is the action: one tap target, no extra
+                      column to crowd a phone. */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditRetention({ id: p.id, name: p.name })}
+                    aria-label={t('projects.change', { project: p.name })}
+                    title={
+                      p.custom
+                        ? KINDS.map(
+                            (k) =>
+                              `${t(`kind.${k}`)} ${keep(windowsFor(settings, p.id)[WINDOW_FIELD[k]])}`,
+                          ).join(' · ')
+                        : undefined
+                    }
+                  >
+                    {p.custom ? (
+                      <Tag variant="soft" tone="brand">
+                        {t('projects.own')}
+                      </Tag>
+                    ) : (
+                      t('projects.general')
+                    )}
+                    <EditIcon size="sm" aria-hidden="true" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </section>
+    </SettingSection>
   );
 }

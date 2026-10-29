@@ -39,21 +39,21 @@ import * as BreadcrumbsStories from './breadcrumbs.stories';
   <Breadcrumbs
     items={[
       { label: 'Issues', render: <a href="#issues" /> },
-      { label: 'CHECKOUT-API-4F2' },
+      { label: 'CHECKOUT-API-4F2', mono: true },
     ]}
   />
   <Breadcrumbs
     items={[
       { label: 'Releases', render: <a href="#releases" /> },
       { label: 'web@2026.8.1', render: <a href="#release" /> },
-      { label: 'CHECKOUT-API-4F2' },
+      { label: 'CHECKOUT-API-4F2', mono: true },
     ]}
   />
 </Stage>
 
 <Rule>
-  The last crumb is an identifier, so it is set in mono and it is not a link:
-  you are already there.
+  The last crumb is not a link: you are already there. An identifier says so
+  with `mono`; a section name stays in the prose face.
 </Rule>
 
 </Section>
@@ -61,10 +61,10 @@ import * as BreadcrumbsStories from './breadcrumbs.stories';
 <Section n="02" title="Guidelines">
 
 <DoDont>
-  <Do example={<Breadcrumbs items={[{ label: 'Issues', render: <a href="#i" /> }, { label: 'CHECKOUT-API-4F2' }]} />}>
+  <Do example={<Breadcrumbs items={[{ label: 'Issues', render: <a href="#i" /> }, { label: 'CHECKOUT-API-4F2', mono: true }]} />}>
     Two levels: the list, and the record.
   </Do>
-  <Dont example={<Breadcrumbs items={[{ label: 'Home', render: <a href="#h" /> }, { label: 'Projects', render: <a href="#p" /> }, { label: 'Checkout API', render: <a href="#c" /> }, { label: 'Issues', render: <a href="#i" /> }, { label: 'CHECKOUT-API-4F2' }]} />}>
+  <Dont example={<Breadcrumbs items={[{ label: 'Home', render: <a href="#h" /> }, { label: 'Projects', render: <a href="#p" /> }, { label: 'Checkout API', render: <a href="#c" /> }, { label: 'Issues', render: <a href="#i" /> }, { label: 'CHECKOUT-API-4F2', mono: true }]} />}>
     A file tree. The sidebar already carries the section.
   </Dont>
 </DoDont>

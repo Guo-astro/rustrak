@@ -18,6 +18,7 @@ use crate::ingest::{
     EnvelopeItemKind, EnvelopeParser, EventMetadata, MAX_ATTACHMENT_SIZE, MAX_COMPRESSED_SIZE,
 };
 use crate::models::monitor::{CheckIn, CheckInStatus, MonitorFailure};
+use crate::models::Product;
 use crate::services::monitor::MonitorService;
 use crate::services::RateLimitService;
 
@@ -119,6 +120,17 @@ pub async fn ingest_envelope(
     for item_kind in envelope.items {
         if item_kind.requires_event() {
             requires_event_id = true;
+        }
+        // A product the project turned off is dropped like filtered data: a
+        // 200 for the envelope, nothing stored, siblings kept.
+        if let Some(product) = product_of(&item_kind) {
+            if !auth.project.keeps(product) {
+                log::debug!(
+                    "dropping {product:?} item: turned off for project {}",
+                    auth.project.id
+                );
+                continue;
+            }
         }
         match item_kind {
             EnvelopeItemKind::Event(p) => {
@@ -260,6 +272,7 @@ pub async fn ingest_envelope(
             event_id: parsed_id,
             ingested_at,
             remote_addr: remote_addr.clone(),
+            keep_ai_spans: auth.project.keeps(Product::Agents),
         };
         drop_malformed_item(
             processors.transactions.process(txn_payload, &ctx).await,
@@ -275,6 +288,7 @@ pub async fn ingest_envelope(
             event_id: uuid::Uuid::nil(),
             ingested_at,
             remote_addr: remote_addr.clone(),
+            keep_ai_spans: auth.project.keeps(Product::Agents),
         };
         // One transaction for the whole span batch: per-item autocommit
         // INSERTs would each be their own SQLite transaction.
@@ -292,6 +306,7 @@ pub async fn ingest_envelope(
             event_id: uuid::Uuid::nil(),
             ingested_at,
             remote_addr: remote_addr.clone(),
+            keep_ai_spans: auth.project.keeps(Product::Agents),
         };
         for batch_payload in span_v2_items {
             drop_malformed_item(
@@ -534,6 +549,7 @@ pub async fn digest_stored_event(processors: &Processors, pool: &DbPool, metadat
         event_id: uuid::Uuid::parse_str(&metadata.event_id).unwrap_or_else(|_| uuid::Uuid::nil()),
         ingested_at: metadata.ingested_at,
         remote_addr: None,
+        keep_ai_spans: true,
     };
     for attempt in 0..4 {
         match processors.errors.process_ref(metadata, &ctx).await {
@@ -638,6 +654,7 @@ async fn recover_pending_events_once_with_status(
                 .unwrap_or_else(|_| uuid::Uuid::nil()),
             ingested_at: metadata.ingested_at,
             remote_addr: None,
+            keep_ai_spans: true,
         };
         let result = processors.errors.process_ref(&metadata, &ctx).await;
         if let Ok(Digested::RateLimited) = result {
@@ -693,6 +710,7 @@ fn direct_store_ctx(
         event_id,
         ingested_at,
         remote_addr: remote_addr.clone(),
+        keep_ai_spans: true,
     }
 }
 
@@ -999,6 +1017,12 @@ pub async fn cron_check_in(
         )?
     };
 
+    // Crons turned off: accepted and not stored, the same answer the envelope
+    // path gives, so a monitored job never sees a failure from its monitor.
+    if !auth.project.keeps(Product::Crons) {
+        return Ok(HttpResponse::Accepted().finish());
+    }
+
     process_check_in(
         &processors,
         &pool,
@@ -1008,4 +1032,21 @@ pub async fn cron_check_in(
     )
     .await?;
     Ok(HttpResponse::Accepted().finish())
+}
+
+/// The product an envelope item belongs to, when it is one a project can turn
+/// off. Error events are not: issues are always kept.
+fn product_of(item: &EnvelopeItemKind) -> Option<Product> {
+    match item {
+        EnvelopeItemKind::Transaction(_)
+        | EnvelopeItemKind::Span(_)
+        | EnvelopeItemKind::SpanV2Batch(_) => Some(Product::Performance),
+        EnvelopeItemKind::Session(_) | EnvelopeItemKind::Sessions(_) => Some(Product::Releases),
+        EnvelopeItemKind::Log(_) => Some(Product::Logs),
+        EnvelopeItemKind::CheckIn(_) => Some(Product::Crons),
+        EnvelopeItemKind::Feedback(_) | EnvelopeItemKind::UserReport(_) => Some(Product::Feedback),
+        EnvelopeItemKind::Event(_)
+        | EnvelopeItemKind::Attachment(_)
+        | EnvelopeItemKind::Other(..) => None,
+    }
 }

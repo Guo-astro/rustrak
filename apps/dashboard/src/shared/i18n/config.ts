@@ -124,6 +124,15 @@ export function formatsFor(timeZone: string) {
         dateStyle: 'medium',
         timeStyle: showZone ? 'long' : 'medium',
       },
+      /** A log line's clock: to the millisecond, since lines come in bursts. */
+      logLine: {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        fractionalSecondDigits: 3,
+      },
       /** Time only, for a breadcrumb inside one event. */
       time: {
         hour: '2-digit',
@@ -133,6 +142,8 @@ export function formatsFor(timeZone: string) {
       },
       /** A chart tick where the bucket is a day or wider. */
       axisDay: { month: 'short', day: 'numeric' },
+      /** A tick for a bucket that is a UTC day, read as that day anywhere. */
+      axisDayUtc: { month: 'short', day: 'numeric', timeZone: 'UTC' },
       /** A chart tick where the bucket is narrower than a day. */
       axisTime: {
         month: 'short',

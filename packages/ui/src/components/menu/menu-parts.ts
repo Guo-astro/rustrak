@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { popTransition } from '../../lib/motion';
 import { tv } from '../../lib/tv';
 import type { IconComponent } from '../icon/icon';
@@ -31,13 +32,13 @@ const menu = tv({
     popup: [
       'flex max-h-(--available-height) min-w-52 flex-col',
       'overflow-x-hidden overflow-y-auto',
-      'rounded-lg border border-border bg-surface-floating p-1.25',
+      'rounded-2xl border border-border bg-surface-floating p-1.5',
       'shadow-overlay',
       popTransition,
     ],
     item: [
       'group/item flex h-menu-item shrink-0 cursor-default items-center gap-2.5',
-      'rounded-sm px-2.5 text-control text-fg-muted outline-none select-none',
+      'rounded-md px-2.5 text-control text-fg-muted outline-none select-none',
       // The highlight runs ahead of the pointer, not behind it: no transition.
       'transition-none',
       'data-highlighted:bg-surface-selected data-highlighted:text-fg',
@@ -96,6 +97,14 @@ export interface MenuAction {
   id: string;
   label: string;
   icon?: IconComponent;
+  /** Drawn instead of the icon when the row is about a thing: a project tile. */
+  leading?: ReactNode;
+  /**
+   * The option currently in effect -- the project you are in, the period that
+   * applies. A lime tick at the end, and `aria-current` for whoever cannot see
+   * it.
+   */
+  selected?: boolean;
   /** The shortcut that does the same, so it is learned by reading. */
   shortcut?: string;
   /** A figure: how many are filtered, how many attachments there are. */

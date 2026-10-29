@@ -4,6 +4,8 @@
  * two live in one slice.
  */
 import type {
+  AlertHistory,
+  AlertHistoryDay,
   AlertIntegration,
   AlertRuleResponse,
   Result,
@@ -27,4 +29,38 @@ export async function listAlertRules(
 ): Promise<Result<AlertRuleResponse[], RustrakError>> {
   const client = await createClient();
   return client.alertRules.list({ path: { project_id: projectId } });
+}
+
+/** A project's deliveries, newest first; with `ruleId`, only that rule's. */
+export async function listAlertHistory(
+  projectId: number,
+  options?: { ruleId?: number; limit?: number },
+): Promise<Result<AlertHistory[], RustrakError>> {
+  const client = await createClient();
+  return client.alertRules.listHistory({
+    path: { project_id: projectId },
+    query: { rule_id: options?.ruleId, limit: options?.limit },
+  });
+}
+
+/** Deliveries per UTC day over the last `days`, every delivery counted. */
+export async function getAlertHistoryByDay(
+  projectId: number,
+  options: { ruleId?: number; days: number },
+): Promise<Result<AlertHistoryDay[], RustrakError>> {
+  const client = await createClient();
+  return client.alertRules.historyByDay({
+    path: { project_id: projectId },
+    query: { rule_id: options.ruleId, days: options.days },
+  });
+}
+
+export async function getAlertRule(
+  projectId: number,
+  ruleId: number,
+): Promise<Result<AlertRuleResponse, RustrakError>> {
+  const client = await createClient();
+  return client.alertRules.get({
+    path: { project_id: projectId, rule_id: ruleId },
+  });
 }

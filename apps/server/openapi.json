@@ -7,8 +7,8 @@
       "name": "Rustrak Team"
     },
     "license": {
-      "name": "GPL-3.0-only",
-      "identifier": "GPL-3.0-only"
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
     },
     "version": "0.21.1"
   },
@@ -2672,7 +2672,9 @@
                           "rate_limit_per_hour",
                           "created_at",
                           "updated_at",
-                          "platform"
+                          "platform",
+                          "disabled_products",
+                          "product_order"
                         ],
                         "properties": {
                           "created_at": {
@@ -2682,6 +2684,13 @@
                           "digested_event_count": {
                             "type": "integer",
                             "format": "int32"
+                          },
+                          "disabled_products": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/Product"
+                            },
+                            "description": "Products whose data this project drops at ingest."
                           },
                           "dsn": {
                             "type": "string"
@@ -2698,6 +2707,13 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "product_order": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/Product"
+                            },
+                            "description": "The order its sidebar lists the products in; the ones missing follow\nin their default order."
                           },
                           "rate_limit_per_hour": {
                             "type": [
@@ -3009,6 +3025,272 @@
           },
           "409": {
             "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/agents/conversations": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "GET /api/projects/{project_id}/agents/conversations\nLists conversations -- traces sharing a `gen_ai.conversation.id` -- the most recently active first.",
+        "operationId": "agents.conversations",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "period_hours",
+            "in": "query",
+            "description": "Lookback window in hours (default: all time, no filter).",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Restrict to spans reporting this environment (default: all).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed, default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "Items per page (default: 20, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated agent conversations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Offset-based paginated response wrapper",
+                  "required": [
+                    "items",
+                    "total_count",
+                    "page",
+                    "per_page",
+                    "total_pages"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "One conversation: every trace sharing a `gen_ai.conversation.id`, each a\nturn, with the totals of all of them -- a row of Sentry's conversations.",
+                        "required": [
+                          "conversation_id",
+                          "turn_count",
+                          "agent_names",
+                          "llm_call_count",
+                          "tool_call_count",
+                          "total_tokens",
+                          "error_count",
+                          "first_seen",
+                          "last_seen"
+                        ],
+                        "properties": {
+                          "agent_names": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Every agent that ran in it, earliest first."
+                          },
+                          "conversation_id": {
+                            "type": "string"
+                          },
+                          "error_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "first_seen": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "From the spans' start times, else their end times; `null` when no span\nof the conversation carries either, as a transaction's child can."
+                          },
+                          "last_seen": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "llm_call_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "tool_call_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "total_tokens": {
+                            "type": "number",
+                            "format": "double",
+                            "description": "`agent` spans excluded, as everywhere: their usage rolls up their children."
+                          },
+                          "turn_count": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "Traces in the conversation."
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "per_page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_count": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/agents/conversations/{conversation_id}": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "GET /api/projects/{project_id}/agents/conversations/{conversation_id}\nReturns every AI span of a conversation's turns, oldest first, with its input and output.",
+        "operationId": "agents.conversation",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "description": "The gen_ai.conversation.id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The conversation's AI spans across its turns",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConversation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3894,6 +4176,69 @@
               "maximum": 100,
               "minimum": 1
             }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "description": "Only the traces where this agent ran.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "description": "Only the traces that called this model (response model, else request).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tool",
+            "in": "query",
+            "description": "Only the traces that used this tool.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "errors",
+            "in": "query",
+            "description": "Only the traces with a failing AI span.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "How to rank them; newest first by default.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "How the agent traces are ranked; every ranking but newest is largest first.",
+              "enum": [
+                "newest",
+                "duration",
+                "tokens",
+                "llm_calls",
+                "tool_calls",
+                "errors"
+              ]
+            }
           }
         ],
         "responses": {
@@ -4047,6 +4392,16 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "rule_id",
+            "in": "query",
+            "description": "Only this alert rule's deliveries",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -4059,6 +4414,107 @@
                   "items": {
                     "$ref": "#/components/schemas/AlertHistory"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameter",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/alert-history/daily": {
+      "get": {
+        "tags": [
+          "Alert Rules"
+        ],
+        "summary": "Count a project's alert deliveries per day, by outcome.",
+        "operationId": "alertRules.historyByDay",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Days back, today included (default 14, max 90)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "query",
+            "description": "Only this alert rule's deliveries",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deliveries per UTC day, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlertHistoryDay"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameter",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -4653,6 +5109,24 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only events from this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only events from this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5242,6 +5716,104 @@
                 "string",
                 "null"
               ]
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only issues that had an event in this release.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Only these levels, comma-separated: `fatal,error`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "description": "Only these priorities, comma-separated: `high,medium`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "assigned",
+            "in": "query",
+            "description": "`none` for unassigned issues, or a user id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "first_seen",
+            "in": "query",
+            "description": "Only issues first seen within this window: `24h`, `7d`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "last_seen",
+            "in": "query",
+            "description": "Only issues last seen within this window: `24h`, `7d`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "events_min",
+            "in": "query",
+            "description": "Only issues with at least this many events.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "events_max",
+            "in": "query",
+            "description": "Only issues with at most this many events.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
             }
           }
         ],
@@ -7314,7 +7886,7 @@
         "tags": [
           "Logs"
         ],
-        "summary": "GET /api/projects/{project_id}/logs\nLists logs for a project with offset-based pagination (newest first by\nlog timestamp), optionally filtered by level/trace_id.",
+        "summary": "GET /api/projects/{project_id}/logs\nLists logs for a project with offset-based pagination (newest first by\nlog timestamp), optionally filtered by level, trace id, message and window.",
         "operationId": "logs.list",
         "parameters": [
           {
@@ -7366,6 +7938,30 @@
             "name": "trace_id",
             "in": "query",
             "description": "Filter by trace id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the logs whose message contains this, ignoring case.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
             "required": false,
             "schema": {
               "type": [
@@ -7470,6 +8066,183 @@
                       "format": "int64"
                     }
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/logs/volume": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "GET /api/projects/{project_id}/logs/volume\nCounts a project's logs per level over time, with the list's filters.",
+        "operationId": "logs.volume",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Filter by log level (trace/debug/info/warn/error/fatal).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "trace_id",
+            "in": "query",
+            "description": "Filter by trace id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the logs whose message contains this, ignoring case.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); since the oldest log if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log counts per level, bucket by bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogVolumePoint"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/logs/{log_id}": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "GET /api/projects/{project_id}/logs/{log_id}\nReturns one of a project's logs, wherever it falls in the list.",
+        "operationId": "logs.get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "log_id",
+            "in": "path",
+            "description": "Log ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogResponse"
                 }
               }
             }
@@ -7734,6 +8507,91 @@
           },
           "409": {
             "description": "Cannot remove last project admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/monitor-stats": {
+      "get": {
+        "tags": [
+          "Monitors"
+        ],
+        "summary": "GET /api/projects/{project_id}/monitor-stats\nCounts the check-ins of a project's monitors by status over a window, bucket by bucket.",
+        "operationId": "monitors.stats",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "The window (`24h`, `7d`, `30d`...); the last day if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "description": "Only this monitor.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Each monitor environment's check-ins by status, in sixty buckets on one axis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorEnvironmentStats"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -8272,6 +9130,313 @@
         ]
       }
     },
+    "/api/projects/{project_id}/releases": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Lists a project's releases, newest first, with the events, new issues,\nenvironments and session health of each.",
+        "operationId": "releases.list",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only the releases seen in this environment, and count only it",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Count only this window (24h, 7d, 14d...); all time if absent",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the versions containing this text, ignoring case",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed, default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "Items per page (default: 25, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Releases, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Offset-based paginated response wrapper",
+                  "required": [
+                    "items",
+                    "total_count",
+                    "page",
+                    "per_page",
+                    "total_pages"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "One release as the releases page reads it: its record, if CI created\none, and what it brought -- events, new issues, environments and session\nhealth -- the shape of Sentry's release list with `health=1`.\n\nCounts and rates cover the asked window and environment; the dates do not,\nso a release keeps its age however narrow the window.",
+                        "required": [
+                          "version",
+                          "date_created",
+                          "date_released",
+                          "ref",
+                          "url",
+                          "first_event",
+                          "last_event",
+                          "event_count",
+                          "new_issues",
+                          "environments",
+                          "sessions",
+                          "crashed",
+                          "crash_free_sessions",
+                          "crash_free_users",
+                          "adoption"
+                        ],
+                        "properties": {
+                          "adoption": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "format": "double",
+                            "description": "Its share of every release's sessions in the window, 0 to 1."
+                          },
+                          "crash_free_sessions": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "format": "double"
+                          },
+                          "crash_free_users": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "format": "double"
+                          },
+                          "crashed": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "date_created": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "The record's, else the first time the release was seen."
+                          },
+                          "date_released": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "environments": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Where it ran, from its events and its sessions."
+                          },
+                          "event_count": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "first_event": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "last_event": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "new_issues": {
+                            "type": "integer",
+                            "format": "int64",
+                            "description": "Error issues first seen in it."
+                          },
+                          "ref": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "sessions": {
+                            "type": "integer",
+                            "format": "int64"
+                          },
+                          "url": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "version": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "per_page": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_count": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_pages": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/releases/{release}": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Gets one release with its events, new issues, environments and session\nhealth.",
+        "operationId": "releases.get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "release",
+            "in": "path",
+            "description": "Release version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Count only this environment",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Count only this window; all time if absent",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "No such release in this project"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/projects/{project_id}/releases/{release}/new-issues": {
       "get": {
         "tags": [
@@ -8541,6 +9706,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only sessions from this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only sessions from this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8603,6 +9786,24 @@
             "schema": {
               "type": "integer",
               "format": "int64"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only sessions from this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only sessions from this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -9084,6 +10285,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only events, and issues seen, in this environment. Omit for every environment.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "description": "Only events, and issues seen, in this release. Omit for every release.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -9211,6 +10430,39 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "`slowest` for the longest first; newest first otherwise.",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "The order of a transaction list.",
+                  "enum": [
+                    "recent",
+                    "slowest"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
           }
         ],
         "responses": {
@@ -9244,7 +10496,8 @@
                           "platform",
                           "environment",
                           "release",
-                          "ingested_at"
+                          "ingested_at",
+                          "status"
                         ],
                         "properties": {
                           "duration_ms": {
@@ -9282,6 +10535,13 @@
                               "null"
                             ],
                             "format": "date-time"
+                          },
+                          "status": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Trace status (`ok`, `internal_error`...), if the SDK sent one."
                           },
                           "timestamp": {
                             "type": "string",
@@ -9347,7 +10607,7 @@
         "tags": [
           "Transactions"
         ],
-        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, p50/p95/p99 latency,\nfailure rate) grouped by transaction name + op, most frequent first.",
+        "summary": "GET /api/projects/{project_id}/transactions/stats\nReturns paginated aggregate performance stats (count, time spent, p50/p95/p99\nlatency, failure rate) grouped by transaction name + op, the most time spent\nfirst unless `sort` asks otherwise.",
         "operationId": "transactions.getStats",
         "parameters": [
           {
@@ -9382,6 +10642,58 @@
               "maximum": 100,
               "minimum": 1
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only this environment.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Only the endpoints whose name contains this, ignoring case.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "How to rank them; most time spent in all by default.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "How the endpoints are ranked.",
+              "enum": [
+                "time_spent",
+                "count",
+                "avg",
+                "failure_rate"
+              ]
+            }
           }
         ],
         "responses": {
@@ -9412,9 +10724,17 @@
                           "p50_ms",
                           "p95_ms",
                           "p99_ms",
-                          "failure_rate"
+                          "failure_rate",
+                          "avg_ms",
+                          "total_ms",
+                          "time_share",
+                          "last_seen"
                         ],
                         "properties": {
+                          "avg_ms": {
+                            "type": "number",
+                            "format": "double"
+                          },
                           "count": {
                             "type": "integer",
                             "format": "int64",
@@ -9424,6 +10744,10 @@
                             "type": "number",
                             "format": "double",
                             "description": "Fraction (0.0–1.0) of transactions whose trace status is set and not \"ok\"."
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time"
                           },
                           "op": {
                             "type": [
@@ -9442,6 +10766,16 @@
                           "p99_ms": {
                             "type": "number",
                             "format": "double"
+                          },
+                          "time_share": {
+                            "type": "number",
+                            "format": "double",
+                            "description": "Its share, 0 to 1, of the time every endpoint in the same read takes."
+                          },
+                          "total_ms": {
+                            "type": "number",
+                            "format": "double",
+                            "description": "Every sample's duration added up: how much time the endpoint takes in all."
                           },
                           "transaction_name": {
                             "type": "string"
@@ -9536,6 +10870,30 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only this environment.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -9561,6 +10919,112 @@
           },
           "404": {
             "description": "Group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/projects/{project_id}/transactions/stats/group/timeseries": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Returns one endpoint's trend over the window, every bucket present:\nhow often it ran and failed, and its p50 and p95. Without a window, back\nto its oldest call and never less than the last 24 hours, which is also\nwhat an endpoint with no calls gets.",
+        "operationId": "transactions.getStatGroupTimeseries",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Exact transaction name of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "description": "Trace operation of the group (omit for groups with no op).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "description": "Only this environment.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Only this window (`24h`, `7d`, `14d`...); all time if absent.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The endpoint's runs, failures, p50 and p95 per bucket, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionTimeseriesPoint"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -12099,6 +13563,25 @@
           }
         }
       },
+      "AgentConversation": {
+        "type": "object",
+        "description": "A conversation in full: its AI spans across every turn, oldest first,\neach with what went in and came out, for a transcript.",
+        "required": [
+          "conversation_id",
+          "spans"
+        ],
+        "properties": {
+          "conversation_id": {
+            "type": "string"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationSpan"
+            }
+          }
+        }
+      },
       "AgentDurationPoint": {
         "type": "object",
         "description": "avg/p95 duration for one time bucket.",
@@ -12229,12 +13712,18 @@
         "description": "One time-bucketed value (count or sum) — mirrors `SessionTimeseriesPoint`.",
         "required": [
           "bucket",
-          "value"
+          "value",
+          "errors"
         ],
         "properties": {
           "bucket": {
             "type": "string",
             "format": "date-time"
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Of the bucket's spans, those whose status is set and not `ok`."
           },
           "value": {
             "type": "number",
@@ -12433,6 +13922,35 @@
           },
           "status": {
             "$ref": "#/components/schemas/AlertStatus"
+          }
+        }
+      },
+      "AlertHistoryDay": {
+        "type": "object",
+        "description": "One UTC day of deliveries, by outcome: one rule's when the request named\na rule, the whole project's otherwise.",
+        "required": [
+          "day",
+          "sent",
+          "failed",
+          "skipped"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Midnight UTC."
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -13335,6 +14853,118 @@
         ],
         "properties": {
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ConversationSpan": {
+        "type": "object",
+        "required": [
+          "id",
+          "trace_id",
+          "span_id",
+          "parent_span_id",
+          "operation_type",
+          "agent_name",
+          "model",
+          "tool_name",
+          "status",
+          "start_timestamp",
+          "duration_ms",
+          "total_tokens",
+          "input",
+          "output",
+          "tool_calls"
+        ],
+        "properties": {
+          "agent_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "input": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The prompt or the tool's arguments, verbatim."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The response model, else the request model."
+          },
+          "operation_type": {
+            "type": "string",
+            "description": "`agent`, `ai_client`, `tool` or `handoff`."
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The answer or the tool's result, verbatim."
+          },
+          "parent_span_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "span_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start_timestamp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_calls": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The tool calls the model asked for."
+          },
+          "tool_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total_tokens": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "trace_id": {
             "type": "string"
           }
         }
@@ -14490,7 +16120,9 @@
         "enum": [
           "digest_order",
           "last_seen",
-          "event_count"
+          "event_count",
+          "first_seen",
+          "priority"
         ]
       },
       "IssueStatsResponse": {
@@ -14698,6 +16330,50 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "LogVolumePoint": {
+        "type": "object",
+        "description": "One bucket of the log volume: how many logs of each level it holds.",
+        "required": [
+          "bucket",
+          "trace",
+          "debug",
+          "info",
+          "warn",
+          "error",
+          "fatal"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Where the bucket starts."
+          },
+          "debug": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fatal": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "info": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trace": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "warn": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -14949,6 +16625,35 @@
           }
         }
       },
+      "MonitorEnvironmentStats": {
+        "type": "object",
+        "description": "One environment of a monitor over a window, bucket by bucket: what\n`GET /monitor-stats` returns, Sentry's `monitors-stats`.",
+        "required": [
+          "monitor_slug",
+          "monitor_environment_id",
+          "environment",
+          "buckets"
+        ],
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonitorStatsBucket"
+            },
+            "description": "Oldest first, every environment of the response on the same axis."
+          },
+          "environment": {
+            "type": "string"
+          },
+          "monitor_environment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "monitor_slug": {
+            "type": "string"
+          }
+        }
+      },
       "MonitorEnvironmentStatus": {
         "type": "string",
         "description": "Health of one monitor environment.",
@@ -14995,6 +16700,60 @@
           },
           "slug": {
             "type": "string"
+          }
+        }
+      },
+      "MonitorStatsBucket": {
+        "type": "object",
+        "description": "The check-ins of one bucket, counted by status.",
+        "required": [
+          "bucket",
+          "ok",
+          "error",
+          "missed",
+          "timeout",
+          "in_progress",
+          "avg_duration_ms",
+          "duration_count"
+        ],
+        "properties": {
+          "avg_duration_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Mean duration of the bucket's check-ins that reported one."
+          },
+          "bucket": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Where the bucket starts."
+          },
+          "duration_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many check-ins reported a duration: the mean's weight when buckets\nare averaged together."
+          },
+          "error": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "in_progress": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "missed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ok": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeout": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -15105,6 +16864,19 @@
             ]
           }
         }
+      },
+      "Product": {
+        "type": "string",
+        "description": "A kind of data a project can keep, and a route in its sidebar.\n\nTurning one off is not a view setting: its items are dropped at ingest,\nwith a 200 as Relay drops filtered data, so nothing new is stored and the\nSDK does not retry. What was already stored stays.",
+        "enum": [
+          "issues",
+          "feedback",
+          "releases",
+          "performance",
+          "agents",
+          "logs",
+          "crons"
+        ]
       },
       "ProjectAge": {
         "type": "object",
@@ -15305,7 +17077,9 @@
           "rate_limit_per_hour",
           "created_at",
           "updated_at",
-          "platform"
+          "platform",
+          "disabled_products",
+          "product_order"
         ],
         "properties": {
           "created_at": {
@@ -15315,6 +17089,13 @@
           "digested_event_count": {
             "type": "integer",
             "format": "int32"
+          },
+          "disabled_products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "Products whose data this project drops at ingest."
           },
           "dsn": {
             "type": "string"
@@ -15331,6 +17112,13 @@
               "string",
               "null"
             ]
+          },
+          "product_order": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "The order its sidebar lists the products in; the ones missing follow\nin their default order."
           },
           "rate_limit_per_hour": {
             "type": [
@@ -15662,6 +17450,116 @@
               "string",
               "null"
             ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ReleaseSummary": {
+        "type": "object",
+        "description": "One release as the releases page reads it: its record, if CI created\none, and what it brought -- events, new issues, environments and session\nhealth -- the shape of Sentry's release list with `health=1`.\n\nCounts and rates cover the asked window and environment; the dates do not,\nso a release keeps its age however narrow the window.",
+        "required": [
+          "version",
+          "date_created",
+          "date_released",
+          "ref",
+          "url",
+          "first_event",
+          "last_event",
+          "event_count",
+          "new_issues",
+          "environments",
+          "sessions",
+          "crashed",
+          "crash_free_sessions",
+          "crash_free_users",
+          "adoption"
+        ],
+        "properties": {
+          "adoption": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Its share of every release's sessions in the window, 0 to 1."
+          },
+          "crash_free_sessions": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "crash_free_users": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "crashed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "date_created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The record's, else the first time the release was seen."
+          },
+          "date_released": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where it ran, from its events and its sessions."
+          },
+          "event_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "first_event": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_event": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "new_issues": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Error issues first seen in it."
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int64"
           },
           "url": {
             "type": [
@@ -16938,6 +18836,7 @@
           },
           "total_values": {
             "type": "integer",
+            "description": "The scanned events carrying the tag, whatever its value: Sentry's\n`totalValues` (`GroupTagKey.count`), so each top value's share is its\n`count` over this.",
             "minimum": 0
           }
         }
@@ -17161,7 +19060,8 @@
           "platform",
           "environment",
           "release",
-          "ingested_at"
+          "ingested_at",
+          "status"
         ],
         "properties": {
           "duration_ms": {
@@ -17200,6 +19100,13 @@
             ],
             "format": "date-time"
           },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Trace status (`ok`, `internal_error`...), if the SDK sent one."
+          },
           "timestamp": {
             "type": "string",
             "format": "date-time"
@@ -17219,9 +19126,17 @@
           "p50_ms",
           "p95_ms",
           "p99_ms",
-          "failure_rate"
+          "failure_rate",
+          "avg_ms",
+          "total_ms",
+          "time_share",
+          "last_seen"
         ],
         "properties": {
+          "avg_ms": {
+            "type": "number",
+            "format": "double"
+          },
           "count": {
             "type": "integer",
             "format": "int64",
@@ -17231,6 +19146,10 @@
             "type": "number",
             "format": "double",
             "description": "Fraction (0.0–1.0) of transactions whose trace status is set and not \"ok\"."
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
           },
           "op": {
             "type": [
@@ -17250,8 +19169,51 @@
             "type": "number",
             "format": "double"
           },
+          "time_share": {
+            "type": "number",
+            "format": "double",
+            "description": "Its share, 0 to 1, of the time every endpoint in the same read takes."
+          },
+          "total_ms": {
+            "type": "number",
+            "format": "double",
+            "description": "Every sample's duration added up: how much time the endpoint takes in all."
+          },
           "transaction_name": {
             "type": "string"
+          }
+        }
+      },
+      "TransactionTimeseriesPoint": {
+        "type": "object",
+        "description": "One bucket of an endpoint's trend: how often it ran, how often it failed\nand how long it took.",
+        "required": [
+          "bucket",
+          "count",
+          "failures",
+          "p50_ms",
+          "p95_ms"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "p50_ms": {
+            "type": "number",
+            "format": "double"
+          },
+          "p95_ms": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -17283,6 +19245,17 @@
         "type": "object",
         "description": "DTO for updating an alert rule",
         "properties": {
+          "alert_type": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AlertType",
+                "description": "What the rule fires on; rules are independent, so any trigger may change."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "channels": {
             "type": [
               "array",
@@ -17427,6 +19400,16 @@
         "type": "object",
         "description": "DTO for updating a project",
         "properties": {
+          "disabled_products": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "The products to stop storing, replacing the current list. `issues`\ncannot be one of them (400). Data already stored is kept."
+          },
           "name": {
             "type": [
               "string",
@@ -17439,6 +19422,16 @@
               "null"
             ],
             "description": "Manual override of the project's platform, such as `python-django` or\n`javascript-nextjs`. Rejected with a 400 if it is not one of the\nsupported values.\n\nThe supported set is wider than the platforms an event may declare, so\nframework-specific identifiers are accepted here. An update overwrites\nany auto-assigned value, which is how a wrong detection is corrected.\nSending `null` leaves the current value untouched rather than clearing\nit."
+          },
+          "product_order": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "The sidebar's order of products, replacing the current one."
           },
           "rate_limit_per_hour": {
             "type": [

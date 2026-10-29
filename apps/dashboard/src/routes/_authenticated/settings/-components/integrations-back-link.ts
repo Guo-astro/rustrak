@@ -10,5 +10,5 @@ export function integrationProjectId(value: unknown): number | undefined {
 }
 
 export function integrationsBackHref(projectId?: number): string {
-  return projectId ? `/projects/${projectId}/settings/alerts` : '/projects';
+  return projectId ? `/projects/${projectId}/alerts` : '/projects';
 }

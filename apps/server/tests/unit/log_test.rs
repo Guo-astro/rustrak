@@ -82,6 +82,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
 
         let body = bytes::Bytes::from(body);
@@ -126,6 +127,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         LogsProcessor
             .process(bytes::Bytes::from(body), &ctx)
@@ -160,6 +162,7 @@ mod level2 {
             event_id: Uuid::new_v4(),
             ingested_at: Utc::now(),
             remote_addr: None,
+            keep_ai_spans: true,
         };
         LogsProcessor
             .process(bytes::Bytes::from(body), &ctx)
@@ -266,4 +269,13 @@ fn test_parse_container_keeps_sub_millisecond_after_epoch() {
         LogContainer::parse(br#"{"items":[{"timestamp":0.0005},{"timestamp":0.0}]}"#).unwrap();
     assert!(logs[0].timestamp.is_some());
     assert!(logs[1].timestamp.is_none());
+}
+
+#[test]
+fn test_volume_counts_a_level_it_does_not_know_as_info() {
+    // Ingestion keeps levels outside the six; the chart must not drop them.
+    let mut point = rustrak::models::LogVolumePoint::empty(0);
+    point.add("notice", 2);
+    point.add("info", 1);
+    assert_eq!(point.info, 3);
 }

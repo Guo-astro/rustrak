@@ -1,12 +1,15 @@
 import { fromLucide } from './adapters/lucide';
 import {
   ArrowDownRight,
+  ArrowLeft,
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
   Bell,
   Bookmark,
+  BookOpen,
   Bot,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -17,6 +20,7 @@ import {
   ChevronUp,
   CircleAlert,
   CircleCheck,
+  CircleHelp,
   CircleX,
   Clock,
   Columns3,
@@ -26,19 +30,30 @@ import {
   EllipsisVertical,
   ExternalLink,
   Eye,
+  EyeOff,
   GitBranch,
   GitCommitHorizontal,
   GitMerge,
+  GripVertical,
+  HardDrive,
+  House,
   Inbox,
+  KeyRound,
   LayoutDashboard,
   Link,
   ListFilter,
   LoaderCircle,
+  LogOut,
   Menu,
   MessageSquare,
   Minus,
+  Palette,
   PanelLeft,
   PanelRight,
+  Paperclip,
+  Pencil,
+  Play,
+  Plug,
   Plus,
   RefreshCw,
   Rocket,
@@ -75,15 +90,22 @@ import type { IconComponent } from './icon';
  * three different check marks.
  */
 
-/* --- Navigation · the sidebar's seven destinations ------------------------ */
+/* --- Navigation · the sidebar's destinations ----------------------------- */
 
-export const OverviewIcon = fromLucide('OverviewIcon', LayoutDashboard);
+/** A project's front page. The house, because it is where you land. */
+export const OverviewIcon = fromLucide('OverviewIcon', House);
+/** Every project at once: the workspace, above any one of them. */
+export const ProjectsIcon = fromLucide('ProjectsIcon', LayoutDashboard);
 export const IssuesIcon = fromLucide('IssuesIcon', CircleAlert);
 export const ReleasesIcon = fromLucide('ReleasesIcon', Rocket);
 export const PerformanceIcon = fromLucide('PerformanceIcon', Zap);
 export const AgentsIcon = fromLucide('AgentsIcon', Bot);
 export const LogsIcon = fromLucide('LogsIcon', ScrollText);
+export const CronsIcon = fromLucide('CronsIcon', CalendarClock);
+export const FeedbackIcon = fromLucide('FeedbackIcon', MessageSquare);
 export const SettingsIcon = fromLucide('SettingsIcon', Settings);
+export const DocsIcon = fromLucide('DocsIcon', BookOpen);
+export const SignOutIcon = fromLucide('SignOutIcon', LogOut);
 
 /* --- Directions ----------------------------------------------------------- */
 
@@ -97,6 +119,8 @@ export const CollapsePanelIcon = fromLucide('CollapsePanelIcon', ChevronsLeft);
 export const ExpandPanelIcon = fromLucide('ExpandPanelIcon', ChevronsRight);
 export const PanelLeftIcon = fromLucide('PanelLeftIcon', PanelLeft);
 export const PanelRightIcon = fromLucide('PanelRightIcon', PanelRight);
+/** Out of where you are, up one level: from a project to all of them. */
+export const BackIcon = fromLucide('BackIcon', ArrowLeft);
 export const ArrowRightIcon = fromLucide('ArrowRightIcon', ArrowRight);
 /** A figure that went up. In this product that is usually bad news. */
 export const TrendUpIcon = fromLucide('TrendUpIcon', ArrowUpRight);
@@ -113,6 +137,10 @@ export const NewIcon = fromLucide('NewIcon', Plus);
 export const RemoveIcon = fromLucide('RemoveIcon', Minus);
 export const CloseIcon = fromLucide('CloseIcon', X);
 export const CopyIcon = fromLucide('CopyIcon', Copy);
+/** Send a test: an alert channel's "try it". */
+export const TestIcon = fromLucide('TestIcon', Play);
+/** Take a value over by hand: a slug that stops following its name. */
+export const EditIcon = fromLucide('EditIcon', Pencil);
 export const ExportIcon = fromLucide('ExportIcon', Download);
 export const RefreshIcon = fromLucide('RefreshIcon', RefreshCw);
 export const DeleteIcon = fromLucide('DeleteIcon', Trash2);
@@ -120,14 +148,20 @@ export const OverflowIcon = fromLucide('OverflowIcon', EllipsisVertical);
 /** The horizontal ellipsis, for a row's inline menu. */
 export const MoreIcon = fromLucide('MoreIcon', Ellipsis);
 export const MenuIcon = fromLucide('MenuIcon', Menu);
+/** The handle a row is dragged by to reorder it. */
+export const DragIcon = fromLucide('DragIcon', GripVertical);
+export const AppearanceIcon = fromLucide('AppearanceIcon', Palette);
 export const ExternalLinkIcon = fromLucide('ExternalLinkIcon', ExternalLink);
 export const LinkIcon = fromLucide('LinkIcon', Link);
+export const AttachmentIcon = fromLucide('AttachmentIcon', Paperclip);
 export const AssignIcon = fromLucide('AssignIcon', Users);
 export const SaveViewIcon = fromLucide('SaveViewIcon', Bookmark);
 export const StarIcon = fromLucide('StarIcon', Star);
 export const CommentIcon = fromLucide('CommentIcon', MessageSquare);
 export const AutofixIcon = fromLucide('AutofixIcon', Sparkles);
 export const ConfigureIcon = fromLucide('ConfigureIcon', Wrench);
+/** The tick beside the option that is in effect: the current project. */
+export const SelectedIcon = fromLucide('SelectedIcon', Check);
 
 /* --- Issue lifecycle ------------------------------------------------------
    The three verbs an issue understands. `resolve` is a plain check because it
@@ -150,11 +184,16 @@ export const ErrorIcon = fromLucide('ErrorIcon', CircleX);
 export const WarningIcon = fromLucide('WarningIcon', TriangleAlert);
 export const OkIcon = fromLucide('OkIcon', CircleCheck);
 export const InfoIcon = fromLucide('InfoIcon', CircleAlert);
+/** "How does this work?": opens an explanation, never a setting. */
+export const HelpIcon = fromLucide('HelpIcon', CircleHelp);
 export const SpinnerIcon = fromLucide('SpinnerIcon', LoaderCircle);
 export const NotificationIcon = fromLucide('NotificationIcon', Bell);
 export const TimeIcon = fromLucide('TimeIcon', Clock);
 export const EmptyIcon = fromLucide('EmptyIcon', Inbox);
 export const WatchIcon = fromLucide('WatchIcon', Eye);
+/** A secret field's reveal toggle: what shows the value, and what hides it. */
+export const RevealIcon = fromLucide('RevealIcon', Eye);
+export const ConcealIcon = fromLucide('ConcealIcon', EyeOff);
 
 /* --- Entities -------------------------------------------------------------
    What the data is about, rather than which page shows it. */
@@ -165,6 +204,10 @@ export const MergeIcon = fromLucide('MergeIcon', GitMerge);
 export const EnvironmentIcon = fromLucide('EnvironmentIcon', Server);
 export const MemberIcon = fromLucide('MemberIcon', User);
 export const TeamIcon = fromLucide('TeamIcon', Users);
+export const IntegrationsIcon = fromLucide('IntegrationsIcon', Plug);
+export const StorageIcon = fromLucide('StorageIcon', HardDrive);
+/** An API token: what lets something other than a person in. */
+export const TokensIcon = fromLucide('TokensIcon', KeyRound);
 
 /**
  * The same icons reachable by name, for navigation and action bars that are
@@ -172,6 +215,12 @@ export const TeamIcon = fromLucide('TeamIcon', Users);
  */
 export const icons = {
   overview: OverviewIcon,
+  projects: ProjectsIcon,
+  crons: CronsIcon,
+  feedback: FeedbackIcon,
+  docs: DocsIcon,
+  signOut: SignOutIcon,
+  selected: SelectedIcon,
   issues: IssuesIcon,
   releases: ReleasesIcon,
   performance: PerformanceIcon,
@@ -187,6 +236,7 @@ export const icons = {
   expandPanel: ExpandPanelIcon,
   panelLeft: PanelLeftIcon,
   panelRight: PanelRightIcon,
+  back: BackIcon,
   arrowRight: ArrowRightIcon,
   trendUp: TrendUpIcon,
   trendDown: TrendDownIcon,
@@ -199,14 +249,19 @@ export const icons = {
   remove: RemoveIcon,
   close: CloseIcon,
   copy: CopyIcon,
+  test: TestIcon,
+  edit: EditIcon,
   export: ExportIcon,
   refresh: RefreshIcon,
   delete: DeleteIcon,
   overflow: OverflowIcon,
   more: MoreIcon,
   menu: MenuIcon,
+  drag: DragIcon,
+  appearance: AppearanceIcon,
   externalLink: ExternalLinkIcon,
   link: LinkIcon,
+  attachment: AttachmentIcon,
   assign: AssignIcon,
   saveView: SaveViewIcon,
   star: StarIcon,
@@ -221,6 +276,7 @@ export const icons = {
   warning: WarningIcon,
   ok: OkIcon,
   info: InfoIcon,
+  help: HelpIcon,
   spinner: SpinnerIcon,
   notification: NotificationIcon,
   time: TimeIcon,
@@ -232,6 +288,9 @@ export const icons = {
   environment: EnvironmentIcon,
   member: MemberIcon,
   team: TeamIcon,
+  integrations: IntegrationsIcon,
+  storage: StorageIcon,
+  tokens: TokensIcon,
 } as const satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof icons;

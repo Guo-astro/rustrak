@@ -46,6 +46,10 @@ import { formatSpanDuration } from './format';
  * on the page: bar, duration and row tint at once. Not one hue per op: the
  * gutter already names the op, and the question a waterfall answers is "is
  * the time in the database, on the wire, or in us".
+ *
+ * An AI trace asks a different question -- "is the time in the agent, the
+ * model or a tool" -- so `gen_ai.*` spans get the four kinds every agent
+ * tracer draws: agent, LLM call, tool call and handoff.
  */
 const waterfall = tv({
   slots: {
@@ -75,6 +79,9 @@ const waterfall = tv({
      * The divider between names and time. A real control: it drags, it
      * takes the keyboard, and it clamps -- neither column may vanish.
      */
+    /* The rows and the divider that resizes them; the legend sits below,
+       so the divider ends where the rows do. */
+    body: 'relative',
     divider: [
       'absolute inset-y-0 z-20 w-1.5 -translate-x-1/2 cursor-ew-resize',
       '@max-2xl:hidden',
@@ -156,7 +163,7 @@ const waterfall = tv({
       '@max-2xl:px-1',
     ],
     legend: [
-      'flex shrink-0 flex-wrap items-center gap-4 ps-4 pe-4 pt-2.5',
+      'flex shrink-0 flex-wrap items-center gap-4 px-4 py-3',
       'text-fg-subtle text-mono-sm',
     ],
     legendItem: 'inline-flex items-center gap-1.5',
@@ -186,10 +193,24 @@ export interface WaterfallSpan {
   endMs: number;
   /** Anything other than `ok` or absent reads as failed. */
   status?: string;
+  /**
+   * An AI span's kind as the server classified it (`agent`, `ai_client`,
+   * `tool`, `handoff`), which knows more `op` spellings than a prefix does:
+   * `ai.toolCall` is a tool. Read before `op` when present.
+   */
+  operationType?: string;
 }
 
-/** The three kinds time divides into, plus the one that broke. */
-type SpanKind = 'db' | 'http' | 'internal' | 'error';
+/** The kinds time divides into, plus the one that broke. */
+type SpanKind =
+  | 'db'
+  | 'http'
+  | 'internal'
+  | 'agent'
+  | 'llm'
+  | 'tool'
+  | 'handoff'
+  | 'error';
 
 /*
  * A static map, never `bg-${kind}`: Tailwind extracts class names from the
@@ -199,15 +220,37 @@ const KIND_BAR: Record<SpanKind, string> = {
   db: 'bg-chart-1',
   http: 'bg-border-control',
   internal: 'bg-chart-3',
+  agent: 'bg-chart-1',
+  llm: 'bg-chart-4',
+  tool: 'bg-chart-5',
+  handoff: 'bg-fg-ghost',
   error: 'bg-sev-error',
+};
+
+const OPERATION_KIND: Record<string, SpanKind> = {
+  agent: 'agent',
+  ai_client: 'llm',
+  tool: 'tool',
+  handoff: 'handoff',
 };
 
 function spanKind(span: WaterfallSpan): SpanKind {
   if (span.status && span.status !== 'ok') return 'error';
+  const classified = span.operationType && OPERATION_KIND[span.operationType];
+  if (classified) return classified;
   const op = (span.op ?? '').toLowerCase();
+  if (op.startsWith('gen_ai.') || op.startsWith('ai.')) return aiKind(op);
   if (op.startsWith('db') || op.startsWith('cache')) return 'db';
   if (op.startsWith('http') || op.startsWith('resource')) return 'http';
   return 'internal';
+}
+
+/** An AI span the server did not classify, read from its `op` alone. */
+function aiKind(op: string): SpanKind {
+  if (op.includes('invoke_agent')) return 'agent';
+  if (op.includes('execute_tool')) return 'tool';
+  if (op.includes('handoff')) return 'handoff';
+  return 'llm';
 }
 
 /* --- The tree ------------------------------------------------------------- */
@@ -559,9 +602,18 @@ export function Waterfall({
   const kinds = useMemo(() => {
     const present = new Set<SpanKind>();
     for (const span of spans) present.add(spanKind(span));
-    return (['db', 'internal', 'http', 'error'] as const).filter((kind) =>
-      present.has(kind),
-    );
+    return (
+      [
+        'agent',
+        'llm',
+        'tool',
+        'handoff',
+        'db',
+        'internal',
+        'http',
+        'error',
+      ] as const
+    ).filter((kind) => present.has(kind));
   }, [spans]);
 
   const toggleCollapsed = toggleSet(setCollapsed);
@@ -646,51 +698,53 @@ export function Waterfall({
       className={styles.root({ className })}
       aria-label={label}
     >
-      <div className={styles.ruler()} aria-hidden="true">
-        <div className="w-(--wf-gutter) shrink-0 @max-2xl:hidden" />
-        <div className={styles.rulerTrack()}>
-          {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
-            <span key={fraction}>{formatSpanDuration(total * fraction)}</span>
-          ))}
+      <div className={styles.body()}>
+        <div className={styles.ruler()} aria-hidden="true">
+          <div className="w-(--wf-gutter) shrink-0 @max-2xl:hidden" />
+          <div className={styles.rulerTrack()}>
+            {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+              <span key={fraction}>{formatSpanDuration(total * fraction)}</span>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div role="tree" aria-label={label}>
-        {rows.map((row, rowIndex) =>
-          row.kind === 'gap' ? (
-            <GapRow key={row.id} row={row} start={start} total={total} />
-          ) : (
-            <SpanRow
-              key={row.id}
-              row={row}
-              start={start}
-              total={total}
-              tabStop={rowIndex === 0}
-              selected={row.kind === 'span' && selectedId === row.id}
-              onSelect={onSelect}
-              renderDetail={renderDetail}
-              onToggle={row.kind === 'group' ? toggleGroup : toggleCollapsed}
-              moveFocus={moveFocus}
-            />
-          ),
-        )}
-      </div>
+        <div role="tree" aria-label={label}>
+          {rows.map((row, rowIndex) =>
+            row.kind === 'gap' ? (
+              <GapRow key={row.id} row={row} start={start} total={total} />
+            ) : (
+              <SpanRow
+                key={row.id}
+                row={row}
+                start={start}
+                total={total}
+                tabStop={rowIndex === 0}
+                selected={row.kind === 'span' && selectedId === row.id}
+                onSelect={onSelect}
+                renderDetail={renderDetail}
+                onToggle={row.kind === 'group' ? toggleGroup : toggleCollapsed}
+                moveFocus={moveFocus}
+              />
+            ),
+          )}
+        </div>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: a window splitter is
+        {/* biome-ignore lint/a11y/useSemanticElements: a window splitter is
           ARIA-only -- <hr> cannot drag, focus or resize anything */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize the name column"
-        aria-valuenow={Math.round(split * 100)}
-        aria-valuemin={MIN_SPLIT * 100}
-        aria-valuemax={MAX_SPLIT * 100}
-        tabIndex={0}
-        style={{ left: `calc(16px + (100% - 32px) * ${split})` }}
-        onPointerDown={onDividerPointerDown}
-        onKeyDown={onDividerKeyDown}
-        className={styles.divider()}
-      />
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the name column"
+          aria-valuenow={Math.round(split * 100)}
+          aria-valuemin={MIN_SPLIT * 100}
+          aria-valuemax={MAX_SPLIT * 100}
+          tabIndex={0}
+          style={{ left: `calc(16px + (100% - 32px) * ${split})` }}
+          onPointerDown={onDividerPointerDown}
+          onKeyDown={onDividerKeyDown}
+          className={styles.divider()}
+        />
+      </div>
 
       <div className={styles.legend()}>
         {kinds.map((kind) => (

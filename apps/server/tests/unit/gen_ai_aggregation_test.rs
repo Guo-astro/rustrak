@@ -18,6 +18,7 @@ fn ctx(pool: &rustrak::db::DbPool, project_id: i32) -> ProcessorCtx {
         event_id: Uuid::nil(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     }
 }
 
@@ -398,10 +399,17 @@ async fn test_agent_traces_aggregates_per_trace_id() {
     )
     .await;
 
-    let (traces, total) =
-        SpanService::agent_traces(&db.pool, project.id, 1, 20, None, &Default::default())
-            .await
-            .unwrap();
+    let (traces, total) = SpanService::agent_traces(
+        &db.pool,
+        project.id,
+        1,
+        20,
+        None,
+        &Default::default(),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(total, 1, "one distinct trace_id with AI spans");
     assert_eq!(traces.len(), 1);
@@ -462,10 +470,17 @@ async fn test_agent_traces_lists_every_agent_in_a_handoff_trace() {
     )
     .await;
 
-    let (traces, _) =
-        SpanService::agent_traces(&db.pool, project.id, 1, 20, None, &Default::default())
-            .await
-            .unwrap();
+    let (traces, _) = SpanService::agent_traces(
+        &db.pool,
+        project.id,
+        1,
+        20,
+        None,
+        &Default::default(),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(traces.len(), 1);
     assert_eq!(
@@ -540,10 +555,17 @@ async fn test_agent_traces_excludes_agent_span_usage_from_token_sum() {
     )
     .await;
 
-    let (traces, _) =
-        SpanService::agent_traces(&db.pool, project.id, 1, 20, None, &Default::default())
-            .await
-            .unwrap();
+    let (traces, _) = SpanService::agent_traces(
+        &db.pool,
+        project.id,
+        1,
+        20,
+        None,
+        &Default::default(),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(traces.len(), 1);
     assert_eq!(
@@ -614,10 +636,17 @@ async fn test_agent_traces_does_not_double_count_root_span_rollup_totals() {
     )
     .await;
 
-    let (traces, _) =
-        SpanService::agent_traces(&db.pool, project.id, 1, 20, None, &Default::default())
-            .await
-            .unwrap();
+    let (traces, _) = SpanService::agent_traces(
+        &db.pool,
+        project.id,
+        1,
+        20,
+        None,
+        &Default::default(),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(traces.len(), 1);
     assert_eq!(
@@ -664,10 +693,17 @@ async fn test_agent_traces_reports_zero_tokens_for_root_only_trace() {
     )
     .await;
 
-    let (traces, _) =
-        SpanService::agent_traces(&db.pool, project.id, 1, 20, None, &Default::default())
-            .await
-            .unwrap();
+    let (traces, _) = SpanService::agent_traces(
+        &db.pool,
+        project.id,
+        1,
+        20,
+        None,
+        &Default::default(),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(traces.len(), 1);
     assert_eq!(

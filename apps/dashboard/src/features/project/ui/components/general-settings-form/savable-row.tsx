@@ -1,15 +1,12 @@
-import { Loader2 } from 'lucide-react';
+import { Input, Spinner } from '@rustrak/ui';
 import type { Path, UseFormReturn } from 'react-hook-form';
-import { useTranslations } from 'use-intl';
 import { SettingRow } from '@/shared/ui/components/setting-row';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   FormControl,
   FormField,
   FormItem,
   FormMessage,
 } from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
 import type { GeneralSettingsFormData } from './general-settings-form';
 
 /**
@@ -46,7 +43,6 @@ export function SavableRow({
   onSave: () => void;
   onEdit: () => void;
 }) {
-  const t = useTranslations('projects');
   const id = `project-${name}`;
 
   return (
@@ -56,33 +52,39 @@ export function SavableRow({
         name={name}
         render={({ field }) => (
           <FormItem>
-            <div className="flex items-center gap-2">
-              <FormControl>
-                <Input
-                  id={id}
-                  placeholder={placeholder}
-                  className={className}
-                  disabled={isPending}
-                  {...field}
-                  onChange={(event) => {
-                    field.onChange(event);
-                    onEdit();
-                  }}
-                />
-              </FormControl>
-              <Button
-                type="button"
-                onClick={onSave}
-                disabled={isPending || !hasChanges || !field.value?.trim()}
-                size="sm"
-              >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  t('save')
-                )}
-              </Button>
-            </div>
+            <FormControl>
+              <Input
+                id={id}
+                placeholder={placeholder}
+                className={className}
+                disabled={isPending}
+                aria-busy={isPending || undefined}
+                leading={
+                  isPending ? (
+                    <Spinner size="sm" aria-hidden="true" />
+                  ) : undefined
+                }
+                {...field}
+                onChange={(event) => {
+                  field.onChange(event);
+                  onEdit();
+                }}
+                // Saved when the reader is done with it: on Enter, or on
+                // leaving the field. A per-row Save button asked them to
+                // confirm what they had just typed.
+                onBlur={() => {
+                  field.onBlur();
+                  if (hasChanges && field.value?.trim()) onSave();
+                }}
+                onKeyDown={(event) => {
+                  // The Enter that confirms an IME candidate is not a save.
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    if (hasChanges && field.value?.trim()) onSave();
+                  }
+                }}
+              />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}

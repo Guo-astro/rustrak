@@ -82,61 +82,6 @@ async fn create_test_project(pool: &rustrak::db::DbPool) -> i32 {
 }
 
 #[tokio::test]
-async fn test_event_alert_history_is_scoped_to_project() {
-    let db = TestDb::new().await;
-    let first_project = create_test_project(&db.pool).await;
-    let second_project = create_test_project(&db.pool).await;
-    let event_id = Uuid::new_v4();
-
-    sqlx::query(
-        "INSERT INTO alert_history (project_id, alert_type, channel_type, channel_name, status, idempotency_key) VALUES ($1, 'new_issue', 'webhook', 'test', 'pending', $2)",
-    )
-    .bind(first_project)
-    .bind(format!(
-        "event-{first_project}-{event_id}-new_issue-integration"
-    ))
-    .execute(&db.pool)
-    .await
-    .expect("alert history insert must succeed");
-
-    assert!(AlertService::event_alert_exists(
-        &db.pool,
-        first_project,
-        event_id,
-        AlertType::NewIssue
-    )
-    .await
-    .expect("first project lookup must succeed"));
-
-    sqlx::query(
-        "INSERT INTO alert_history (project_id, alert_type, channel_type, channel_name, status, idempotency_key) VALUES ($1, 'new_issue', 'webhook', 'legacy', 'pending', $2)",
-    )
-    .bind(first_project)
-    .bind(format!("event-{event_id}-new_issue-integration"))
-    .execute(&db.pool)
-    .await
-    .expect("legacy alert history insert must succeed");
-
-    assert!(AlertService::event_alert_exists(
-        &db.pool,
-        first_project,
-        event_id,
-        AlertType::NewIssue,
-    )
-    .await
-    .expect("first project legacy lookup must succeed"));
-
-    assert!(!AlertService::event_alert_exists(
-        &db.pool,
-        second_project,
-        event_id,
-        AlertType::NewIssue,
-    )
-    .await
-    .expect("second project lookup must succeed"));
-}
-
-#[tokio::test]
 async fn test_alert_retry_queue_processes_pending_history_without_retry_time() {
     let db = TestDb::new().await;
     let project_id = create_test_project(&db.pool).await;
@@ -248,11 +193,32 @@ async fn test_event_alert_cooldown_is_a_durable_replay_barrier() {
             .await
             .expect("suppressed alert history must exist");
     assert_eq!(status, "skipped");
-    assert!(
-        AlertService::event_alert_exists(&db.pool, project_id, event_id, AlertType::NewIssue,)
+
+    // Replayed once the cooldown is over, the rule finds its row and stops
+    // before reserving a cooldown nothing will use.
+    sqlx::query("UPDATE alert_rules SET last_triggered_at = NULL WHERE id = $1")
+        .bind(rule.id)
+        .execute(&db.pool)
+        .await
+        .expect("cooldown reset must succeed");
+    AlertService::trigger_event_alert(
+        &db.pool,
+        &project,
+        &issue,
+        AlertType::NewIssue,
+        event_id,
+        Default::default(),
+        "https://dashboard.example.com",
+    )
+    .await
+    .expect("replay must succeed");
+    let last: Option<chrono::DateTime<Utc>> =
+        sqlx::query_scalar("SELECT last_triggered_at FROM alert_rules WHERE id = $1")
+            .bind(rule.id)
+            .fetch_one(&db.pool)
             .await
-            .expect("replay barrier lookup must succeed")
-    );
+            .expect("rule lookup must succeed");
+    assert_eq!(last, None);
 }
 
 /// Retention lowers an issue's count, so a later event can bring it back to a
@@ -810,6 +776,7 @@ async fn test_rule_crud_service_level() {
 
     // Update rule
     let update_input = UpdateAlertRule {
+        alert_type: None,
         name: Some("Updated Alert".to_string()),
         is_enabled: Some(false),
         conditions: None,
@@ -834,56 +801,92 @@ async fn test_rule_crud_service_level() {
     assert!(result.is_err());
 }
 
+/// Rules are independent: a project can hold several for one trigger, each
+/// with its own filters and channels -- new issues in production by email,
+/// every new issue to Slack.
 #[tokio::test]
-async fn test_rule_duplicate_alert_type_fails() {
+async fn test_rules_of_one_type_fire_independently() {
     let db = TestDb::new().await;
-
     let project_id = create_test_project(&db.pool).await;
-
+    let project = ProjectService::get_by_id(&db.pool, project_id)
+        .await
+        .unwrap();
     let channel = AlertService::create_channel(
         &db.pool,
         CreateNotificationChannel {
-            name: "Channel for Rules".to_string(),
+            name: "Shared channel".to_string(),
             provider_type: ChannelType::Webhook,
-            credentials: json!({ "url": "https://example.com/webhook" }),
+            // Nothing listens there: the deliveries are recorded, then fail.
+            credentials: json!({ "url": "http://127.0.0.1:9/hook" }),
             is_enabled: true,
         },
     )
     .await
-    .expect("Failed to create channel");
-
-    // Create first rule
-    let create_input = CreateAlertRule {
-        name: "First Rule".to_string(),
+    .unwrap();
+    let rule = |name: &str, conditions| CreateAlertRule {
+        name: name.to_string(),
         alert_type: AlertType::NewIssue,
         channels: vec![AlertRuleChannelInput {
             integration_id: channel.id,
             routing_override: json!({}),
         }],
-        conditions: json!({}),
+        conditions,
         cooldown_minutes: 0,
     };
+    let everywhere =
+        AlertService::create_rule(&db.pool, project_id, rule("Every new issue", json!({})))
+            .await
+            .expect("a first new-issue rule");
+    let also = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        rule("Also every new issue", json!({})),
+    )
+    .await
+    .expect("a second rule for the same trigger");
+    let staging = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        rule("Staging only", json!({"environments": ["staging"]})),
+    )
+    .await
+    .expect("a third, filtered rule");
 
-    AlertService::create_rule(&db.pool, project_id, create_input)
+    let issue = IssueService::create(
+        &db.pool,
+        project_id,
+        Utc::now(),
+        &DenormalizedFields {
+            calculated_type: "Error".to_string(),
+            calculated_value: "independent rules".to_string(),
+            transaction: "/test".to_string(),
+            last_frame_filename: "test.rs".to_string(),
+            last_frame_module: "test".to_string(),
+            last_frame_function: "test".to_string(),
+            culprit: "test".to_string(),
+            logger: String::new(),
+            release: String::new(),
+        },
+        Some("error"),
+        Some("rust"),
+    )
+    .await
+    .unwrap();
+    AlertService::trigger_new_issue_alert(&db.pool, &project, &issue, "http://localhost:3000")
         .await
-        .expect("First rule should succeed");
+        .unwrap();
 
-    // Try to create another with same alert type
-    let duplicate_input = CreateAlertRule {
-        name: "Duplicate Rule".to_string(),
-        alert_type: AlertType::NewIssue, // Same type
-        channels: vec![AlertRuleChannelInput {
-            integration_id: channel.id,
-            routing_override: json!({}),
-        }],
-        conditions: json!({}),
-        cooldown_minutes: 0,
-    };
-
-    let result = AlertService::create_rule(&db.pool, project_id, duplicate_input).await;
-    assert!(result.is_err());
-    let err_msg = format!("{:?}", result.unwrap_err());
-    assert!(err_msg.contains("already exists"));
+    let fired: Vec<(Option<i32>,)> = sqlx::query_as(
+        "SELECT alert_rule_id FROM alert_history WHERE project_id = $1 ORDER BY alert_rule_id",
+    )
+    .bind(project_id)
+    .fetch_all(&db.pool)
+    .await
+    .unwrap();
+    // Both unfiltered rules deliver through the channel they share; the
+    // staging rule's filter keeps it quiet for an event with no environment.
+    assert_eq!(fired, vec![(Some(everywhere.id),), (Some(also.id),)]);
+    assert!(!fired.contains(&(Some(staging.id),)));
 }
 
 #[tokio::test]
@@ -968,6 +971,7 @@ async fn test_update_rule_channels() {
         &db.pool,
         rule.id,
         UpdateAlertRule {
+            alert_type: None,
             name: None,
             is_enabled: None,
             conditions: None,
@@ -1000,6 +1004,7 @@ async fn test_update_rule_channels() {
         &db.pool,
         rule.id,
         UpdateAlertRule {
+            alert_type: None,
             name: None,
             is_enabled: None,
             conditions: None,
@@ -1074,7 +1079,7 @@ async fn test_alert_history_empty() {
 
     let project_id = create_test_project(&db.pool).await;
 
-    let history = AlertService::list_history(&db.pool, project_id, 50)
+    let history = AlertService::list_history(&db.pool, project_id, None, 50)
         .await
         .expect("Failed to list history");
 
@@ -1346,4 +1351,312 @@ async fn test_rule_conditions_are_validated() {
         .await
         .expect("valid conditions are stored");
     assert_eq!(rule.conditions["min_events"], 5);
+}
+
+/// A rule's page lists only its own deliveries.
+#[tokio::test]
+async fn test_alert_history_narrows_to_one_rule() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool).await;
+    let rule = |name: &str, alert_type| rustrak::models::CreateAlertRule {
+        name: name.to_string(),
+        alert_type,
+        conditions: json!({}),
+        cooldown_minutes: 0,
+        channels: vec![],
+    };
+    let new_issue = AlertService::create_rule(
+        &db.pool,
+        project,
+        rule("New issue", rustrak::models::AlertType::NewIssue),
+    )
+    .await
+    .unwrap();
+    let regression = AlertService::create_rule(
+        &db.pool,
+        project,
+        rule("Regression", rustrak::models::AlertType::Regression),
+    )
+    .await
+    .unwrap();
+    for (rule_id, key) in [
+        (new_issue.id, "a"),
+        (new_issue.id, "b"),
+        (regression.id, "c"),
+    ] {
+        sqlx::query(
+            "INSERT INTO alert_history (project_id, alert_rule_id, alert_type, channel_type, channel_name, status, idempotency_key) VALUES ($1, $2, 'new_issue', 'webhook', 'test', 'sent', $3)",
+        )
+        .bind(project)
+        .bind(rule_id)
+        .bind(key)
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    }
+
+    let all = AlertService::list_history(&db.pool, project, None, 50)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 3);
+    let own = AlertService::list_history(&db.pool, project, Some(new_issue.id), 50)
+        .await
+        .unwrap();
+    assert_eq!(own.len(), 2);
+    assert!(own.iter().all(|h| h.alert_rule_id == Some(new_issue.id)));
+}
+
+/// One rule failing to record its alert does not cost the next rule its own,
+/// and the failure still reaches the caller so the event is retried.
+#[cfg(not(feature = "postgres"))]
+#[tokio::test]
+async fn test_a_failing_rule_does_not_stop_the_next() {
+    let db = TestDb::new().await;
+    let project_id = create_test_project(&db.pool).await;
+    let project = ProjectService::get_by_id(&db.pool, project_id)
+        .await
+        .expect("project lookup must succeed");
+    let channel = AlertService::create_channel(
+        &db.pool,
+        CreateNotificationChannel {
+            name: "Isolation Webhook".to_string(),
+            provider_type: ChannelType::Webhook,
+            credentials: json!({ "url": "https://example.com/webhook" }),
+            is_enabled: true,
+        },
+    )
+    .await
+    .expect("channel creation must succeed");
+    let mut rules = Vec::new();
+    for name in ["Broken", "Healthy"] {
+        let rule = AlertService::create_rule(
+            &db.pool,
+            project_id,
+            CreateAlertRule {
+                name: name.to_string(),
+                alert_type: AlertType::NewIssue,
+                channels: vec![AlertRuleChannelInput {
+                    integration_id: channel.id,
+                    routing_override: json!({}),
+                }],
+                conditions: json!({}),
+                cooldown_minutes: 60,
+            },
+        )
+        .await
+        .expect("rule creation must succeed");
+        // In cooldown: recorded, never delivered.
+        sqlx::query("UPDATE alert_rules SET last_triggered_at = $1 WHERE id = $2")
+            .bind(Utc::now())
+            .bind(rule.id)
+            .execute(&db.pool)
+            .await
+            .expect("cooldown setup must succeed");
+        rules.push(rule.id);
+    }
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "CREATE TRIGGER broken_rule BEFORE INSERT ON alert_history \
+         WHEN NEW.alert_rule_id = {} BEGIN SELECT RAISE(ABORT, 'broken'); END",
+        rules[0]
+    )))
+    .execute(&db.pool)
+    .await
+    .expect("trigger creation must succeed");
+    let issue = IssueService::create(
+        &db.pool,
+        project_id,
+        Utc::now(),
+        &DenormalizedFields {
+            calculated_type: "Error".to_string(),
+            calculated_value: "isolation".to_string(),
+            transaction: "/test".to_string(),
+            last_frame_filename: "test.rs".to_string(),
+            last_frame_module: "test".to_string(),
+            last_frame_function: "test".to_string(),
+            culprit: "test".to_string(),
+            logger: String::new(),
+            release: String::new(),
+        },
+        Some("error"),
+        Some("rust"),
+    )
+    .await
+    .expect("issue creation must succeed");
+
+    let result = AlertService::trigger_event_alert(
+        &db.pool,
+        &project,
+        &issue,
+        AlertType::NewIssue,
+        Uuid::new_v4(),
+        Default::default(),
+        "https://dashboard.example.com",
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "the broken rule's error must reach the caller"
+    );
+    let recorded: Vec<i32> =
+        sqlx::query_scalar("SELECT alert_rule_id FROM alert_history WHERE project_id = $1")
+            .bind(project_id)
+            .fetch_all(&db.pool)
+            .await
+            .expect("history lookup must succeed");
+    assert_eq!(recorded, vec![rules[1]]);
+}
+
+/// A rule's deliveries per UTC day, counted over the whole window rather than
+/// over the newest page of rows: a busy rule's older days still add up.
+#[tokio::test]
+async fn test_history_by_day_counts_every_delivery_in_the_window() {
+    let db = TestDb::new().await;
+    let project_id = create_test_project(&db.pool).await;
+    let rule = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        CreateAlertRule {
+            name: "Busy".to_string(),
+            alert_type: AlertType::NewIssue,
+            channels: vec![],
+            conditions: json!({}),
+            cooldown_minutes: 0,
+        },
+    )
+    .await
+    .expect("rule creation must succeed");
+    let now = Utc::now();
+    let today = now.date_naive().and_hms_opt(12, 0, 0).unwrap().and_utc();
+    // 150 sent today, 2 failed and 1 skipped two days ago, one sent outside
+    // the window, and one for no rule at all.
+    let mut rows = vec![("sent", today, Some(rule.id)); 150];
+    rows.extend([
+        ("failed", today - chrono::Duration::days(2), Some(rule.id)),
+        ("failed", today - chrono::Duration::days(2), Some(rule.id)),
+        ("skipped", today - chrono::Duration::days(2), Some(rule.id)),
+        ("sent", today - chrono::Duration::days(20), Some(rule.id)),
+        ("sent", today, None),
+    ]);
+    for (i, (status, at, rule_id)) in rows.into_iter().enumerate() {
+        sqlx::query(
+            "INSERT INTO alert_history (alert_rule_id, project_id, alert_type, channel_type, channel_name, status, idempotency_key, created_at) VALUES ($1, $2, 'new_issue', 'webhook', 'test', $3, $4, $5)",
+        )
+        .bind(rule_id)
+        .bind(project_id)
+        .bind(status)
+        .bind(format!("by-day-{project_id}-{i}"))
+        .bind(at)
+        .execute(&db.pool)
+        .await
+        .expect("history insert must succeed");
+    }
+
+    let days = AlertService::history_by_day(&db.pool, project_id, Some(rule.id), 14, now)
+        .await
+        .expect("daily history must load");
+
+    assert_eq!(days.len(), 14);
+    let last = days.last().unwrap();
+    assert_eq!(
+        last.day,
+        today.date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc()
+    );
+    assert_eq!((last.sent, last.failed, last.skipped), (150, 0, 0));
+    let two_ago = &days[11];
+    assert_eq!((two_ago.sent, two_ago.failed, two_ago.skipped), (0, 2, 1));
+    assert_eq!(days.iter().map(|d| d.sent).sum::<i64>(), 150);
+}
+
+/// An event delivered before alert ids carried the project left a key of the
+/// form `event-{event_id}-{type}-…`. Replayed now, it must still read as done.
+#[tokio::test]
+async fn test_legacy_event_keys_still_block_a_replay() {
+    let db = TestDb::new().await;
+    let project_id = create_test_project(&db.pool).await;
+    let project = ProjectService::get_by_id(&db.pool, project_id)
+        .await
+        .expect("project lookup must succeed");
+    let channel = AlertService::create_channel(
+        &db.pool,
+        CreateNotificationChannel {
+            name: "Legacy Webhook".to_string(),
+            provider_type: ChannelType::Webhook,
+            credentials: json!({ "url": "https://example.com/webhook" }),
+            is_enabled: true,
+        },
+    )
+    .await
+    .expect("channel creation must succeed");
+    let rule = AlertService::create_rule(
+        &db.pool,
+        project_id,
+        CreateAlertRule {
+            name: "Regressions".to_string(),
+            alert_type: AlertType::Regression,
+            channels: vec![AlertRuleChannelInput {
+                integration_id: channel.id,
+                routing_override: json!({}),
+            }],
+            conditions: json!({}),
+            cooldown_minutes: 60,
+        },
+    )
+    .await
+    .expect("rule creation must succeed");
+    sqlx::query("UPDATE alert_rules SET last_triggered_at = $1 WHERE id = $2")
+        .bind(Utc::now())
+        .bind(rule.id)
+        .execute(&db.pool)
+        .await
+        .expect("cooldown setup must succeed");
+    let event_id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO alert_history (alert_rule_id, project_id, alert_type, channel_type, channel_name, status, idempotency_key) VALUES ($1, $2, 'regression', 'webhook', 'legacy', 'sent', $3)",
+    )
+    .bind(rule.id)
+    .bind(project_id)
+    .bind(format!("event-{event_id}-regression-{}", channel.id))
+    .execute(&db.pool)
+    .await
+    .expect("legacy history insert must succeed");
+    let issue = IssueService::create(
+        &db.pool,
+        project_id,
+        Utc::now(),
+        &DenormalizedFields {
+            calculated_type: "Error".to_string(),
+            calculated_value: "legacy replay".to_string(),
+            transaction: "/test".to_string(),
+            last_frame_filename: "test.rs".to_string(),
+            last_frame_module: "test".to_string(),
+            last_frame_function: "test".to_string(),
+            culprit: "test".to_string(),
+            logger: String::new(),
+            release: String::new(),
+        },
+        Some("error"),
+        Some("rust"),
+    )
+    .await
+    .expect("issue creation must succeed");
+
+    AlertService::trigger_event_alert(
+        &db.pool,
+        &project,
+        &issue,
+        AlertType::Regression,
+        event_id,
+        Default::default(),
+        "https://dashboard.example.com",
+    )
+    .await
+    .expect("replay must succeed");
+
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM alert_history WHERE project_id = $1")
+        .bind(project_id)
+        .fetch_one(&db.pool)
+        .await
+        .expect("history count must succeed");
+    assert_eq!(rows, 1);
 }

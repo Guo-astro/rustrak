@@ -26,7 +26,7 @@ const popover = tv({
     popup: [
       'flex max-h-(--available-height) min-w-52 flex-col',
       'overflow-x-hidden overflow-y-auto',
-      'rounded-lg border border-border bg-surface-floating',
+      'rounded-2xl border border-border bg-surface-floating',
       'shadow-overlay',
       'outline-none',
       popTransition,

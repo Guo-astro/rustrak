@@ -9,6 +9,8 @@ use serde::Serialize;
 pub struct AgentTimeseriesPoint {
     pub bucket: DateTime<Utc>,
     pub value: f64,
+    /// Of the bucket's spans, those whose status is set and not `ok`.
+    pub errors: i64,
 }
 
 /// avg/p95 duration for one time bucket.
@@ -101,4 +103,73 @@ pub struct AgentTraceSummary {
     /// AI spans in this trace whose status is set and not `ok`.
     pub error_count: i64,
     pub started_at: DateTime<Utc>,
+}
+
+/// One conversation: every trace sharing a `gen_ai.conversation.id`, each a
+/// turn, with the totals of all of them -- a row of Sentry's conversations.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AgentConversationSummary {
+    pub conversation_id: String,
+    /// Traces in the conversation.
+    pub turn_count: i64,
+    /// Every agent that ran in it, earliest first.
+    pub agent_names: Vec<String>,
+    pub llm_call_count: i64,
+    pub tool_call_count: i64,
+    /// `agent` spans excluded, as everywhere: their usage rolls up their children.
+    pub total_tokens: f64,
+    pub error_count: i64,
+    /// From the spans' start times, else their end times; `null` when no span
+    /// of the conversation carries either, as a transaction's child can.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub first_seen: Option<DateTime<Utc>>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub last_seen: Option<DateTime<Utc>>,
+}
+
+/// A conversation in full: its AI spans across every turn, oldest first,
+/// each with what went in and came out, for a transcript.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AgentConversation {
+    pub conversation_id: String,
+    pub spans: Vec<ConversationSpan>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ConversationSpan {
+    pub id: uuid::Uuid,
+    pub trace_id: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub span_id: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub parent_span_id: Option<String>,
+    /// `agent`, `ai_client`, `tool` or `handoff`.
+    pub operation_type: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub agent_name: Option<String>,
+    /// The response model, else the request model.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub model: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub tool_name: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub status: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub start_timestamp: Option<DateTime<Utc>>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub duration_ms: Option<f64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub total_tokens: Option<f64>,
+    /// The prompt or the tool's arguments, verbatim.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub input: Option<String>,
+    /// The answer or the tool's result, verbatim.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub output: Option<String>,
+    /// The tool calls the model asked for.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub tool_calls: Option<String>,
 }

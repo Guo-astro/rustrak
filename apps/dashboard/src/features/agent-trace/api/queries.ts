@@ -10,16 +10,18 @@
  * a browser bundle that holds the session cookie.
  */
 import type {
+  AgentConversation,
   AgentDurationPoint,
   AgentModelRow,
   AgentSummary,
+  AgentsConversationsData,
+  AgentsConversationsResponse,
   AgentsRunsData,
   AgentsSummaryData,
   AgentsTracesData,
   AgentsTracesResponse,
   AgentTimeseriesPoint,
   AgentToolRow,
-  GenAiBreakdownRow,
   Result,
   RustrakError,
   SpanDetailResponse,
@@ -77,39 +79,6 @@ export async function getAgentDuration(
   });
 }
 
-export async function getAgentModelsByCalls(
-  projectId: number,
-  options?: AgentBreakdownQuery,
-): Promise<Result<GenAiBreakdownRow[], RustrakError>> {
-  const client = await createClient();
-  return client.agents.modelsCalls({
-    path: { project_id: projectId },
-    query: options,
-  });
-}
-
-export async function getAgentModelsByTokens(
-  projectId: number,
-  options?: AgentBreakdownQuery,
-): Promise<Result<GenAiBreakdownRow[], RustrakError>> {
-  const client = await createClient();
-  return client.agents.modelsTokens({
-    path: { project_id: projectId },
-    query: options,
-  });
-}
-
-export async function getAgentTools(
-  projectId: number,
-  options?: AgentBreakdownQuery,
-): Promise<Result<GenAiBreakdownRow[], RustrakError>> {
-  const client = await createClient();
-  return client.agents.tools({
-    path: { project_id: projectId },
-    query: options,
-  });
-}
-
 export async function getAgentTraces(
   projectId: number,
   options?: NonNullable<AgentsTracesData['query']>,
@@ -159,4 +128,25 @@ export async function getAgentEnvironments(
 ): Promise<Result<string[], RustrakError>> {
   const client = await createClient();
   return client.agents.environments({ path: { project_id: projectId } });
+}
+
+export async function getAgentConversations(
+  projectId: number,
+  options?: NonNullable<AgentsConversationsData['query']>,
+): Promise<Result<AgentsConversationsResponse, RustrakError>> {
+  const client = await createClient();
+  return client.agents.conversations({
+    path: { project_id: projectId },
+    query: options,
+  });
+}
+
+export async function getAgentConversation(
+  projectId: number,
+  conversationId: string,
+): Promise<Result<AgentConversation, RustrakError>> {
+  const client = await createClient();
+  return client.agents.conversation({
+    path: { project_id: projectId, conversation_id: conversationId },
+  });
 }

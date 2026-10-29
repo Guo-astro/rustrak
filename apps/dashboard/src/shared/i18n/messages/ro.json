@@ -37,7 +37,8 @@
   "theme": {
     "light": "Luminos",
     "dark": "Întunecat",
-    "system": "Sistem"
+    "system": "Sistem",
+    "label": "Temă"
   },
   "update": {
     "srAvailable": "Rustrak {version} este disponibil.",
@@ -76,7 +77,39 @@
     "lastPage": "Ultima pagină",
     "selectAllPageRows": "Selectează toate rândurile din această pagină",
     "selectRow": "Selectează rândul",
-    "expand": "Extinde"
+    "expand": "Extinde",
+    "selected": "{count, plural, one {# selectat} few {# selectate} other {# de selectate}}",
+    "clearSelection": "Golește",
+    "selectionToolbar": "Acțiuni pentru rândurile selectate",
+    "noMatches": "Nimic nu corespunde filtrelor curente.",
+    "nothingYet": "Încă nu este nimic aici.",
+    "clearFilters": "Șterge filtrele",
+    "actions": "Acțiuni",
+    "rowActions": "Acțiunile rândului",
+    "columns": "Coloane",
+    "chooseColumns": "Alege coloanele",
+    "resizeColumn": "Redimensionează coloana",
+    "filterValues": "Filtrează valorile",
+    "filterValuesPlaceholder": "Filtrează valorile…",
+    "nothingMatches": "Nimic nu corespunde",
+    "contains": "Conține…",
+    "filterText": "Filtrează textul",
+    "min": "Min",
+    "max": "Max",
+    "lowestFirst": "Cel mai mic întâi",
+    "highestFirst": "Cel mai mare întâi",
+    "aToZ": "A la Z",
+    "zToA": "Z la A",
+    "clearFilter": "Șterge filtrul",
+    "hideColumn": "Ascunde coloana",
+    "range": "{first}–{last} din {total}",
+    "rowsPerPage": "{size} rânduri",
+    "rowsOption": "{size} rânduri",
+    "filterBy": "Filtrează după",
+    "suggestions": "Sugestii",
+    "filterAndSearch": "Filtrează cu cheie:valoare sau caută…",
+    "addFilter": "Adaugă un filtru…",
+    "clearAll": "Șterge filtrele și căutarea"
   },
   "commands": {
     "overview": "Prezentare generală",
@@ -133,7 +166,11 @@
     "navigate": "navighează",
     "open": "deschide",
     "close": "închide",
-    "hidePages": "ascunde paginile"
+    "hidePages": "ascunde paginile",
+    "crons": "Crons",
+    "cronsDescription": "Sarcinile programate și cum au decurs rulările lor.",
+    "feedback": "Feedback utilizatori",
+    "feedbackDescription": "Ce au raportat utilizatorii din aplicație."
   },
   "charts": {
     "errors": "Erori",
@@ -193,18 +230,35 @@
     }
   },
   "logs": {
-    "columns": {
-      "level": "Nivel",
-      "message": "Mesaj",
-      "trace": "Trace",
-      "time": "Ora"
-    },
     "emptyValue": "(gol)",
+    "volumeFailed": "Graficul de volum nu a putut fi încărcat",
+    "lineFailed": "Această linie nu a putut fi deschisă. Poate a fost ștearsă.",
     "attributes": "Atribute",
-    "allLevels": "Toate",
     "empty": {
-      "title": "Niciun jurnal nu corespunde acestui filtru",
-      "hint": "Încearcă un alt nivel sau șterge filtrul."
+      "title": "Niciun jurnal nu corespunde acestei căutări în această perioadă"
+    },
+    "lines": "Linii de jurnal",
+    "pageOf": "Pagina {page} din {total}",
+    "newer": "Jurnale mai noi",
+    "older": "Jurnale mai vechi",
+    "back": "Înapoi la jurnale",
+    "close": "Închide",
+    "time": "Ora",
+    "severity": "Severitate",
+    "trace": "Trace",
+    "span": "Span",
+    "sameTrace": "Jurnalele acestui trace",
+    "level": "Nivel",
+    "search": "Caută în mesaje sau filtrează după level: sau trace:",
+    "volume": "Jurnale în timp, pe niveluri",
+    "count": "{count, plural, one {# jurnal} few {# jurnale} other {# de jurnale}}",
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Avertisment",
+      "error": "Eroare",
+      "fatal": "Fatal"
     }
   },
   "issues": {
@@ -214,7 +268,10 @@
       "age": "Vechime",
       "events": "Evenimente",
       "users": "Utilizatori",
-      "lastSeen": "Ultima apariție"
+      "lastSeen": "Ultima apariție",
+      "level": "Nivel",
+      "assignee": "Asignat",
+      "firstSeen": "Văzut prima dată"
     },
     "actionsTitle": "Acțiuni",
     "actionsFor": "Acțiuni pentru {title}",
@@ -306,6 +363,61 @@
     "card": {
       "usersAffected": "{count, plural, one {# utilizator afectat} few {# utilizatori afectați} other {# de utilizatori afectați}}",
       "eventCount": "{count, plural, one {# eveniment} few {# evenimente} other {# de evenimente}}"
+    },
+    "table": {
+      "windows": {
+        "1h": "Ultima oră",
+        "24h": "Ultimele 24 de ore",
+        "7d": "Ultimele 7 zile",
+        "14d": "Ultimele 14 zile",
+        "30d": "Ultimele 30 de zile"
+      },
+      "levels": {
+        "fatal": "Fatal",
+        "error": "Eroare",
+        "warning": "Avertisment",
+        "info": "Info"
+      },
+      "fewest": "Cele mai puține evenimente",
+      "most": "Cele mai multe evenimente",
+      "lowestPriority": "Prioritate mică întâi",
+      "highestPriority": "Prioritate mare întâi",
+      "me": "Eu",
+      "unassigned": "Neasignat",
+      "assigned": "Asignat",
+      "oldest": "Cele mai vechi întâi",
+      "newest": "Cele mai noi întâi",
+      "environment": "Mediu",
+      "release": "Release",
+      "assign": "Asignează",
+      "assignToMe": "Asignează-mi",
+      "unassign": "Elimină asignarea",
+      "copyId": "Copiază ID-ul",
+      "copied": "ID copiat",
+      "count": "{count, plural, one {{display} problemă} few {{display} probleme} other {{display} de probleme}}",
+      "views": {
+        "open": "Deschise",
+        "resolved": "Rezolvate",
+        "muted": "Amuțite",
+        "all": "Toate"
+      }
+    },
+    "detail": {
+      "linkCopied": "Link copiat",
+      "copyLink": "Copiază linkul",
+      "status": "Stare",
+      "firstSeen": "Văzut prima dată {when}",
+      "lastSeen": "Văzut ultima dată {when}",
+      "activity30d": "Evenimente, ultimele 30 de zile",
+      "activity30dHint": "Fiecare eveniment grupat în acest issue, pe zi",
+      "noActivity": "Niciun eveniment în ultimele 30 de zile",
+      "eventPosition": "Evenimentul {current} din {total}",
+      "copyEventId": "Copiază ID-ul evenimentului",
+      "jumpTo": "Sari la",
+      "properties": "Proprietăți",
+      "tags": "Tag-uri",
+      "code": "Cod",
+      "activity": "Activitate"
     }
   },
   "roles": {
@@ -515,7 +627,12 @@
       "logs": "Jurnale",
       "settings": "Setări",
       "crons": "Crons",
-      "feedback": "Feedback utilizatori"
+      "feedback": "Feedback utilizatori",
+      "groupTriage": "Triere",
+      "groupMonitor": "Monitorizare",
+      "alerts": "Alerte",
+      "docs": "Documentație",
+      "jumpTo": "Salt la"
     },
     "collapse": {
       "expand": "Extinde",
@@ -523,7 +640,10 @@
     },
     "switcher": {
       "projects": "Proiecte",
-      "fallback": "Proiect"
+      "fallback": "Proiect",
+      "all": "Toate proiectele",
+      "new": "Proiect nou",
+      "count": "{count, plural, one {# proiect} few {# proiecte} other {# de proiecte}}"
     },
     "copyUnavailable": "Clipboard indisponibil",
     "copyUnavailableHint": "Selectează {label} și copiază-l manual sau accesează Rustrak prin HTTPS.",
@@ -561,6 +681,19 @@
       "invalid": "Introdu un număr întreg de cel puțin 1 sau lasă gol.",
       "dropped": "Eliminate de limită",
       "droppedDescription": "Evenimente acceptate, dar nestocate, pentru că o limită fusese deja atinsă."
+    },
+    "card": {
+      "newIssues": "Probleme noi",
+      "openIssues": "Probleme deschise",
+      "stored": "Stocate",
+      "rising": "Probleme în creștere",
+      "waiting": "Se așteaptă primul eveniment",
+      "actions": "Acțiuni pentru {name}",
+      "lastDay": "Ultimele 24 de ore"
+    },
+    "summary": {
+      "withFatal": "{count, plural, one {# cu erori fatale} few {# cu erori fatale} other {# cu erori fatale}}",
+      "events24h": "{count, plural, one {{display} eveniment în 24 h} few {{display} evenimente în 24 h} other {{display} de evenimente în 24 h}}"
     }
   },
   "alerts": {
@@ -586,7 +719,9 @@
       "templateRequired": "Șablonul este obligatoriu",
       "headerNameRequired": "Numele antetului este obligatoriu",
       "headerNameInvalid": "Nume de antet HTTP invalid: fără spații sau simboluri precum : sau @",
-      "headerNameDuplicate": "Acest antet este deja setat"
+      "headerNameDuplicate": "Acest antet este deja setat",
+      "cooldownMinutes": "Introdu un număr întreg de minute, 0 sau mai mult",
+      "minEvents": "Introdu un număr întreg, 1 sau mai mult"
     },
     "routing": {
       "slackChannelRequired": "Canalul Slack este obligatoriu pentru „{name}”",
@@ -627,7 +762,7 @@
       "increaseCooldown": "Crește perioada de așteptare cu {count} minute",
       "minutesUnit": "min",
       "noCooldownLimit": "Fără limită — alerta se declanșează de fiecare dată",
-      "cooldownLimit": "{count, plural, =1 {Cel mult o alertă pe minut per problemă} other {Cel mult o alertă la fiecare # minute per problemă}}",
+      "cooldownLimit": "{count, plural, =1 {Cel mult o alertă pe minut} other {Cel mult o alertă la fiecare # minute}}",
       "fieldAlertType": "Acest tip de alertă",
       "saveFailed": "Salvarea regulii a eșuat",
       "updated": "Regulă de alertă actualizată",
@@ -816,31 +951,8 @@
       "edit": "Editează",
       "deleteAria": "Șterge {name}",
       "close": "Închide",
-      "addProvider": "Adaugă {name}"
-    },
-    "table": {
-      "rule": "Regulă",
-      "trigger": "Declanșator",
-      "channels": "Canale",
-      "enabled": "Activat",
-      "actionsAria": "Acțiuni",
-      "enableAria": "Activează {name}",
-      "editAria": "Editează {name}",
-      "deleteAria": "Șterge {name}"
-    },
-    "settings": {
-      "title": "Setări alerte",
-      "description": "Configurează când se trimit notificări pentru acest proiect.",
-      "addRule": "Adaugă regulă de alertă",
-      "noIntegrationsTitle": "Nicio integrare configurată",
-      "noIntegrationsHint": "Mergi la <link>Setări → Integrări</link> pentru a adăuga întâi integrări.",
-      "noRulesTitle": "Încă nu există reguli de alertă",
-      "noRulesHint": "Creează una pentru a începe să primești notificări.",
-      "updateFailed": "Actualizarea regulii a eșuat",
-      "deleteFailed": "Ștergerea regulii a eșuat",
-      "deleted": "Regulă de alertă ștearsă",
-      "deleteRuleTitle": "Șterge regula de alertă",
-      "deleteRuleDescription": "Sigur ștergi „{name}”? Acțiunea nu poate fi anulată."
+      "addProvider": "Adaugă {name}",
+      "more": "Mai multe acțiuni pentru {name}"
     },
     "providers": {
       "slack": {
@@ -856,21 +968,172 @@
         "description": "Trimite un corp scris de tine, în forma pe care o așteaptă endpointul."
       }
     },
-    "newIssue": {
-      "name": "Problemă nouă",
-      "description": "O problemă nouă este detectată prima dată"
+    "page": {
+      "general": "General",
+      "connection": "Conexiune",
+      "server": "Server",
+      "authentication": "Autentificare",
+      "authenticationDescription": "Doar dacă serverul SMTP cere autentificare.",
+      "nameDescription": "Cum apare când o regulă de alertă alege unde să trimită.",
+      "methodDescription": "Un webhook publică într-un singur canal fix. Un token de bot poate publica în orice canal în care se află botul.",
+      "portDescription": "De obicei 587 pentru STARTTLS, 465 pentru TLS.",
+      "fromDescription": "Expeditorul de la care sosesc alertele.",
+      "testTitle": "Trimite un test",
+      "testDescription": "Trimite o alertă de probă cu setările salvate, nu cu modificările nesalvate.",
+      "dangerTitle": "Zonă periculoasă",
+      "deleteTitle": "Șterge această integrare",
+      "deleteDescription": "Regulile de alertă care trimit prin ea nu vor mai livra aici.",
+      "unsaved": "Modificări nesalvate",
+      "back": "Toate integrările {name}"
     },
-    "regression": {
-      "name": "Regresie",
-      "description": "O problemă rezolvată reapare"
+    "types": {
+      "new_issue": {
+        "name": "Problemă nouă",
+        "description": "Apare o eroare pe care Rustrak nu a mai văzut-o."
+      },
+      "regression": {
+        "name": "Regresie",
+        "description": "O problemă rezolvată revine."
+      },
+      "unmute": {
+        "name": "Reactivare",
+        "description": "O problemă arhivată reapare."
+      },
+      "new_feedback": {
+        "name": "Feedback nou",
+        "description": "Un utilizator trimite feedback din aplicație."
+      }
     },
-    "unmute": {
-      "name": "Reactivează",
-      "description": "O problemă amuțită este reactivată"
+    "sentence": {
+      "when": {
+        "new_issue": "Când apare <strong>o problemă nouă</strong>",
+        "regression": "Când <strong>revine o problemă rezolvată</strong>",
+        "unmute": "Când <strong>se reactivează o problemă arhivată</strong>",
+        "new_feedback": "Când <strong>un utilizator trimite feedback</strong>"
+      },
+      "inEnvironments": " în <strong>{envs}</strong>",
+      "atLevel": ", de nivel <strong>{level}</strong> sau mai sus",
+      "afterEvents": ", după ce ajunge la <strong>{count} evenimente</strong>",
+      "notify": ", anunță <strong>{channels}</strong>",
+      "notifyNobody": ", <strong>încă nu anunță pe nimeni</strong>",
+      "atMostOnce": {
+        "minute": ", cel mult o dată la <strong>{count, plural, one {un minut} few {# minute} other {# de minute}}</strong>.",
+        "hour": ", cel mult o dată la <strong>{count, plural, one {o oră} few {# ore} other {# de ore}}</strong>.",
+        "day": ", cel mult o dată la <strong>{count, plural, one {o zi} few {# zile} other {# de zile}}</strong>."
+      },
+      "everyTime": ", de fiecare dată."
     },
-    "newFeedback": {
-      "name": "Feedback nou",
-      "description": "Un utilizator trimite feedback"
+    "editor": {
+      "when": "Când",
+      "environments": "Medii",
+      "allEnvironments": "Toate",
+      "level": "Nivel",
+      "anyLevel": "Orice nivel",
+      "levelOrHigher": "{level} sau mai sus",
+      "minEvents": "După acest număr de evenimente",
+      "minEventsHint": "Așteaptă ca o problemă nouă să apară de atâtea ori, pentru a ignora erorile izolate.",
+      "notify": "Anunță",
+      "notifyHint": "Canalele sunt comune tuturor proiectelor; <link>gestionează canalele</link>.",
+      "noChannels": "Încă nu există canale. Adaugă unul în Setări → Integrări.",
+      "frequency": "Cel mult",
+      "frequencyHint": "Cât de des poate notifica această alertă, ca o rafală de erori să trimită o singură alertă.",
+      "every": {
+        "minute": "{count, plural, one {O dată pe minut} few {La # minute} other {La # de minute}}",
+        "hour": "{count, plural, one {O dată pe oră} few {La # ore} other {La # de ore}}",
+        "day": "{count, plural, one {O dată pe zi} few {La # zile} other {La # de zile}}"
+      },
+      "everyTime": "De fiecare dată",
+      "customMinutes": "Personalizat, în minute",
+      "test": "Trimite un test",
+      "testSent": "Test trimis la {channel}",
+      "testFailed": "Testul către {channel} a eșuat",
+      "create": "Creează alerta",
+      "name": "Nume",
+      "namePlaceholder": "ex. Probleme noi în producție prin email",
+      "environmentsHint": "Unde trebuie să se întâmple.",
+      "summary": "Rezumat",
+      "newEnvironment": "Mediu nou",
+      "addEnvironment": "Adaugă"
+    },
+    "list": {
+      "paused": "În pauză",
+      "lastTriggered": "Ultima declanșare {when}",
+      "neverTriggered": "Nu s-a declanșat încă",
+      "enabled": "Activează sau pune pe pauză {name}",
+      "resumed": "Alertă reluată",
+      "pausedToast": "Alertă în pauză"
+    },
+    "overview": {
+      "metaTitle": "Alerte | Rustrak",
+      "ruleMetaTitle": "{name} | Alerte | Rustrak",
+      "title": "Alerte",
+      "loadFailed": "Alertele nu au putut fi încărcate",
+      "activeCount": "{count, plural, =0 {Nicio alertă activă} one {# alertă activă} few {# alerte active} other {# de alerte active}}",
+      "channels": "{count, plural, =0 {Canale} one {# canal} few {# canale} other {# de canale}}",
+      "noChannelsTitle": "Adaugă mai întâi un canal",
+      "noChannelsDescription": "Alertele se trimit prin canale: email, Slack sau un webhook. <link>Adaugă unul în Setări → Integrări</link>, apoi alege-l aici.",
+      "active": "Activă",
+      "delete": "Șterge",
+      "deleted": "Alertă ștearsă",
+      "deleteFailed": "Alerta nu a putut fi ștearsă",
+      "deleteTitle": "Ștergi {name}?",
+      "deleteDescription": "Nu se mai trimite nimic pentru ea. Istoricul trimiterilor se păstrează.",
+      "new": "Alertă nouă",
+      "newSummary": "Ce detectează, pe cine anunță și cât de des.",
+      "newMetaTitle": "Alertă nouă | Rustrak",
+      "edit": "Editează",
+      "editTitle": "Editează {name}",
+      "editMetaTitle": "Editează {name} | Alerte | Rustrak",
+      "emptyTitle": "Încă nu există alerte",
+      "emptyDescription": "Alege despre ce vrei să afli ca să începi. Poți avea oricâte alerte: de exemplu, probleme noi din producție prin email și toate problemele noi pe Slack.",
+      "failedCount": "{count, plural, one {# trimitere eșuată} few {# trimiteri eșuate} other {# de trimiteri eșuate}}",
+      "tabRules": "Alerte",
+      "tabDeliveries": "Trimiteri"
+    },
+    "history": {
+      "title": "Trimiteri",
+      "last14": "Ultimele 14 zile",
+      "chart": "Trimiteri pe zi",
+      "empty": "Nimic trimis încă.",
+      "openIssue": "Deschide problema",
+      "status": {
+        "sent": "Trimisă",
+        "failed": "Eșuată",
+        "pending": "În așteptare",
+        "skipped": "Omisă"
+      },
+      "lastTriggered": "Ultima declanșare",
+      "chartHint": "Trimiteri pe zi: trimise, omise din cauza frecvenței maxime și eșuate",
+      "ruleHint": "Fiecare trimitere a acestei alerte, cu motivul când a eșuat sau a fost omisă",
+      "columns": {
+        "status": "Stare",
+        "alert": "Alertă",
+        "channel": "Canal",
+        "detail": "Problemă și motiv",
+        "when": "Când"
+      },
+      "deletedAlert": "Alertă ștearsă"
+    },
+    "starters": {
+      "new_issue": "Să aflu de probleme noi",
+      "regression": "Să aflu de regresii",
+      "unmute": "Să aflu de probleme reactivate",
+      "new_feedback": "Să aflu de feedback-ul utilizatorilor"
+    },
+    "table": {
+      "alert": "Alertă",
+      "when": "Când",
+      "conditions": "Doar dacă",
+      "notifies": "Anunță",
+      "frequency": "Cel mult",
+      "lastSent": "Ultima declanșare",
+      "active": "Activă",
+      "afterEvents": "după {count} evenimente"
+    },
+    "detail": {
+      "created": "Creată",
+      "setup": "Configurare",
+      "channelFailing": "Eșuează"
     }
   },
   "events": {
@@ -973,39 +1236,66 @@
     "openInGitHub": "Deschide în GitHub"
   },
   "releases": {
-    "all": "Toate",
-    "empty": {
-      "title": "Nicio lansare în această fereastră",
-      "hint": "Încearcă o perioadă mai lungă sau șterge filtrul."
-    },
     "columns": {
-      "release": "Lansare"
+      "release": "Versiune",
+      "adoption": "Adopție",
+      "crashFreeSessions": "Fără erori",
+      "crashFreeUsers": "Utilizatori OK",
+      "sessions": "Sesiuni",
+      "newIssues": "Noi",
+      "events": "Evenimente",
+      "lastEvent": "Ultimul eveniment"
     },
-    "sessions": "Sesiuni",
-    "crashFree": "Fără crash-uri",
-    "crashFreeSessions": "Sesiuni fără crash-uri",
-    "crashFreeUsers": "Utilizatori fără crash-uri",
-    "crashed": "Cu crash-uri",
-    "users": "Utilizatori",
-    "healthy": "Sănătos",
-    "noSessionData": "Fără date de sesiune",
-    "enableReleaseHealth": "Activează starea lansărilor în SDK-ul tău pentru a urmări ratele fără crash-uri",
-    "noTrendHistory": "Istoric insuficient pentru a desena o tendință",
-    "noSessionDataForPeriod": "Fără date de sesiune pentru această perioadă"
+    "count": "{count, plural, one {# versiune} few {# versiuni} other {# de versiuni}}",
+    "released": "Lansată",
+    "unreleased": "Nelansată",
+    "loadFailed": "Versiunile nu au putut fi încărcate",
+    "emptyWindow": "Nicio versiune",
+    "empty": {
+      "title": "Încă nu există versiuni",
+      "description": "Trimite un <code>release</code> cu evenimentele sau sesiunile tale, sau creează unul din CI cu sentry-cli, ca să vezi aici fiecare versiune."
+    },
+    "detail": {
+      "loadFailed": "Această versiune nu a putut fi încărcată",
+      "copy": "Copiază versiunea",
+      "copied": "Versiune copiată",
+      "created": "Creată {when}",
+      "releasedOn": "Lansată pe {when}",
+      "crashFreeSessions": "Sesiuni fără erori fatale",
+      "crashFreeUsers": "Utilizatori fără erori fatale",
+      "adoption": "Adopție",
+      "adoptionHint": "din toate sesiunile din perioadă",
+      "sessions": "Sesiuni",
+      "crashedSessions": "{count} cu eroare fatală",
+      "newIssues": "Probleme noi",
+      "newIssuesHint": "Văzute prima dată în această versiune",
+      "events": "Evenimente",
+      "lastEvent": "Ultimul {when}",
+      "projectAverage": "Proiect {rate}",
+      "noSessions": "Nicio sesiune",
+      "noSessionsHint": "Activează sănătatea versiunilor în SDK ca să vezi câte sesiuni se blochează.",
+      "sessionsPanel": "Sesiuni",
+      "sessionsPanelHint": "Sesiuni sănătoase și cu erori fatale în perioadă",
+      "healthy": "Sănătoase",
+      "crashed": "Cu erori fatale",
+      "noNewIssues": "Nicio problemă nouă în această versiune",
+      "viewInIssues": "Vezi problemele ei",
+      "environments": "Medii",
+      "sessionsCount": "{count} sesiuni",
+      "details": "Detalii",
+      "version": "Versiune",
+      "package": "Pachet",
+      "commit": "Commit",
+      "createdAt": "Creată",
+      "releasedAt": "Lansată",
+      "notReleased": "Încă nu",
+      "firstEvent": "Primul eveniment",
+      "lastEventAt": "Ultimul eveniment"
+    },
+    "search": "Caută versiuni…",
+    "environment": "Mediu"
   },
   "transactions": {
-    "columns": {
-      "transaction": "Tranzacție",
-      "duration": "Durată",
-      "lastSeen": "Ultima apariție",
-      "count": "Număr",
-      "failures": "Eșecuri"
-    },
-    "unnamed": "(fără nume)",
-    "empty": {
-      "title": "Încă nu există tranzacții",
-      "sdkHint": "Configurează SDK-ul cu <code>tracesSampleRate</code> pentru a începe capturarea datelor de performanță."
-    },
     "measurements": {
       "lcp": "LCP",
       "fcp": "FCP",
@@ -1013,21 +1303,6 @@
       "inp": "INP",
       "ttfb": "TTFB",
       "cls": "CLS"
-    },
-    "waterfall": {
-      "rootFallback": "tranzacție",
-      "spanFallback": "span",
-      "expand": "Extinde",
-      "collapse": "Restrânge",
-      "detail": {
-        "op": "op",
-        "description": "descriere",
-        "status": "stare",
-        "duration": "durată",
-        "selfTime": "timp propriu",
-        "spanId": "span_id",
-        "parentSpanId": "parent_span_id"
-      }
     },
     "p95": {
       "barTitle": "{name} — {count, plural, one {# eveniment} few {# evenimente} other {# de evenimente}}",
@@ -1048,34 +1323,17 @@
     "unnamedAgent": "(agent fără nume)",
     "charts": {
       "noData": "Încă nu există date",
-      "durationTooltip": "medie {avg} · p95 {p95}"
-    },
-    "waterfall": {
-      "expand": "Extinde",
-      "collapse": "Restrânge",
-      "spanFallback": "span"
+      "durationTooltip": "medie {avg} · p95 {p95}",
+      "runs": "Rulări de agent",
+      "runsHint": "Rulări pornite pe interval",
+      "duration": "Durată",
+      "durationHint": "Timpul mediu și p95 al rulărilor de agent și al apelurilor la model",
+      "avg": "Medie",
+      "runsOk": "Rulări",
+      "runsFailed": "Eșuate"
     },
     "empty": {
       "noSpans": "Acest trace nu are span-uri."
-    },
-    "detail": {
-      "op": "op",
-      "description": "descriere",
-      "status": "stare",
-      "duration": "durată",
-      "selfTime": "timp propriu",
-      "spanId": "span_id",
-      "parentSpanId": "parent_span_id",
-      "operationType": "tip operațiune",
-      "agentName": "nume agent",
-      "toolName": "nume instrument",
-      "requestModel": "model cerere",
-      "responseModel": "model răspuns",
-      "conversationId": "id conversație",
-      "inputTokens": "token-uri de intrare",
-      "outputTokens": "token-uri de ieșire",
-      "totalTokens": "token-uri totale",
-      "genAiSection": "gen_ai"
     },
     "spanDetail": {
       "agentName": "Agent",
@@ -1104,11 +1362,28 @@
       "totalTokens": "Token-uri",
       "avgDuration": "Durată medie",
       "p95Duration": "Durată p95",
-      "errors": "Erori"
+      "errors": "Erori",
+      "avg": "medie {duration}",
+      "errorRate": "{rate} din span-urile AI"
     },
     "filters": {
       "allTime": "Tot intervalul",
-      "allEnvironments": "Toate mediile"
+      "allEnvironments": "Toate mediile",
+      "agent": "Agent",
+      "model": "Model",
+      "tool": "Unealtă",
+      "status": "Stare",
+      "failing": "Cu eșecuri",
+      "search": "Filtrează după agent:, model:, tool: sau status:",
+      "environment": "Mediu",
+      "noEnvironments": "Încă nu există medii",
+      "allTimeShort": "Tot",
+      "periods": {
+        "1h": "Ultima oră",
+        "24h": "Ultimele 24 de ore",
+        "7d": "Ultimele 7 zile",
+        "30d": "Ultimele 30 de zile"
+      }
     },
     "modelsTable": {
       "empty": "Niciun apel de model în această fereastră.",
@@ -1120,7 +1395,9 @@
       "input": "Intrare",
       "cached": "Din cache",
       "output": "Ieșire",
-      "reasoning": "Raționament"
+      "reasoning": "Raționament",
+      "title": "Modele",
+      "hint": "Apeluri, eșecuri, tokeni și latență pe model; un rând îi deschide trace-urile"
     },
     "toolsTable": {
       "empty": "Niciun apel de instrument în această fereastră.",
@@ -1128,7 +1405,62 @@
       "calls": "Apeluri",
       "errors": "Erori",
       "avg": "Medie",
-      "p95": "P95"
+      "p95": "P95",
+      "title": "Unelte",
+      "hint": "Apeluri, eșecuri și latență pe unealtă; un rând îi deschide trace-urile"
+    },
+    "tabs": {
+      "overview": "Prezentare",
+      "traces": "Trace-uri",
+      "conversations": "Conversații"
+    },
+    "runsCount": "{count, plural, one {# rulare de agent} few {# rulări de agent} other {# de rulări de agent}}",
+    "errorsCount": "{count, plural, one {# span eșuat} few {# span-uri eșuate} other {# de span-uri eșuate}}",
+    "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}",
+    "table": {
+      "most": "Cel mai mare întâi",
+      "newest": "Cele mai noi întâi",
+      "empty": "Niciun trace nu corespunde acestor filtre"
+    },
+    "trace": {
+      "models": "Modele",
+      "waterfallOf": "Span-urile trace-ului {traceId}",
+      "conversation": "Conversație"
+    },
+    "graph": {
+      "viewLabel": "Cum se afișează trace-ul",
+      "waterfall": "Cascadă",
+      "graph": "Agenți",
+      "empty": "Niciun agent nu a rulat în acest trace.",
+      "handoff": "{count, plural, one {predare} few {# predări} other {# de predări}}",
+      "then": "apoi",
+      "runs": "{count, plural, one {# rulare} few {# rulări} other {# de rulări}}",
+      "models": "Modele",
+      "tools": "Unelte"
+    },
+    "conversations": {
+      "title": "Conversații",
+      "metaTitle": "{conversation} | Conversații | Rustrak",
+      "loadFailed": "Conversația nu a putut fi încărcată",
+      "empty": "Nicio conversație în această perioadă. Trimite gen_ai.conversation.id pe span-urile agenților pentru a le grupa rundele.",
+      "pageOf": "Pagina {page} din {total}",
+      "newer": "Conversații mai noi",
+      "older": "Conversații mai vechi",
+      "unnamed": "(agent fără nume)",
+      "turns": "{count, plural, one {# rundă} few {# runde} other {# de runde}}",
+      "calls": "{count, plural, one {# apel LLM} few {# apeluri LLM} other {# de apeluri LLM}}",
+      "tools": "{count, plural, one {# apel de unealtă} few {# apeluri de unelte} other {# de apeluri de unelte}}",
+      "tokens": "{count} tokeni",
+      "errors": "{count, plural, one {# eșec} few {# eșecuri} other {# de eșecuri}}",
+      "turn": "Runda {number}",
+      "openTrace": "Deschide trace-ul",
+      "user": "Utilizator",
+      "assistant": "Asistent",
+      "noAnswer": "Runda a eșuat înainte de a răspunde.",
+      "turnsLabel": "Runde",
+      "tokensLabel": "Tokeni",
+      "errorsLabel": "Erori",
+      "started": "Început"
     }
   },
   "tokens": {
@@ -1365,11 +1697,6 @@
       "title": "Autentificare | Rustrak",
       "description": "Autentifică-te în contul tău Rustrak"
     },
-    "heroTitle": "Bine ai revenit în Rustrak",
-    "heroDescription": "Urmărire de erori ușoară și auto-găzduită. Accesează panoul tău pentru a monitoriza starea sistemului și a rezolva incidentele critice.",
-    "statMemoryFootprint": "Amprentă de memorie",
-    "statIngestionLatency": "Latență de ingestie",
-    "statEventsPerSecond": "Evenimente/secundă",
     "form": {
       "title": "Autentificare",
       "subtitle": "Introdu credențialele pentru a accesa platforma.",
@@ -1416,6 +1743,9 @@
       "expiredTitle": "Nimic de asociat",
       "expiredDescription": "Această cerere a expirat sau a fost deja finalizată. Autentifică-te din nou pentru a reîncepe.",
       "backToLogin": "Înapoi la autentificare"
+    },
+    "footer": {
+      "docs": "Documentație"
     }
   },
   "invite": {
@@ -1454,7 +1784,6 @@
     "projectTitle": "{project} | Rustrak",
     "loadProjectFailed": "Proiectul nu a putut fi încărcat",
     "loadIssueFailed": "Problema nu a putut fi încărcată",
-    "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}",
     "projectsList": {
       "meta": {
         "title": "Proiecte | Rustrak",
@@ -1478,26 +1807,62 @@
       "meta": {
         "description": "Prezentare generală pentru {project}"
       },
-      "periodAll": "Toate",
-      "errorVolume": "Volumul erorilor după severitate",
-      "events": "Evenimente",
+      "errorVolume": "Erori în timp",
       "newIssues": "Probleme noi",
       "openIssues": "{count} deschise",
       "crashFreeSessions": "Sesiuni fără crash-uri",
       "sessionHealth": "Starea sesiunilor",
-      "sessionHealthSubtitle": "Sesiuni sănătoase și cu crash-uri în timp",
+      "sessionHealthSubtitle": "Sesiuni fără crash în perioadă",
       "latency": "Latență",
       "latencySubtitle": "Cele mai lente tranzacții după p95, tot intervalul",
-      "topIssues": "Top probleme",
-      "topIssuesSubtitle": "Problemele deschise după totalul de evenimente, tot intervalul",
-      "noIssuesYet": "Încă nu există probleme"
+      "noIssuesYet": "Încă nu există probleme",
+      "allEnvironments": "Toate mediile",
+      "compare": "Compară",
+      "storedEvents": "{count} evenimente stocate",
+      "kpisFailed": "Cifrele principale nu au putut fi încărcate",
+      "errors": "Erori",
+      "crashes": "Sesiuni cu crash",
+      "sessionsCount": "{count} sesiuni",
+      "noSessions": "Încă nu există sesiuni",
+      "noSessionsHint": "Sănătatea release-urilor apare când SDK-ul trimite sesiuni (auto session tracking).",
+      "crashFreeUsers": "Utilizatori fără crash",
+      "activeReleases": "{count, plural, =1 {# release} other {# release-uri}}",
+      "eventsInWindow": "{count} evenimente în această perioadă",
+      "thisPeriod": "Perioada aceasta",
+      "previousPeriod": "Perioada anterioară",
+      "levelError": "Eroare",
+      "levelWarning": "Avertisment",
+      "levelInfo": "Info",
+      "issues": "Issue-uri deschise",
+      "issuesDescription": "Ce să verifici mai întâi, din totdeauna",
+      "issuesRecent": "Recente",
+      "issuesNew": "Noi",
+      "issuesFrequent": "Cele mai multe evenimente",
+      "viewAllIssues": "Vezi toate issue-urile",
+      "issueTrend": "Evenimente în timp",
+      "sessions": "Sesiuni",
+      "errored": "Cu erori",
+      "crashed": "Cu crash",
+      "allReleases": "Toate release-urile",
+      "noEnvironments": "Încă nu există medii",
+      "noReleases": "Încă nu există release-uri",
+      "periods": {
+        "24h": "Ultimele 24 de ore",
+        "7d": "Ultimele 7 zile",
+        "14d": "Ultimele 14 zile",
+        "30d": "Ultimele 30 de zile",
+        "all": "Tot istoricul",
+        "allShort": "Tot"
+      },
+      "environment": "Mediu",
+      "release": "Release"
     },
     "issues": {
       "meta": {
         "description": "Probleme pentru {project}"
       },
       "title": "Probleme",
-      "subtitle": "Problemele deschise pentru {project}",
+      "subtitle": "Erorile din {project}, grupate după cauză",
       "loadFailed": "Problemele nu au putut fi încărcate",
       "loadLatestEventFailed": "Ultimul eveniment nu a putut fi încărcat"
     },
@@ -1507,7 +1872,6 @@
         "description": "Jurnale structurate pentru {project}"
       },
       "title": "Jurnale",
-      "subtitle": "Jurnale structurate pentru {project}, cele mai noi întâi",
       "loadFailed": "Jurnalele nu au putut fi încărcate",
       "emptyTitle": "Încă nu există jurnale",
       "emptyDescription": "Trimite jurnale structurate din SDK-ul tău (de ex. <code>Sentry.logger.info(...)</code>) pentru a începe colectarea lor aici."
@@ -1517,59 +1881,32 @@
         "title": "Performanță | {project} | Rustrak",
         "description": "Performanța tranzacțiilor pentru {project}"
       },
-      "title": "Performanță",
-      "subtitle": "Tranzacțiile pentru {project}, grupate după nume și operațiune",
-      "loadFailed": "Tranzacțiile nu au putut fi încărcate",
-      "emptyTitle": "Încă nu există tranzacții",
-      "emptyDescription": "Configurează SDK-ul cu <code>tracesSampleRate</code> pentru a începe capturarea datelor de performanță.",
-      "backLink": "Performanță"
+      "title": "Performanță"
     },
     "transaction": {
       "meta": {
         "title": "{name} | Performanță | Rustrak",
         "fallbackTitle": "Tranzacție | Rustrak"
-      },
-      "loadFailed": "Tranzacția nu a putut fi încărcată",
-      "unnamed": "(tranzacție fără nume)",
-      "spans": "Span-uri",
-      "noSpans": "Această tranzacție nu are span-uri.",
-      "tags": "Tag-uri",
-      "request": "Cerere",
-      "user": "Utilizator"
+      }
     },
     "summary": {
       "meta": {
         "title": "{name} | Performanță | Rustrak",
         "fallbackName": "Tranzacție"
-      },
-      "metricCount": "Număr",
-      "metricP50": "p50",
-      "metricP95": "p95",
-      "metricP99": "p99",
-      "metricFailureRate": "Rata de eșec",
-      "samples": "Eșantioane"
+      }
     },
     "releases": {
       "meta": {
         "title": "Lansări | {project} | Rustrak",
         "description": "Starea lansărilor pentru {project}"
       },
-      "title": "Lansări",
-      "subtitle": "Starea sesiunilor per lansare pentru {project}",
-      "loadFailed": "Starea lansărilor nu a putut fi încărcată",
-      "emptyTitle": "Încă nu există lansări",
-      "emptyDescription": "Trimite un atribut <code>release</code> odată cu evenimentele sau sesiunile tale pentru a începe urmărirea stării lansărilor."
+      "title": "Lansări"
     },
     "releaseDetail": {
       "meta": {
         "title": "{release} | {project} | Rustrak",
         "description": "Starea lansării pentru {release}"
-      },
-      "loadFailed": "Această lansare nu a putut fi încărcată",
-      "subtitle": "Starea lansărilor pentru {project}",
-      "newIssues": "Probleme noi",
-      "newIssuesEmpty": "Nicio problemă nouă introdusă în această lansare",
-      "loadNewIssuesFailed": "Problemele noi nu au putut fi încărcate"
+      }
     },
     "agents": {
       "meta": {
@@ -1577,40 +1914,17 @@
         "description": "Monitorizare agenți AI pentru {project}"
       },
       "title": "Agenți",
-      "subtitle": "Rulările agenților AI, token-urile și folosirea instrumentelor pentru {project}",
       "loadFailed": "Activitatea agenților nu a putut fi încărcată",
       "emptyTitle": "Încă nu există activitate a agenților",
-      "emptyDescription": "Instrumentează agentul tău AI cu un SDK Sentry care folosește convențiile semantice OpenTelemetry GenAI pentru a începe capturarea rulărilor de agenți.",
-      "cardRuns": "Rulări agent",
-      "cardRunsDescription": "Rulări pornite per interval",
-      "cardDuration": "Durată",
-      "cardDurationDescription": "Durata medie și p95 a rulărilor de agent",
-      "cardModelsByCalls": "Apeluri LLM per model",
-      "cardModelsByCallsDescription": "Top modele după numărul de apeluri",
-      "cardModelsByTokens": "Token-uri folosite per model",
-      "cardModelsByTokensDescription": "Top modele după volumul de token-uri",
-      "cardTools": "Apeluri de instrument per instrument",
-      "cardToolsDescription": "Top instrumente după numărul de apeluri",
-      "cardTraces": "Trace-uri",
-      "cardTracesDescription": "Un rând per trace, agregând fiecare span AI pe care îl conține",
-      "cardModelsTable": "Modele",
-      "cardModelsTableDescription": "Volum, eșecuri, latență și împărțirea token-urilor per model.",
-      "cardToolsTable": "Instrumente",
-      "cardToolsTableDescription": "Volumul de apeluri și rata de eșec per instrument."
+      "emptyDescription": "Instrumentează agentul tău AI cu un SDK Sentry care folosește convențiile semantice OpenTelemetry GenAI pentru a începe capturarea rulărilor de agenți."
     },
     "trace": {
       "meta": {
         "title": "{traceId} | Agenți | Rustrak"
       },
       "loadFailed": "Trace-ul nu a putut fi încărcat",
-      "backLink": "Agenți",
       "unnamed": "(agent fără nume)",
-      "tokens": "{count} token-uri",
-      "toolCalls": "{count, plural, one {# apel de instrument} few {# apeluri de instrument} other {# de apeluri de instrument}}",
       "spans": "Span-uri",
-      "llmCalls": "{count} apeluri LLM",
-      "errors": "{count} erori",
-      "spanDetail": "Detalii span",
       "selectSpan": "Selectează un span pentru a-i vedea promptul, răspunsul și atributele.",
       "spanUnavailable": "Acest span nu mai este disponibil."
     },
@@ -1676,8 +1990,21 @@
         "title": "Niciun feedback aici",
         "description": "Aici apare feedbackul trimis cu widgetul de feedback al SDK-ului sau cu captureFeedback"
       },
-      "anonymous": "Anonim"
-    }
+      "anonymous": "Anonim",
+      "count": "{count, plural, one {# mesaj} few {# mesaje} other {# de mesaje}}",
+      "pageOf": "Pagina {page} din {total}",
+      "previousPage": "Pagina anterioară",
+      "nextPage": "Pagina următoare",
+      "attachments": "{count, plural, one {# atașament} few {# atașamente} other {# de atașamente}}",
+      "linkedError": "Eroare asociată",
+      "noLinkedError": "Trimis fără nicio eroare",
+      "viewError": "Vezi eroarea la care se referă",
+      "page": "Pagină",
+      "received": "Primit",
+      "openIssue": "Deschide ca problemă",
+      "back": "Înapoi la listă"
+    },
+    "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}"
   },
   "settings": {
     "meta": {
@@ -1689,11 +2016,11 @@
       "general": "General",
       "alerts": "Alerte",
       "members": "Membri",
-      "clientKeys": "Chei client",
+      "clientKeys": "SDK",
       "apiTokens": "Token-uri API",
       "integrations": "Integrări",
-      "mcp": "Asistenți AI (MCP)",
-      "team": "Echipă",
+      "mcp": "Asistenți AI",
+      "team": "Membri",
       "storage": "Stocare",
       "account": "Cont",
       "appearance": "Aspect",
@@ -1702,7 +2029,14 @@
       "projectSettingsTitle": "Setări proiect",
       "openSettingsMenu": "Deschide meniul setărilor",
       "settingsTitle": "Setări",
-      "github": "GitHub"
+      "github": "Depozit",
+      "products": "Produse",
+      "groupAccount": "Cont",
+      "groupWorkspace": "Spațiu de lucru",
+      "profile": "Profil",
+      "preferences": "Preferințe",
+      "instance": "Instanță",
+      "data": "Date"
     },
     "loadProjectFailed": "Proiectul nu a putut fi încărcat",
     "loadProjectsFailed": "Proiectele nu au putut fi încărcate",
@@ -1718,7 +2052,7 @@
       "meta": {
         "title": "Chei client | Rustrak"
       },
-      "title": "Chei client (DSN)",
+      "title": "SDK",
       "subtitle": "Conectează o aplicație la acest proiect."
     },
     "alerts": {
@@ -1749,7 +2083,7 @@
         "title": "Echipă | Rustrak",
         "description": "Administrează membrii echipei și invitațiile"
       },
-      "title": "Echipă",
+      "title": "Membri",
       "subtitle": "Administrează membrii echipei și invitațiile",
       "notAuthorizedDescription": "Doar administratorii instanței pot administra echipa. Contactează un admin dacă ai nevoie de acces.",
       "loadFailed": "Echipa nu a putut fi încărcată"
@@ -1761,7 +2095,7 @@
       },
       "title": "Integrări",
       "subtitle": "Conectează Rustrak cu uneltele și serviciile tale pentru a automatiza fluxurile de lucru și a fi la curent cu erorile.",
-      "backToAlerts": "Înapoi la setările alertelor",
+      "backToAlerts": "Înapoi la alerte",
       "backToProjects": "Înapoi la proiecte",
       "loadFailed": "Integrările nu au putut fi încărcate",
       "githubLoadFailed": "Conexiunea GitHub nu a putut fi încărcată"
@@ -1771,8 +2105,8 @@
         "title": "Asistenți AI | Rustrak",
         "description": "Conectează asistenți AI la Rustrak prin MCP"
       },
-      "title": "Asistenți AI (MCP)",
-      "subtitle": "Permite lui Claude, ChatGPT, Cursor și altor asistenți AI să citească și să trieze erorile tale, cu permisiunile celui care îi conectează.",
+      "title": "Asistenți AI",
+      "subtitle": "Lasă Claude, ChatGPT sau Cursor să citească și să trieze erorile tale.",
       "loadFailed": "Setările MCP nu au putut fi încărcate",
       "copy": "Copiază",
       "copied": "Copiat",
@@ -1832,6 +2166,28 @@
         "revokeFailed": "Asistentul nu a putut fi deconectat",
         "revoked": "{name} a fost deconectat",
         "loadFailed": "Asistenții conectați nu au putut fi încărcați"
+      },
+      "page": {
+        "offTitle": "Serverul MCP este oprit",
+        "offAdmin": "Pornește-l pentru a conecta un asistent.",
+        "offMember": "Cere unui administrator să-l pornească.",
+        "enable": "Pornește",
+        "connect": "Conectează un asistent",
+        "webHint": "Adaugă un conector personalizat și lipește URL-ul de mai sus. Te autentifici în Rustrak și aprobi.",
+        "tokenHint": "Acest server nu are PUBLIC_URL, așa că asistenții se conectează cu un token API.",
+        "help": "Cum funcționează",
+        "helpTitle": "Două moduri de conectare",
+        "helpIntro": "Ambele funcționează în același timp: folosește-l pe cel acceptat de asistentul tău.",
+        "oauthName": "Autentificare",
+        "tokenName": "Token API",
+        "oauth1": "claude.ai, ChatGPT, Claude Code, Cursor, VS Code",
+        "oauth2": "Te autentifici în Rustrak și aprobi",
+        "oauth3": "Nimic de copiat sau reînnoit",
+        "token1": "Scripturi, CI, clienți fără autentificare",
+        "token2": "Lipești un token în client",
+        "token3": "Revocarea tokenului îl deconectează",
+        "publicUrl": "Autentificarea necesită PUBLIC_URL: adresa la care se ajunge la acest server.",
+        "tokenSetup": "Configurează cu un token"
       }
     },
     "storage": {
@@ -1902,6 +2258,49 @@
       "githubRepository": "Depozit GitHub",
       "reportAnIssue": "Raportează o problemă",
       "sentryDocs": "Documentație SDK Sentry"
+    },
+    "products": {
+      "title": "Produse",
+      "subtitle": "Ce păstrează acest proiect și ordinea din bara sa laterală.",
+      "note": "Dezactivarea unui produs îl scoate din bara laterală și oprește stocarea datelor sale la sosire: SDK-ul le trimite în continuare, iar Rustrak le ignoră. Ce este deja stocat se păstrează și reapare dacă îl reactivezi.",
+      "alwaysOn": "Mereu activ",
+      "saved": "Salvat",
+      "saveFailed": "Produsele nu au putut fi salvate",
+      "drag": "Trage pentru a reordona {name}",
+      "moveUp": "Mută {name} în sus",
+      "moveDown": "Mută {name} în jos",
+      "items": {
+        "issues": "Erori și excepții, grupate în probleme.",
+        "feedback": "Ce trimit utilizatorii prin widgetul de feedback.",
+        "releases": "Sănătatea versiunilor, din sesiuni.",
+        "performance": "Tranzacții și span-uri.",
+        "logs": "Loguri structurate din SDK.",
+        "crons": "Check-in-uri ale sarcinilor programate.",
+        "agents": "Urme ale agenților AI: span-urile gen_ai din datele de performanță."
+      }
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Cine ești pe această instanță și cum te autentifici."
+    },
+    "preferences": {
+      "title": "Preferințe",
+      "subtitle": "Cum îți afișează Rustrak lucrurile: limbă, fus orar și temă.",
+      "display": "Afișare",
+      "theme": "Temă",
+      "themeDescription": "Luminoasă, întunecată sau cea a sistemului."
+    },
+    "instance": {
+      "title": "Instanță",
+      "subtitle": "Ce rulează acest Rustrak și ce limite aplică.",
+      "version": "Versiune",
+      "limits": "Limite de ingestie",
+      "limitsDescription": "Limitele serverului pe proiect. Un proiect poate seta doar limite mai mici, în setările Date.",
+      "unlimited": "Fără limită"
+    },
+    "data": {
+      "title": "Date",
+      "subtitle": "Ce păstrează acest proiect și cât acceptă."
     }
   },
   "github": {
@@ -1994,6 +2393,31 @@
       "description": "Când ți se atribuie un issue în Rustrak, ți se atribuie și issue-urile GitHub legate, și invers.",
       "saved": "Utilizatorul GitHub a fost salvat",
       "saveFailed": "Utilizatorul GitHub nu a putut fi salvat"
+    },
+    "setup": {
+      "title": "Configurează GitHub",
+      "createTitle": "Creează GitHub App",
+      "createDescription": "GitHub îți arată aplicația înainte s-o creeze și rămâne privată contului sau organizației tale.",
+      "created": "Creată ca {slug}",
+      "organization": "Organizație",
+      "organizationHint": "Lasă gol pentru contul personal. Aplicația poate fi instalată doar unde e creată.",
+      "installTitle": "Alege depozitele",
+      "installDescription": "Instalează aplicația și alege depozitele pe care Rustrak le poate citi.",
+      "linkTitle": "Leagă fiecare proiect de depozitul său",
+      "linkDescription": "În setările fiecărui proiect, la GitHub.",
+      "featuresTitle": "Ce aduce",
+      "active": "Activă",
+      "you": "Tu",
+      "features": {
+        "code": "Cod în stack trace-uri",
+        "codeDescription": "Deschide linia care a eșuat, la commitul care a rulat-o.",
+        "commits": "Commituri suspecte",
+        "commitsDescription": "Commitul care cel mai probabil a stricat-o, pe issue.",
+        "issues": "Issue-uri GitHub",
+        "issuesDescription": "Deschide sau leagă issue-uri și rezolvă erori din commituri.",
+        "owners": "Code owners",
+        "ownersDescription": "Cine deține codul care eșuează, din CODEOWNERS."
+      }
     }
   },
   "conditions": {
@@ -2013,7 +2437,6 @@
       "detailTitle": "{monitor} | Crons | Rustrak"
     },
     "title": "Crons",
-    "subtitle": "Află când o sarcină programată nu rulează, eșuează sau durează prea mult",
     "newMonitor": "Monitor nou",
     "loadFailed": "Monitoarele nu au putut fi încărcate",
     "loadMonitorFailed": "Acest monitor nu a putut fi încărcat",
@@ -2021,7 +2444,6 @@
     "columns": {
       "monitor": "Monitor",
       "schedule": "Programare",
-      "recent": "Rulări recente",
       "lastCheckIn": "Ultimul check-in",
       "nextCheckIn": "Următorul așteptat"
     },
@@ -2045,15 +2467,30 @@
       "active": "Se așteaptă o rulare reușită"
     },
     "timeline": {
-      "label": "Check-in-uri recente, de la cel mai vechi",
-      "took": "A durat {duration}"
+      "noRuns": "nicio rulare",
+      "avg": "medie {duration}",
+      "now": "acum"
     },
     "empty": {
       "title": "Monitorizează-ți sarcinile programate",
       "description": "Rustrak te anunță când un cron nu rulează la timp, eșuează sau durează mai mult decât ar trebui. Adaugă un check-in în sarcina ta: monitorul ei se creează la prima rulare.",
       "upsertNote": "Acest exemplu face check-in în monitorul my-job în fiecare oră și îl creează la prima rulare. Înlocuiește slug-ul și programarea cu cele ale sarcinii tale.",
       "orManual": "Preferi să îl configurezi manual?",
-      "manual": "Creează un monitor"
+      "manual": "Creează un monitor",
+      "steps": {
+        "checkIn": {
+          "title": "Adaugă un check-in",
+          "description": "Lipește fragmentul în sarcina ta. DSN-ul tău este deja completat."
+        },
+        "run": {
+          "title": "Rulează sarcina",
+          "description": "Monitorul ei se creează la primul check-in, cu programarea trimisă."
+        },
+        "alert": {
+          "title": "Primește notificări",
+          "description": "Rustrak te anunță când o rulare lipsește, eșuează sau durează prea mult."
+        }
+      }
     },
     "setup": {
       "copy": "Copiază",
@@ -2089,7 +2526,20 @@
       "nextCheckIn": "Următorul așteptat",
       "minutes": "{count, plural, one {# minut} few {# minute} other {# de minute}}",
       "failures": "{count, plural, one {# check-in eșuat} few {# check-in-uri eșuate la rând} other {# de check-in-uri eșuate la rând}}",
-      "successes": "{count, plural, one {# check-in reușit} few {# check-in-uri reușite la rând} other {# de check-in-uri reușite la rând}}"
+      "successes": "{count, plural, one {# check-in reușit} few {# check-in-uri reușite la rând} other {# de check-in-uri reușite la rând}}",
+      "took": "a durat {duration}",
+      "late": "Întârziat",
+      "successRate": "Rată de succes",
+      "inWindow": "Din rulările acestei perioade",
+      "avgDuration": "Durată medie",
+      "ofMax": "Durată maximă {duration}",
+      "duration": "Durată",
+      "durationHint": "Cât au durat rulările în medie, pe mediu",
+      "created": "Creat",
+      "timeline": "Cronologie",
+      "timelineHint": "Fiecare marcaj este cea mai proastă rulare din intervalul său, pe aceeași axă pentru fiecare mediu",
+      "checkInsHint": "Toate rulările, cele mai noi întâi",
+      "instrumentHint": "Fă check-in din job cu unul dintre acestea"
     },
     "checkInColumns": {
       "status": "Stare",
@@ -2158,6 +2608,24 @@
       "numberRange": "Între {min} și {max}",
       "tooLong": "Cel mult {max} caractere",
       "timezoneRequired": "Alege un fus orar"
+    },
+    "noMatch": "Niciun monitor nu corespunde căutării",
+    "late": "Întârziat",
+    "state": "Stare",
+    "search": "Caută monitoare sau filtrează după state:",
+    "count": "{count, plural, one {# monitor} few {# monitoare} other {# de monitoare}}",
+    "failingCount": "{count} cu erori",
+    "pageOf": "Pagina {page} din {total}",
+    "newer": "Check-in-uri mai noi",
+    "older": "Check-in-uri mai vechi",
+    "periods": {
+      "24h": "Ultimele 24 de ore",
+      "7d": "Ultimele 7 zile",
+      "30d": "Ultimele 30 de zile"
+    },
+    "legend": {
+      "timeout": "Expirat (peste {count} min)",
+      "missed": "Ratat (niciun check-in în {count} min)"
     }
   },
   "schedule": {
@@ -2209,5 +2677,76 @@
     "decideFailed": "Autorizarea nu a putut fi finalizată",
     "failedTitle": "Această cerere nu poate fi finalizată",
     "failedDescription": "Asistentul a trimis o cerere de autorizare pe care Rustrak nu a putut-o verifica, deci nu s-a partajat nimic. Pornește din nou conexiunea din asistent."
+  },
+  "performance": {
+    "count": "{count, plural, one {# endpoint} few {# endpointuri} other {# de endpointuri}}",
+    "search": "Caută endpointuri…",
+    "environment": "Mediu",
+    "loadFailed": "Endpointurile nu au putut fi încărcate",
+    "emptyWindow": "Niciun endpoint",
+    "empty": {
+      "title": "Încă nu există tranzacții",
+      "description": "Setează <code>tracesSampleRate</code> în SDK ca să vezi cât durează fiecare endpoint."
+    },
+    "columns": {
+      "endpoint": "Endpoint",
+      "timeSpent": "Timp total",
+      "calls": "Apeluri",
+      "avg": "Medie",
+      "failures": "Eșecuri",
+      "lastSeen": "Ultima dată"
+    },
+    "table": {
+      "most": "Cele mai mari întâi"
+    },
+    "detail": {
+      "figures": "Cifre",
+      "noSamples": "Nicio mostră în această perioadă",
+      "latency": "Latență",
+      "latencyHint": "p50 și p95 în perioadă",
+      "calls": "Apeluri",
+      "callsHint": "De câte ori a rulat și de câte ori a eșuat",
+      "ok": "Reușite",
+      "failed": "Eșuate",
+      "slowest": "Cele mai lente mostre",
+      "slowestHint": "Deschide una ca să vezi traseul",
+      "callsFigure": "Apeluri",
+      "perMinute": "{rate} pe minut",
+      "failures": "Eșecuri",
+      "timeSpent": "Timp total",
+      "totalTime": "{time} în total",
+      "p50": "p50 {time}",
+      "failedCalls": "{count} eșuate",
+      "operation": "Operație",
+      "environment": "Mediu",
+      "allEnvironments": "Toate",
+      "average": "Medie",
+      "lastSeen": "Ultima dată",
+      "details": "Detalii",
+      "duration": "Durată",
+      "release": "Versiune",
+      "status": "Stare",
+      "when": "Când"
+    },
+    "transaction": {
+      "loadFailed": "Această tranzacție nu a putut fi încărcată",
+      "unnamed": "(fără nume)",
+      "idCopied": "Id-ul evenimentului copiat",
+      "copyId": "Copiază id-ul evenimentului",
+      "request": "Cerere",
+      "tags": "Etichete",
+      "user": "Utilizator",
+      "trace": "Traseu",
+      "spans": "{count, plural, one {# span} few {# spanuri} other {# de spanuri}}",
+      "traceOf": "Traseul {name}",
+      "noSpans": "Această tranzacție nu a trimis spanuri",
+      "op": "Operație",
+      "description": "Descriere",
+      "duration": "Durată",
+      "selfTime": "Timp propriu",
+      "start": "Început",
+      "status": "Stare",
+      "spanId": "Id span"
+    }
   }
 }

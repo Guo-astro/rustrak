@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@rustrak/ui';
 import { PlatformIcon } from 'platformicons';
 import { useMemo, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
@@ -16,7 +16,6 @@ import { platformLabel } from '@/shared/config/platforms';
 import type { Translate } from '@/shared/lib/error-copy';
 import { applyServerFieldErrors } from '@/shared/lib/form-errors';
 import { PlatformGrid } from '@/shared/ui/components/platform-grid';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   Form,
   FormControl,
@@ -164,14 +163,7 @@ export function CreateProjectForm({ existingNames }: CreateProjectFormProps) {
 
   // Rendered in two places (the aside on desktop, the fixed bar on mobile), so
   // it lives here rather than being written twice.
-  const submitLabel = isPending ? (
-    <>
-      <Loader2 className="mr-2 size-4 animate-spin" />
-      {t('creating')}
-    </>
-  ) : (
-    t('create')
-  );
+  const submitLabel = isPending ? t('creating') : t('create');
 
   return (
     <Form {...form}>
@@ -186,7 +178,7 @@ export function CreateProjectForm({ existingNames }: CreateProjectFormProps) {
           name="platform"
           render={({ field }) => (
             <FormItem className="min-w-0">
-              <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              <FormLabel className="text-label text-fg-muted">
                 {t('fields.platform')}
               </FormLabel>
               <FormControl>
@@ -201,73 +193,94 @@ export function CreateProjectForm({ existingNames }: CreateProjectFormProps) {
           )}
         />
 
-        <aside className="rounded-xl border bg-card p-5 lg:sticky lg:top-6">
-          <div className="flex items-center gap-3 border-b pb-4">
-            {platform ? (
-              <>
-                <PlatformIcon platform={platform} size={32} />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">
-                    {platformLabel(platform)}
-                  </p>
-                  <p className="truncate font-mono text-xs text-muted-foreground">
-                    {platform}
-                  </p>
+        {/* Labelled like the platform column, with the same gap, so both
+            panels start on the same line. */}
+        <div className="grid gap-2 lg:sticky lg:top-0">
+          <p className="text-label text-fg-muted">{t('projectDetails')}</p>
+          <aside className="rounded-2xl border border-border-subtle bg-surface p-5">
+            <div className="flex items-center gap-3 border-b border-border-divider pb-4">
+              {platform ? (
+                // Keyed by the platform, so picking another replays the swap.
+                <div
+                  key={platform}
+                  className="flex min-w-0 items-center gap-3 animate-swap-in"
+                >
+                  <PlatformIcon
+                    platform={platform}
+                    size={32}
+                    className="shrink-0 rounded-lg"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-card-title text-fg">
+                      {platformLabel(platform)}
+                    </p>
+                    <p className="truncate font-mono text-mono-sm text-fg-meta">
+                      {platform}
+                    </p>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="size-8 shrink-0 rounded-md border border-dashed" />
-                <p className="text-sm text-muted-foreground">
-                  {t('noPlatformSelected')}
-                </p>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <div className="size-8 shrink-0 rounded-lg border border-dashed border-border-strong" />
+                  <p className="text-value text-fg-subtle">
+                    {t('noPlatformSelected')}
+                  </p>
+                </>
+              )}
+            </div>
 
-          <IdentityFields slug={slug} disabled={isPending} />
+            <IdentityFields slug={slug} disabled={isPending} />
 
-          {/* Where a server failure that named no field of this form lands. */}
-          <FormRootError className="mt-4" />
+            {/* Where a server failure that named no field of this form lands. */}
+            <FormRootError className="mt-4" />
 
-          {/* Hidden on mobile: the fixed bar below owns the action there, and
+            {/* Hidden on mobile: the fixed bar below owns the action there, and
               two live submit buttons would be one too many. */}
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="mt-5 hidden w-full lg:flex"
-          >
-            {submitLabel}
-          </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isPending}
+              disabled={isPending}
+              className="mt-5 hidden w-full lg:flex"
+            >
+              {submitLabel}
+            </Button>
 
-          <p className="mt-3 hidden text-xs text-muted-foreground lg:block">
-            {t('dsnNext')}
-          </p>
-        </aside>
+            <p className="mt-3 hidden text-hint text-fg-meta lg:block">
+              {t('dsnNext')}
+            </p>
+          </aside>
+        </div>
 
         {/* Mobile action bar. The platform grid is tall, so a button sitting
             below it is off-screen for most of the time the user spends on this
             page. Pinning it also keeps the current selection visible while
             scrolling the list. */}
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border-divider bg-panel px-4 py-3 lg:hidden">
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             {platform ? (
               <>
-                <PlatformIcon platform={platform} size={24} />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                <PlatformIcon
+                  platform={platform}
+                  size={24}
+                  className="shrink-0 rounded-md"
+                />
+                <span className="min-w-0 flex-1 truncate text-value font-medium text-fg">
                   {platformLabel(platform)}
                 </span>
               </>
             ) : (
-              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate text-value text-fg-subtle">
                 {t('pickPlatform')}
               </span>
             )}
             <Button
               type="submit"
+              variant="primary"
+              size="sm"
+              loading={isPending}
               disabled={isPending}
               className="shrink-0"
-              size="sm"
             >
               {submitLabel}
             </Button>

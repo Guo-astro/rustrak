@@ -8,6 +8,7 @@ use chrono::Utc;
 use rustrak::config::RateLimitConfig;
 use rustrak::ingest::{store_event, EventMetadata};
 use rustrak::models::{CleanupFilter, CreateProject, CreateRelease};
+use rustrak::services::scope::Scope;
 use rustrak::services::{
     EventService, IssueService, ProjectService, ReleaseService, StorageService,
 };
@@ -163,6 +164,7 @@ async fn test_error_processor_impl_creates_issue_and_event() {
         event_id: Uuid::parse_str(&event_id).expect("Invalid event_id"),
         ingested_at: metadata.ingested_at,
         remote_addr: None,
+        keep_ai_spans: true,
     };
 
     processor
@@ -1178,7 +1180,8 @@ async fn test_issue_search_finds_the_frame_filename_and_module() {
             1,
             20,
             Some(term),
-            None,
+            Scope::default(),
+            &rustrak::services::issue::IssueFilters::default(),
         )
         .await
         .expect("search");
@@ -1240,7 +1243,8 @@ async fn test_search_follows_the_frame_of_the_latest_event() {
                 1,
                 20,
                 Some(term),
-                None,
+                Scope::default(),
+                &rustrak::services::issue::IssueFilters::default(),
             )
             .await
             .expect("search")
@@ -2712,7 +2716,37 @@ async fn test_tag_values_and_aggregates() {
     let agg = IssueService::aggregates(&db.pool, issue_id).await.unwrap();
     assert_eq!(agg.user_count, 2); // user-1, user-2
     let browser = agg.tags.iter().find(|t| t.key == "browser").unwrap();
-    assert_eq!(browser.total_values, 2);
+    // Sentry's `totalValues`: the events carrying the tag (chrome 2 +
+    // firefox 1), not how many distinct values it has.
+    assert_eq!(browser.total_values, 3);
+}
+
+#[actix_web::test]
+async fn test_aggregates_count_a_repeated_tag_key_once_per_event() {
+    let db = TestDb::new().await;
+    let project = create_test_project(&db.pool, "Repeated Tags Project").await;
+    let temp_dir = TempDir::new().unwrap();
+    let cfg = create_rate_limit_config();
+
+    // One event sending `browser` twice, in the list form of `tags`.
+    ingest_event_with_tags(
+        &db.pool,
+        project.id,
+        temp_dir.path(),
+        &cfg,
+        json!([["browser", "chrome"], ["browser", "firefox"]]),
+        json!({"id": "user-1"}),
+    )
+    .await;
+
+    let issue_id = only_issue_id(&db.pool, project.id).await;
+    let agg = IssueService::aggregates(&db.pool, issue_id).await.unwrap();
+    let browser = agg.tags.iter().find(|t| t.key == "browser").unwrap();
+
+    // Relay deduplicates tags and keeps the first: one event, one value.
+    assert_eq!(browser.total_values, 1);
+    assert_eq!(browser.top_values.len(), 1);
+    assert_eq!(browser.top_values[0].value, "chrome");
 }
 
 #[actix_web::test]
@@ -2743,7 +2777,7 @@ async fn test_list_stats_counts_distinct_users_per_issue() {
 
     let issue_id = only_issue_id(&db.pool, project.id).await;
 
-    let stats = IssueService::list_stats(&db.pool, &[issue_id], None)
+    let stats = IssueService::list_stats(&db.pool, &[issue_id], Default::default())
         .await
         .unwrap();
     let entry = stats.get(&issue_id).expect("stats for the issue");
@@ -2761,7 +2795,7 @@ async fn test_list_stats_trend_has_24_buckets_summing_to_event_count() {
     ingest_error_event(&db.pool, project.id, temp_dir.path(), &cfg, &e1).await;
     let issue_id = only_issue_id(&db.pool, project.id).await;
 
-    let stats = IssueService::list_stats(&db.pool, &[issue_id], None)
+    let stats = IssueService::list_stats(&db.pool, &[issue_id], Default::default())
         .await
         .unwrap();
     let entry = stats.get(&issue_id).expect("stats for the issue");
@@ -2826,7 +2860,7 @@ async fn test_list_stats_counts_by_email_when_id_is_absent() {
 
     let issue_id = only_issue_id(&db.pool, project.id).await;
 
-    let stats = IssueService::list_stats(&db.pool, &[issue_id], None)
+    let stats = IssueService::list_stats(&db.pool, &[issue_id], Default::default())
         .await
         .unwrap();
     let entry = stats.get(&issue_id).expect("stats for the issue");
@@ -2878,7 +2912,8 @@ async fn test_list_offset_search_filters_by_text() {
         1,
         50,
         Some("databaseerror"),
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .unwrap();
@@ -2896,7 +2931,8 @@ async fn test_list_offset_search_filters_by_text() {
         1,
         50,
         Some("undefined"),
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .unwrap();
@@ -2914,7 +2950,8 @@ async fn test_list_offset_search_filters_by_text() {
         1,
         50,
         Some("nonexistent"),
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .unwrap();
@@ -2969,7 +3006,8 @@ async fn test_list_offset_search_escapes_like_wildcards() {
         1,
         50,
         Some("database_error"),
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .unwrap();
@@ -2995,7 +3033,8 @@ async fn test_list_offset_rejects_page_below_one() {
         0,
         20,
         None,
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .expect_err("page=0 must be rejected, not produce a negative SQL OFFSET");
@@ -3011,7 +3050,8 @@ async fn test_list_offset_rejects_page_below_one() {
         -5,
         20,
         None,
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .expect_err("negative page must be rejected");
@@ -3033,7 +3073,8 @@ async fn test_list_offset_rejects_per_page_out_of_range() {
         1,
         0,
         None,
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .expect_err("per_page=0 must be rejected");
@@ -3049,7 +3090,8 @@ async fn test_list_offset_rejects_per_page_out_of_range() {
         1,
         101,
         None,
-        None,
+        Scope::default(),
+        &rustrak::services::issue::IssueFilters::default(),
     )
     .await
     .expect_err("per_page over the documented max of 100 must be rejected");

@@ -15,7 +15,7 @@
     <a href="https://bundlephobia.com/package/@rustrak/client">
       <img src="https://img.shields.io/bundlephobia/minzip/@rustrak/client?style=flat-square&label=bundle" alt="bundle size" />
     </a>
-    <a href="https://github.com/rustrak/rustrak/blob/main/LICENSE">
+    <a href="https://github.com/rustrak/rustrak/blob/main/packages/client/LICENSE">
       <img src="https://img.shields.io/npm/l/@rustrak/client?style=flat-square" alt="license" />
     </a>
     <a href="https://github.com/rustrak/rustrak/actions/workflows/ci.yml">
@@ -230,6 +230,8 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `agents.conversation({ path })` | `GET /api/projects/{project_id}/agents/conversations/{conversation_id}` | Returns every AI span of a conversation's turns, oldest first, with its input and output. |
+| `agents.conversations({ path, query? })` | `GET /api/projects/{project_id}/agents/conversations` | Lists conversations -- traces sharing a `gen_ai.conversation.id` -- the most recently active first. |
 | `agents.duration({ path, query? })` | `GET /api/projects/{project_id}/agents/duration` | Time-bucketed avg/p95 duration for `agent`/`ai_client` spans. |
 | `agents.environments({ path })` | `GET /api/projects/{project_id}/agents/environments` | The options the environment filter offers, read from the data rather than hardcoded — an installation may name its environments anything. |
 | `agents.modelsCalls({ path, query? })` | `GET /api/projects/{project_id}/agents/models/calls` | Top models by LLM call count (`gen_ai.operation.type:ai_client`). |
@@ -260,6 +262,7 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 | `alertRules.create({ path, body })` | `POST /api/projects/{project_id}/alert-rules` |  |
 | `alertRules.delete({ path })` | `DELETE /api/projects/{project_id}/alert-rules/{rule_id}` |  |
 | `alertRules.get({ path })` | `GET /api/projects/{project_id}/alert-rules/{rule_id}` |  |
+| `alertRules.historyByDay({ path, query? })` | `GET /api/projects/{project_id}/alert-history/daily` | Count a project's alert deliveries per day, by outcome. |
 | `alertRules.list({ path })` | `GET /api/projects/{project_id}/alert-rules` |  |
 | `alertRules.listHistory({ path, query? })` | `GET /api/projects/{project_id}/alert-history` |  |
 | `alertRules.update({ path, body })` | `PATCH /api/projects/{project_id}/alert-rules/{rule_id}` |  |
@@ -358,7 +361,9 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `logs.list({ path, query? })` | `GET /api/projects/{project_id}/logs` | Lists logs for a project with offset-based pagination (newest first by log timestamp), optionally filtered by level/trace_id. |
+| `logs.get({ path })` | `GET /api/projects/{project_id}/logs/{log_id}` | Returns one of a project's logs, wherever it falls in the list. |
+| `logs.list({ path, query? })` | `GET /api/projects/{project_id}/logs` | Lists logs for a project with offset-based pagination (newest first by log timestamp), optionally filtered by level, trace id, message and window. |
+| `logs.volume({ path, query? })` | `GET /api/projects/{project_id}/logs/volume` | Counts a project's logs per level over time, with the list's filters. |
 
 ### Members
 
@@ -377,6 +382,7 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 | `monitors.get({ path })` | `GET /api/projects/{project_id}/monitors/{slug}` |  |
 | `monitors.list({ path })` | `GET /api/projects/{project_id}/monitors` |  |
 | `monitors.listCheckins({ path, query? })` | `GET /api/projects/{project_id}/monitors/{slug}/checkins` |  |
+| `monitors.stats({ path, query? })` | `GET /api/projects/{project_id}/monitor-stats` | Counts the check-ins of a project's monitors by status over a window, bucket by bucket. |
 | `monitors.update({ path, body })` | `PUT /api/projects/{project_id}/monitors/{slug}` |  |
 
 ### OAuth
@@ -405,6 +411,8 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 |---|---|---|
 | `releases.create({ path, body })` | `POST /api/0/projects/{org_slug}/{project_slug}/releases/` | Sentry-compatible release creation. |
 | `releases.finalize({ path, body })` | `PUT /api/0/projects/{org_slug}/{project_slug}/releases/{version}/` | Generic partial update (`ref`, `url`, `dateReleased`). |
+| `releases.get({ path, query? })` | `GET /api/projects/{project_id}/releases/{release}` | Gets one release with its events, new issues, environments and session health. |
+| `releases.list({ path, query? })` | `GET /api/projects/{project_id}/releases` | Lists a project's releases, newest first, with the events, new issues, environments and session health of each. |
 | `releases.newIssues({ path, query? })` | `GET /api/projects/{project_id}/releases/{release}/new-issues` |  |
 
 ### Schedules
@@ -517,7 +525,8 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 | `transactions.get({ path })` | `GET /api/projects/{project_id}/transactions/{transaction_id}` | Returns a single transaction with its full Sentry payload (spans, contexts, measurements, tags) for the performance detail view. |
 | `transactions.getSpans({ path })` | `GET /api/projects/{project_id}/transactions/{transaction_id}/spans` | Returns the indexed spans extracted from a transaction, ordered for the waterfall view (by start_timestamp ascending). |
 | `transactions.getStatGroup({ path, query })` | `GET /api/projects/{project_id}/transactions/stats/group` | Returns the aggregate stats for a single transaction group — a direct lookup so the summary header works regardless of how many groups the project has. |
-| `transactions.getStats({ path, query? })` | `GET /api/projects/{project_id}/transactions/stats` | Returns paginated aggregate performance stats (count, p50/p95/p99 latency, failure rate) grouped by transaction name + op, most frequent first. |
+| `transactions.getStatGroupTimeseries({ path, query })` | `GET /api/projects/{project_id}/transactions/stats/group/timeseries` | Returns one endpoint's trend over the window, every bucket present: how often it ran and failed, and its p50 and p95. |
+| `transactions.getStats({ path, query? })` | `GET /api/projects/{project_id}/transactions/stats` | Returns paginated aggregate performance stats (count, time spent, p50/p95/p99 latency, failure rate) grouped by transaction name + op, the most time spent first unless `sort` asks otherwise. |
 | `transactions.list({ path, query? })` | `GET /api/projects/{project_id}/transactions` | Lists transactions for a project with offset-based pagination (newest first). |
 
 <!-- api:end -->
@@ -539,4 +548,4 @@ Every method, grouped as it hangs off the client (`client.issues.list(...)`).
 
 ## License
 
-[GPL-3.0](https://github.com/rustrak/rustrak/blob/main/LICENSE)
+[MIT](LICENSE)

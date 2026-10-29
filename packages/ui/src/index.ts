@@ -16,6 +16,7 @@ export {
 } from './lib/focus';
 export {
   chevronFlip,
+  collapseFade,
   dropIn,
   interactiveTransition,
   popTransition,
@@ -23,6 +24,8 @@ export {
   pressScale,
   pressScaleSmall,
   pressScaleTrigger,
+  scopeEnter,
+  scopeGroup,
   slideTransition,
   swapAnimation,
   wipeReveal,
@@ -156,6 +159,8 @@ export type { InputShellSize } from './components/input/input-shell';
 export { inputShell } from './components/input/input-shell';
 export type { PopoverProps } from './components/popover/popover';
 export { Popover } from './components/popover/popover';
+export type { SwitchProps } from './components/switch/switch';
+export { Switch } from './components/switch/switch';
 
 /* --- Data table ---------------------------------------------------------- */
 
@@ -177,6 +182,11 @@ export {
   createDataTableColumnHelper,
   dataTableFeatures,
 } from './components/data-table/features';
+export type { DataTableLabels } from './components/data-table/labels';
+export {
+  DataTableLabelsProvider,
+  useDataTableLabels,
+} from './components/data-table/labels';
 export type { DataTablePaginationProps } from './components/data-table/pagination';
 export { DataTablePagination } from './components/data-table/pagination';
 export type {
@@ -282,24 +292,33 @@ export type {
   AppShellProps,
   PageHeaderProps,
   PageProps,
-  SubHeaderProps,
 } from './components/shell/app-shell';
 export {
   AppShell,
   Page,
   PageHeader,
-  SubHeader,
 } from './components/shell/app-shell';
 export type {
+  SidebarBrandProps,
+  SidebarGroupProps,
   SidebarItemProps,
   SidebarProjectProps,
   SidebarProps,
+  SidebarScopeProps,
+  SidebarSearchProps,
+  SidebarSubmenuProps,
+  SidebarUserProps,
 } from './components/shell/sidebar';
 export {
   Sidebar,
-  SidebarCollapseButton,
+  SidebarBrand,
+  SidebarGroup,
   SidebarItem,
   SidebarProject,
+  SidebarScope,
+  SidebarSearch,
+  SidebarSubmenu,
+  SidebarUser,
 } from './components/shell/sidebar';
 export type { SidebarProviderProps } from './components/shell/sidebar-context';
 export {
@@ -308,16 +327,10 @@ export {
 } from './components/shell/sidebar-context';
 export type {
   TopbarActionProps,
-  TopbarBrandProps,
   TopbarProps,
-  TopbarSearchProps,
-  TopbarUserProps,
 } from './components/shell/topbar';
 export {
   Topbar,
   TopbarAction,
-  TopbarBrand,
   TopbarMenuButton,
-  TopbarSearch,
-  TopbarUser,
 } from './components/shell/topbar';

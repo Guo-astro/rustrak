@@ -1,82 +1,52 @@
-import type { AlertIntegration } from '@rustrak/client';
-import { Loader2, Play, Trash2 } from 'lucide-react';
+import { Button } from '@rustrak/ui';
+import { useFormState } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { DialogFooter } from '@/shared/ui/components/shadcn/dialog';
+import { FormRootError } from '@/shared/ui/components/shadcn/form';
 
 /**
- * The row of actions every provider dialog ends with.
+ * The bar a provider's form ends with, held to the bottom of the page.
  *
- * Test and Delete only exist once the integration does, and they sit apart
- * from Cancel/Save on `mr-auto` because they act on the stored record rather
- * than on the draft in the form.
+ * Sticky because the form is a page now, and a long one -- a custom webhook's
+ * body alone is a screen -- so Save has to be reachable wherever the reader
+ * has scrolled to, and so does a failure that named no field. It bleeds over
+ * the scroller's padding the way `SettingsHeader` does at the top.
  *
- * `onTest` is optional so a provider that needs routing input before it can
- * send one (Slack picks a channel, Email picks recipients) can render its own
- * test control higher up and leave this slot empty, rather than showing a
- * second Test button that means something narrower.
+ * Test and Delete are not here: they act on the stored record, not on the
+ * draft, and live in their own rows above.
  */
 export function ConfigFooter({
-  existingIntegration,
   submitLabel,
   isLoading,
-  onTest,
-  onDelete,
   onCancel,
 }: {
-  existingIntegration: AlertIntegration | null;
   submitLabel: string;
   isLoading: boolean;
-  onTest?: (integration: AlertIntegration) => void;
-  onDelete: (integration: AlertIntegration) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('alerts');
+  const { isDirty } = useFormState();
 
   return (
-    <DialogFooter className="gap-2 sm:gap-0">
-      {existingIntegration && (
-        <div className="flex gap-2 mr-auto">
-          {onTest && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onTest(existingIntegration)}
-              disabled={isLoading}
-            >
-              <Play className="size-4 mr-1" />
-              {t('common.test')}
-            </Button>
-          )}
-          {/* `destructive` rather than the outline-plus-red-text the webhook
-              dialog used: two of the three already painted it this way, and a
-              delete that looks different depending on which provider you are
-              editing is a difference that means nothing. */}
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => onDelete(existingIntegration)}
-            disabled={isLoading}
-          >
-            <Trash2 className="size-4 mr-1" />
-            {t('common.delete')}
-          </Button>
-        </div>
-      )}
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onCancel}
-        disabled={isLoading}
-      >
-        {t('common.cancel')}
-      </Button>
-      <Button type="submit" disabled={isLoading}>
-        {isLoading && <Loader2 className="size-4 mr-2 animate-spin" />}
-        {submitLabel}
-      </Button>
-    </DialogFooter>
+    <div className="sticky -bottom-page-gutter z-20 -mx-page-gutter mt-4 -mb-page-gutter flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-border-divider bg-panel px-page-gutter py-4">
+      <div className="me-auto min-w-0">
+        <FormRootError />
+        {isDirty ? (
+          <p className="text-meta text-fg-subtle">{t('page.unsaved')}</p>
+        ) : null}
+      </div>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onCancel}
+          disabled={isLoading}
+        >
+          {t('common.cancel')}
+        </Button>
+        <Button type="submit" variant="primary" loading={isLoading}>
+          {submitLabel}
+        </Button>
+      </div>
+    </div>
   );
 }

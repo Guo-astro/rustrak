@@ -1,0 +1,61 @@
+import { Controls, Meta, Unstyled } from '@storybook/addon-docs/blocks';
+import {
+  Cover,
+  DocPage,
+  Guarantee,
+  Guarantees,
+  Rule,
+  Section,
+} from '../../docs/blocks';
+import { Canvas } from '@storybook/addon-docs/blocks';
+import * as SwitchStories from './switch.stories';
+
+<Meta of={SwitchStories} />
+
+<Unstyled>
+<DocPage>
+
+<Cover
+  eyebrow="Components"
+  title="Switch"
+  lede="An on/off setting that takes effect the moment it is flipped."
+  note="Lime track and ink thumb when on: the same pair as the primary button."
+/>
+
+<Section n="01" title="States">
+
+<Canvas of={SwitchStories.States} sourceState="none" />
+
+<Rule>
+  A switch is the setting itself, already applied. A choice collected for a
+  form that is saved later is a checkbox.
+</Rule>
+
+</Section>
+
+<Section n="02" title="Where it is used">
+
+<Rule>
+  A project's products, where turning one off stops its data being stored, and
+  alert rules. Nowhere a Save button follows.
+</Rule>
+
+</Section>
+
+<Section n="03" title="What it guarantees">
+
+<Guarantees>
+  <Guarantee story="FlipsFromTheKeyboard">Space flips it, and `aria-checked` follows.</Guarantee>
+  <Guarantee story="LockedStaysPut">A locked switch does not move and reports no change.</Guarantee>
+</Guarantees>
+
+</Section>
+
+<Section n="04" title="Props">
+
+<Controls />
+
+</Section>
+
+</DocPage>
+</Unstyled>

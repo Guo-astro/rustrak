@@ -4,7 +4,7 @@ import { useTimeZone, useTranslations } from 'use-intl';
 import { updatePreferences } from '@/features/user/api/mutations';
 import { session } from '@/shared/api/session';
 import { intl } from '@/shared/i18n/intl';
-import { Label } from '@/shared/ui/components/shadcn/label';
+import { SettingRow } from '@/shared/ui/components/setting-row';
 import { TimeZoneCombobox } from '@/shared/ui/components/time-zone-combobox';
 
 /** The zone on the account row right now, or `null` when it holds none. */
@@ -64,8 +64,11 @@ export function TimeZoneSelector() {
   };
 
   return (
-    <div className="flex flex-col gap-2 sm:max-w-xs">
-      <Label htmlFor={fieldId}>{t('timeZoneLabel')}</Label>
+    <SettingRow
+      title={t('timeZoneLabel')}
+      description={t('timeZoneHint')}
+      htmlFor={fieldId}
+    >
       <TimeZoneCombobox
         id={fieldId}
         value={timeZone}
@@ -76,7 +79,6 @@ export function TimeZoneSelector() {
         // response reads as a dead control and invites a second pick.
         disabled={isPending}
       />
-      <p className="text-xs text-muted-foreground">{t('timeZoneHint')}</p>
-    </div>
+    </SettingRow>
   );
 }

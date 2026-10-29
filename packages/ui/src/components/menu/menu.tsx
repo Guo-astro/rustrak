@@ -1,7 +1,7 @@
 import { Menu as BaseMenu } from '@base-ui/react/menu';
 import type { ReactElement, ReactNode } from 'react';
 import { Count } from '../count/count';
-import { ChevronRightIcon } from '../icon/icon-catalog';
+import { ChevronRightIcon, SelectedIcon } from '../icon/icon-catalog';
 import { Kbd } from '../kbd/kbd';
 import { Tooltip } from '../tooltip/tooltip';
 import {
@@ -21,7 +21,7 @@ import {
  */
 
 function Trailing({ action }: { action: MenuAction }) {
-  if (action.count == null && !action.shortcut) {
+  if (action.count == null && !action.shortcut && !action.selected) {
     return null;
   }
 
@@ -29,6 +29,9 @@ function Trailing({ action }: { action: MenuAction }) {
     <span className={styles.trailing()}>
       <Count>{action.count}</Count>
       {action.shortcut ? <Kbd>{action.shortcut}</Kbd> : null}
+      {action.selected ? (
+        <SelectedIcon size="lg" className="text-fg-brand" />
+      ) : null}
     </span>
   );
 }
@@ -60,9 +63,10 @@ export function MenuActions({ actions }: { actions: MenuAction[] }) {
       {actions.map((action) => {
         const content = (
           <>
-            {action.icon ? (
-              <action.icon size="lg" className={styles.icon()} />
-            ) : null}
+            {action.leading ??
+              (action.icon ? (
+                <action.icon size="lg" className={styles.icon()} />
+              ) : null)}
             <span className={styles.label()}>{action.label}</span>
             <Trailing action={action} />
           </>
@@ -110,6 +114,7 @@ export function MenuActions({ actions }: { actions: MenuAction[] }) {
                   data-tone={action.tone}
                   disabled={action.disabled}
                   onClick={action.onSelect}
+                  aria-current={action.selected || undefined}
                 >
                   {content}
                 </BaseMenu.Item>

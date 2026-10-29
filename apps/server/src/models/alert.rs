@@ -345,6 +345,8 @@ fn default_empty_object() -> serde_json::Value {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpdateAlertRule {
     pub name: Option<String>,
+    /// What the rule fires on; rules are independent, so any trigger may change.
+    pub alert_type: Option<AlertType>,
     pub is_enabled: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(value_type = Option<Object>))]
     pub conditions: Option<serde_json::Value>,
@@ -491,6 +493,18 @@ pub struct AlertHistory {
     pub created_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub sent_at: Option<DateTime<Utc>>,
+}
+
+/// One UTC day of deliveries, by outcome: one rule's when the request named
+/// a rule, the whole project's otherwise.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AlertHistoryDay {
+    /// Midnight UTC.
+    pub day: DateTime<Utc>,
+    pub sent: i64,
+    pub failed: i64,
+    pub skipped: i64,
 }
 
 // =============================================================================

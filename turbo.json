@@ -38,7 +38,7 @@
       "persistent": true
     },
     "@rustrak/dashboard#dev": {
-      "dependsOn": ["@rustrak/client#build"],
+      "dependsOn": ["@rustrak/client#build", "@rustrak/ui#build"],
       "cache": false,
       "persistent": true
     },

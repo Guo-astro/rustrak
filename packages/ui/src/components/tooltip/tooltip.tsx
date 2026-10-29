@@ -62,12 +62,10 @@ export function Tooltip({
   disabled,
   ...rest
 }: TooltipProps) {
-  if (disabled) {
-    return children;
-  }
-
+  // Disabled stays in the tree: unwrapping the child would remount it, and a
+  // collapsing sidebar row would lose its transition mid-flight.
   return (
-    <BaseTooltip.Root>
+    <BaseTooltip.Root disabled={disabled}>
       {/* `rest` goes to Base UI's trigger, which merges it into the child. */}
       <BaseTooltip.Trigger delay={delay} render={children} {...rest} />
       <BaseTooltip.Portal>

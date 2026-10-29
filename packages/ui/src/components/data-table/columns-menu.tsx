@@ -4,6 +4,7 @@ import { Button } from '../button/button';
 import { ColumnsIcon, ResolveIcon } from '../icon/icon-catalog';
 import { Popover } from '../popover/popover';
 import { columnLabel } from './features';
+import { useDataTableLabels } from './labels';
 import type { DataTableInstance } from './use-data-table';
 
 /**
@@ -38,19 +39,20 @@ export interface DataTableColumnsButtonProps<TData extends RowData> {
 export function DataTableColumnsButton<TData extends RowData>({
   table,
 }: DataTableColumnsButtonProps<TData>) {
+  const labels = useDataTableLabels();
   const columns = table
     .getAllLeafColumns()
     .filter((column) => column.getCanHide());
 
   return (
     <Popover
-      title="Columns"
+      title={labels.columns}
       align="end"
       trigger={
         <Button
           variant="secondary"
           icon={ColumnsIcon}
-          aria-label="Choose columns"
+          aria-label={labels.chooseColumns}
         />
       }
     >

@@ -3,6 +3,7 @@ import {
   aiInput,
   aiOutput,
   availableTools,
+  chatMessages,
   hasTokenMismatch,
   tokenBreakdown,
 } from './gen-ai';
@@ -282,5 +283,80 @@ describe('a provider that reports the parts but no total', () => {
     // Relay declines to set a total when both input and output are missing,
     // and there is nothing to show for such a span either.
     expect(tokenBreakdown({ 'gen_ai.tool.name': 'search' })).toBeNull();
+  });
+});
+
+describe('chatMessages', () => {
+  it('shows the tool calls of a message that has no text', () => {
+    const [message] =
+      chatMessages(
+        JSON.stringify([
+          {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              { function: { name: 'get_order', arguments: '{"id":7}' } },
+            ],
+          },
+        ]),
+      ) ?? [];
+    expect(message?.content).toContain('get_order');
+    expect(message?.content).toContain('{\\"id\\":7}');
+  });
+
+  it('keeps the tool calls of a message that also says something', () => {
+    const [message] =
+      chatMessages(
+        JSON.stringify([
+          {
+            role: 'assistant',
+            content: 'Let me check.',
+            tool_calls: [{ function: { name: 'get_order' } }],
+          },
+        ]),
+      ) ?? [];
+    expect(message?.content).toContain('Let me check.');
+    expect(message?.content).toContain('get_order');
+  });
+
+  it('reads an OpenAI-style message array', () => {
+    expect(
+      chatMessages(
+        JSON.stringify([
+          { role: 'system', content: 'Be brief.' },
+          { role: 'user', content: 'Hi' },
+        ]),
+      ),
+    ).toEqual([
+      { role: 'system', content: 'Be brief.' },
+      { role: 'user', content: 'Hi' },
+    ]);
+  });
+
+  it('joins text parts and keeps anything else as JSON', () => {
+    expect(
+      chatMessages(
+        JSON.stringify([
+          {
+            role: 'assistant',
+            parts: [
+              { type: 'text', text: 'Looking it up' },
+              { type: 'tool_call', name: 'search' },
+            ],
+          },
+        ]),
+      ),
+    ).toEqual([
+      {
+        role: 'assistant',
+        content: 'Looking it up\n{"type":"tool_call","name":"search"}',
+      },
+    ]);
+  });
+
+  it('is null for anything that is not a list of messages', () => {
+    expect(chatMessages('plain text')).toBeNull();
+    expect(chatMessages('{"query":"x"}')).toBeNull();
+    expect(chatMessages('[1, 2]')).toBeNull();
   });
 });

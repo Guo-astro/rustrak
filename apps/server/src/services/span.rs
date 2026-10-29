@@ -6,8 +6,9 @@ use sqlx::Row;
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    span_attributes, AgentDurationPoint, AgentModelRow, AgentSummary, AgentTimeseriesPoint,
-    AgentToolRow, AgentTraceSummary, GenAiBreakdownRow, SpanDetailResponse, SpanResponse,
+    span_attributes, AgentConversation, AgentConversationSummary, AgentDurationPoint,
+    AgentModelRow, AgentSummary, AgentTimeseriesPoint, AgentToolRow, AgentTraceSummary,
+    ConversationSpan, GenAiBreakdownRow, SpanDetailResponse, SpanResponse,
 };
 use crate::services::transaction::percentile_cont;
 
@@ -74,6 +75,52 @@ impl AgentFilters {
         format!("AND (${index} IS NULL OR environment = ${index})")
     }
 }
+
+/// What narrows and ranks the agent traces list, beyond [`AgentFilters`].
+#[derive(Debug, Default, Clone)]
+pub struct AgentTraceFilters {
+    pub agent: Option<String>,
+    pub model: Option<String>,
+    pub tool: Option<String>,
+    /// Only traces with a failing AI span.
+    pub errors: bool,
+    pub sort: AgentTraceSort,
+}
+
+/// How the agent traces are ranked; every ranking but newest is largest first.
+#[derive(Debug, Default, Clone, Copy, serde::Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum AgentTraceSort {
+    #[default]
+    Newest,
+    /// The longest AI span, which is what the list shows as the duration.
+    Duration,
+    Tokens,
+    LlmCalls,
+    ToolCalls,
+    Errors,
+}
+
+impl AgentTraceSort {
+    fn order_by(self) -> &'static str {
+        match self {
+            Self::Newest => "started_at DESC",
+            Self::Duration => "longest DESC",
+            Self::Tokens => "total_tokens DESC",
+            Self::LlmCalls => "llm_call_count DESC",
+            Self::ToolCalls => "tool_call_count DESC",
+            Self::Errors => "error_count DESC",
+        }
+    }
+}
+
+/// The `HAVING` of the traces list: binds `$3..=$6` -- agent, model, tool,
+/// and whether only failing traces count.
+const TRACE_HAVING: &str = "HAVING ($3 IS NULL OR SUM(CASE WHEN gen_ai_agent_name = $3 THEN 1 ELSE 0 END) > 0) \
+       AND ($4 IS NULL OR SUM(CASE WHEN COALESCE(gen_ai_response_model, gen_ai_request_model) = $4 THEN 1 ELSE 0 END) > 0) \
+       AND ($5 IS NULL OR SUM(CASE WHEN gen_ai_tool_name = $5 THEN 1 ELSE 0 END) > 0) \
+       AND ($6 = FALSE OR SUM(CASE WHEN status IS NOT NULL AND status <> 'ok' THEN 1 ELSE 0 END) > 0)";
 
 pub struct SpanService;
 
@@ -684,6 +731,188 @@ impl SpanService {
         Ok(rows.into_iter().map(|(env,)| env).collect())
     }
 
+    /// A page of conversations, the most recently active first: every trace
+    /// carrying a `gen_ai.conversation.id` on any span is a turn of it, and
+    /// all the AI spans of its turns count -- several SDKs only tag the agent
+    /// span with the id, not the model and tool calls under it.
+    pub async fn agent_conversations(
+        pool: &DbPool,
+        project_id: i32,
+        page: i64,
+        per_page: i64,
+        period_hours: Option<i64>,
+        filters: &AgentFilters,
+    ) -> AppResult<(Vec<AgentConversationSummary>, i64)> {
+        let per_page = per_page.clamp(1, 100);
+        let offset = crate::pagination::offset(page, per_page);
+        let scope = filters.sql(2);
+        #[cfg(feature = "postgres")]
+        let time_filter = pg_span_time_filter(period_hours);
+        #[cfg(not(feature = "postgres"))]
+        let time_filter = sqlite_span_time_filter(period_hours);
+        let turns = format!(
+            "SELECT DISTINCT gen_ai_conversation_id AS conversation_id, trace_id FROM spans \
+             WHERE project_id = $1 AND gen_ai_conversation_id IS NOT NULL AND trace_id IS NOT NULL \
+             {scope} {time_filter}"
+        );
+
+        // Counted through the page's own join: a conversation whose turns hold
+        // no AI span is never a row, so it is never counted either.
+        let total: (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT COUNT(DISTINCT t.conversation_id) FROM ({turns}) t \
+             JOIN spans s ON s.project_id = $1 AND s.trace_id = t.trace_id \
+                         AND s.gen_ai_operation_type IS NOT NULL"
+        )))
+        .bind(project_id)
+        .bind(filters.environment.as_deref())
+        .fetch_one(pool)
+        .await?;
+
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
+            r#"
+            SELECT t.conversation_id,
+                   COUNT(DISTINCT t.trace_id) AS turn_count,
+                   SUM(CASE WHEN s.gen_ai_operation_type = 'ai_client' THEN 1 ELSE 0 END) AS llm_call_count,
+                   SUM(CASE WHEN s.gen_ai_operation_type = 'tool' THEN 1 ELSE 0 END) AS tool_call_count,
+                   CAST(SUM(CASE WHEN s.gen_ai_operation_type = 'agent' THEN 0
+                                 ELSE COALESCE(s.gen_ai_usage_total_tokens, 0) END)
+                        AS DOUBLE PRECISION) AS total_tokens,
+                   SUM(CASE WHEN s.status IS NOT NULL AND s.status <> 'ok' THEN 1 ELSE 0 END) AS error_count,
+                   COALESCE(MIN(s.start_timestamp), MIN(s.timestamp)) AS first_seen,
+                   COALESCE(MAX(s.start_timestamp), MAX(s.timestamp)) AS last_seen
+            FROM ({turns}) t
+            JOIN spans s ON s.project_id = $1 AND s.trace_id = t.trace_id
+                        AND s.gen_ai_operation_type IS NOT NULL
+            GROUP BY t.conversation_id
+            ORDER BY COALESCE(MAX(s.start_timestamp), MAX(s.timestamp)) IS NULL,
+                     last_seen DESC, t.conversation_id ASC
+            LIMIT $3 OFFSET $4
+            "#
+        )))
+        .bind(project_id)
+        .bind(filters.environment.as_deref())
+        .bind(per_page)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?;
+
+        let mut conversations = Vec::with_capacity(rows.len());
+        for row in &rows {
+            let conversation_id: String = row.get("conversation_id");
+            // ponytail: one query per row for its agents, at most a page of them.
+            // Of the same turns the row counts: the window and environment too.
+            let agents: Vec<(String,)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+                r#"
+                SELECT gen_ai_agent_name FROM spans
+                WHERE project_id = $1 AND gen_ai_operation_type = 'agent'
+                  AND gen_ai_agent_name IS NOT NULL
+                  AND trace_id IN (SELECT t.trace_id FROM ({turns}) t
+                                   WHERE t.conversation_id = $3)
+                GROUP BY gen_ai_agent_name
+                ORDER BY MIN(start_timestamp) ASC
+                "#
+            )))
+            .bind(project_id)
+            .bind(filters.environment.as_deref())
+            .bind(&conversation_id)
+            .fetch_all(pool)
+            .await?;
+            conversations.push(AgentConversationSummary {
+                conversation_id,
+                turn_count: row.get("turn_count"),
+                agent_names: agents.into_iter().map(|(name,)| name).collect(),
+                llm_call_count: row.get("llm_call_count"),
+                tool_call_count: row.get("tool_call_count"),
+                total_tokens: row.get("total_tokens"),
+                error_count: row.get("error_count"),
+                first_seen: row.get("first_seen"),
+                last_seen: row.get("last_seen"),
+            });
+        }
+        Ok((conversations, total.0))
+    }
+
+    /// Every AI span of a conversation's turns, oldest first, with what went
+    /// in and came out. `NotFound` when no span carries the id.
+    pub async fn agent_conversation(
+        pool: &DbPool,
+        project_id: i32,
+        conversation_id: &str,
+    ) -> AppResult<AgentConversation> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, trace_id, span_id, parent_span_id, gen_ai_operation_type,
+                   gen_ai_agent_name, COALESCE(gen_ai_response_model, gen_ai_request_model) AS model,
+                   gen_ai_tool_name, status, start_timestamp, duration_ms,
+                   gen_ai_usage_total_tokens, data
+            FROM spans
+            WHERE project_id = $1 AND gen_ai_operation_type IS NOT NULL
+              AND trace_id IN (SELECT trace_id FROM spans
+                               WHERE project_id = $1 AND gen_ai_conversation_id = $2)
+            ORDER BY start_timestamp ASC, id ASC
+            "#,
+        )
+        .bind(project_id)
+        .bind(conversation_id)
+        .fetch_all(pool)
+        .await?;
+        if rows.is_empty() {
+            return Err(AppError::NotFound(format!(
+                "conversation {conversation_id} not found"
+            )));
+        }
+
+        let spans = rows
+            .iter()
+            .map(|row| {
+                let data: serde_json::Value = row.get("data");
+                let attributes = span_attributes(&data);
+                let text = |keys: &[&str]| {
+                    keys.iter().find_map(|key| match attributes.get(*key)? {
+                        serde_json::Value::String(s) if !s.is_empty() => Some(s.clone()),
+                        serde_json::Value::Null => None,
+                        other => Some(other.to_string()),
+                    })
+                };
+                ConversationSpan {
+                    id: row.get("id"),
+                    trace_id: row.get("trace_id"),
+                    span_id: row.get("span_id"),
+                    parent_span_id: row.get("parent_span_id"),
+                    operation_type: row.get("gen_ai_operation_type"),
+                    agent_name: row.get("gen_ai_agent_name"),
+                    model: row.get("model"),
+                    tool_name: row.get("gen_ai_tool_name"),
+                    status: row.get("status"),
+                    start_timestamp: row.get("start_timestamp"),
+                    duration_ms: row.get("duration_ms"),
+                    total_tokens: row.get("gen_ai_usage_total_tokens"),
+                    // The dashboard's chains, in its order (`model/gen-ai.ts`).
+                    input: text(&[
+                        "gen_ai.input.messages",
+                        "gen_ai.request.messages",
+                        "ai.input_messages",
+                        "ai.prompt",
+                        "gen_ai.tool.call.arguments",
+                        "gen_ai.tool.input",
+                    ]),
+                    output: text(&[
+                        "gen_ai.output.messages",
+                        "gen_ai.response.text",
+                        "gen_ai.tool.call.result",
+                        "gen_ai.tool.output",
+                    ]),
+                    tool_calls: text(&["gen_ai.response.tool_calls"]),
+                }
+            })
+            .collect();
+
+        Ok(AgentConversation {
+            conversation_id: conversation_id.to_string(),
+            spans,
+        })
+    }
+
     pub async fn agent_traces(
         pool: &DbPool,
         project_id: i32,
@@ -691,6 +920,7 @@ impl SpanService {
         per_page: i64,
         period_hours: Option<i64>,
         filters: &AgentFilters,
+        trace: &AgentTraceFilters,
     ) -> AppResult<(Vec<AgentTraceSummary>, i64)> {
         let per_page = per_page.clamp(1, 100);
         let offset = crate::pagination::offset(page, per_page);
@@ -709,14 +939,20 @@ impl SpanService {
                   {scope}
                   {time_filter}
                 GROUP BY trace_id
+                {TRACE_HAVING}
             ) g
             "#
         );
         let total: (i64,) = sqlx::query_as(sqlx::AssertSqlSafe(&*total_sql))
             .bind(project_id)
             .bind(filters.environment.as_deref())
+            .bind(trace.agent.as_deref())
+            .bind(trace.model.as_deref())
+            .bind(trace.tool.as_deref())
+            .bind(trace.errors)
             .fetch_one(pool)
             .await?;
+        let order_by = trace.sort.order_by();
 
         // total_tokens excludes operation_type='agent' rows: an 'agent' span
         // represents orchestration, not token consumption — its own
@@ -749,19 +985,25 @@ impl SpanService {
                    -- correct here, but only by accident. Being explicit keeps
                    -- it correct if the arms are ever reordered.
                    SUM(CASE WHEN status IS NOT NULL AND status <> 'ok' THEN 1 ELSE 0 END) AS error_count,
-                   MIN(start_timestamp) AS started_at
+                   MIN(start_timestamp) AS started_at,
+                   COALESCE(MAX(duration_ms), 0) AS longest
             FROM spans
             WHERE project_id = $1 AND gen_ai_operation_type IS NOT NULL AND trace_id IS NOT NULL
               {scope}
               {time_filter}
             GROUP BY trace_id
-            ORDER BY started_at DESC, trace_id ASC
-            LIMIT $3 OFFSET $4
+            {TRACE_HAVING}
+            ORDER BY {order_by}, started_at DESC, trace_id ASC
+            LIMIT $7 OFFSET $8
             "#
         );
         let group_rows = sqlx::query(sqlx::AssertSqlSafe(&*group_sql))
             .bind(project_id)
             .bind(filters.environment.as_deref())
+            .bind(trace.agent.as_deref())
+            .bind(trace.model.as_deref())
+            .bind(trace.tool.as_deref())
+            .bind(trace.errors)
             .bind(per_page)
             .bind(offset)
             .fetch_all(pool)
@@ -977,7 +1219,8 @@ async fn bucketed_aggregate(
                 to_timestamp(
                     floor(extract(epoch FROM start_timestamp) / {interval_seconds}) * {interval_seconds}
                 ) AS bucket,
-                {aggregate_expr} AS value
+                {aggregate_expr} AS value,
+                CAST(SUM(CASE WHEN status IS NOT NULL AND status <> 'ok' THEN 1 ELSE 0 END) AS BIGINT) AS errors
             FROM spans
             WHERE project_id = $1
               AND gen_ai_operation_type = $2
@@ -987,7 +1230,7 @@ async fn bucketed_aggregate(
             ORDER BY 1 ASC
             "#,
         );
-        let rows: Vec<(DateTime<Utc>, f64)> = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+        let rows: Vec<(DateTime<Utc>, f64, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
             .bind(project_id)
             .bind(operation_type)
             .bind(filters.environment.as_deref())
@@ -995,7 +1238,11 @@ async fn bucketed_aggregate(
             .await?;
         Ok(rows
             .into_iter()
-            .map(|(bucket, value)| AgentTimeseriesPoint { bucket, value })
+            .map(|(bucket, value, errors)| AgentTimeseriesPoint {
+                bucket,
+                value,
+                errors,
+            })
             .collect())
     }
 
@@ -1006,7 +1253,8 @@ async fn bucketed_aggregate(
             r#"
             SELECT
                 strftime('%Y-%m-%dT%H:%M:%SZ', (CAST(strftime('%s', start_timestamp) AS INTEGER) / {interval_seconds}) * {interval_seconds}, 'unixepoch') AS bucket,
-                {aggregate_expr} AS value
+                {aggregate_expr} AS value,
+                CAST(SUM(CASE WHEN status IS NOT NULL AND status <> 'ok' THEN 1 ELSE 0 END) AS BIGINT) AS errors
             FROM spans
             WHERE project_id = ?1
               AND gen_ai_operation_type = ?2
@@ -1016,7 +1264,7 @@ async fn bucketed_aggregate(
             ORDER BY 1 ASC
             "#,
         );
-        let rows: Vec<(String, f64)> = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
+        let rows: Vec<(String, f64, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(&*sql))
             .bind(project_id)
             .bind(operation_type)
             .bind(filters.environment.as_deref())
@@ -1024,9 +1272,10 @@ async fn bucketed_aggregate(
             .await?;
         Ok(rows
             .into_iter()
-            .map(|(bucket, value)| AgentTimeseriesPoint {
+            .map(|(bucket, value, errors)| AgentTimeseriesPoint {
                 bucket: crate::models::session::parse_ts(&bucket).unwrap_or_else(Utc::now),
                 value,
+                errors,
             })
             .collect())
     }

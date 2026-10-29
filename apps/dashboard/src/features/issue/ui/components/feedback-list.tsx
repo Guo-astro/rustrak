@@ -1,110 +1,176 @@
-import type { FeedbackListResponse } from '@rustrak/client';
-import { MessageSquare } from 'lucide-react';
+import type { FeedbackListResponse, FeedbackResponse } from '@rustrak/client';
+import {
+  AttachmentIcon,
+  Avatar,
+  Button,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  cn,
+  ErrorIcon,
+  focusRingInset,
+  LinkIcon,
+  Text,
+} from '@rustrak/ui';
+import { useEffect, useRef } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import {
-  MAILBOXES,
-  type Mailbox,
+  feedbackSender,
+  shortUrl,
 } from '@/features/issue/model/feedback-mailbox';
-import { Link } from '@/shared/ui/components/link';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@/shared/ui/components/shadcn/tabs';
-import { TablePagination } from '@/shared/ui/components/table-pagination';
 
 /**
- * One mailbox of a project's feedback. Each row opens the feedback's own
- * issue page, where it is resolved or marked as spam like any issue.
+ * The inbox's left column: who wrote, when, and the start of what they said,
+ * newest first. One row is always the open one; the reading pane beside it
+ * shows that row, the way a mail client does.
  */
 export function FeedbackList({
-  projectId,
   feedback,
-  mailbox,
+  selectedId,
   page,
   isPending,
-  onMailboxChange,
+  onSelect,
   onPageChange,
 }: {
-  projectId: number;
   feedback: FeedbackListResponse;
-  mailbox: Mailbox;
+  selectedId: string | undefined;
   page: number;
   isPending: boolean;
-  onMailboxChange: (mailbox: Mailbox) => void;
+  onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
   const t = useTranslations('projectPages.feedback');
-  const format = useFormatter();
 
   return (
-    <div className="flex h-full flex-col">
-      <Tabs
-        className="mb-4 shrink-0"
-        value={mailbox}
-        onValueChange={(value) => onMailboxChange(value as Mailbox)}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ul
+        aria-label={t('title')}
+        className={cn(
+          'min-h-0 flex-1 divide-y divide-border-divider overflow-y-auto',
+          isPending && 'opacity-60',
+        )}
       >
-        <TabsList>
-          {MAILBOXES.map((box) => (
-            <TabsTrigger key={box} value={box} disabled={isPending}>
-              {t(`mailbox.${box}`)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+        {feedback.items.map((item) => (
+          <FeedbackRow
+            key={item.id}
+            item={item}
+            selected={item.id === selectedId}
+            onSelect={() => onSelect(item.id)}
+          />
+        ))}
+      </ul>
 
-      {feedback.items.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-          <MessageSquare className="mb-4 size-12 text-muted-foreground/50" />
-          <p className="text-muted-foreground">{t('empty.title')}</p>
-          <p className="text-sm text-muted-foreground/70">
-            {t('empty.description')}
-          </p>
+      {feedback.total_pages > 1 ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-border-divider border-t px-4 py-2">
+          <Text variant="meta" tone="subtle">
+            {t('pageOf', { page, total: feedback.total_pages })}
+          </Text>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={ChevronLeftIcon}
+              aria-label={t('previousPage')}
+              disabled={isPending || page <= 1}
+              onClick={() => onPageChange(page - 1)}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={ChevronRightIcon}
+              aria-label={t('nextPage')}
+              disabled={isPending || page >= feedback.total_pages}
+              onClick={() => onPageChange(page + 1)}
+            />
+          </div>
         </div>
-      ) : (
-        <ul className="flex-1 overflow-y-auto divide-y rounded-lg border bg-card">
-          {feedback.items.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={`/projects/${projectId}/issues/${item.id}`}
-                className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
-              >
-                <MessageSquare className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {item.name || item.contact_email || t('anonymous')}
-                    {item.name && item.contact_email && (
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        {item.contact_email}
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-                    {item.message}
-                  </p>
-                  {item.url && (
-                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground/70">
-                      {item.url}
-                    </p>
-                  )}
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {format.relativeTime(new Date(item.created_at))}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <TablePagination
-        currentPage={page}
-        totalPages={feedback.total_pages}
-        totalCount={feedback.total_count}
-        perPage={feedback.per_page}
-        disabled={isPending}
-        onPageChange={onPageChange}
-      />
+      ) : null}
     </div>
+  );
+}
+
+function FeedbackRow({
+  item,
+  selected,
+  onSelect,
+}: {
+  item: FeedbackResponse;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const t = useTranslations('projectPages.feedback');
+  const format = useFormatter();
+  const ref = useRef<HTMLButtonElement>(null);
+  const sender = feedbackSender(item) || t('anonymous');
+
+  // j and k move the selection; the row they land on is kept in view.
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: 'nearest' });
+  }, [selected]);
+
+  return (
+    <li>
+      <button
+        ref={ref}
+        type="button"
+        aria-current={selected || undefined}
+        onClick={onSelect}
+        className={cn(
+          'flex w-full gap-3 px-4 py-3 text-left transition-colors',
+          focusRingInset,
+          // Narrow, the list is only on screen while nothing is open, so a
+          // highlight there would point at a pane that is not shown.
+          selected ? 'lg:bg-surface-selected' : 'hover:bg-surface-hover',
+        )}
+      >
+        <Avatar name={sender} size="sm" className="mt-0.5" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-baseline gap-2">
+            <span className="min-w-0 flex-1 truncate font-medium text-body text-fg">
+              {sender}
+            </span>
+            <time
+              dateTime={item.created_at}
+              className="shrink-0 text-fg-subtle text-meta tabular-nums"
+            >
+              {format.relativeTime(new Date(item.created_at))}
+            </time>
+          </div>
+          <p className="line-clamp-2 break-words text-body text-fg-secondary">
+            {item.message}
+          </p>
+          {item.url ||
+          item.attachments.length > 0 ||
+          item.associated_event_id ? (
+            <div className="mt-1 flex min-w-0 items-center gap-3 text-fg-subtle text-meta">
+              {item.url ? (
+                <span className="flex min-w-0 items-center gap-1">
+                  <LinkIcon size="sm" aria-hidden="true" />
+                  <span className="truncate font-mono text-mono-sm">
+                    {shortUrl(item.url)}
+                  </span>
+                </span>
+              ) : null}
+              {item.attachments.length > 0 ? (
+                <span
+                  className="flex shrink-0 items-center gap-1"
+                  title={t('attachments', { count: item.attachments.length })}
+                >
+                  <AttachmentIcon size="sm" aria-hidden="true" />
+                  {item.attachments.length}
+                </span>
+              ) : null}
+              {item.associated_event_id ? (
+                <span
+                  className="flex shrink-0 items-center gap-1 text-sev-error-fg"
+                  title={t('linkedError')}
+                >
+                  <ErrorIcon size="sm" aria-hidden="true" />
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </button>
+    </li>
   );
 }

@@ -1,15 +1,8 @@
-import { Check, ChevronDown, Copy } from 'lucide-react';
+import { Button, CopyIcon, Menu, ResolveIcon } from '@rustrak/ui';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { copyToClipboard } from '@/shared/lib/clipboard';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/shared/ui/components/shadcn/dropdown-menu';
 
 interface CopyAsFormat {
   label: string;
@@ -39,28 +32,23 @@ export function CopyAsDropdown({ formats }: CopyAsDropdownProps) {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" type="button" />}
-      >
-        {copied ? (
-          <Check className="mr-1 size-3 text-primary" />
-        ) : (
-          <Copy className="mr-1 size-3" />
-        )}
-        {t('copyAs')}
-        <ChevronDown className="ml-1 size-3" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {formats.map((format) => (
-          <DropdownMenuItem
-            key={format.label}
-            onClick={() => handleCopy(format)}
-          >
-            {format.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Menu
+      align="end"
+      actions={formats.map((format) => ({
+        id: format.label,
+        label: format.label,
+        onSelect: () => handleCopy(format),
+      }))}
+      trigger={
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={copied ? ResolveIcon : CopyIcon}
+          menu
+        >
+          {t('copyAs')}
+        </Button>
+      }
+    />
   );
 }

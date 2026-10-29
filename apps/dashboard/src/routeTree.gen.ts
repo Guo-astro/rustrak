@@ -23,16 +23,23 @@ import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedSettingsAboutRouteImport } from './routes/_authenticated/settings/about';
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account';
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance';
-import { Route as AuthenticatedSettingsIntegrationsRouteImport } from './routes/_authenticated/settings/integrations';
+import { Route as AuthenticatedSettingsInstanceRouteImport } from './routes/_authenticated/settings/instance';
 import { Route as AuthenticatedSettingsMcpRouteImport } from './routes/_authenticated/settings/mcp';
+import { Route as AuthenticatedSettingsPreferencesRouteImport } from './routes/_authenticated/settings/preferences';
+import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings/profile';
 import { Route as AuthenticatedSettingsStorageRouteImport } from './routes/_authenticated/settings/storage';
 import { Route as AuthenticatedSettingsTeamRouteImport } from './routes/_authenticated/settings/team';
 import { Route as AuthenticatedSettingsTokensRouteImport } from './routes/_authenticated/settings/tokens';
 import { Route as AuthenticatedProjectsIdIndexRouteImport } from './routes/_authenticated/projects/$id/index';
 import { Route as AuthenticatedProjectsIdLogsRouteImport } from './routes/_authenticated/projects/$id/logs';
 import { Route as AuthenticatedProjectsIdSettingsRouteImport } from './routes/_authenticated/projects/$id/settings';
+import { Route as AuthenticatedSettingsIntegrationsIndexRouteImport } from './routes/_authenticated/settings/integrations/index';
+import { Route as AuthenticatedSettingsIntegrationsProviderRouteImport } from './routes/_authenticated/settings/integrations/$provider';
+import { Route as AuthenticatedSettingsIntegrationsGithubRouteImport } from './routes/_authenticated/settings/integrations/github';
 import { Route as AuthenticatedProjectsIdAgentsIndexRouteImport } from './routes/_authenticated/projects/$id/agents/index';
 import { Route as AuthenticatedProjectsIdAgentsTraceIdRouteImport } from './routes/_authenticated/projects/$id/agents/$traceId';
+import { Route as AuthenticatedProjectsIdAlertsIndexRouteImport } from './routes/_authenticated/projects/$id/alerts/index';
+import { Route as AuthenticatedProjectsIdAlertsNewRouteImport } from './routes/_authenticated/projects/$id/alerts/new';
 import { Route as AuthenticatedProjectsIdCronsIndexRouteImport } from './routes/_authenticated/projects/$id/crons/index';
 import { Route as AuthenticatedProjectsIdCronsNewRouteImport } from './routes/_authenticated/projects/$id/crons/new';
 import { Route as AuthenticatedProjectsIdFeedbackIndexRouteImport } from './routes/_authenticated/projects/$id/feedback/index';
@@ -45,9 +52,14 @@ import { Route as AuthenticatedProjectsIdReleasesReleaseRouteImport } from './ro
 import { Route as AuthenticatedProjectsIdSettingsIndexRouteImport } from './routes/_authenticated/projects/$id/settings/index';
 import { Route as AuthenticatedProjectsIdSettingsAlertsRouteImport } from './routes/_authenticated/projects/$id/settings/alerts';
 import { Route as AuthenticatedProjectsIdSettingsClientKeysRouteImport } from './routes/_authenticated/projects/$id/settings/client-keys';
+import { Route as AuthenticatedProjectsIdSettingsDataRouteImport } from './routes/_authenticated/projects/$id/settings/data';
 import { Route as AuthenticatedProjectsIdSettingsGeneralRouteImport } from './routes/_authenticated/projects/$id/settings/general';
 import { Route as AuthenticatedProjectsIdSettingsGithubRouteImport } from './routes/_authenticated/projects/$id/settings/github';
 import { Route as AuthenticatedProjectsIdSettingsMembersRouteImport } from './routes/_authenticated/projects/$id/settings/members';
+import { Route as AuthenticatedProjectsIdSettingsProductsRouteImport } from './routes/_authenticated/projects/$id/settings/products';
+import { Route as AuthenticatedProjectsIdAgentsConversationsConversationIdRouteImport } from './routes/_authenticated/projects/$id/agents/conversations/$conversationId';
+import { Route as AuthenticatedProjectsIdAlertsRuleIdIndexRouteImport } from './routes/_authenticated/projects/$id/alerts/$ruleId/index';
+import { Route as AuthenticatedProjectsIdAlertsRuleIdEditRouteImport } from './routes/_authenticated/projects/$id/alerts/$ruleId/edit';
 import { Route as AuthenticatedProjectsIdEventsSentryEventIdRouteImport } from './routes/_authenticated/projects/$id/events/sentry/$eventId';
 import { Route as AuthenticatedProjectsIdIssuesIssueIdIndexRouteImport } from './routes/_authenticated/projects/$id/issues/$issueId/index';
 import { Route as AuthenticatedProjectsIdCronsMSlugIndexRouteImport } from './routes/_authenticated/projects/$id/crons/m/$slug/index';
@@ -130,16 +142,28 @@ const AuthenticatedSettingsAppearanceRoute =
     path: '/appearance',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any);
-const AuthenticatedSettingsIntegrationsRoute =
-  AuthenticatedSettingsIntegrationsRouteImport.update({
-    id: '/integrations',
-    path: '/integrations',
+const AuthenticatedSettingsInstanceRoute =
+  AuthenticatedSettingsInstanceRouteImport.update({
+    id: '/instance',
+    path: '/instance',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any);
 const AuthenticatedSettingsMcpRoute =
   AuthenticatedSettingsMcpRouteImport.update({
     id: '/mcp',
     path: '/mcp',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any);
+const AuthenticatedSettingsPreferencesRoute =
+  AuthenticatedSettingsPreferencesRouteImport.update({
+    id: '/preferences',
+    path: '/preferences',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any);
+const AuthenticatedSettingsProfileRoute =
+  AuthenticatedSettingsProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any);
 const AuthenticatedSettingsStorageRoute =
@@ -178,6 +202,24 @@ const AuthenticatedProjectsIdSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedProjectsIdRoute,
   } as any);
+const AuthenticatedSettingsIntegrationsIndexRoute =
+  AuthenticatedSettingsIntegrationsIndexRouteImport.update({
+    id: '/integrations/',
+    path: '/integrations/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any);
+const AuthenticatedSettingsIntegrationsProviderRoute =
+  AuthenticatedSettingsIntegrationsProviderRouteImport.update({
+    id: '/integrations/$provider',
+    path: '/integrations/$provider',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any);
+const AuthenticatedSettingsIntegrationsGithubRoute =
+  AuthenticatedSettingsIntegrationsGithubRouteImport.update({
+    id: '/integrations/github',
+    path: '/integrations/github',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any);
 const AuthenticatedProjectsIdAgentsIndexRoute =
   AuthenticatedProjectsIdAgentsIndexRouteImport.update({
     id: '/agents/',
@@ -188,6 +230,18 @@ const AuthenticatedProjectsIdAgentsTraceIdRoute =
   AuthenticatedProjectsIdAgentsTraceIdRouteImport.update({
     id: '/agents/$traceId',
     path: '/agents/$traceId',
+    getParentRoute: () => AuthenticatedProjectsIdRoute,
+  } as any);
+const AuthenticatedProjectsIdAlertsIndexRoute =
+  AuthenticatedProjectsIdAlertsIndexRouteImport.update({
+    id: '/alerts/',
+    path: '/alerts/',
+    getParentRoute: () => AuthenticatedProjectsIdRoute,
+  } as any);
+const AuthenticatedProjectsIdAlertsNewRoute =
+  AuthenticatedProjectsIdAlertsNewRouteImport.update({
+    id: '/alerts/new',
+    path: '/alerts/new',
     getParentRoute: () => AuthenticatedProjectsIdRoute,
   } as any);
 const AuthenticatedProjectsIdCronsIndexRoute =
@@ -262,6 +316,12 @@ const AuthenticatedProjectsIdSettingsClientKeysRoute =
     path: '/client-keys',
     getParentRoute: () => AuthenticatedProjectsIdSettingsRoute,
   } as any);
+const AuthenticatedProjectsIdSettingsDataRoute =
+  AuthenticatedProjectsIdSettingsDataRouteImport.update({
+    id: '/data',
+    path: '/data',
+    getParentRoute: () => AuthenticatedProjectsIdSettingsRoute,
+  } as any);
 const AuthenticatedProjectsIdSettingsGeneralRoute =
   AuthenticatedProjectsIdSettingsGeneralRouteImport.update({
     id: '/general',
@@ -279,6 +339,30 @@ const AuthenticatedProjectsIdSettingsMembersRoute =
     id: '/members',
     path: '/members',
     getParentRoute: () => AuthenticatedProjectsIdSettingsRoute,
+  } as any);
+const AuthenticatedProjectsIdSettingsProductsRoute =
+  AuthenticatedProjectsIdSettingsProductsRouteImport.update({
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => AuthenticatedProjectsIdSettingsRoute,
+  } as any);
+const AuthenticatedProjectsIdAgentsConversationsConversationIdRoute =
+  AuthenticatedProjectsIdAgentsConversationsConversationIdRouteImport.update({
+    id: '/agents/conversations/$conversationId',
+    path: '/agents/conversations/$conversationId',
+    getParentRoute: () => AuthenticatedProjectsIdRoute,
+  } as any);
+const AuthenticatedProjectsIdAlertsRuleIdIndexRoute =
+  AuthenticatedProjectsIdAlertsRuleIdIndexRouteImport.update({
+    id: '/alerts/$ruleId/',
+    path: '/alerts/$ruleId/',
+    getParentRoute: () => AuthenticatedProjectsIdRoute,
+  } as any);
+const AuthenticatedProjectsIdAlertsRuleIdEditRoute =
+  AuthenticatedProjectsIdAlertsRuleIdEditRouteImport.update({
+    id: '/alerts/$ruleId/edit',
+    path: '/alerts/$ruleId/edit',
+    getParentRoute: () => AuthenticatedProjectsIdRoute,
   } as any);
 const AuthenticatedProjectsIdEventsSentryEventIdRoute =
   AuthenticatedProjectsIdEventsSentryEventIdRouteImport.update({
@@ -329,8 +413,10 @@ export interface FileRoutesByFullPath {
   '/settings/about': typeof AuthenticatedSettingsAboutRoute;
   '/settings/account': typeof AuthenticatedSettingsAccountRoute;
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute;
-  '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute;
+  '/settings/instance': typeof AuthenticatedSettingsInstanceRoute;
   '/settings/mcp': typeof AuthenticatedSettingsMcpRoute;
+  '/settings/preferences': typeof AuthenticatedSettingsPreferencesRoute;
+  '/settings/profile': typeof AuthenticatedSettingsProfileRoute;
   '/settings/storage': typeof AuthenticatedSettingsStorageRoute;
   '/settings/team': typeof AuthenticatedSettingsTeamRoute;
   '/settings/tokens': typeof AuthenticatedSettingsTokensRoute;
@@ -338,25 +424,35 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AuthenticatedSettingsIndexRoute;
   '/projects/$id/logs': typeof AuthenticatedProjectsIdLogsRoute;
   '/projects/$id/settings': typeof AuthenticatedProjectsIdSettingsRouteWithChildren;
+  '/settings/integrations/$provider': typeof AuthenticatedSettingsIntegrationsProviderRoute;
+  '/settings/integrations/github': typeof AuthenticatedSettingsIntegrationsGithubRoute;
   '/projects/$id/': typeof AuthenticatedProjectsIdIndexRoute;
+  '/settings/integrations/': typeof AuthenticatedSettingsIntegrationsIndexRoute;
   '/projects/$id/agents/$traceId': typeof AuthenticatedProjectsIdAgentsTraceIdRoute;
+  '/projects/$id/alerts/new': typeof AuthenticatedProjectsIdAlertsNewRoute;
   '/projects/$id/crons/new': typeof AuthenticatedProjectsIdCronsNewRoute;
   '/projects/$id/performance/$txnId': typeof AuthenticatedProjectsIdPerformanceTxnIdRoute;
   '/projects/$id/performance/summary': typeof AuthenticatedProjectsIdPerformanceSummaryRoute;
   '/projects/$id/releases/$release': typeof AuthenticatedProjectsIdReleasesReleaseRoute;
   '/projects/$id/settings/alerts': typeof AuthenticatedProjectsIdSettingsAlertsRoute;
   '/projects/$id/settings/client-keys': typeof AuthenticatedProjectsIdSettingsClientKeysRoute;
+  '/projects/$id/settings/data': typeof AuthenticatedProjectsIdSettingsDataRoute;
   '/projects/$id/settings/general': typeof AuthenticatedProjectsIdSettingsGeneralRoute;
   '/projects/$id/settings/github': typeof AuthenticatedProjectsIdSettingsGithubRoute;
   '/projects/$id/settings/members': typeof AuthenticatedProjectsIdSettingsMembersRoute;
+  '/projects/$id/settings/products': typeof AuthenticatedProjectsIdSettingsProductsRoute;
   '/projects/$id/agents/': typeof AuthenticatedProjectsIdAgentsIndexRoute;
+  '/projects/$id/alerts/': typeof AuthenticatedProjectsIdAlertsIndexRoute;
   '/projects/$id/crons/': typeof AuthenticatedProjectsIdCronsIndexRoute;
   '/projects/$id/feedback/': typeof AuthenticatedProjectsIdFeedbackIndexRoute;
   '/projects/$id/issues/': typeof AuthenticatedProjectsIdIssuesIndexRoute;
   '/projects/$id/performance/': typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   '/projects/$id/releases/': typeof AuthenticatedProjectsIdReleasesIndexRoute;
   '/projects/$id/settings/': typeof AuthenticatedProjectsIdSettingsIndexRoute;
+  '/projects/$id/agents/conversations/$conversationId': typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
+  '/projects/$id/alerts/$ruleId/edit': typeof AuthenticatedProjectsIdAlertsRuleIdEditRoute;
   '/projects/$id/events/sentry/$eventId': typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
+  '/projects/$id/alerts/$ruleId/': typeof AuthenticatedProjectsIdAlertsRuleIdIndexRoute;
   '/projects/$id/issues/$issueId/': typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   '/projects/$id/crons/m/$slug/edit': typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
   '/projects/$id/issues/$issueId/events/$eventId': typeof AuthenticatedProjectsIdIssuesIssueIdEventsEventIdRoute;
@@ -373,33 +469,45 @@ export interface FileRoutesByTo {
   '/settings/about': typeof AuthenticatedSettingsAboutRoute;
   '/settings/account': typeof AuthenticatedSettingsAccountRoute;
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute;
-  '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute;
+  '/settings/instance': typeof AuthenticatedSettingsInstanceRoute;
   '/settings/mcp': typeof AuthenticatedSettingsMcpRoute;
+  '/settings/preferences': typeof AuthenticatedSettingsPreferencesRoute;
+  '/settings/profile': typeof AuthenticatedSettingsProfileRoute;
   '/settings/storage': typeof AuthenticatedSettingsStorageRoute;
   '/settings/team': typeof AuthenticatedSettingsTeamRoute;
   '/settings/tokens': typeof AuthenticatedSettingsTokensRoute;
   '/projects': typeof AuthenticatedProjectsIndexRoute;
   '/settings': typeof AuthenticatedSettingsIndexRoute;
   '/projects/$id/logs': typeof AuthenticatedProjectsIdLogsRoute;
+  '/settings/integrations/$provider': typeof AuthenticatedSettingsIntegrationsProviderRoute;
+  '/settings/integrations/github': typeof AuthenticatedSettingsIntegrationsGithubRoute;
   '/projects/$id': typeof AuthenticatedProjectsIdIndexRoute;
+  '/settings/integrations': typeof AuthenticatedSettingsIntegrationsIndexRoute;
   '/projects/$id/agents/$traceId': typeof AuthenticatedProjectsIdAgentsTraceIdRoute;
+  '/projects/$id/alerts/new': typeof AuthenticatedProjectsIdAlertsNewRoute;
   '/projects/$id/crons/new': typeof AuthenticatedProjectsIdCronsNewRoute;
   '/projects/$id/performance/$txnId': typeof AuthenticatedProjectsIdPerformanceTxnIdRoute;
   '/projects/$id/performance/summary': typeof AuthenticatedProjectsIdPerformanceSummaryRoute;
   '/projects/$id/releases/$release': typeof AuthenticatedProjectsIdReleasesReleaseRoute;
   '/projects/$id/settings/alerts': typeof AuthenticatedProjectsIdSettingsAlertsRoute;
   '/projects/$id/settings/client-keys': typeof AuthenticatedProjectsIdSettingsClientKeysRoute;
+  '/projects/$id/settings/data': typeof AuthenticatedProjectsIdSettingsDataRoute;
   '/projects/$id/settings/general': typeof AuthenticatedProjectsIdSettingsGeneralRoute;
   '/projects/$id/settings/github': typeof AuthenticatedProjectsIdSettingsGithubRoute;
   '/projects/$id/settings/members': typeof AuthenticatedProjectsIdSettingsMembersRoute;
+  '/projects/$id/settings/products': typeof AuthenticatedProjectsIdSettingsProductsRoute;
   '/projects/$id/agents': typeof AuthenticatedProjectsIdAgentsIndexRoute;
+  '/projects/$id/alerts': typeof AuthenticatedProjectsIdAlertsIndexRoute;
   '/projects/$id/crons': typeof AuthenticatedProjectsIdCronsIndexRoute;
   '/projects/$id/feedback': typeof AuthenticatedProjectsIdFeedbackIndexRoute;
   '/projects/$id/issues': typeof AuthenticatedProjectsIdIssuesIndexRoute;
   '/projects/$id/performance': typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   '/projects/$id/releases': typeof AuthenticatedProjectsIdReleasesIndexRoute;
   '/projects/$id/settings': typeof AuthenticatedProjectsIdSettingsIndexRoute;
+  '/projects/$id/agents/conversations/$conversationId': typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
+  '/projects/$id/alerts/$ruleId/edit': typeof AuthenticatedProjectsIdAlertsRuleIdEditRoute;
   '/projects/$id/events/sentry/$eventId': typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
+  '/projects/$id/alerts/$ruleId': typeof AuthenticatedProjectsIdAlertsRuleIdIndexRoute;
   '/projects/$id/issues/$issueId': typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   '/projects/$id/crons/m/$slug/edit': typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
   '/projects/$id/issues/$issueId/events/$eventId': typeof AuthenticatedProjectsIdIssuesIssueIdEventsEventIdRoute;
@@ -420,8 +528,10 @@ export interface FileRoutesById {
   '/_authenticated/settings/about': typeof AuthenticatedSettingsAboutRoute;
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute;
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute;
-  '/_authenticated/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute;
+  '/_authenticated/settings/instance': typeof AuthenticatedSettingsInstanceRoute;
   '/_authenticated/settings/mcp': typeof AuthenticatedSettingsMcpRoute;
+  '/_authenticated/settings/preferences': typeof AuthenticatedSettingsPreferencesRoute;
+  '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute;
   '/_authenticated/settings/storage': typeof AuthenticatedSettingsStorageRoute;
   '/_authenticated/settings/team': typeof AuthenticatedSettingsTeamRoute;
   '/_authenticated/settings/tokens': typeof AuthenticatedSettingsTokensRoute;
@@ -429,25 +539,35 @@ export interface FileRoutesById {
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute;
   '/_authenticated/projects/$id/logs': typeof AuthenticatedProjectsIdLogsRoute;
   '/_authenticated/projects/$id/settings': typeof AuthenticatedProjectsIdSettingsRouteWithChildren;
+  '/_authenticated/settings/integrations/$provider': typeof AuthenticatedSettingsIntegrationsProviderRoute;
+  '/_authenticated/settings/integrations/github': typeof AuthenticatedSettingsIntegrationsGithubRoute;
   '/_authenticated/projects/$id/': typeof AuthenticatedProjectsIdIndexRoute;
+  '/_authenticated/settings/integrations/': typeof AuthenticatedSettingsIntegrationsIndexRoute;
   '/_authenticated/projects/$id/agents/$traceId': typeof AuthenticatedProjectsIdAgentsTraceIdRoute;
+  '/_authenticated/projects/$id/alerts/new': typeof AuthenticatedProjectsIdAlertsNewRoute;
   '/_authenticated/projects/$id/crons/new': typeof AuthenticatedProjectsIdCronsNewRoute;
   '/_authenticated/projects/$id/performance/$txnId': typeof AuthenticatedProjectsIdPerformanceTxnIdRoute;
   '/_authenticated/projects/$id/performance/summary': typeof AuthenticatedProjectsIdPerformanceSummaryRoute;
   '/_authenticated/projects/$id/releases/$release': typeof AuthenticatedProjectsIdReleasesReleaseRoute;
   '/_authenticated/projects/$id/settings/alerts': typeof AuthenticatedProjectsIdSettingsAlertsRoute;
   '/_authenticated/projects/$id/settings/client-keys': typeof AuthenticatedProjectsIdSettingsClientKeysRoute;
+  '/_authenticated/projects/$id/settings/data': typeof AuthenticatedProjectsIdSettingsDataRoute;
   '/_authenticated/projects/$id/settings/general': typeof AuthenticatedProjectsIdSettingsGeneralRoute;
   '/_authenticated/projects/$id/settings/github': typeof AuthenticatedProjectsIdSettingsGithubRoute;
   '/_authenticated/projects/$id/settings/members': typeof AuthenticatedProjectsIdSettingsMembersRoute;
+  '/_authenticated/projects/$id/settings/products': typeof AuthenticatedProjectsIdSettingsProductsRoute;
   '/_authenticated/projects/$id/agents/': typeof AuthenticatedProjectsIdAgentsIndexRoute;
+  '/_authenticated/projects/$id/alerts/': typeof AuthenticatedProjectsIdAlertsIndexRoute;
   '/_authenticated/projects/$id/crons/': typeof AuthenticatedProjectsIdCronsIndexRoute;
   '/_authenticated/projects/$id/feedback/': typeof AuthenticatedProjectsIdFeedbackIndexRoute;
   '/_authenticated/projects/$id/issues/': typeof AuthenticatedProjectsIdIssuesIndexRoute;
   '/_authenticated/projects/$id/performance/': typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   '/_authenticated/projects/$id/releases/': typeof AuthenticatedProjectsIdReleasesIndexRoute;
   '/_authenticated/projects/$id/settings/': typeof AuthenticatedProjectsIdSettingsIndexRoute;
+  '/_authenticated/projects/$id/agents/conversations/$conversationId': typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
+  '/_authenticated/projects/$id/alerts/$ruleId/edit': typeof AuthenticatedProjectsIdAlertsRuleIdEditRoute;
   '/_authenticated/projects/$id/events/sentry/$eventId': typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
+  '/_authenticated/projects/$id/alerts/$ruleId/': typeof AuthenticatedProjectsIdAlertsRuleIdIndexRoute;
   '/_authenticated/projects/$id/issues/$issueId/': typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   '/_authenticated/projects/$id/crons/m/$slug/edit': typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
   '/_authenticated/projects/$id/issues/$issueId/events/$eventId': typeof AuthenticatedProjectsIdIssuesIssueIdEventsEventIdRoute;
@@ -468,8 +588,10 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/account'
     | '/settings/appearance'
-    | '/settings/integrations'
+    | '/settings/instance'
     | '/settings/mcp'
+    | '/settings/preferences'
+    | '/settings/profile'
     | '/settings/storage'
     | '/settings/team'
     | '/settings/tokens'
@@ -477,25 +599,35 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/projects/$id/logs'
     | '/projects/$id/settings'
+    | '/settings/integrations/$provider'
+    | '/settings/integrations/github'
     | '/projects/$id/'
+    | '/settings/integrations/'
     | '/projects/$id/agents/$traceId'
+    | '/projects/$id/alerts/new'
     | '/projects/$id/crons/new'
     | '/projects/$id/performance/$txnId'
     | '/projects/$id/performance/summary'
     | '/projects/$id/releases/$release'
     | '/projects/$id/settings/alerts'
     | '/projects/$id/settings/client-keys'
+    | '/projects/$id/settings/data'
     | '/projects/$id/settings/general'
     | '/projects/$id/settings/github'
     | '/projects/$id/settings/members'
+    | '/projects/$id/settings/products'
     | '/projects/$id/agents/'
+    | '/projects/$id/alerts/'
     | '/projects/$id/crons/'
     | '/projects/$id/feedback/'
     | '/projects/$id/issues/'
     | '/projects/$id/performance/'
     | '/projects/$id/releases/'
     | '/projects/$id/settings/'
+    | '/projects/$id/agents/conversations/$conversationId'
+    | '/projects/$id/alerts/$ruleId/edit'
     | '/projects/$id/events/sentry/$eventId'
+    | '/projects/$id/alerts/$ruleId/'
     | '/projects/$id/issues/$issueId/'
     | '/projects/$id/crons/m/$slug/edit'
     | '/projects/$id/issues/$issueId/events/$eventId'
@@ -512,33 +644,45 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/account'
     | '/settings/appearance'
-    | '/settings/integrations'
+    | '/settings/instance'
     | '/settings/mcp'
+    | '/settings/preferences'
+    | '/settings/profile'
     | '/settings/storage'
     | '/settings/team'
     | '/settings/tokens'
     | '/projects'
     | '/settings'
     | '/projects/$id/logs'
+    | '/settings/integrations/$provider'
+    | '/settings/integrations/github'
     | '/projects/$id'
+    | '/settings/integrations'
     | '/projects/$id/agents/$traceId'
+    | '/projects/$id/alerts/new'
     | '/projects/$id/crons/new'
     | '/projects/$id/performance/$txnId'
     | '/projects/$id/performance/summary'
     | '/projects/$id/releases/$release'
     | '/projects/$id/settings/alerts'
     | '/projects/$id/settings/client-keys'
+    | '/projects/$id/settings/data'
     | '/projects/$id/settings/general'
     | '/projects/$id/settings/github'
     | '/projects/$id/settings/members'
+    | '/projects/$id/settings/products'
     | '/projects/$id/agents'
+    | '/projects/$id/alerts'
     | '/projects/$id/crons'
     | '/projects/$id/feedback'
     | '/projects/$id/issues'
     | '/projects/$id/performance'
     | '/projects/$id/releases'
     | '/projects/$id/settings'
+    | '/projects/$id/agents/conversations/$conversationId'
+    | '/projects/$id/alerts/$ruleId/edit'
     | '/projects/$id/events/sentry/$eventId'
+    | '/projects/$id/alerts/$ruleId'
     | '/projects/$id/issues/$issueId'
     | '/projects/$id/crons/m/$slug/edit'
     | '/projects/$id/issues/$issueId/events/$eventId'
@@ -558,8 +702,10 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/about'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
-    | '/_authenticated/settings/integrations'
+    | '/_authenticated/settings/instance'
     | '/_authenticated/settings/mcp'
+    | '/_authenticated/settings/preferences'
+    | '/_authenticated/settings/profile'
     | '/_authenticated/settings/storage'
     | '/_authenticated/settings/team'
     | '/_authenticated/settings/tokens'
@@ -567,25 +713,35 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/'
     | '/_authenticated/projects/$id/logs'
     | '/_authenticated/projects/$id/settings'
+    | '/_authenticated/settings/integrations/$provider'
+    | '/_authenticated/settings/integrations/github'
     | '/_authenticated/projects/$id/'
+    | '/_authenticated/settings/integrations/'
     | '/_authenticated/projects/$id/agents/$traceId'
+    | '/_authenticated/projects/$id/alerts/new'
     | '/_authenticated/projects/$id/crons/new'
     | '/_authenticated/projects/$id/performance/$txnId'
     | '/_authenticated/projects/$id/performance/summary'
     | '/_authenticated/projects/$id/releases/$release'
     | '/_authenticated/projects/$id/settings/alerts'
     | '/_authenticated/projects/$id/settings/client-keys'
+    | '/_authenticated/projects/$id/settings/data'
     | '/_authenticated/projects/$id/settings/general'
     | '/_authenticated/projects/$id/settings/github'
     | '/_authenticated/projects/$id/settings/members'
+    | '/_authenticated/projects/$id/settings/products'
     | '/_authenticated/projects/$id/agents/'
+    | '/_authenticated/projects/$id/alerts/'
     | '/_authenticated/projects/$id/crons/'
     | '/_authenticated/projects/$id/feedback/'
     | '/_authenticated/projects/$id/issues/'
     | '/_authenticated/projects/$id/performance/'
     | '/_authenticated/projects/$id/releases/'
     | '/_authenticated/projects/$id/settings/'
+    | '/_authenticated/projects/$id/agents/conversations/$conversationId'
+    | '/_authenticated/projects/$id/alerts/$ruleId/edit'
     | '/_authenticated/projects/$id/events/sentry/$eventId'
+    | '/_authenticated/projects/$id/alerts/$ruleId/'
     | '/_authenticated/projects/$id/issues/$issueId/'
     | '/_authenticated/projects/$id/crons/m/$slug/edit'
     | '/_authenticated/projects/$id/issues/$issueId/events/$eventId'
@@ -702,11 +858,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport;
       parentRoute: typeof AuthenticatedSettingsRoute;
     };
-    '/_authenticated/settings/integrations': {
-      id: '/_authenticated/settings/integrations';
-      path: '/integrations';
-      fullPath: '/settings/integrations';
-      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsRouteImport;
+    '/_authenticated/settings/instance': {
+      id: '/_authenticated/settings/instance';
+      path: '/instance';
+      fullPath: '/settings/instance';
+      preLoaderRoute: typeof AuthenticatedSettingsInstanceRouteImport;
       parentRoute: typeof AuthenticatedSettingsRoute;
     };
     '/_authenticated/settings/mcp': {
@@ -714,6 +870,20 @@ declare module '@tanstack/react-router' {
       path: '/mcp';
       fullPath: '/settings/mcp';
       preLoaderRoute: typeof AuthenticatedSettingsMcpRouteImport;
+      parentRoute: typeof AuthenticatedSettingsRoute;
+    };
+    '/_authenticated/settings/preferences': {
+      id: '/_authenticated/settings/preferences';
+      path: '/preferences';
+      fullPath: '/settings/preferences';
+      preLoaderRoute: typeof AuthenticatedSettingsPreferencesRouteImport;
+      parentRoute: typeof AuthenticatedSettingsRoute;
+    };
+    '/_authenticated/settings/profile': {
+      id: '/_authenticated/settings/profile';
+      path: '/profile';
+      fullPath: '/settings/profile';
+      preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport;
       parentRoute: typeof AuthenticatedSettingsRoute;
     };
     '/_authenticated/settings/storage': {
@@ -758,6 +928,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsIdSettingsRouteImport;
       parentRoute: typeof AuthenticatedProjectsIdRoute;
     };
+    '/_authenticated/settings/integrations/': {
+      id: '/_authenticated/settings/integrations/';
+      path: '/integrations';
+      fullPath: '/settings/integrations/';
+      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsIndexRouteImport;
+      parentRoute: typeof AuthenticatedSettingsRoute;
+    };
+    '/_authenticated/settings/integrations/$provider': {
+      id: '/_authenticated/settings/integrations/$provider';
+      path: '/integrations/$provider';
+      fullPath: '/settings/integrations/$provider';
+      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsProviderRouteImport;
+      parentRoute: typeof AuthenticatedSettingsRoute;
+    };
+    '/_authenticated/settings/integrations/github': {
+      id: '/_authenticated/settings/integrations/github';
+      path: '/integrations/github';
+      fullPath: '/settings/integrations/github';
+      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsGithubRouteImport;
+      parentRoute: typeof AuthenticatedSettingsRoute;
+    };
     '/_authenticated/projects/$id/agents/': {
       id: '/_authenticated/projects/$id/agents/';
       path: '/agents';
@@ -770,6 +961,20 @@ declare module '@tanstack/react-router' {
       path: '/agents/$traceId';
       fullPath: '/projects/$id/agents/$traceId';
       preLoaderRoute: typeof AuthenticatedProjectsIdAgentsTraceIdRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdRoute;
+    };
+    '/_authenticated/projects/$id/alerts/': {
+      id: '/_authenticated/projects/$id/alerts/';
+      path: '/alerts';
+      fullPath: '/projects/$id/alerts/';
+      preLoaderRoute: typeof AuthenticatedProjectsIdAlertsIndexRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdRoute;
+    };
+    '/_authenticated/projects/$id/alerts/new': {
+      id: '/_authenticated/projects/$id/alerts/new';
+      path: '/alerts/new';
+      fullPath: '/projects/$id/alerts/new';
+      preLoaderRoute: typeof AuthenticatedProjectsIdAlertsNewRouteImport;
       parentRoute: typeof AuthenticatedProjectsIdRoute;
     };
     '/_authenticated/projects/$id/crons/': {
@@ -856,6 +1061,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsIdSettingsClientKeysRouteImport;
       parentRoute: typeof AuthenticatedProjectsIdSettingsRoute;
     };
+    '/_authenticated/projects/$id/settings/data': {
+      id: '/_authenticated/projects/$id/settings/data';
+      path: '/data';
+      fullPath: '/projects/$id/settings/data';
+      preLoaderRoute: typeof AuthenticatedProjectsIdSettingsDataRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdSettingsRoute;
+    };
     '/_authenticated/projects/$id/settings/general': {
       id: '/_authenticated/projects/$id/settings/general';
       path: '/general';
@@ -876,6 +1088,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects/$id/settings/members';
       preLoaderRoute: typeof AuthenticatedProjectsIdSettingsMembersRouteImport;
       parentRoute: typeof AuthenticatedProjectsIdSettingsRoute;
+    };
+    '/_authenticated/projects/$id/settings/products': {
+      id: '/_authenticated/projects/$id/settings/products';
+      path: '/products';
+      fullPath: '/projects/$id/settings/products';
+      preLoaderRoute: typeof AuthenticatedProjectsIdSettingsProductsRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdSettingsRoute;
+    };
+    '/_authenticated/projects/$id/agents/conversations/$conversationId': {
+      id: '/_authenticated/projects/$id/agents/conversations/$conversationId';
+      path: '/agents/conversations/$conversationId';
+      fullPath: '/projects/$id/agents/conversations/$conversationId';
+      preLoaderRoute: typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdRoute;
+    };
+    '/_authenticated/projects/$id/alerts/$ruleId/': {
+      id: '/_authenticated/projects/$id/alerts/$ruleId/';
+      path: '/alerts/$ruleId';
+      fullPath: '/projects/$id/alerts/$ruleId/';
+      preLoaderRoute: typeof AuthenticatedProjectsIdAlertsRuleIdIndexRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdRoute;
+    };
+    '/_authenticated/projects/$id/alerts/$ruleId/edit': {
+      id: '/_authenticated/projects/$id/alerts/$ruleId/edit';
+      path: '/alerts/$ruleId/edit';
+      fullPath: '/projects/$id/alerts/$ruleId/edit';
+      preLoaderRoute: typeof AuthenticatedProjectsIdAlertsRuleIdEditRouteImport;
+      parentRoute: typeof AuthenticatedProjectsIdRoute;
     };
     '/_authenticated/projects/$id/events/sentry/$eventId': {
       id: '/_authenticated/projects/$id/events/sentry/$eventId';
@@ -926,25 +1166,37 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsAboutRoute: typeof AuthenticatedSettingsAboutRoute;
   AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute;
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute;
-  AuthenticatedSettingsIntegrationsRoute: typeof AuthenticatedSettingsIntegrationsRoute;
+  AuthenticatedSettingsInstanceRoute: typeof AuthenticatedSettingsInstanceRoute;
   AuthenticatedSettingsMcpRoute: typeof AuthenticatedSettingsMcpRoute;
+  AuthenticatedSettingsPreferencesRoute: typeof AuthenticatedSettingsPreferencesRoute;
+  AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute;
   AuthenticatedSettingsStorageRoute: typeof AuthenticatedSettingsStorageRoute;
   AuthenticatedSettingsTeamRoute: typeof AuthenticatedSettingsTeamRoute;
   AuthenticatedSettingsTokensRoute: typeof AuthenticatedSettingsTokensRoute;
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute;
+  AuthenticatedSettingsIntegrationsProviderRoute: typeof AuthenticatedSettingsIntegrationsProviderRoute;
+  AuthenticatedSettingsIntegrationsGithubRoute: typeof AuthenticatedSettingsIntegrationsGithubRoute;
+  AuthenticatedSettingsIntegrationsIndexRoute: typeof AuthenticatedSettingsIntegrationsIndexRoute;
 }
 
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsAboutRoute: AuthenticatedSettingsAboutRoute,
   AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
   AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
-  AuthenticatedSettingsIntegrationsRoute:
-    AuthenticatedSettingsIntegrationsRoute,
+  AuthenticatedSettingsInstanceRoute: AuthenticatedSettingsInstanceRoute,
   AuthenticatedSettingsMcpRoute: AuthenticatedSettingsMcpRoute,
+  AuthenticatedSettingsPreferencesRoute: AuthenticatedSettingsPreferencesRoute,
+  AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
   AuthenticatedSettingsStorageRoute: AuthenticatedSettingsStorageRoute,
   AuthenticatedSettingsTeamRoute: AuthenticatedSettingsTeamRoute,
   AuthenticatedSettingsTokensRoute: AuthenticatedSettingsTokensRoute,
   AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+  AuthenticatedSettingsIntegrationsProviderRoute:
+    AuthenticatedSettingsIntegrationsProviderRoute,
+  AuthenticatedSettingsIntegrationsGithubRoute:
+    AuthenticatedSettingsIntegrationsGithubRoute,
+  AuthenticatedSettingsIntegrationsIndexRoute:
+    AuthenticatedSettingsIntegrationsIndexRoute,
 };
 
 const AuthenticatedSettingsRouteWithChildren =
@@ -955,9 +1207,11 @@ const AuthenticatedSettingsRouteWithChildren =
 interface AuthenticatedProjectsIdSettingsRouteChildren {
   AuthenticatedProjectsIdSettingsAlertsRoute: typeof AuthenticatedProjectsIdSettingsAlertsRoute;
   AuthenticatedProjectsIdSettingsClientKeysRoute: typeof AuthenticatedProjectsIdSettingsClientKeysRoute;
+  AuthenticatedProjectsIdSettingsDataRoute: typeof AuthenticatedProjectsIdSettingsDataRoute;
   AuthenticatedProjectsIdSettingsGeneralRoute: typeof AuthenticatedProjectsIdSettingsGeneralRoute;
   AuthenticatedProjectsIdSettingsGithubRoute: typeof AuthenticatedProjectsIdSettingsGithubRoute;
   AuthenticatedProjectsIdSettingsMembersRoute: typeof AuthenticatedProjectsIdSettingsMembersRoute;
+  AuthenticatedProjectsIdSettingsProductsRoute: typeof AuthenticatedProjectsIdSettingsProductsRoute;
   AuthenticatedProjectsIdSettingsIndexRoute: typeof AuthenticatedProjectsIdSettingsIndexRoute;
 }
 
@@ -967,12 +1221,16 @@ const AuthenticatedProjectsIdSettingsRouteChildren: AuthenticatedProjectsIdSetti
       AuthenticatedProjectsIdSettingsAlertsRoute,
     AuthenticatedProjectsIdSettingsClientKeysRoute:
       AuthenticatedProjectsIdSettingsClientKeysRoute,
+    AuthenticatedProjectsIdSettingsDataRoute:
+      AuthenticatedProjectsIdSettingsDataRoute,
     AuthenticatedProjectsIdSettingsGeneralRoute:
       AuthenticatedProjectsIdSettingsGeneralRoute,
     AuthenticatedProjectsIdSettingsGithubRoute:
       AuthenticatedProjectsIdSettingsGithubRoute,
     AuthenticatedProjectsIdSettingsMembersRoute:
       AuthenticatedProjectsIdSettingsMembersRoute,
+    AuthenticatedProjectsIdSettingsProductsRoute:
+      AuthenticatedProjectsIdSettingsProductsRoute,
     AuthenticatedProjectsIdSettingsIndexRoute:
       AuthenticatedProjectsIdSettingsIndexRoute,
   };
@@ -987,17 +1245,22 @@ interface AuthenticatedProjectsIdRouteChildren {
   AuthenticatedProjectsIdSettingsRoute: typeof AuthenticatedProjectsIdSettingsRouteWithChildren;
   AuthenticatedProjectsIdIndexRoute: typeof AuthenticatedProjectsIdIndexRoute;
   AuthenticatedProjectsIdAgentsTraceIdRoute: typeof AuthenticatedProjectsIdAgentsTraceIdRoute;
+  AuthenticatedProjectsIdAlertsNewRoute: typeof AuthenticatedProjectsIdAlertsNewRoute;
   AuthenticatedProjectsIdCronsNewRoute: typeof AuthenticatedProjectsIdCronsNewRoute;
   AuthenticatedProjectsIdPerformanceTxnIdRoute: typeof AuthenticatedProjectsIdPerformanceTxnIdRoute;
   AuthenticatedProjectsIdPerformanceSummaryRoute: typeof AuthenticatedProjectsIdPerformanceSummaryRoute;
   AuthenticatedProjectsIdReleasesReleaseRoute: typeof AuthenticatedProjectsIdReleasesReleaseRoute;
   AuthenticatedProjectsIdAgentsIndexRoute: typeof AuthenticatedProjectsIdAgentsIndexRoute;
+  AuthenticatedProjectsIdAlertsIndexRoute: typeof AuthenticatedProjectsIdAlertsIndexRoute;
   AuthenticatedProjectsIdCronsIndexRoute: typeof AuthenticatedProjectsIdCronsIndexRoute;
   AuthenticatedProjectsIdFeedbackIndexRoute: typeof AuthenticatedProjectsIdFeedbackIndexRoute;
   AuthenticatedProjectsIdIssuesIndexRoute: typeof AuthenticatedProjectsIdIssuesIndexRoute;
   AuthenticatedProjectsIdPerformanceIndexRoute: typeof AuthenticatedProjectsIdPerformanceIndexRoute;
   AuthenticatedProjectsIdReleasesIndexRoute: typeof AuthenticatedProjectsIdReleasesIndexRoute;
+  AuthenticatedProjectsIdAgentsConversationsConversationIdRoute: typeof AuthenticatedProjectsIdAgentsConversationsConversationIdRoute;
+  AuthenticatedProjectsIdAlertsRuleIdEditRoute: typeof AuthenticatedProjectsIdAlertsRuleIdEditRoute;
   AuthenticatedProjectsIdEventsSentryEventIdRoute: typeof AuthenticatedProjectsIdEventsSentryEventIdRoute;
+  AuthenticatedProjectsIdAlertsRuleIdIndexRoute: typeof AuthenticatedProjectsIdAlertsRuleIdIndexRoute;
   AuthenticatedProjectsIdIssuesIssueIdIndexRoute: typeof AuthenticatedProjectsIdIssuesIssueIdIndexRoute;
   AuthenticatedProjectsIdCronsMSlugEditRoute: typeof AuthenticatedProjectsIdCronsMSlugEditRoute;
   AuthenticatedProjectsIdIssuesIssueIdEventsEventIdRoute: typeof AuthenticatedProjectsIdIssuesIssueIdEventsEventIdRoute;
@@ -1013,6 +1276,8 @@ const AuthenticatedProjectsIdRouteChildren: AuthenticatedProjectsIdRouteChildren
     AuthenticatedProjectsIdIndexRoute: AuthenticatedProjectsIdIndexRoute,
     AuthenticatedProjectsIdAgentsTraceIdRoute:
       AuthenticatedProjectsIdAgentsTraceIdRoute,
+    AuthenticatedProjectsIdAlertsNewRoute:
+      AuthenticatedProjectsIdAlertsNewRoute,
     AuthenticatedProjectsIdCronsNewRoute: AuthenticatedProjectsIdCronsNewRoute,
     AuthenticatedProjectsIdPerformanceTxnIdRoute:
       AuthenticatedProjectsIdPerformanceTxnIdRoute,
@@ -1022,6 +1287,8 @@ const AuthenticatedProjectsIdRouteChildren: AuthenticatedProjectsIdRouteChildren
       AuthenticatedProjectsIdReleasesReleaseRoute,
     AuthenticatedProjectsIdAgentsIndexRoute:
       AuthenticatedProjectsIdAgentsIndexRoute,
+    AuthenticatedProjectsIdAlertsIndexRoute:
+      AuthenticatedProjectsIdAlertsIndexRoute,
     AuthenticatedProjectsIdCronsIndexRoute:
       AuthenticatedProjectsIdCronsIndexRoute,
     AuthenticatedProjectsIdFeedbackIndexRoute:
@@ -1032,8 +1299,14 @@ const AuthenticatedProjectsIdRouteChildren: AuthenticatedProjectsIdRouteChildren
       AuthenticatedProjectsIdPerformanceIndexRoute,
     AuthenticatedProjectsIdReleasesIndexRoute:
       AuthenticatedProjectsIdReleasesIndexRoute,
+    AuthenticatedProjectsIdAgentsConversationsConversationIdRoute:
+      AuthenticatedProjectsIdAgentsConversationsConversationIdRoute,
+    AuthenticatedProjectsIdAlertsRuleIdEditRoute:
+      AuthenticatedProjectsIdAlertsRuleIdEditRoute,
     AuthenticatedProjectsIdEventsSentryEventIdRoute:
       AuthenticatedProjectsIdEventsSentryEventIdRoute,
+    AuthenticatedProjectsIdAlertsRuleIdIndexRoute:
+      AuthenticatedProjectsIdAlertsRuleIdIndexRoute,
     AuthenticatedProjectsIdIssuesIssueIdIndexRoute:
       AuthenticatedProjectsIdIssuesIssueIdIndexRoute,
     AuthenticatedProjectsIdCronsMSlugEditRoute:

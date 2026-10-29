@@ -1,110 +1,77 @@
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import { formatFilterQuery } from '@rustrak/ui';
+import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
-import { IssueListCard } from '@/features/issue/ui/components/issue-list-card';
+import { ISSUE_FILTER_VARIANTS } from '@/features/issue/model/issue-table';
 import { getProject } from '@/features/project/api/queries';
 import {
   getAllReleaseHealthRows,
   getNewIssuesForRelease,
+  getRelease,
+  getSessionSummary,
+  getSessionTimeseries,
 } from '@/features/release/api/queries';
-import { ReleaseEnvironmentCards } from '@/features/release/ui/components/release-environment-cards';
+import {
+  DEFAULT_PERIOD,
+  overviewInterval,
+  PERIOD_CHOICES,
+} from '@/features/release/model/session-health';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
-import { searchString } from '@/shared/lib/search-params';
+import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { useAsync } from '@/shared/ui/hooks/use-async';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
+import { ReleaseFilters } from './-components/release-filters';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/shadcn/card';
-
-/** The release from the path, or `null` if it is not a decodable one. */
-function decodeRelease(raw: string): string | null {
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return null;
-  }
-}
+  NewIssuesPanel,
+  RailBlock,
+  ReleaseDetails,
+  ReleaseEnvironments,
+  ReleaseHeader,
+  ReleaseKpis,
+  SessionsPanel,
+} from './-components/release-panels';
 
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/releases/$release',
 )({
   validateSearch: (search: Record<string, unknown>) => ({
     environment: searchString(search.environment),
+    period: searchOneOf(search.period, PERIOD_CHOICES),
   }),
-  loader: async ({ params }) => {
+  loaderDeps: ({ search }) => search,
+  loader: ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const releaseVersion = decodeRelease(params.release);
-
-    // A malformed escape is not a release this instance has ever seen, so it
-    // is the same answer as one that was never reported. `decodeURIComponent`
-    // throws `URIError` on `%zz`, and letting that reach the router turns a
-    // wrong address into the application-error screen.
-    if (releaseVersion === null) throw notFound();
-
-    // Started here, awaited below. It is kept *out* of `loadAll` because the
-    // page does not need it: the environment cards are the release's real
-    // content and stand on their own, so its failure degrades this one panel
-    // instead of the page -- and it degrades to a failure, never to "no new
-    // issues introduced in this release", which is a statement about the
-    // release we did not obtain.
-    //
-    // Kept out of `loadAll` but not out of the same round-trip: awaiting it
-    // after `loadAll` resolved would isolate the failure and serialise the
-    // request, when only the first was wanted.
-    const newIssuesPromise = getNewIssuesForRelease(
-      projectId,
-      releaseVersion,
-      10,
-    );
-
-    const loaded = await loadAll([
+    // Already decoded by the router, which treats an undecodable `%zz` as
+    // no match: decoding again would turn a literal `%20` into a space.
+    const version = params.release;
+    const period = deps.period ?? DEFAULT_PERIOD;
+    return loadAll([
       getProject(projectId),
-      getAllReleaseHealthRows(projectId, releaseVersion),
+      getRelease(projectId, version, {
+        environment: deps.environment,
+        period: period === 'all' ? undefined : period,
+      }),
     ]);
-
-    // Both early exits drain the in-flight request above, so a transport-level
-    // failure on a promise nothing is waiting for cannot surface as an
-    // unhandled rejection.
-    if (!loaded.success) {
-      void newIssuesPromise.catch(() => undefined);
-      return { loaded, newIssues: null, releaseVersion };
-    }
-
-    // No health rows at all means the release in the URL was never reported.
-    // Distinct from the failure above, which is why the check stays after it —
-    // and before the second await, so a wrong address does not wait on a
-    // request whose answer it will not use.
-    if (loaded.data[1].length === 0) {
-      void newIssuesPromise.catch(() => undefined);
-      throw notFound();
-    }
-
-    const newIssues = await newIssuesPromise;
-
-    return { loaded, newIssues, releaseVersion };
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     const t = translator('projectPages');
-
-    if (!loaderData?.loaded.success) {
+    if (!loaderData?.success) {
       return { meta: [{ title: t('projectNotFound') }] };
     }
-
-    const [project] = loaderData.loaded.data;
+    const [project, release] = loaderData.data;
     return {
       meta: [
         {
           title: t('releaseDetail.meta.title', {
-            release: loaderData.releaseVersion,
+            release: release.version,
             project: project.name,
           }),
         },
         {
           name: 'description',
           content: t('releaseDetail.meta.description', {
-            release: loaderData.releaseVersion,
+            release: params.release,
           }),
         },
       ],
@@ -114,63 +81,108 @@ export const Route = createFileRoute(
 });
 
 function ReleaseDetailPage() {
-  const t = useTranslations('projectPages');
+  const t = useTranslations('releases.detail');
   const { id } = Route.useParams();
-  const { environment } = Route.useSearch();
-  const { loaded, newIssues, releaseVersion } = Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const loaded = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
+  const choice = search.period ?? DEFAULT_PERIOD;
+  const period = choice === 'all' ? undefined : choice;
+  const environment = search.environment;
+  const version = loaded.success ? loaded.data[1].version : '';
+  const interval = overviewInterval(period);
+  usePageTrail(version ? [{ label: version, mono: true }] : []);
+
+  // The panels around the release, each landing on its own.
+  const project = useAsync(
+    () => getSessionSummary(projectId, period, { environment }),
+    [projectId, period, environment],
+  );
+  const series = useAsync(
+    () =>
+      getSessionTimeseries(projectId, period, interval, {
+        environment,
+        release: version,
+      }),
+    [projectId, period, environment, version],
+  );
+  const newIssues = useAsync(
+    () => getNewIssuesForRelease(projectId, version, 8),
+    [projectId, version],
+  );
+  const environments = useAsync(
+    () => getAllReleaseHealthRows(projectId, version, period),
+    [projectId, version, period],
+  );
 
   if (!loaded.success) {
-    return (
-      <LoadFailure error={loaded.error} title={t('releaseDetail.loadFailed')} />
-    );
+    return <LoadFailure error={loaded.error} title={t('loadFailed')} />;
   }
 
-  const [project, rows] = loaded.data;
-
-  const visibleRows = environment
-    ? rows.filter((row) => row.environment === environment)
-    : rows;
+  const [, release] = loaded.data;
+  const issuesHref = `/projects/${projectId}/issues?${new URLSearchParams({
+    view: 'all',
+    q: formatFilterQuery(
+      [{ id: 'release', value: [release.version] }],
+      '',
+      ISSUE_FILTER_VARIANTS,
+    ),
+  })}`;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-auto">
-      <div className="shrink-0 w-full px-4 md:px-8 py-4 md:py-6 border-b">
-        <h1 className="text-lg font-semibold font-mono">{releaseVersion}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {t('releaseDetail.subtitle', { project: project.name })}
-        </p>
-      </div>
-
-      <div className="flex-1 w-full px-4 md:px-8 py-4 md:py-6 flex flex-col gap-4">
-        <ReleaseEnvironmentCards rows={visibleRows} />
-
-        {newIssues?.success ? (
-          <IssueListCard
+    <div className="flex h-full flex-col">
+      <ReleaseHeader
+        release={release}
+        scope={
+          <ReleaseFilters
             projectId={projectId}
-            issues={newIssues.data}
-            title={t('releaseDetail.newIssues')}
-            emptyMessage={t('releaseDetail.newIssuesEmpty')}
+            scope={{ environment, period: choice }}
+            onChange={(change) =>
+              navigate({
+                search: (prev) => ({
+                  ...prev,
+                  ...('environment' in change
+                    ? { environment: change.environment }
+                    : {}),
+                  ...(change.period
+                    ? {
+                        period:
+                          change.period === DEFAULT_PERIOD
+                            ? undefined
+                            : change.period,
+                      }
+                    : {}),
+                }),
+                replace: true,
+              })
+            }
           />
-        ) : (
-          newIssues && (
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t('releaseDetail.newIssues')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* A 404 from this endpoint alone is not grounds for replacing
-                    a release page that already rendered its health cards. */}
-                <LoadFailure
-                  error={newIssues.error}
-                  title={t('releaseDetail.loadNewIssuesFailed')}
-                  notFoundOnMissing={false}
-                />
-              </CardContent>
-            </Card>
-          )
-        )}
+        }
+      />
+
+      {/* The issue page's shape: the release's figures and what it broke
+          in the reading column, its facts in the rail beside it. */}
+      <div className="flex min-h-0 flex-1 max-lg:flex-col max-lg:overflow-y-auto">
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">
+          <div className="flex flex-col gap-5 px-page-gutter pt-5 pb-8">
+            <ReleaseKpis release={release} project={project} />
+            <SessionsPanel read={series} intervalHours={interval} />
+            <NewIssuesPanel
+              projectId={projectId}
+              read={newIssues}
+              issuesHref={issuesHref}
+            />
+          </div>
+        </main>
+        <aside className="border-border-divider bg-panel max-lg:border-t lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-88">
+          <RailBlock title={t('details')}>
+            <ReleaseDetails release={release} />
+          </RailBlock>
+          <RailBlock title={t('environments')}>
+            <ReleaseEnvironments read={environments} />
+          </RailBlock>
+        </aside>
       </div>
     </div>
   );

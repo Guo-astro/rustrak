@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Play } from 'lucide-react';
+import { SegmentedControl, SegmentedItem } from '@rustrak/ui';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
@@ -12,34 +12,14 @@ import {
   slackFormSchema,
 } from '@/features/alert/model/integration-forms';
 import { useIntegrationSubmit } from '@/features/alert/ui/hooks/use-integration-submit';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/ui/components/shadcn/dialog';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormRootError,
-} from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/shared/ui/components/shadcn/tabs';
+import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
+import { Form } from '@/shared/ui/components/shadcn/form';
 import { ConfigFooter } from '../fields/config-footer';
 import { EnabledField } from '../fields/enabled-field';
+import { DeleteSection, TestRow } from '../fields/form-chrome';
 import { NameField } from '../fields/name-field';
 import { TextInputField } from '../fields/text-input-field';
-import type { ConfigFormProps } from '../integration-config-dialog';
+import type { ConfigFormProps } from '../provider-form';
 
 export function SlackForm({
   onOpenChange,
@@ -90,163 +70,108 @@ export function SlackForm({
   });
 
   const isLoading = isPending || parentPending;
-  const isBotToken = method === 'bot_token';
+  const channel = testChannel.trim();
 
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>
-          {t(existingIntegration ? 'slack.titleEdit' : 'slack.titleNew')}
-        </DialogTitle>
-        <DialogDescription>{t('slack.description')}</DialogDescription>
-      </DialogHeader>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(submit)}>
+        <SettingSection title={t('page.general')}>
           <NameField<SlackFormData>
             placeholder={t('slack.namePlaceholder')}
             disabled={isLoading}
           />
-
-          <FormField
-            control={form.control}
-            name="method"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {t('slack.methodLabel')}
-                </FormLabel>
-                <Tabs
-                  value={field.value}
-                  onValueChange={(v) => field.onChange(v as SlackMethod)}
-                >
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="webhook" disabled={isLoading}>
-                      {t('slack.incomingWebhook')}
-                    </TabsTrigger>
-                    <TabsTrigger value="bot_token" disabled={isLoading}>
-                      {t('slack.botTokenTab')}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="webhook" className="mt-3">
-                    <TextInputField<SlackFormData>
-                      name="webhook_url"
-                      label={t('slack.webhookUrlLabel')}
-                      placeholder={t('slack.webhookUrlPlaceholder')}
-                      description={t('slack.webhookUrlDescription')}
-                      type="url"
-                      disabled={isLoading}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="bot_token" className="mt-3">
-                    <FormField
-                      control={form.control}
-                      name="token"
-                      render={({ field: tokenField }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                            {t('slack.botTokenTab')}
-                            {existingIntegration
-                              ? ` ${t('slack.tokenLabelSuffix')}`
-                              : ''}
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder={t('slack.tokenPlaceholder')}
-                              autoComplete="new-password"
-                              disabled={isLoading}
-                              {...tokenField}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t('slack.tokenDescription')}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </TabsContent>
-                </Tabs>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <EnabledField<SlackFormData> disabled={isLoading} />
+        </SettingSection>
 
-          {existingIntegration && (
-            <div className="rounded-lg border p-3 space-y-2">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {t('slack.sendTestTitle')}
-              </p>
-              {isBotToken ? (
-                <>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={t('slack.testChannelPlaceholder')}
-                      value={testChannel}
-                      onChange={(e) => setTestChannel(e.target.value)}
-                      className="h-8 text-xs"
-                      disabled={isLoading}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (!testChannel.trim()) return;
-                        onTest(existingIntegration, {
-                          channel: testChannel.trim(),
-                        });
-                      }}
-                      disabled={isLoading || !testChannel.trim()}
-                    >
-                      <Play className="size-3.5 mr-1" />
-                      {t('common.test')}
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    {t('slack.testChannelHint')}
-                  </p>
-                </>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] text-muted-foreground">
-                    {t('slack.testWebhookHint')}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onTest(existingIntegration)}
-                    disabled={isLoading}
-                  >
-                    <Play className="size-3.5 mr-1" />
-                    {t('common.test')}
-                  </Button>
-                </div>
-              )}
-            </div>
+        <SettingSection
+          title={t('page.connection')}
+          description={t('slack.description')}
+        >
+          <SettingRow
+            title={t('slack.methodLabel')}
+            description={t('page.methodDescription')}
+          >
+            <SegmentedControl
+              aria-label={t('slack.methodLabel')}
+              value={method}
+              onValueChange={(v) =>
+                form.setValue('method', v as SlackMethod, { shouldDirty: true })
+              }
+              disabled={isLoading}
+            >
+              <SegmentedItem value="webhook">
+                {t('slack.incomingWebhook')}
+              </SegmentedItem>
+              <SegmentedItem value="bot_token">
+                {t('slack.botTokenTab')}
+              </SegmentedItem>
+            </SegmentedControl>
+          </SettingRow>
+
+          {method === 'webhook' ? (
+            <TextInputField<SlackFormData>
+              key="webhook_url"
+              name="webhook_url"
+              label={t('slack.webhookUrlLabel')}
+              placeholder={t('slack.webhookUrlPlaceholder')}
+              description={t('slack.webhookUrlDescription')}
+              type="url"
+              disabled={isLoading}
+            />
+          ) : (
+            <TextInputField<SlackFormData>
+              key="token"
+              name="token"
+              label={
+                existingIntegration
+                  ? `${t('slack.botTokenTab')} ${t('slack.tokenLabelSuffix')}`
+                  : t('slack.botTokenTab')
+              }
+              placeholder={t('slack.tokenPlaceholder')}
+              description={t('slack.tokenDescription')}
+              type="password"
+              disabled={isLoading}
+            />
           )}
 
-          <ConfigFooter
-            existingIntegration={existingIntegration}
-            submitLabel={
-              existingIntegration
-                ? t('common.saveChanges')
-                : t('slack.addIntegration')
-            }
-            isLoading={isLoading}
+          {existingIntegration ? (
+            method === 'bot_token' ? (
+              <TestRow
+                hint={t('slack.testChannelHint')}
+                placeholder={t('slack.testChannelPlaceholder')}
+                value={testChannel}
+                onValueChange={setTestChannel}
+                disabled={isLoading || !channel}
+                onTest={() => onTest(existingIntegration, { channel })}
+              />
+            ) : (
+              <TestRow
+                hint={t('slack.testWebhookHint')}
+                disabled={isLoading}
+                onTest={() => onTest(existingIntegration)}
+              />
+            )
+          ) : null}
+        </SettingSection>
+
+        {existingIntegration ? (
+          <DeleteSection
+            integration={existingIntegration}
+            disabled={isLoading}
             onDelete={onDelete}
-            onCancel={() => onOpenChange(false)}
           />
-          {/* Where a failure that named no field of this dialog lands. */}
-          <FormRootError />
-        </form>
-      </Form>
-    </>
+        ) : null}
+
+        <ConfigFooter
+          submitLabel={
+            existingIntegration
+              ? t('common.saveChanges')
+              : t('slack.addIntegration')
+          }
+          isLoading={isLoading}
+          onCancel={() => onOpenChange(false)}
+        />
+      </form>
+    </Form>
   );
 }

@@ -20,6 +20,7 @@ use rustrak::models::{
 };
 use rustrak::pagination::{IssueCategory, IssueFilter, IssueSort, SortOrder};
 use rustrak::routes;
+use rustrak::services::scope::Scope;
 use rustrak::services::{AlertService, IssueService, IssueSocialService, ProjectService};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -433,6 +434,7 @@ async fn the_issue_list_shows_one_category_at_a_time() {
         .await
         .unwrap();
 
+    let no_filters = rustrak::services::issue::IssueFilters::default();
     let list = |category| {
         IssueService::list_offset(
             &s.db.pool,
@@ -444,7 +446,8 @@ async fn the_issue_list_shows_one_category_at_a_time() {
             1,
             50,
             None,
-            None,
+            Scope::default(),
+            &no_filters,
         )
     };
     let (errors, total) = list(IssueCategory::Error).await.unwrap();
@@ -540,12 +543,13 @@ async fn feedback_is_not_counted_as_an_issue() {
         .await
         .unwrap();
 
-    let summary = StatsService::project_summary(&s.db.pool, s.project.id, Some(24))
-        .await
-        .unwrap();
+    let summary =
+        StatsService::project_summary(&s.db.pool, s.project.id, Some(24), Scope::default())
+            .await
+            .unwrap();
     assert_eq!(summary.open_issues, 1);
     assert_eq!(summary.new_issues.current, 1);
-    let all_time = StatsService::project_summary(&s.db.pool, s.project.id, None)
+    let all_time = StatsService::project_summary(&s.db.pool, s.project.id, None, Scope::default())
         .await
         .unwrap();
     assert_eq!(all_time.new_issues.current, 1);
@@ -566,15 +570,16 @@ async fn feedback_is_not_counted_as_an_error_event() {
         .await
         .unwrap();
 
-    let summary = StatsService::project_summary(&s.db.pool, s.project.id, Some(24))
-        .await
-        .unwrap();
+    let summary =
+        StatsService::project_summary(&s.db.pool, s.project.id, Some(24), Scope::default())
+            .await
+            .unwrap();
     assert_eq!(summary.events.current, 1);
     let list = StatsService::list_stats(&s.db.pool, &[s.project.id], 24)
         .await
         .unwrap();
     assert_eq!(list[&s.project.id].events.current, 1);
-    let chart = StatsService::event_timeseries(&s.db.pool, s.project.id, None, 1)
+    let chart = StatsService::event_timeseries(&s.db.pool, s.project.id, None, 1, Scope::default())
         .await
         .unwrap();
     assert_eq!(chart.iter().map(|p| p.total).sum::<i64>(), 1);

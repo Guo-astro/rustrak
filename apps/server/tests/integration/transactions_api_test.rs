@@ -87,6 +87,7 @@ async fn store_test_transaction(pool: &rustrak::db::DbPool, project_id: i32, nam
         event_id: Uuid::new_v4(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
     let payload = serde_json::to_vec(&json!({
         "event_id": Uuid::new_v4().to_string(),
@@ -114,6 +115,7 @@ async fn store_rich_transaction(pool: &rustrak::db::DbPool, project_id: i32, nam
         event_id: Uuid::new_v4(),
         ingested_at: Utc::now(),
         remote_addr: None,
+        keep_ai_spans: true,
     };
     let payload = serde_json::to_vec(&json!({
         "event_id": Uuid::new_v4().to_string(),

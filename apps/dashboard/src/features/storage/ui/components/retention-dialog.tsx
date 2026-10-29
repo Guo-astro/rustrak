@@ -88,8 +88,8 @@ function Editor({
         <DialogDescription>{t('dialog.description')}</DialogDescription>
       </DialogHeader>
 
-      <div className="divide-y rounded-md border">
-        <div className="flex items-center justify-between gap-4 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+      <div className="divide-y divide-border-divider rounded-md border border-border-subtle">
+        <div className="flex items-center justify-between gap-4 bg-surface-hover px-3 py-2 text-label text-fg-meta">
           <span>{t('dialog.kindColumn')}</span>
           <span className="w-44">{t('dialog.keepColumn')}</span>
         </div>
@@ -99,10 +99,10 @@ function Editor({
             className="flex items-center justify-between gap-4 px-3 py-2.5"
           >
             <label htmlFor={`keep-${kind}`} className="min-w-0">
-              <span className="block text-sm font-medium">
+              <span className="block text-value font-medium text-fg">
                 {t(`kind.${kind}`)}
               </span>
-              <span className="block text-xs text-muted-foreground">
+              <span className="block text-hint text-fg-subtle">
                 {t(`kindHint.${kind}`)}
               </span>
             </label>
@@ -123,19 +123,19 @@ function Editor({
         ))}
       </div>
 
-      <p className="-mt-2 text-xs text-muted-foreground">
+      <p className="-mt-2 text-hint text-fg-subtle">
         {t('dialog.foreverHint')}
       </p>
 
       <div className="space-y-1.5">
-        <p className="text-sm font-medium">{t('dialog.runs')}</p>
+        <p className="text-value font-medium text-fg">{t('dialog.runs')}</p>
         <Schedule
           settings={draft}
           onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
           disabled={isPending}
         />
         {custom > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-hint text-fg-subtle">
             {t('dialog.customProjects', { count: custom })}
           </p>
         )}
@@ -174,7 +174,7 @@ function Schedule({
   const hour = (h: number) => `${String(h).padStart(2, '0')}:00 UTC`;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-value">
       <Select
         value={settings.frequency}
         onValueChange={(v) =>
@@ -208,7 +208,7 @@ function Schedule({
           </SelectContent>
         </Select>
       )}
-      <span className="text-muted-foreground">{t('dialog.at')}</span>
+      <span className="text-fg-subtle">{t('dialog.at')}</span>
       <Select
         value={String(settings.hour)}
         onValueChange={(v) => v && onChange({ hour: Number(v) })}

@@ -32,6 +32,15 @@ export type ActivityEntry = {
 };
 
 /**
+ * A conversation in full: its AI spans across every turn, oldest first,
+ * each with what went in and came out, for a transcript.
+ */
+export type AgentConversation = {
+    conversation_id: string;
+    spans: Array<ConversationSpan>;
+};
+
+/**
  * avg/p95 duration for one time bucket.
  */
 export type AgentDurationPoint = {
@@ -88,6 +97,10 @@ export type AgentSummary = {
  */
 export type AgentTimeseriesPoint = {
     bucket: string;
+    /**
+     * Of the bucket's spans, those whose status is set and not `ok`.
+     */
+    errors: number;
     value: number;
 };
 
@@ -154,6 +167,20 @@ export type AlertHistory = {
     project_id: number | null;
     sent_at: string | null;
     status: AlertStatus;
+};
+
+/**
+ * One UTC day of deliveries, by outcome: one rule's when the request named
+ * a rule, the whole project's otherwise.
+ */
+export type AlertHistoryDay = {
+    /**
+     * Midnight UTC.
+     */
+    day: string;
+    failed: number;
+    sent: number;
+    skipped: number;
 };
 
 /**
@@ -547,6 +574,39 @@ export type Compaction = {
 
 export type ConfirmSsoLinkRequest = {
     password: string;
+};
+
+export type ConversationSpan = {
+    agent_name: string | null;
+    duration_ms: number | null;
+    id: string;
+    /**
+     * The prompt or the tool's arguments, verbatim.
+     */
+    input: string | null;
+    /**
+     * The response model, else the request model.
+     */
+    model: string | null;
+    /**
+     * `agent`, `ai_client`, `tool` or `handoff`.
+     */
+    operation_type: string;
+    /**
+     * The answer or the tool's result, verbatim.
+     */
+    output: string | null;
+    parent_span_id: string | null;
+    span_id: string | null;
+    start_timestamp: string | null;
+    status: string | null;
+    /**
+     * The tool calls the model asked for.
+     */
+    tool_calls: string | null;
+    tool_name: string | null;
+    total_tokens: number | null;
+    trace_id: string;
 };
 
 /**
@@ -1050,7 +1110,7 @@ export type IssueResponse = {
 /**
  * Sort mode for issues listing
  */
-export type IssueSort = 'digest_order' | 'last_seen' | 'event_count';
+export type IssueSort = 'digest_order' | 'last_seen' | 'event_count' | 'first_seen' | 'priority';
 
 export type IssueStatsResponse = {
     /**
@@ -1150,6 +1210,22 @@ export type LogResponse = {
     span_id: string | null;
     timestamp: string;
     trace_id: string | null;
+};
+
+/**
+ * One bucket of the log volume: how many logs of each level it holds.
+ */
+export type LogVolumePoint = {
+    /**
+     * Where the bucket starts.
+     */
+    bucket: string;
+    debug: number;
+    error: number;
+    fatal: number;
+    info: number;
+    trace: number;
+    warn: number;
 };
 
 export type LoginRequest = {
@@ -1262,6 +1338,20 @@ export type MonitorEnvironmentResponse = {
 };
 
 /**
+ * One environment of a monitor over a window, bucket by bucket: what
+ * `GET /monitor-stats` returns, Sentry's `monitors-stats`.
+ */
+export type MonitorEnvironmentStats = {
+    /**
+     * Oldest first, every environment of the response on the same axis.
+     */
+    buckets: Array<MonitorStatsBucket>;
+    environment: string;
+    monitor_environment_id: string;
+    monitor_slug: string;
+};
+
+/**
  * Health of one monitor environment.
  */
 export type MonitorEnvironmentStatus = 'active' | 'ok' | 'error';
@@ -1274,6 +1364,30 @@ export type MonitorResponse = {
     is_muted: boolean;
     name: string;
     slug: string;
+};
+
+/**
+ * The check-ins of one bucket, counted by status.
+ */
+export type MonitorStatsBucket = {
+    /**
+     * Mean duration of the bucket's check-ins that reported one.
+     */
+    avg_duration_ms: number | null;
+    /**
+     * Where the bucket starts.
+     */
+    bucket: string;
+    /**
+     * How many check-ins reported a duration: the mean's weight when buckets
+     * are averaged together.
+     */
+    duration_count: number;
+    error: number;
+    in_progress: number;
+    missed: number;
+    ok: number;
+    timeout: number;
 };
 
 /**
@@ -1322,6 +1436,15 @@ export type PreviewTemplateResponse = {
     ok: boolean;
     rendered?: string | null;
 };
+
+/**
+ * A kind of data a project can keep, and a route in its sidebar.
+ *
+ * Turning one off is not a view setting: its items are dropped at ingest,
+ * with a 200 as Relay drops filtered data, so nothing new is stored and the
+ * SDK does not retry. What was already stored stays.
+ */
+export type Product = 'issues' | 'feedback' | 'releases' | 'performance' | 'agents' | 'logs' | 'crons';
 
 export type ProjectAge = {
     events: KindAge;
@@ -1422,10 +1545,19 @@ export type ProjectRepository = {
 export type ProjectResponse = {
     created_at: string;
     digested_event_count: number;
+    /**
+     * Products whose data this project drops at ingest.
+     */
+    disabled_products: Array<Product>;
     dsn: string;
     id: number;
     name: string;
     platform: string | null;
+    /**
+     * The order its sidebar lists the products in; the ones missing follow
+     * in their default order.
+     */
+    product_order: Array<Product>;
     rate_limit_per_hour: number | null;
     /**
      * The project's own limits, or `null` when it follows the operator's.
@@ -1566,6 +1698,44 @@ export type ReleaseResponse = {
     dateCreated: string;
     dateReleased: string | null;
     ref: string | null;
+    url: string | null;
+    version: string;
+};
+
+/**
+ * One release as the releases page reads it: its record, if CI created
+ * one, and what it brought -- events, new issues, environments and session
+ * health -- the shape of Sentry's release list with `health=1`.
+ *
+ * Counts and rates cover the asked window and environment; the dates do not,
+ * so a release keeps its age however narrow the window.
+ */
+export type ReleaseSummary = {
+    /**
+     * Its share of every release's sessions in the window, 0 to 1.
+     */
+    adoption: number | null;
+    crash_free_sessions: number | null;
+    crash_free_users: number | null;
+    crashed: number;
+    /**
+     * The record's, else the first time the release was seen.
+     */
+    date_created: string;
+    date_released: string | null;
+    /**
+     * Where it ran, from its events and its sessions.
+     */
+    environments: Array<string>;
+    event_count: number;
+    first_event: string | null;
+    last_event: string | null;
+    /**
+     * Error issues first seen in it.
+     */
+    new_issues: number;
+    ref: string | null;
+    sessions: number;
     url: string | null;
     version: string;
 };
@@ -2067,6 +2237,11 @@ export type SubscriptionResponse = {
 export type TagSummary = {
     key: string;
     top_values: Array<TagValueCount>;
+    /**
+     * The scanned events carrying the tag, whatever its value: Sentry's
+     * `totalValues` (`GroupTagKey.count`), so each top value's share is its
+     * `count` over this.
+     */
     total_values: number;
 };
 
@@ -2193,6 +2368,10 @@ export type TransactionResponse = {
     platform: string;
     release: string;
     start_timestamp: string | null;
+    /**
+     * Trace status (`ok`, `internal_error`...), if the SDK sent one.
+     */
+    status: string | null;
     timestamp: string;
     transaction_name: string;
 };
@@ -2204,6 +2383,7 @@ export type TransactionResponse = {
  * interpolation, matching Postgres `percentile_cont`).
  */
 export type TransactionStatsResponse = {
+    avg_ms: number;
     /**
      * Number of transactions in this group.
      */
@@ -2212,11 +2392,32 @@ export type TransactionStatsResponse = {
      * Fraction (0.0–1.0) of transactions whose trace status is set and not "ok".
      */
     failure_rate: number;
+    last_seen: string;
     op: string | null;
     p50_ms: number;
     p95_ms: number;
     p99_ms: number;
+    /**
+     * Its share, 0 to 1, of the time every endpoint in the same read takes.
+     */
+    time_share: number;
+    /**
+     * Every sample's duration added up: how much time the endpoint takes in all.
+     */
+    total_ms: number;
     transaction_name: string;
+};
+
+/**
+ * One bucket of an endpoint's trend: how often it ran, how often it failed
+ * and how long it took.
+ */
+export type TransactionTimeseriesPoint = {
+    bucket: string;
+    count: number;
+    failures: number;
+    p50_ms: number;
+    p95_ms: number;
 };
 
 /**
@@ -2234,6 +2435,7 @@ export type UpdateAlertIntegration = {
  * DTO for updating an alert rule
  */
 export type UpdateAlertRule = {
+    alert_type?: AlertType | null;
     channels?: Array<AlertRuleChannelInput> | null;
     conditions?: {
         [key: string]: unknown;
@@ -2291,6 +2493,11 @@ export type UpdatePreferencesRequest = {
  * DTO for updating a project
  */
 export type UpdateProject = {
+    /**
+     * The products to stop storing, replacing the current list. `issues`
+     * cannot be one of them (400). Data already stored is kept.
+     */
+    disabled_products?: Array<Product> | null;
     name?: string | null;
     /**
      * Manual override of the project's platform, such as `python-django` or
@@ -2304,6 +2511,10 @@ export type UpdateProject = {
      * it.
      */
     platform?: string | null;
+    /**
+     * The sidebar's order of products, replacing the current one.
+     */
+    product_order?: Array<Product> | null;
     /**
      * The same for the hour, against `MAX_EVENTS_PER_PROJECT_PER_HOUR`.
      */
@@ -3852,10 +4063,19 @@ export type ProjectsListResponses = {
         items: Array<{
             created_at: string;
             digested_event_count: number;
+            /**
+             * Products whose data this project drops at ingest.
+             */
+            disabled_products: Array<Product>;
             dsn: string;
             id: number;
             name: string;
             platform: string | null;
+            /**
+             * The order its sidebar lists the products in; the ones missing follow
+             * in their default order.
+             */
+            product_order: Array<Product>;
             rate_limit_per_hour: number | null;
             /**
              * The project's own limits, or `null` when it follows the operator's.
@@ -4019,6 +4239,124 @@ export type ProjectsUpdateResponses = {
 };
 
 export type ProjectsUpdateResponse = ProjectsUpdateResponses[keyof ProjectsUpdateResponses];
+
+export type AgentsConversationsData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Lookback window in hours (default: all time, no filter).
+         */
+        period_hours?: number | null;
+        /**
+         * Restrict to spans reporting this environment (default: all).
+         */
+        environment?: string | null;
+        /**
+         * Page number (1-indexed, default: 1)
+         */
+        page?: number;
+        /**
+         * Items per page (default: 20, max: 100)
+         */
+        per_page?: number;
+    };
+    url: '/api/projects/{project_id}/agents/conversations';
+};
+
+export type AgentsConversationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type AgentsConversationsError = AgentsConversationsErrors[keyof AgentsConversationsErrors];
+
+export type AgentsConversationsResponses = {
+    /**
+     * Offset-based paginated response wrapper
+     */
+    200: {
+        items: Array<{
+            /**
+             * Every agent that ran in it, earliest first.
+             */
+            agent_names: Array<string>;
+            conversation_id: string;
+            error_count: number;
+            /**
+             * From the spans' start times, else their end times; `null` when no span
+             * of the conversation carries either, as a transaction's child can.
+             */
+            first_seen: string | null;
+            last_seen: string | null;
+            llm_call_count: number;
+            tool_call_count: number;
+            /**
+             * `agent` spans excluded, as everywhere: their usage rolls up their children.
+             */
+            total_tokens: number;
+            /**
+             * Traces in the conversation.
+             */
+            turn_count: number;
+        }>;
+        page: number;
+        per_page: number;
+        total_count: number;
+        total_pages: number;
+    };
+};
+
+export type AgentsConversationsResponse = AgentsConversationsResponses[keyof AgentsConversationsResponses];
+
+export type AgentsConversationData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * The gen_ai.conversation.id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/agents/conversations/{conversation_id}';
+};
+
+export type AgentsConversationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type AgentsConversationError = AgentsConversationErrors[keyof AgentsConversationErrors];
+
+export type AgentsConversationResponses = {
+    /**
+     * The conversation's AI spans across its turns
+     */
+    200: AgentConversation;
+};
+
+export type AgentsConversationResponse = AgentsConversationResponses[keyof AgentsConversationResponses];
 
 export type AgentsDurationData = {
     body?: never;
@@ -4444,6 +4782,26 @@ export type AgentsTracesData = {
          * Items per page (default: 20, max: 100)
          */
         per_page?: number;
+        /**
+         * Only the traces where this agent ran.
+         */
+        agent?: string | null;
+        /**
+         * Only the traces that called this model (response model, else request).
+         */
+        model?: string | null;
+        /**
+         * Only the traces that used this tool.
+         */
+        tool?: string | null;
+        /**
+         * Only the traces with a failing AI span.
+         */
+        errors?: boolean;
+        /**
+         * How the agent traces are ranked; every ranking but newest is largest first.
+         */
+        sort?: 'newest' | 'duration' | 'tokens' | 'llm_calls' | 'tool_calls' | 'errors';
     };
     url: '/api/projects/{project_id}/agents/traces';
 };
@@ -4513,11 +4871,19 @@ export type AlertRulesListHistoryData = {
          * Max records to return (default 50, max 100)
          */
         limit?: number;
+        /**
+         * Only this alert rule's deliveries
+         */
+        rule_id?: number;
     };
     url: '/api/projects/{project_id}/alert-history';
 };
 
 export type AlertRulesListHistoryErrors = {
+    /**
+     * Invalid query parameter
+     */
+    400: string;
     /**
      * Unauthorized
      */
@@ -4538,6 +4904,53 @@ export type AlertRulesListHistoryResponses = {
 };
 
 export type AlertRulesListHistoryResponse = AlertRulesListHistoryResponses[keyof AlertRulesListHistoryResponses];
+
+export type AlertRulesHistoryByDayData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Days back, today included (default 14, max 90)
+         */
+        days?: number;
+        /**
+         * Only this alert rule's deliveries
+         */
+        rule_id?: number;
+    };
+    url: '/api/projects/{project_id}/alert-history/daily';
+};
+
+export type AlertRulesHistoryByDayErrors = {
+    /**
+     * Invalid query parameter
+     */
+    400: string;
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Project not found
+     */
+    404: ErrorResponse;
+};
+
+export type AlertRulesHistoryByDayError = AlertRulesHistoryByDayErrors[keyof AlertRulesHistoryByDayErrors];
+
+export type AlertRulesHistoryByDayResponses = {
+    /**
+     * Deliveries per UTC day, oldest first
+     */
+    200: Array<AlertHistoryDay>;
+};
+
+export type AlertRulesHistoryByDayResponse = AlertRulesHistoryByDayResponses[keyof AlertRulesHistoryByDayResponses];
 
 export type AlertRulesListData = {
     body?: never;
@@ -4848,6 +5261,14 @@ export type StatsGetEventTimeseriesData = {
          * Bucket width in hours (default: 1, max: 24)
          */
         interval?: number;
+        /**
+         * Only events from this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only events from this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/events/stats';
 };
@@ -5179,6 +5600,38 @@ export type IssuesListData = {
          * and last seen, event count, users and trend.
          */
         environment?: string | null;
+        /**
+         * Only issues that had an event in this release.
+         */
+        release?: string | null;
+        /**
+         * Only these levels, comma-separated: `fatal,error`.
+         */
+        level?: string | null;
+        /**
+         * Only these priorities, comma-separated: `high,medium`.
+         */
+        priority?: string | null;
+        /**
+         * `none` for unassigned issues, or a user id.
+         */
+        assigned?: string | null;
+        /**
+         * Only issues first seen within this window: `24h`, `7d`.
+         */
+        first_seen?: string | null;
+        /**
+         * Only issues last seen within this window: `24h`, `7d`.
+         */
+        last_seen?: string | null;
+        /**
+         * Only issues with at least this many events.
+         */
+        events_min?: number | null;
+        /**
+         * Only issues with at most this many events.
+         */
+        events_max?: number | null;
     };
     url: '/api/projects/{project_id}/issues';
 };
@@ -6170,6 +6623,14 @@ export type LogsListData = {
          * Filter by trace id.
          */
         trace_id?: string | null;
+        /**
+         * Only the logs whose message contains this, ignoring case.
+         */
+        query?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
     };
     url: '/api/projects/{project_id}/logs';
 };
@@ -6219,6 +6680,95 @@ export type LogsListResponses = {
 };
 
 export type LogsListResponse = LogsListResponses[keyof LogsListResponses];
+
+export type LogsVolumeData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Filter by log level (trace/debug/info/warn/error/fatal).
+         */
+        level?: string | null;
+        /**
+         * Filter by trace id.
+         */
+        trace_id?: string | null;
+        /**
+         * Only the logs whose message contains this, ignoring case.
+         */
+        query?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); since the oldest log if absent.
+         */
+        period?: string | null;
+    };
+    url: '/api/projects/{project_id}/logs/volume';
+};
+
+export type LogsVolumeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type LogsVolumeError = LogsVolumeErrors[keyof LogsVolumeErrors];
+
+export type LogsVolumeResponses = {
+    /**
+     * Log counts per level, bucket by bucket
+     */
+    200: Array<LogVolumePoint>;
+};
+
+export type LogsVolumeResponse = LogsVolumeResponses[keyof LogsVolumeResponses];
+
+export type LogsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * Log ID
+         */
+        log_id: string;
+    };
+    query?: never;
+    url: '/api/projects/{project_id}/logs/{log_id}';
+};
+
+export type LogsGetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type LogsGetError = LogsGetErrors[keyof LogsGetErrors];
+
+export type LogsGetResponses = {
+    /**
+     * The log
+     */
+    200: LogResponse;
+};
+
+export type LogsGetResponse = LogsGetResponses[keyof LogsGetResponses];
 
 export type MembersListData = {
     body?: never;
@@ -6349,6 +6899,49 @@ export type MembersRemoveResponses = {
 };
 
 export type MembersRemoveResponse = MembersRemoveResponses[keyof MembersRemoveResponses];
+
+export type MonitorsStatsData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * The window (`24h`, `7d`, `30d`...); the last day if absent.
+         */
+        period?: string | null;
+        /**
+         * Only this monitor.
+         */
+        slug?: string | null;
+    };
+    url: '/api/projects/{project_id}/monitor-stats';
+};
+
+export type MonitorsStatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type MonitorsStatsError = MonitorsStatsErrors[keyof MonitorsStatsErrors];
+
+export type MonitorsStatsResponses = {
+    /**
+     * Each monitor environment's check-ins by status, in sixty buckets on one axis
+     */
+    200: Array<MonitorEnvironmentStats>;
+};
+
+export type MonitorsStatsResponse = MonitorsStatsResponses[keyof MonitorsStatsResponses];
 
 export type MonitorsListData = {
     body?: never;
@@ -6605,6 +7198,146 @@ export type MonitorsListCheckinsResponses = {
 
 export type MonitorsListCheckinsResponse = MonitorsListCheckinsResponses[keyof MonitorsListCheckinsResponses];
 
+export type ReleasesListData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Only the releases seen in this environment, and count only it
+         */
+        environment?: string;
+        /**
+         * Count only this window (24h, 7d, 14d...); all time if absent
+         */
+        period?: string;
+        /**
+         * Only the versions containing this text, ignoring case
+         */
+        query?: string;
+        /**
+         * Page number (1-indexed, default: 1)
+         */
+        page?: number;
+        /**
+         * Items per page (default: 25, max: 100)
+         */
+        per_page?: number;
+    };
+    url: '/api/projects/{project_id}/releases';
+};
+
+export type ReleasesListErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Project not found
+     */
+    404: unknown;
+};
+
+export type ReleasesListResponses = {
+    /**
+     * Offset-based paginated response wrapper
+     */
+    200: {
+        items: Array<{
+            /**
+             * Its share of every release's sessions in the window, 0 to 1.
+             */
+            adoption: number | null;
+            crash_free_sessions: number | null;
+            crash_free_users: number | null;
+            crashed: number;
+            /**
+             * The record's, else the first time the release was seen.
+             */
+            date_created: string;
+            date_released: string | null;
+            /**
+             * Where it ran, from its events and its sessions.
+             */
+            environments: Array<string>;
+            event_count: number;
+            first_event: string | null;
+            last_event: string | null;
+            /**
+             * Error issues first seen in it.
+             */
+            new_issues: number;
+            ref: string | null;
+            sessions: number;
+            url: string | null;
+            version: string;
+        }>;
+        page: number;
+        per_page: number;
+        total_count: number;
+        total_pages: number;
+    };
+};
+
+export type ReleasesListResponse = ReleasesListResponses[keyof ReleasesListResponses];
+
+export type ReleasesGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+        /**
+         * Release version
+         */
+        release: string;
+    };
+    query?: {
+        /**
+         * Count only this environment
+         */
+        environment?: string;
+        /**
+         * Count only this window; all time if absent
+         */
+        period?: string;
+    };
+    url: '/api/projects/{project_id}/releases/{release}';
+};
+
+export type ReleasesGetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * No such release in this project
+     */
+    404: unknown;
+};
+
+export type ReleasesGetResponses = {
+    /**
+     * The release
+     */
+    200: ReleaseSummary;
+};
+
+export type ReleasesGetResponse = ReleasesGetResponses[keyof ReleasesGetResponses];
+
 export type ReleasesNewIssuesData = {
     body?: never;
     path: {
@@ -6725,6 +7458,14 @@ export type SessionsGetSummaryData = {
          * Time window, e.g. '24h', '7d' (default: 24h)
          */
         period?: string;
+        /**
+         * Only sessions from this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only sessions from this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/sessions/summary';
 };
@@ -6766,6 +7507,14 @@ export type SessionsGetTimeseriesData = {
          * Bucket width in hours (default: 1, max: 24)
          */
         interval?: number;
+        /**
+         * Only sessions from this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only sessions from this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/sessions/timeseries';
 };
@@ -6956,6 +7705,14 @@ export type StatsGetSummaryData = {
          * Time window, e.g. '24h', '7d'. Omit for all time.
          */
         period?: string;
+        /**
+         * Only events, and issues seen, in this environment. Omit for every environment.
+         */
+        environment?: string;
+        /**
+         * Only events, and issues seen, in this release. Omit for every release.
+         */
+        release?: string;
     };
     url: '/api/projects/{project_id}/stats/summary';
 };
@@ -7017,6 +7774,14 @@ export type TransactionsListData = {
          * Filter by release.
          */
         release?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
+        /**
+         * `slowest` for the longest first; newest first otherwise.
+         */
+        sort?: 'recent' | 'slowest' | null;
     };
     url: '/api/projects/{project_id}/transactions';
 };
@@ -7054,6 +7819,10 @@ export type TransactionsListResponses = {
             platform: string;
             release: string;
             start_timestamp: string | null;
+            /**
+             * Trace status (`ok`, `internal_error`...), if the SDK sent one.
+             */
+            status: string | null;
             timestamp: string;
             transaction_name: string;
         }>;
@@ -7083,6 +7852,22 @@ export type TransactionsGetStatsData = {
          * Items per page (default: 20, max: 100)
          */
         per_page?: number;
+        /**
+         * Only this environment.
+         */
+        environment?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
+        /**
+         * Only the endpoints whose name contains this, ignoring case.
+         */
+        query?: string | null;
+        /**
+         * How the endpoints are ranked.
+         */
+        sort?: 'time_spent' | 'count' | 'avg' | 'failure_rate';
     };
     url: '/api/projects/{project_id}/transactions/stats';
 };
@@ -7106,6 +7891,7 @@ export type TransactionsGetStatsResponses = {
      */
     200: {
         items: Array<{
+            avg_ms: number;
             /**
              * Number of transactions in this group.
              */
@@ -7114,10 +7900,19 @@ export type TransactionsGetStatsResponses = {
              * Fraction (0.0–1.0) of transactions whose trace status is set and not "ok".
              */
             failure_rate: number;
+            last_seen: string;
             op: string | null;
             p50_ms: number;
             p95_ms: number;
             p99_ms: number;
+            /**
+             * Its share, 0 to 1, of the time every endpoint in the same read takes.
+             */
+            time_share: number;
+            /**
+             * Every sample's duration added up: how much time the endpoint takes in all.
+             */
+            total_ms: number;
             transaction_name: string;
         }>;
         page: number;
@@ -7146,6 +7941,14 @@ export type TransactionsGetStatGroupData = {
          * Trace operation of the group (omit for groups with no op).
          */
         op?: string | null;
+        /**
+         * Only this environment.
+         */
+        environment?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
     };
     url: '/api/projects/{project_id}/transactions/stats/group';
 };
@@ -7171,6 +7974,57 @@ export type TransactionsGetStatGroupResponses = {
 };
 
 export type TransactionsGetStatGroupResponse = TransactionsGetStatGroupResponses[keyof TransactionsGetStatGroupResponses];
+
+export type TransactionsGetStatGroupTimeseriesData = {
+    body?: never;
+    path: {
+        /**
+         * Project ID
+         */
+        project_id: number;
+    };
+    query: {
+        /**
+         * Exact transaction name of the group.
+         */
+        name: string;
+        /**
+         * Trace operation of the group (omit for groups with no op).
+         */
+        op?: string | null;
+        /**
+         * Only this environment.
+         */
+        environment?: string | null;
+        /**
+         * Only this window (`24h`, `7d`, `14d`...); all time if absent.
+         */
+        period?: string | null;
+    };
+    url: '/api/projects/{project_id}/transactions/stats/group/timeseries';
+};
+
+export type TransactionsGetStatGroupTimeseriesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorResponse;
+    /**
+     * Not found
+     */
+    404: ErrorResponse;
+};
+
+export type TransactionsGetStatGroupTimeseriesError = TransactionsGetStatGroupTimeseriesErrors[keyof TransactionsGetStatGroupTimeseriesErrors];
+
+export type TransactionsGetStatGroupTimeseriesResponses = {
+    /**
+     * The endpoint's runs, failures, p50 and p95 per bucket, oldest first
+     */
+    200: Array<TransactionTimeseriesPoint>;
+};
+
+export type TransactionsGetStatGroupTimeseriesResponse = TransactionsGetStatGroupTimeseriesResponses[keyof TransactionsGetStatGroupTimeseriesResponses];
 
 export type TransactionsGetData = {
     body?: never;

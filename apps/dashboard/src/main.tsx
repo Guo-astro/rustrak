@@ -39,8 +39,10 @@ async function bootstrap() {
 
   createRoot(container).render(
     <StrictMode>
+      {/* Both: `.dark` drives the shadcn screens still to be rebuilt,
+          `data-theme` drives `@rustrak/ui`. */}
       <ThemeProvider
-        attribute="class"
+        attribute={['class', 'data-theme']}
         defaultTheme="dark"
         enableSystem
         disableTransitionOnChange

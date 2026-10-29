@@ -11,6 +11,7 @@ use rustrak::db::DbPool;
 use rustrak::ingest::EventMetadata;
 use rustrak::models::CreateProject;
 use rustrak::routes;
+use rustrak::services::scope::Scope;
 use rustrak::services::{
     DbSourceMapProvider, IssueService, LocalSourceMapStore, ProjectService, SourceMapProvider,
     SourceMapStore,
@@ -1015,7 +1016,8 @@ async fn test_sdk_issue_is_searchable_by_frame_filename_and_module() {
             1,
             20,
             Some(term),
-            None,
+            Scope::default(),
+            &rustrak::services::issue::IssueFilters::default(),
         )
         .await
         .expect("search");

@@ -75,6 +75,10 @@ pub enum IssueSort {
     LastSeen,
     /// Sort by digested_event_count (most/least frequent issues)
     EventCount,
+    /// Sort by first_seen (newest or oldest issues)
+    FirstSeen,
+    /// Sort by priority: high, then medium, then low
+    Priority,
 }
 
 impl IssueSort {
@@ -83,6 +87,8 @@ impl IssueSort {
             IssueSort::DigestOrder => "digest_order",
             IssueSort::LastSeen => "last_seen",
             IssueSort::EventCount => "event_count",
+            IssueSort::FirstSeen => "first_seen",
+            IssueSort::Priority => "priority",
         }
     }
 }
@@ -161,6 +167,71 @@ pub struct ListIssuesQuery {
     /// and last seen, event count, users and trend.
     #[serde(default)]
     pub environment: Option<String>,
+
+    /// Only issues that had an event in this release.
+    #[serde(default)]
+    pub release: Option<String>,
+
+    /// Only these levels, comma-separated: `fatal,error`.
+    #[serde(default)]
+    pub level: Option<String>,
+
+    /// Only these priorities, comma-separated: `high,medium`.
+    #[serde(default)]
+    pub priority: Option<String>,
+
+    /// `none` for unassigned issues, or a user id.
+    #[serde(default)]
+    pub assigned: Option<String>,
+
+    /// Only issues first seen within this window: `24h`, `7d`.
+    #[serde(default)]
+    pub first_seen: Option<String>,
+
+    /// Only issues last seen within this window: `24h`, `7d`.
+    #[serde(default)]
+    pub last_seen: Option<String>,
+
+    /// Only issues with at least this many events.
+    #[serde(default)]
+    pub events_min: Option<i64>,
+
+    /// Only issues with at most this many events.
+    #[serde(default)]
+    pub events_max: Option<i64>,
+}
+
+impl ListIssuesQuery {
+    /// The table's narrowing filters, read out of the query string. A value
+    /// that does not parse narrows nothing rather than failing the list.
+    pub fn issue_filters(&self) -> crate::services::issue::IssueFilters {
+        let list = |raw: &Option<String>| -> Vec<String> {
+            raw.as_deref()
+                .unwrap_or("")
+                .split(',')
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+                .collect()
+        };
+        let period = |raw: &Option<String>| {
+            raw.as_deref()
+                .and_then(|p| crate::routes::period::parse_period_hours(Some(p)))
+        };
+        crate::services::issue::IssueFilters {
+            levels: list(&self.level),
+            priorities: list(&self.priority),
+            assigned: match self.assigned.as_deref() {
+                Some("none") => Some(crate::services::issue::Assignee::Nobody),
+                Some(id) => id.parse().ok().map(crate::services::issue::Assignee::User),
+                None => None,
+            },
+            first_seen_hours: period(&self.first_seen),
+            last_seen_hours: period(&self.last_seen),
+            events_min: self.events_min,
+            events_max: self.events_max,
+        }
+    }
 }
 
 fn default_page() -> i64 {
@@ -238,6 +309,22 @@ pub struct ListTransactionsQuery {
 
     /// Filter by release.
     pub release: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+
+    /// `slowest` for the longest first; newest first otherwise.
+    #[cfg_attr(feature = "openapi", param(inline))]
+    pub sort: Option<TransactionListSort>,
+}
+
+/// The order of a transaction list.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionListSort {
+    Recent,
+    Slowest,
 }
 
 /// Query parameters for listing logs (offset-based)
@@ -259,6 +346,51 @@ pub struct ListLogsQuery {
 
     /// Filter by trace id.
     pub trace_id: Option<String>,
+
+    /// Only the logs whose message contains this, ignoring case.
+    pub query: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+}
+
+impl ListLogsQuery {
+    pub fn filters(&self) -> crate::services::log::LogFilters {
+        crate::services::log::LogFilters {
+            level: self.level.clone().filter(|l| !l.is_empty()),
+            trace_id: self.trace_id.clone().filter(|t| !t.is_empty()),
+            query: self.query.clone(),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+        }
+    }
+}
+
+/// Query parameters for the log volume: the list's filters, no page.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+pub struct LogVolumeQuery {
+    /// Filter by log level (trace/debug/info/warn/error/fatal).
+    pub level: Option<String>,
+
+    /// Filter by trace id.
+    pub trace_id: Option<String>,
+
+    /// Only the logs whose message contains this, ignoring case.
+    pub query: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); since the oldest log if absent.
+    pub period: Option<String>,
+}
+
+impl LogVolumeQuery {
+    pub fn filters(&self) -> crate::services::log::LogFilters {
+        crate::services::log::LogFilters {
+            level: self.level.clone().filter(|l| !l.is_empty()),
+            trace_id: self.trace_id.clone().filter(|t| !t.is_empty()),
+            query: self.query.clone(),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+        }
+    }
 }
 
 /// Query parameters for listing spans (offset-based)
@@ -368,6 +500,58 @@ pub struct AgentTracesQuery {
     #[serde(default = "default_per_page")]
     #[cfg_attr(feature = "openapi", param(minimum = 1, maximum = 100))]
     pub per_page: i64,
+
+    /// Only the traces where this agent ran.
+    pub agent: Option<String>,
+
+    /// Only the traces that called this model (response model, else request).
+    pub model: Option<String>,
+
+    /// Only the traces that used this tool.
+    pub tool: Option<String>,
+
+    /// Only the traces with a failing AI span.
+    #[serde(default)]
+    pub errors: bool,
+
+    /// How to rank them; newest first by default.
+    #[serde(default)]
+    #[cfg_attr(feature = "openapi", param(inline))]
+    pub sort: crate::services::span::AgentTraceSort,
+}
+
+impl AgentTracesQuery {
+    pub fn trace_filters(&self) -> crate::services::span::AgentTraceFilters {
+        let set = |v: &Option<String>| v.clone().filter(|s| !s.is_empty());
+        crate::services::span::AgentTraceFilters {
+            agent: set(&self.agent),
+            model: set(&self.model),
+            tool: set(&self.tool),
+            errors: self.errors,
+            sort: self.sort,
+        }
+    }
+}
+
+/// Query parameters for the agent conversations list (offset-based).
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+pub struct AgentConversationsQuery {
+    /// Lookback window in hours (default: all time, no filter).
+    pub period_hours: Option<i64>,
+
+    /// Restrict to spans reporting this environment (default: all).
+    pub environment: Option<String>,
+
+    /// Page number (1-indexed, default: 1)
+    #[serde(default = "default_page")]
+    #[cfg_attr(feature = "openapi", param(minimum = 1))]
+    pub page: i64,
+
+    /// Items per page (default: 20, max: 100)
+    #[serde(default = "default_per_page")]
+    #[cfg_attr(feature = "openapi", param(minimum = 1, maximum = 100))]
+    pub per_page: i64,
 }
 
 /// Query parameters for the transaction stats overview (offset-based)
@@ -383,6 +567,31 @@ pub struct TransactionStatsQuery {
     #[serde(default = "default_per_page")]
     #[cfg_attr(feature = "openapi", param(minimum = 1, maximum = 100))]
     pub per_page: i64,
+
+    /// Only this environment.
+    pub environment: Option<String>,
+
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+
+    /// Only the endpoints whose name contains this, ignoring case.
+    pub query: Option<String>,
+
+    /// How to rank them; most time spent in all by default.
+    #[serde(default)]
+    #[cfg_attr(feature = "openapi", param(inline))]
+    pub sort: crate::services::transaction::StatsSort,
+}
+
+impl TransactionStatsQuery {
+    pub fn filter(&self) -> crate::services::transaction::StatsFilter {
+        crate::services::transaction::StatsFilter {
+            environment: self.environment.clone().filter(|e| !e.is_empty()),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+            query: self.query.clone(),
+            sort: self.sort,
+        }
+    }
 }
 
 /// Query parameters for a single transaction group's aggregate stats.
@@ -393,6 +602,20 @@ pub struct TransactionStatGroupQuery {
     pub name: String,
     /// Trace operation of the group (omit for groups with no op).
     pub op: Option<String>,
+    /// Only this environment.
+    pub environment: Option<String>,
+    /// Only this window (`24h`, `7d`, `14d`...); all time if absent.
+    pub period: Option<String>,
+}
+
+impl TransactionStatGroupQuery {
+    pub fn filter(&self) -> crate::services::transaction::StatsFilter {
+        crate::services::transaction::StatsFilter {
+            environment: self.environment.clone().filter(|e| !e.is_empty()),
+            period_hours: crate::routes::period::parse_period_hours(self.period.as_deref()),
+            ..Default::default()
+        }
+    }
 }
 
 /// Query parameters for listing events

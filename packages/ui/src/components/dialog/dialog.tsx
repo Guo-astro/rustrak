@@ -4,7 +4,6 @@ import type { ReactNode, RefObject } from 'react';
 import { focusRing } from '../../lib/focus';
 import { interactiveTransition, pressScaleSmall } from '../../lib/motion';
 import { tv, type VariantProps } from '../../lib/tv';
-import type { IconComponent } from '../icon/icon';
 import { CloseIcon } from '../icon/icon-catalog';
 
 /**
@@ -50,15 +49,6 @@ const dialog = tv({
     // The air below comes from the header, not the body, so a modal without
     // a body -- a confirmation -- does not sit with its text on the footer.
     header: 'flex shrink-0 items-start gap-3.25 px-5.5 pt-5 pb-4',
-    /*
-     * The colour disc. Only modals that warn of something carry it --
-     * deleting, resolving in bulk, a finished process; a form does not need
-     * to announce itself in colour.
-     */
-    icon: [
-      'flex size-9 shrink-0 items-center justify-center rounded-lg',
-      'text-fg-on-brand',
-    ],
     heading: 'flex min-w-0 flex-1 flex-col gap-1.25 pt-0.5',
     title: 'text-fg text-section',
     description: 'text-body text-fg-tertiary',
@@ -86,22 +76,15 @@ const dialog = tv({
       lg: { popup: 'max-w-dialog-lg' },
       xl: { popup: 'max-w-dialog-xl' },
     },
-    tone: {
-      brand: { icon: 'bg-surface-brand' },
-      success: { icon: 'bg-success' },
-      warning: { icon: 'bg-sev-warning' },
-      danger: { icon: 'bg-danger' },
-    },
-    /** The body aligned with the header's text, not with the edge. */
-    inset: { true: { body: 'ps-17.75' } },
   },
-  defaultVariants: { size: 'sm', tone: 'brand' },
+  defaultVariants: { size: 'sm' },
 });
 
 const styles = dialog();
 
 export type DialogSize = NonNullable<VariantProps<typeof dialog>['size']>;
-export type DialogTone = NonNullable<VariantProps<typeof dialog>['tone']>;
+/** How weighty a confirmation is: `danger` turns its action red. */
+export type DialogTone = 'brand' | 'success' | 'warning' | 'danger';
 
 export interface DialogProps {
   open: boolean;
@@ -172,8 +155,6 @@ export interface DialogHeaderProps {
   title: ReactNode;
   /** One line of context: where it comes from, what will happen, to what. */
   description?: ReactNode;
-  icon?: IconComponent;
-  tone?: DialogTone;
   /**
    * The dismiss cross. Removed when there is no neutral way out -- a
    * decision that must be taken -- so that closing is always an explicit
@@ -186,19 +167,11 @@ export interface DialogHeaderProps {
 export function DialogHeader({
   title,
   description,
-  icon: Icon,
-  tone,
   dismissible = true,
   children,
 }: DialogHeaderProps) {
   return (
     <div className={styles.header()}>
-      {Icon ? (
-        <span className={dialog({ tone }).icon()}>
-          <Icon size="xl" aria-hidden="true" />
-        </span>
-      ) : null}
-
       <div className={styles.heading()}>
         <BaseDialog.Title className={styles.title()}>{title}</BaseDialog.Title>
         {description ? (
@@ -222,15 +195,11 @@ DialogHeader.displayName = 'DialogHeader';
 
 export interface DialogBodyProps {
   children: ReactNode;
-  /** Aligns the body with the header's text when the header has an icon. */
-  inset?: boolean;
   className?: string;
 }
 
-export function DialogBody({ children, inset, className }: DialogBodyProps) {
-  return (
-    <div className={dialog({ inset }).body({ className })}>{children}</div>
-  );
+export function DialogBody({ children, className }: DialogBodyProps) {
+  return <div className={styles.body({ className })}>{children}</div>;
 }
 
 DialogBody.displayName = 'DialogBody';

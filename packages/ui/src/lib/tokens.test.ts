@@ -66,6 +66,11 @@ describe('tokens.ts mirrors tokens.css', () => {
 
 describe('the system is closed', () => {
   it("resets Tailwind's inherited namespaces", () => {
+    const closed = readFileSync(
+      fileURLToPath(new URL('../styles/closed.css', import.meta.url)),
+      'utf8',
+    );
+
     for (const namespace of [
       'color',
       'shadow',
@@ -74,7 +79,9 @@ describe('the system is closed', () => {
       'radius',
       'ease',
     ]) {
-      expect(css).toContain(`--${namespace}-*: initial;`);
+      expect(closed).toContain(`--${namespace}-*: initial;`);
+      // And only there: tokens.css stays additive for a migrating app.
+      expect(css).not.toContain(`--${namespace}-*: initial;`);
     }
   });
 

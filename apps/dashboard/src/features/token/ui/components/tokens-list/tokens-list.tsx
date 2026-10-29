@@ -1,5 +1,5 @@
 import type { AuthTokenResponse } from '@rustrak/client';
-import { Key, Plus } from 'lucide-react';
+import { Button, NewIcon, TokensIcon } from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -10,8 +10,12 @@ import {
 } from '@/features/token/api/mutations';
 import { copyToClipboard } from '@/shared/lib/clipboard';
 import {
+  SettingSection,
+  SettingsEmpty,
+} from '@/shared/ui/components/setting-row';
+import { SettingsHeader } from '@/shared/ui/components/settings-header';
+import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -19,23 +23,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/shadcn/card';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 import { CreateTokenDialog } from './create-token-dialog';
-import { TokenCards, TokenTable } from './token-rows';
+import { TokenRows } from './token-rows';
 
 interface TokensListProps {
   initialTokens: AuthTokenResponse[];
+  /** The page's header is drawn here: its action, "New token", is this list's. */
+  title: string;
+  subtitle: string;
+  /** Under the list: where the API these tokens open is documented. */
+  footer?: React.ReactNode;
 }
 
-export function TokensList({ initialTokens }: TokensListProps) {
+export function TokensList({
+  initialTokens,
+  title,
+  subtitle,
+  footer,
+}: TokensListProps) {
   const t = useTranslations('tokens');
   const commonT = useTranslations('common');
   const router = useRouter();
@@ -140,40 +146,45 @@ export function TokensList({ initialTokens }: TokensListProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <CreateTokenDialog
-        open={isCreateOpen}
-        onOpenChange={(open) => (open ? setIsCreateOpen(true) : closeCreate())}
-        newToken={newToken}
-        isPending={isPending}
-        onCreate={create}
-        onDone={closeCreate}
-        onCopyToken={copyNewToken}
+    <>
+      <SettingsHeader
+        title={title}
+        description={subtitle}
+        actions={
+          <CreateTokenDialog
+            open={isCreateOpen}
+            onOpenChange={(open) =>
+              open ? setIsCreateOpen(true) : closeCreate()
+            }
+            newToken={newToken}
+            isPending={isPending}
+            onCreate={create}
+            onDone={closeCreate}
+            onCopyToken={copyNewToken}
+          />
+        }
       />
 
-      {initialTokens.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Key className="size-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground mb-4">{t('empty.title')}</p>
-            <Button variant="outline" onClick={() => setIsCreateOpen(true)}>
-              <Plus className="mr-2 size-4" />
-              {t('empty.createFirst')}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('list.title')}</CardTitle>
-            <CardDescription>{t('list.description')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TokenCards {...rowProps} />
-            <TokenTable {...rowProps} />
-          </CardContent>
-        </Card>
-      )}
+      <SettingSection
+        title={t('list.title')}
+        description={t('list.description')}
+      >
+        {initialTokens.length === 0 ? (
+          <SettingsEmpty
+            icon={<TokensIcon size="2xl" />}
+            title={t('empty.title')}
+            action={
+              <Button icon={NewIcon} onClick={() => setIsCreateOpen(true)}>
+                {t('empty.createFirst')}
+              </Button>
+            }
+          />
+        ) : (
+          <TokenRows {...rowProps} />
+        )}
+      </SettingSection>
+
+      {footer}
 
       <AlertDialog
         open={pendingDelete !== null}
@@ -190,18 +201,18 @@ export function TokensList({ initialTokens }: TokensListProps) {
             <AlertDialogCancel disabled={isPending}>
               {t('deleteDialog.cancel')}
             </AlertDialogCancel>
-            <AlertDialogAction
+            <Button
+              variant="danger-primary"
               onClick={confirmDelete}
               disabled={isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isPending
                 ? t('deleteDialog.deleting')
                 : t('deleteDialog.confirm')}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

@@ -1,13 +1,12 @@
 /**
- * Reads for the log feature, called straight from Server Components.
- *
- * `import 'server-only'` is a build-time poison pill rather than a directive:
- * if this module reaches the client bundle the build fails, instead of shipping
- * a browser bundle that holds the session cookie.
+ * Reads for the log feature: the lines, and how many there were over time.
  */
 import type {
+  LogResponse,
   LogsListData,
   LogsListResponse,
+  LogsVolumeData,
+  LogsVolumeResponse,
   Result,
   RustrakError,
 } from '@rustrak/client';
@@ -19,4 +18,23 @@ export async function listLogs(
 ): Promise<Result<LogsListResponse, RustrakError>> {
   const client = await createClient();
   return client.logs.list({ path: { project_id: projectId }, query: options });
+}
+
+export async function getLog(
+  projectId: number,
+  logId: string,
+): Promise<Result<LogResponse, RustrakError>> {
+  const client = await createClient();
+  return client.logs.get({ path: { project_id: projectId, log_id: logId } });
+}
+
+export async function getLogVolume(
+  projectId: number,
+  options?: NonNullable<LogsVolumeData['query']>,
+): Promise<Result<LogsVolumeResponse, RustrakError>> {
+  const client = await createClient();
+  return client.logs.volume({
+    path: { project_id: projectId },
+    query: options,
+  });
 }

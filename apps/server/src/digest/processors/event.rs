@@ -7,7 +7,7 @@ use crate::ingest::storage::{delete_event_at, read_event_with_location, EventSto
 #[cfg(feature = "sqlite")]
 use crate::ingest::storage::{delete_paths, event_paths_at};
 use crate::ingest::EventMetadata;
-use crate::models::{AlertType, Grouping, Issue};
+use crate::models::{AlertType, Grouping, Issue, Product};
 use crate::services::rate_limit::QuotaScope;
 use crate::services::sourcemap::SourceMapProvider;
 use crate::services::{
@@ -157,6 +157,14 @@ impl ErrorProcessor {
         let attachments = feedback::take_attachments(&mut event_data);
         // A feedback Sentry would filter is dropped here, like an invalid event.
         let feedback = Feedback::from_event(&event_data)?;
+        // Checked here and not at ingest: a feedback also arrives as an event
+        // of type `feedback` and from the user-report endpoint, and every one
+        // of them is digested through this line.
+        if feedback.is_some() && !project.keeps(Product::Feedback) {
+            return Err(AppError::Validation(
+                "feedback dropped: turned off for this project".to_string(),
+            ));
+        }
         // A feedback occurrence defaults to `info`, and the event, its issue
         // and its alert rules all read that level from here.
         if feedback.is_some()
@@ -248,26 +256,18 @@ impl ErrorProcessor {
                         existing.alert_type.into_iter().collect()
                     }
                 };
+                // Each rule skips what it already recorded for this event.
                 for &alert_type in &types {
-                    if !AlertService::event_alert_exists(
+                    AlertService::trigger_event_alert(
                         pool,
-                        metadata.project_id,
-                        event_id,
+                        &project,
+                        &issue,
                         alert_type,
+                        event_id,
+                        facts,
+                        &self.dashboard_url,
                     )
-                    .await?
-                    {
-                        AlertService::trigger_event_alert(
-                            pool,
-                            &project,
-                            &issue,
-                            alert_type,
-                            event_id,
-                            facts,
-                            &self.dashboard_url,
-                        )
-                        .await?;
-                    }
+                    .await?;
                 }
                 // Opens nothing when the first run already linked one.
                 if types.contains(&AlertType::NewIssue) {
@@ -919,19 +919,24 @@ async fn write_digest_rows(
     );
     if !environment.is_empty() {
         sqlx::query(
-            "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen) \
-             VALUES ($1, $2, $3, $4, $4) \
+            // `first_release` as the issue's own: the first one sent, kept,
+            // so a release's new issues there outlive its events.
+            "INSERT INTO issue_environments (issue_id, project_id, environment, first_seen, last_seen, first_release) \
+             VALUES ($1, $2, $3, $4, $4, $5) \
              ON CONFLICT (issue_id, environment) DO UPDATE \
              SET first_seen = CASE WHEN excluded.first_seen < issue_environments.first_seen \
                                    THEN excluded.first_seen ELSE issue_environments.first_seen END, \
                  last_seen = CASE WHEN excluded.last_seen > issue_environments.last_seen \
                                   THEN excluded.last_seen ELSE issue_environments.last_seen END, \
-                 event_count = issue_environments.event_count + 1",
+                 event_count = issue_environments.event_count + 1, \
+                 first_release = CASE WHEN issue_environments.first_release = '' \
+                                      THEN excluded.first_release ELSE issue_environments.first_release END",
         )
         .bind(issue.id)
         .bind(write.project_id)
         .bind(environment)
         .bind(write.timestamp)
+        .bind(&write.denormalized.release)
         .execute(&mut **tx)
         .await?;
     }

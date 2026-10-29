@@ -1,13 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { RustrakError, SsoConfigResponse } from '@rustrak/client';
-import { Eye, EyeOff } from 'lucide-react';
+import {
+  Button,
+  ConcealIcon,
+  Input,
+  InputAction,
+  RevealIcon,
+  Separator,
+  Text,
+} from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslations } from 'use-intl';
 import { z } from 'zod';
 import { login, startSso } from '@/features/user/api/mutations';
 import { SERVER_ERROR_PATH } from '@/shared/lib/form-errors';
-import { Button } from '@/shared/ui/components/shadcn/button';
 import {
   Form,
   FormControl,
@@ -17,7 +24,6 @@ import {
   FormMessage,
   FormRootError,
 } from '@/shared/ui/components/shadcn/form';
-import { Input } from '@/shared/ui/components/shadcn/input';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
 type LoginFormData = {
@@ -81,14 +87,15 @@ function PasswordLoginDisabled({
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
+      <Text render={<p />} tone="muted">
         {t('form.passwordLoginDisabled', { provider })}
-      </p>
+      </Text>
       {!revealed && (
         <Button
           type="button"
           variant="ghost"
-          className="w-full text-xs uppercase tracking-widest"
+          size="lg"
+          className="w-full"
           onClick={onReveal}
         >
           {t('form.usePassword')}
@@ -208,21 +215,26 @@ export function LoginForm({
     });
   };
 
+  const busy = isPending || isSsoPending;
+
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">{t('form.title')}</h1>
-        <p className="text-muted-foreground">{t('form.subtitle')}</p>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-fg text-page-title">{t('form.title')}</h1>
+        <Text render={<p />} tone="muted">
+          {t('form.subtitle')}
+        </Text>
       </div>
 
       {ssoConfig?.enabled && (
         <>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Button
               type="button"
-              variant="outline"
-              className="w-full font-extrabold uppercase tracking-widest text-xs py-6"
-              disabled={isSsoPending || isPending}
+              size="lg"
+              className="w-full"
+              loading={isSsoPending}
+              disabled={busy}
               onClick={onSsoLogin}
             >
               {isSsoPending
@@ -230,19 +242,19 @@ export function LoginForm({
                 : t('form.continueWithSso', { provider: providerName })}
             </Button>
             {hasSsoError && (
-              <p className="text-sm font-medium text-destructive" role="alert">
+              <Text variant="hint" tone="error" render={<p role="alert" />}>
                 {t('form.ssoFailure')}
-              </p>
+              </Text>
             )}
           </div>
 
           {passwordFormVisible && (
             <div className="flex items-center gap-3" aria-hidden="true">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">
+              <Separator className="flex-1" />
+              <Text variant="meta" tone="subtle">
                 {t('form.or')}
-              </span>
-              <div className="h-px flex-1 bg-border" />
+              </Text>
+              <Separator className="flex-1" />
             </div>
           )}
         </>
@@ -258,13 +270,17 @@ export function LoginForm({
 
       {passwordFormVisible && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            noValidate
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-4"
+          >
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <FormLabel className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                <FormItem className="gap-1.5">
+                  <FormLabel className="text-label text-fg-secondary">
                     {t('form.emailLabel')}
                   </FormLabel>
                   <FormControl>
@@ -272,12 +288,12 @@ export function LoginForm({
                       type="email"
                       placeholder={t('form.emailPlaceholder')}
                       autoComplete="email"
-                      disabled={isPending || isSsoPending}
-                      className="bg-background border-border px-4 py-3.5 text-sm placeholder:text-muted-foreground/30"
+                      autoFocus
+                      disabled={busy}
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-hint" />
                 </FormItem>
               )}
             />
@@ -286,54 +302,46 @@ export function LoginForm({
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <FormLabel className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                      {t('form.passwordLabel')}
-                    </FormLabel>
-                  </div>
+                <FormItem className="gap-1.5">
+                  <FormLabel className="text-label text-fg-secondary">
+                    {t('form.passwordLabel')}
+                  </FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder={t('form.passwordPlaceholder')}
-                        autoComplete="current-password"
-                        disabled={isPending || isSsoPending}
-                        className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-4 py-3.5 pr-10 text-sm shadow-xs outline-none placeholder:text-muted-foreground/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
-                        {...field}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        disabled={isPending || isSsoPending}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                        tabIndex={-1}
-                        aria-label={
-                          showPassword
-                            ? t('form.hidePassword')
-                            : t('form.showPassword')
-                        }
-                      >
-                        {showPassword ? (
-                          <EyeOff className="size-4" />
-                        ) : (
-                          <Eye className="size-4" />
-                        )}
-                      </button>
-                    </div>
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={t('form.passwordPlaceholder')}
+                      autoComplete="current-password"
+                      disabled={busy}
+                      action={
+                        <InputAction
+                          icon={showPassword ? ConcealIcon : RevealIcon}
+                          tabIndex={-1}
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          aria-label={
+                            showPassword
+                              ? t('form.hidePassword')
+                              : t('form.showPassword')
+                          }
+                        />
+                      }
+                      {...field}
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-hint" />
                 </FormItem>
               )}
             />
 
             {/* Where an outage lands, kept off the credential fields. */}
-            <FormRootError />
+            <FormRootError className="text-hint" />
 
             <Button
               type="submit"
-              className="w-full font-extrabold uppercase tracking-widest text-xs py-6 mt-2"
-              disabled={isPending || isSsoPending}
+              variant="primary"
+              size="lg"
+              className="mt-2 w-full"
+              loading={isPending}
+              disabled={busy}
             >
               {isPending ? t('form.signingIn') : t('form.login')}
             </Button>

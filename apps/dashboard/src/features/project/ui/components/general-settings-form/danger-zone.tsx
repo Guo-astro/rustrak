@@ -1,5 +1,5 @@
 import type { ProjectResponse } from '@rustrak/client';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Button, DeleteIcon, Spinner } from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'use-intl';
 import { SettingRow, SettingSection } from '@/shared/ui/components/setting-row';
@@ -13,7 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/shared/ui/components/shadcn/alert-dialog';
-import { Button } from '@/shared/ui/components/shadcn/button';
 
 /**
  * Removing the project, behind a confirmation that names it.
@@ -50,12 +49,11 @@ export function DangerZone({
           description={t('dangerZone.removeDescription')}
         >
           <Button
-            variant="destructive"
+            variant="danger"
+            icon={DeleteIcon}
             onClick={() => setIsOpen(true)}
             disabled={isPending}
-            className="w-full sm:w-auto"
           >
-            <Trash2 className="mr-2 size-4" />
             {t('dangerZone.remove')}
           </Button>
         </SettingRow>
@@ -78,11 +76,11 @@ export function DangerZone({
             <AlertDialogAction
               onClick={remove}
               disabled={isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-danger text-white hover:bg-danger-fg"
             >
               {isPending ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Spinner size="md" label={t('dangerZone.deleting')} />
                   {t('dangerZone.deleting')}
                 </>
               ) : (

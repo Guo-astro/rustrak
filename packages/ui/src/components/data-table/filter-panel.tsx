@@ -7,6 +7,7 @@ import { Count } from '../count/count';
 import { ResolveIcon, SearchIcon } from '../icon/icon-catalog';
 import type { TagTone } from '../tag/tag';
 import type { DataTableFeatures, FilterOption } from './features';
+import { useDataTableLabels } from './labels';
 
 /**
  * The filter half of a column header panel: what changes with the column's
@@ -89,6 +90,7 @@ interface PanelProps<TData extends RowData> {
 export function OptionsFilterPanel<TData extends RowData>({
   column,
 }: PanelProps<TData>) {
+  const labels = useDataTableLabels();
   const spec = column.columnDef.meta?.filter;
   const [loaded, setLoaded] = useState<FilterOption[] | null>(null);
   // Kept apart from `loaded` so a rejected load never reads as "loaded, and
@@ -149,8 +151,8 @@ export function OptionsFilterPanel<TData extends RowData>({
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Filter values…"
-            aria-label="Filter values"
+            placeholder={labels.filterValuesPlaceholder}
+            aria-label={labels.filterValues}
             className={styles.input()}
           />
         </div>
@@ -189,7 +191,7 @@ export function OptionsFilterPanel<TData extends RowData>({
       ))}
 
       {visible && visible.length === 0 ? (
-        <div className={styles.empty()}>Nothing matches</div>
+        <div className={styles.empty()}>{labels.nothingMatches}</div>
       ) : null}
     </div>
   );
@@ -202,6 +204,7 @@ OptionsFilterPanel.displayName = 'OptionsFilterPanel';
 export function TextFilterPanel<TData extends RowData>({
   column,
 }: PanelProps<TData>) {
+  const labels = useDataTableLabels();
   const spec = column.columnDef.meta?.filter;
   const applied = (column.getFilterValue() as string | undefined) ?? '';
   const [draft, setDraft] = useState(applied);
@@ -224,8 +227,8 @@ export function TextFilterPanel<TData extends RowData>({
           onKeyDown={(event) => {
             if (event.key === 'Enter') commit();
           }}
-          placeholder={spec.placeholder ?? 'Contains…'}
-          aria-label={spec.placeholder ?? 'Filter text'}
+          placeholder={spec.placeholder ?? labels.contains}
+          aria-label={spec.placeholder ?? labels.filterText}
           className={styles.input()}
         />
       </div>
@@ -240,6 +243,7 @@ TextFilterPanel.displayName = 'TextFilterPanel';
 export function RangeFilterPanel<TData extends RowData>({
   column,
 }: PanelProps<TData>) {
+  const labels = useDataTableLabels();
   const spec = column.columnDef.meta?.filter;
   const applied =
     (column.getFilterValue() as [number | null, number | null] | undefined) ??
@@ -280,8 +284,8 @@ export function RangeFilterPanel<TData extends RowData>({
             onChange={(event) => setMin(event.target.value)}
             onBlur={commit}
             onKeyDown={onKeyDown}
-            placeholder="Min"
-            aria-label={`Minimum${spec.unit ? ` (${spec.unit})` : ''}`}
+            placeholder={labels.min}
+            aria-label={`${labels.min}${spec.unit ? ` (${spec.unit})` : ''}`}
             className={styles.input()}
           />
         </div>
@@ -298,8 +302,8 @@ export function RangeFilterPanel<TData extends RowData>({
             onChange={(event) => setMax(event.target.value)}
             onBlur={commit}
             onKeyDown={onKeyDown}
-            placeholder="Max"
-            aria-label={`Maximum${spec.unit ? ` (${spec.unit})` : ''}`}
+            placeholder={labels.max}
+            aria-label={`${labels.max}${spec.unit ? ` (${spec.unit})` : ''}`}
             className={styles.input()}
           />
         </div>

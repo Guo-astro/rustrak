@@ -1,12 +1,10 @@
 import type { ActivityEntry } from '@rustrak/client';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Button, CommentIcon, cn, Textarea } from '@rustrak/ui';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { addIssueComment } from '@/features/issue/api/mutations';
 import { GitHubMark } from '@/shared/ui/components/github-mark';
-import { Button } from '@/shared/ui/components/shadcn/button';
-import { Textarea } from '@/shared/ui/components/shadcn/textarea';
 import { useRouter } from '@/shared/ui/hooks/use-router';
 
 interface IssueActivityProps {
@@ -136,77 +134,88 @@ export function IssueActivity({
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold">{t('activity.title')}</h3>
+    <div className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={t('activity.placeholder')}
+          rows={3}
+          disabled={isPending}
+          aria-label={t('activity.placeholder')}
+        />
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            size="sm"
+            variant="secondary"
+            icon={CommentIcon}
+            loading={isPending}
+            disabled={!text.trim()}
+          >
+            {t('activity.comment')}
+          </Button>
+        </div>
+      </form>
 
-      <div className="space-y-5">
-        <form onSubmit={handleSubmit} className="space-y-2">
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t('activity.placeholder')}
-            rows={3}
-            disabled={isPending}
-          />
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !text.trim()}
-            >
-              {isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <MessageSquare className="mr-2 size-4" />
-              )}
-              {t('activity.comment')}
-            </Button>
-          </div>
-        </form>
-
-        {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            {t('activity.empty')}
-          </p>
-        ) : (
-          <ol className="space-y-4">
-            {entries.map((entry) => {
-              const isNote = entry.type === 'note' || entry.type === 'comment';
-              const github = githubSource(entry);
-              return (
-                <li key={entry.id} className="flex gap-3 text-sm">
-                  <div className="mt-1.5 size-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    {github && (
-                      <a
-                        href={github.url || undefined}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mb-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <GitHubMark className="size-3" />
-                        {github.author || 'GitHub'}
-                      </a>
-                    )}
-                    {isNote ? (
-                      <p className="whitespace-pre-wrap break-words">
-                        {noteText(entry)}
-                      </p>
-                    ) : (
-                      <p className="text-muted-foreground">
-                        {describe(entry, t)}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground/70 mt-0.5">
-                      {format.relativeTime(new Date(entry.created_at))}
+      {entries.length === 0 ? (
+        <p className="py-4 text-center text-meta text-fg-subtle">
+          {t('activity.empty')}
+        </p>
+      ) : (
+        // A timeline: one rule down the left, a mark per entry on it. A
+        // comment is set apart in its own box -- it is what people said,
+        // the rest is what happened.
+        <ol className="relative flex flex-col gap-4 before:absolute before:inset-y-1 before:left-[3px] before:w-px before:bg-border-divider before:content-['']">
+          {entries.map((entry) => {
+            const isNote = entry.type === 'note' || entry.type === 'comment';
+            const github = githubSource(entry);
+            return (
+              <li key={entry.id} className="relative flex gap-3 ps-0">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'relative mt-1.5 size-2 shrink-0 rounded-pill ring-2 ring-panel',
+                    isNote ? 'bg-fg-secondary' : 'bg-fg-ghost',
+                  )}
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  {github ? (
+                    <a
+                      href={github.url || undefined}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-hint text-fg-subtle hover:text-fg"
+                    >
+                      <GitHubMark className="size-3" />
+                      {github.author || 'GitHub'}
+                    </a>
+                  ) : null}
+                  {isNote ? (
+                    <p className="whitespace-pre-wrap break-words rounded-md border border-border-subtle bg-surface px-3 py-2 text-value text-fg">
+                      {noteText(entry)}
                     </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </div>
+                  ) : (
+                    <p className="text-value text-fg-secondary">
+                      {describe(entry, t)}
+                    </p>
+                  )}
+                  <time
+                    dateTime={entry.created_at}
+                    title={format.dateTime(
+                      new Date(entry.created_at),
+                      'dateTime',
+                    )}
+                    className="text-hint text-fg-meta"
+                  >
+                    {format.relativeTime(new Date(entry.created_at))}
+                  </time>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }

@@ -57,6 +57,8 @@ pub async fn list_transactions(
         status: query.status.clone(),
         environment: query.environment.clone(),
         release: query.release.clone(),
+        period_hours: crate::routes::period::parse_period_hours(query.period.as_deref()),
+        slowest: query.sort == Some(crate::pagination::TransactionListSort::Slowest),
     };
 
     let (transactions, total_count) =
@@ -169,8 +171,9 @@ pub async fn get_transaction_spans(
     security(("bearer_auth" = [])),
 ))]
 /// GET /api/projects/{project_id}/transactions/stats
-/// Returns paginated aggregate performance stats (count, p50/p95/p99 latency,
-/// failure rate) grouped by transaction name + op, most frequent first.
+/// Returns paginated aggregate performance stats (count, time spent, p50/p95/p99
+/// latency, failure rate) grouped by transaction name + op, the most time spent
+/// first unless `sort` asks otherwise.
 pub async fn get_transaction_stats(
     pool: web::Data<DbPool>,
     path: web::Path<i32>,
@@ -192,7 +195,8 @@ pub async fn get_transaction_stats(
     let per_page = query.per_page.clamp(1, 100);
 
     let (stats, total) =
-        TransactionService::stats(pool.get_ref(), project_id, page, per_page).await?;
+        TransactionService::stats(pool.get_ref(), project_id, page, per_page, &query.filter())
+            .await?;
 
     Ok(HttpResponse::Ok().json(OffsetPaginatedResponse::new(stats, total, page, per_page)))
 }
@@ -238,6 +242,7 @@ pub async fn get_transaction_stat_group(
         project_id,
         &query.name,
         query.op.as_deref(),
+        &query.filter(),
     )
     .await?
     .ok_or_else(|| {
@@ -245,6 +250,55 @@ pub async fn get_transaction_stat_group(
     })?;
 
     Ok(HttpResponse::Ok().json(stat))
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/transactions/stats/group/timeseries",
+    operation_id = "transactions.getStatGroupTimeseries",
+    tag = "Transactions",
+    params(
+        ("project_id" = i32, Path, description = "Project ID"),
+        crate::pagination::TransactionStatGroupQuery,
+    ),
+    responses(
+        (status = 200, description = "The endpoint's runs, failures, p50 and p95 per bucket, oldest first", body = Vec<crate::models::TransactionTimeseriesPoint>),
+        (status = 401, description = "Unauthorized", body = crate::error::ErrorResponse),
+        (status = 404, description = "Not found", body = crate::error::ErrorResponse),
+    ),
+    security(("bearer_auth" = [])),
+))]
+/// Returns one endpoint's trend over the window, every bucket present:
+/// how often it ran and failed, and its p50 and p95. Without a window, back
+/// to its oldest call and never less than the last 24 hours, which is also
+/// what an endpoint with no calls gets.
+pub async fn get_transaction_stat_group_timeseries(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    query: web::Query<crate::pagination::TransactionStatGroupQuery>,
+    actor: ApiActor,
+) -> AppResult<HttpResponse> {
+    let project_id = path.into_inner();
+    access::require(
+        pool.get_ref(),
+        actor.is_admin(),
+        actor.user_id(),
+        project_id,
+        Action::ViewProject,
+    )
+    .await?;
+
+    let filter = query.filter();
+    let points = TransactionService::group_timeseries(
+        pool.get_ref(),
+        project_id,
+        &query.name,
+        query.op.as_deref(),
+        filter.environment.as_deref(),
+        filter.period_hours,
+    )
+    .await?;
+    Ok(HttpResponse::Ok().json(points))
 }
 
 #[cfg(feature = "openapi")]
@@ -255,13 +309,15 @@ pub async fn get_transaction_stat_group(
         get_transaction,
         get_transaction_spans,
         get_transaction_stats,
-        get_transaction_stat_group
+        get_transaction_stat_group,
+        get_transaction_stat_group_timeseries
     ),
     components(schemas(
         TransactionResponse,
         TransactionDetailResponse,
         crate::models::SpanResponse,
         crate::models::TransactionStatsResponse,
+        crate::models::TransactionTimeseriesPoint,
     ))
 )]
 pub struct TransactionsApi;
@@ -274,6 +330,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             // `/stats*` must precede `/{transaction_id}` so they aren't captured as ids.
             .route("/stats", web::get().to(get_transaction_stats))
             .route("/stats/group", web::get().to(get_transaction_stat_group))
+            .route(
+                "/stats/group/timeseries",
+                web::get().to(get_transaction_stat_group_timeseries),
+            )
             .route("/{transaction_id}", web::get().to(get_transaction))
             .route(
                 "/{transaction_id}/spans",

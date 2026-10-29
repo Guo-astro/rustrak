@@ -5,23 +5,31 @@ import type {
   SpansListResponse,
 } from '@rustrak/client';
 import { Ok } from '@rustrak/client';
+import {
+  formatSpanDuration,
+  SegmentedControl,
+  SegmentedItem,
+  Waterfall,
+} from '@rustrak/ui';
 import { createFileRoute, notFound } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
-import { useTranslations } from 'use-intl';
+import type { ReactNode } from 'react';
+import { useFormatter, useTranslations } from 'use-intl';
 import { getSpan, listSpans } from '@/features/agent-trace/api/queries';
+import { conversationHref } from '@/features/agent-trace/model/conversation';
 import {
   resolveSelectedSpan,
   summarizeTrace,
+  waterfallSpans,
 } from '@/features/agent-trace/model/trace-summary';
-import { AgentTraceWaterfall } from '@/features/agent-trace/ui/components/agent-trace-waterfall';
+import { AgentGraphView } from '@/features/agent-trace/ui/components/agent-graph';
 import { SpanDetailPane } from '@/features/agent-trace/ui/components/span-detail-pane';
-import { TraceSummaryBadges } from '@/features/agent-trace/ui/components/trace-summary-badges';
 import { getProject } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
 import { loadAll } from '@/shared/lib/results';
-import { searchString } from '@/shared/lib/search-params';
+import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { Link } from '@/shared/ui/components/link';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
+import { usePageTrail } from '@/shared/ui/hooks/use-page-trail';
 
 const PER_PAGE = 100;
 
@@ -63,17 +71,12 @@ async function collectAllSpans(
   return Ok(spans);
 }
 
-function _formatDuration(ms: number | null): string {
-  if (ms == null) return '—';
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
-
 export const Route = createFileRoute(
   '/_authenticated/projects/$id/agents/$traceId',
 )({
   validateSearch: (search: Record<string, unknown>) => ({
     span: searchString(search.span),
+    view: searchOneOf(search.view, ['graph'] as const),
   }),
   loaderDeps: ({ search }) => ({ span: search.span }),
   loader: async ({ params, deps }) => {
@@ -128,8 +131,13 @@ export const Route = createFileRoute(
 function AgentTraceDetailPage() {
   const t = useTranslations('projectPages');
   const { id, traceId } = Route.useParams();
-  const { failure, trace } = Route.useLoaderData();
+  const view = Route.useSearch({ select: (search) => search.view });
   const projectId = Number.parseInt(id, 10);
+  const tAgents = useTranslations('agents');
+  const format = useFormatter();
+  const navigate = Route.useNavigate();
+  const { failure, trace } = Route.useLoaderData();
+  usePageTrail([{ label: traceId.slice(0, 8), mono: true }]);
 
   if (failure !== null || trace === null) {
     return (
@@ -146,66 +154,156 @@ function AgentTraceDetailPage() {
   }
 
   const { spans, summary, selectedSpanId, requestedMissing, selected } = trace;
+  const conversation = spans.find(
+    (span) => span.gen_ai_conversation_id,
+  )?.gen_ai_conversation_id;
+  // In the order they ran: a handoff reads left to right.
+  const agents = [
+    ...new Set(
+      [...spans]
+        .sort((a, b) =>
+          (a.start_timestamp ?? '').localeCompare(b.start_timestamp ?? ''),
+        )
+        .flatMap((span) =>
+          span.gen_ai_agent_name ? [span.gen_ai_agent_name] : [],
+        ),
+    ),
+  ];
+  const facts: [string, ReactNode][] = [
+    [
+      tAgents('columns.duration'),
+      summary.duration == null ? '—' : formatSpanDuration(summary.duration),
+    ],
+    [tAgents('columns.llmCalls'), format.number(summary.llmCallCount)],
+    [tAgents('columns.tools'), format.number(summary.toolCallCount)],
+    [tAgents('columns.tokens'), format.number(summary.totalTokens)],
+    [
+      tAgents('columns.errors'),
+      <span
+        className={summary.errorCount > 0 ? 'text-sev-error-fg' : undefined}
+      >
+        {format.number(summary.errorCount)}
+      </span>,
+    ],
+    [
+      tAgents('columns.started'),
+      summary.startedAt == null
+        ? '—'
+        : format.dateTime(new Date(summary.startedAt), 'precise'),
+    ],
+  ];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      <div className="shrink-0 w-full px-4 md:px-8 py-4 md:py-6 border-b">
-        <Link
-          href={`/projects/${projectId}/agents`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
-        >
-          <ArrowLeft className="size-4" />
-          {t('trace.backLink')}
-        </Link>
-        <h1 className="font-mono text-lg font-semibold break-all">
-          {summary.agentName || t('trace.unnamed')}
-        </h1>
-        <TraceSummaryBadges summary={summary} />
-
-        <p className="mt-1 text-xs text-muted-foreground font-mono truncate">
-          {traceId}
-        </p>
-      </div>
-
-      {/* Two panes on a wide screen, stacked on a narrow one. The details
-          panel scrolls independently: a long prompt must not push the
-          waterfall out of view, since reading them side by side is the point. */}
-      <div className="flex-1 min-h-0 w-full px-4 md:px-8 py-4 md:py-6 flex flex-col lg:flex-row gap-4 overflow-auto lg:overflow-hidden">
-        {/* min-w-0 lets this pane shrink below its content's intrinsic width —
-    without it a long span label makes the pane grow and push the details
-    panel out of the clipped container instead of truncating. */}
-        <section className="rounded-lg border flex flex-col min-h-0 min-w-0 lg:flex-1">
-          <div className="border-b px-4 py-2.5 flex items-center justify-between shrink-0">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {t('trace.spans')}
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {t('spanCount', { count: spans.length })}
+    <div className="flex h-full flex-col">
+      <header className="shrink-0 border-border-divider border-b px-page-gutter pt-6 pb-5">
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="break-words text-fg text-page-title">
+              {agents.length ? agents.join(' → ') : t('trace.unnamed')}
+            </h1>
+            <span className="truncate font-mono text-fg-subtle text-mono-sm">
+              {traceId}
             </span>
           </div>
-          <div className="p-3 lg:overflow-auto">
-            <AgentTraceWaterfall
-              spans={spans}
-              projectId={projectId}
-              traceId={traceId}
-              selectedSpanId={selectedSpanId}
-            />
-          </div>
-        </section>
+          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-meta">
+            {facts.map(([label, value]) => (
+              <div key={label} className="flex items-baseline gap-1.5">
+                <dt className="text-fg-subtle">{label}</dt>
+                <dd className="text-fg tabular-nums">{value}</dd>
+              </div>
+            ))}
+            {summary.models.length ? (
+              <div className="flex items-baseline gap-1.5">
+                <dt className="text-fg-subtle">{tAgents('trace.models')}</dt>
+                <dd className="font-mono text-fg text-mono-sm">
+                  {summary.models.join(', ')}
+                </dd>
+              </div>
+            ) : null}
+            {conversation ? (
+              <div className="flex items-baseline gap-1.5">
+                <dt className="text-fg-subtle">
+                  {tAgents('trace.conversation')}
+                </dt>
+                <dd>
+                  <Link
+                    href={conversationHref(projectId, conversation)}
+                    className="font-mono text-fg-secondary text-mono-sm hover:text-fg hover:underline"
+                  >
+                    {conversation}
+                  </Link>
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+      </header>
 
-        <section className="rounded-lg border flex flex-col min-h-0 lg:w-[480px] lg:shrink-0">
-          <div className="border-b px-4 py-2.5 shrink-0">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {t('trace.spanDetail')}
-            </h2>
+      {/* Two panes on a wide screen, stacked on a narrow one. The detail
+          scrolls on its own: a long prompt must not push the waterfall out of
+          view, since reading them side by side is the point. */}
+      <div className="flex min-h-0 flex-1 max-lg:flex-col max-lg:overflow-y-auto">
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">
+          <div className="px-page-gutter pt-5 pb-8">
+            <section className="flex min-w-0 flex-col rounded-2xl border border-border-subtle bg-surface">
+              <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+                <div className="flex items-baseline gap-3">
+                  <h2 className="text-card-title text-fg">
+                    {t('trace.spans')}
+                  </h2>
+                  <span className="text-fg-subtle text-meta">
+                    {t('spanCount', { count: spans.length })}
+                  </span>
+                </div>
+                <SegmentedControl
+                  aria-label={tAgents('graph.viewLabel')}
+                  value={view ?? 'waterfall'}
+                  onValueChange={(next) =>
+                    navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        view: next === 'graph' ? 'graph' : undefined,
+                      }),
+                      replace: true,
+                      resetScroll: false,
+                    })
+                  }
+                >
+                  <SegmentedItem value="waterfall">
+                    {tAgents('graph.waterfall')}
+                  </SegmentedItem>
+                  <SegmentedItem value="graph">
+                    {tAgents('graph.graph')}
+                  </SegmentedItem>
+                </SegmentedControl>
+              </header>
+              {view === 'graph' ? (
+                <AgentGraphView spans={spans} />
+              ) : (
+                <Waterfall
+                  spans={waterfallSpans(spans)}
+                  selectedId={selectedSpanId ?? null}
+                  onSelect={(span) =>
+                    navigate({
+                      search: (prev) => ({ ...prev, span: span?.id }),
+                      replace: true,
+                      resetScroll: false,
+                    })
+                  }
+                  label={tAgents('trace.waterfallOf', { traceId })}
+                />
+              )}
+            </section>
           </div>
-          <div className="p-4 lg:overflow-auto">
+        </main>
+        <aside className="border-border-divider bg-panel max-lg:border-t lg:w-[30rem] lg:shrink-0 lg:overflow-y-auto lg:border-l xl:w-[34rem]">
+          <div className="px-5 py-5">
             <SpanDetailPane
               selected={selected}
               requestedMissing={requestedMissing}
             />
           </div>
-        </section>
+        </aside>
       </div>
     </div>
   );

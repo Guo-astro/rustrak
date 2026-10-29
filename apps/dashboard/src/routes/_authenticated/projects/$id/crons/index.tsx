@@ -1,30 +1,84 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { Plus, Timer } from 'lucide-react';
+import type { MonitorResponse } from '@rustrak/client';
+import {
+  Button,
+  NewIcon,
+  Page,
+  PageHeader,
+  QueryBar,
+  type QueryField,
+} from '@rustrak/ui';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { useTranslations } from 'use-intl';
-import { listMonitors } from '@/features/monitor/api/queries';
-import { CronSetupGuide } from '@/features/monitor/ui/components/cron-setup-guide';
-import { MonitorsTable } from '@/features/monitor/ui/components/monitors-table';
+import { getMonitorStats, listMonitors } from '@/features/monitor/api/queries';
+import {
+  type MonitorHealth,
+  monitorHealth,
+} from '@/features/monitor/lib/status';
+import {
+  TIMELINE_PERIODS,
+  type TimelinePeriod,
+} from '@/features/monitor/lib/timeline';
+import { CronsEmpty } from '@/features/monitor/ui/components/crons-empty';
+import { MonitorList } from '@/features/monitor/ui/components/monitor-list';
+import { TimelinePeriodFilter } from '@/features/monitor/ui/components/timeline-period';
 import { getProject } from '@/features/project/api/queries';
 import { translator } from '@/shared/i18n/intl';
+import { loadAll } from '@/shared/lib/results';
+import { searchOneOf, searchString } from '@/shared/lib/search-params';
 import { Link } from '@/shared/ui/components/link';
 import { LoadFailure } from '@/shared/ui/components/load-failure';
-import { Button } from '@/shared/ui/components/shadcn/button';
 
+const STATES = ['failing', 'ok', 'waiting', 'muted'] as const;
+type MonitorState = (typeof STATES)[number];
+const DEFAULT_PERIOD: TimelinePeriod = '24h';
+
+/** Failing first, then waiting, then the rest; by name inside each. */
+const RANK: Record<MonitorHealth, number> = { failing: 0, waiting: 1, ok: 2 };
+
+function matches(monitor: MonitorResponse, q: string, state?: MonitorState) {
+  const text = q.trim().toLowerCase();
+  if (
+    text &&
+    !monitor.name.toLowerCase().includes(text) &&
+    !monitor.slug.includes(text)
+  ) {
+    return false;
+  }
+  if (!state) return true;
+  return state === 'muted'
+    ? monitor.is_muted
+    : monitorHealth(monitor) === state;
+}
+
+/**
+ * Crons: every monitor of the project and how its runs went, Sentry's crons
+ * overview. A row per monitor, a strip per environment, every strip on one
+ * time axis so a shared failure reads straight down the list.
+ */
 export const Route = createFileRoute('/_authenticated/projects/$id/crons/')({
-  loader: async ({ params }) => {
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: searchString(search.q),
+    state: searchOneOf(search.state, STATES),
+    period: searchOneOf(search.period, TIMELINE_PERIODS),
+  }),
+  loaderDeps: ({ search }) => ({ period: search.period }),
+  loader: ({ params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    const project = await getProject(projectId);
-    if (!project.success) return { project, monitors: null };
-    return { project, monitors: await listMonitors(projectId) };
+    return loadAll([
+      getProject(projectId),
+      listMonitors(projectId),
+      getMonitorStats(projectId, { period: deps.period ?? DEFAULT_PERIOD }),
+    ]);
   },
   head: ({ loaderData }) => {
     const t = translator('crons');
-    if (!loaderData?.project.success) {
+    if (!loaderData?.success) {
       return {
         meta: [{ title: translator('projectPages')('projectNotFound') }],
       };
     }
-    const project = loaderData.project.data.name;
+    const project = loaderData.data[0].name;
     return {
       meta: [
         { title: t('meta.listTitle', { project }) },
@@ -38,94 +92,127 @@ export const Route = createFileRoute('/_authenticated/projects/$id/crons/')({
   component: CronsPage,
 });
 
-/** A sample slug and schedule for the snippets shown before any monitor exists. */
-const SAMPLE_SLUG = 'my-job';
-const SAMPLE_SCHEDULE = { type: 'crontab', value: '0 * * * *' } as const;
+/** How often an empty page asks again, so the first check-in shows itself. */
+const EMPTY_POLL_MS = 5_000;
 
 function CronsPage() {
   const t = useTranslations('crons');
-  const pageT = useTranslations('projectPages');
   const { id } = Route.useParams();
-  const { project: projectResult, monitors: monitorsResult } =
-    Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const loaded = Route.useLoaderData();
   const projectId = Number.parseInt(id, 10);
-
-  if (!projectResult.success) {
-    return (
-      <LoadFailure
-        error={projectResult.error}
-        title={pageT('loadProjectFailed')}
-      />
-    );
-  }
-  if (monitorsResult === null) return null;
-  if (!monitorsResult.success) {
-    return (
-      <LoadFailure
-        error={monitorsResult.error}
-        title={t('loadFailed')}
-        notFoundOnMissing={false}
-      />
-    );
-  }
-
-  const project = projectResult.data;
-  const monitors = monitorsResult.data;
+  const period = search.period ?? DEFAULT_PERIOD;
   const newHref = `/projects/${projectId}/crons/new`;
+  const router = useRouter();
+  const empty = loaded.success && loaded.data[1].length === 0;
+
+  // The snippet creates the monitor on its first run, so an empty page
+  // re-runs its loader until one appears and the list replaces it.
+  useEffect(() => {
+    if (!empty) return;
+    const timer = setInterval(() => router.invalidate(), EMPTY_POLL_MS);
+    return () => clearInterval(timer);
+  }, [empty, router]);
+
+  if (!loaded.success) {
+    return <LoadFailure error={loaded.error} title={t('loadFailed')} />;
+  }
+
+  const [project, monitors, stats] = loaded.data;
+  const failing = monitors.filter((m) => monitorHealth(m) === 'failing').length;
+  const shown = monitors
+    .filter((m) => matches(m, search.q ?? '', search.state))
+    .sort(
+      (a, b) =>
+        RANK[monitorHealth(a)] - RANK[monitorHealth(b)] ||
+        a.name.localeCompare(b.name),
+    );
+
+  const fields: QueryField[] = [
+    {
+      key: 'state',
+      label: t('state'),
+      variant: 'options',
+      multiple: false,
+      options: STATES.map((value) => ({
+        value,
+        label: t(`health.${value}`),
+      })),
+    },
+  ];
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
-      <div className="flex w-full shrink-0 items-center justify-between gap-4 border-b px-4 py-4 md:px-8 md:py-6">
-        <div>
-          <h1 className="text-lg font-semibold">{t('title')}</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {t('subtitle')}
-          </p>
-        </div>
-        {monitors.length > 0 && (
-          <Button nativeButton={false} render={<Link href={newHref} />}>
-            <Plus />
-            {t('newMonitor')}
-          </Button>
-        )}
-      </div>
+    <div className="flex h-full flex-col">
+      <PageHeader
+        title={t('title')}
+        summary={[
+          project.name,
+          t('count', { count: monitors.length }),
+          failing > 0 ? (
+            <span className="text-sev-error-fg">
+              {t('failingCount', { count: failing })}
+            </span>
+          ) : null,
+        ]}
+        actions={
+          monitors.length > 0 ? (
+            <Button
+              variant="primary"
+              icon={NewIcon}
+              render={<Link href={newHref} />}
+            >
+              {t('newMonitor')}
+            </Button>
+          ) : null
+        }
+      />
 
-      <div className="flex-1 overflow-auto px-4 py-4 md:px-8 md:py-6">
-        {monitors.length === 0 ? (
-          <div className="mx-auto max-w-3xl py-6">
-            <div className="mb-6 flex flex-col items-center text-center">
-              <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
-                <Timer className="size-6 text-primary" />
-              </div>
-              <h2 className="text-lg font-semibold">{t('empty.title')}</h2>
-              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                {t('empty.description')}
-              </p>
-            </div>
-            <CronSetupGuide
-              dsn={project.dsn}
-              slug={SAMPLE_SLUG}
-              schedule={SAMPLE_SCHEDULE}
+      {monitors.length === 0 ? (
+        <Page>
+          <CronsEmpty dsn={project.dsn} newHref={newHref} />
+        </Page>
+      ) : (
+        <Page scroll={false}>
+          {/* Narrow, the bar takes a row and the window the next. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <QueryBar
+              className="min-w-0 max-sm:basis-full"
+              fields={fields}
+              filters={
+                search.state ? [{ id: 'state', value: [search.state] }] : []
+              }
+              search={search.q ?? ''}
+              placeholder={t('search')}
+              onChange={(next) => {
+                const state = next.filters.find((f) => f.id === 'state')?.value;
+                navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    q: next.search.trim() || undefined,
+                    state: Array.isArray(state)
+                      ? STATES.find((s) => s === state[0])
+                      : undefined,
+                  }),
+                  replace: true,
+                });
+              }}
             />
-            <p className="mt-3 text-xs text-muted-foreground">
-              {t('empty.upsertNote')}
-            </p>
-            <div className="mt-8 flex items-center justify-center gap-3 border-t pt-6 text-sm text-muted-foreground">
-              {t('empty.orManual')}
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={newHref} />}
-              >
-                {t('empty.manual')}
-              </Button>
-            </div>
+            <TimelinePeriodFilter
+              period={period}
+              onChange={(next) =>
+                navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    period: next === DEFAULT_PERIOD ? undefined : next,
+                  }),
+                })
+              }
+            />
           </div>
-        ) : (
-          <MonitorsTable projectId={projectId} monitors={monitors} />
-        )}
-      </div>
+          <MonitorList projectId={projectId} monitors={shown} stats={stats} />
+        </Page>
+      )}
     </div>
   );
 }

@@ -20,10 +20,18 @@ export function alertRuleFormSchema(t: Translate) {
       .record(z.string(), z.record(z.string(), z.string()))
       .optional(),
     is_enabled: z.boolean(),
-    cooldown_minutes: z.number().int().min(0),
+    // An emptied number input reads as NaN; the message says what fits.
+    cooldown_minutes: z
+      .number({ error: t('validation.cooldownMinutes') })
+      .int(t('validation.cooldownMinutes'))
+      .min(0, t('validation.cooldownMinutes')),
     min_level: z.enum([...levels, 'any']),
-    environments: z.string(),
-    min_events: z.number().int().min(1),
+    /** Picked names, each whole: one may contain a comma. */
+    environments: z.array(z.string()),
+    min_events: z
+      .number({ error: t('validation.minEvents') })
+      .int(t('validation.minEvents'))
+      .min(1, t('validation.minEvents')),
   });
 }
 

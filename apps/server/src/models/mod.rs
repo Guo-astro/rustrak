@@ -83,6 +83,7 @@ pub mod user;
 
 pub use alert::{
     AlertHistory,
+    AlertHistoryDay,
     AlertIntegration,
     AlertPayload,
     AlertRule,
@@ -117,8 +118,8 @@ pub use alert::{
 pub use auth_token::{AuthToken, AuthTokenCreatedResponse, AuthTokenResponse, CreateAuthToken};
 pub use event::{Event, EventDetailResponse, EventResponse, EventSummary};
 pub use gen_ai::{
-    AgentDurationPoint, AgentModelRow, AgentSummary, AgentTimeseriesPoint, AgentToolRow,
-    AgentTraceSummary, GenAiBreakdownRow,
+    AgentConversation, AgentConversationSummary, AgentDurationPoint, AgentModelRow, AgentSummary,
+    AgentTimeseriesPoint, AgentToolRow, AgentTraceSummary, ConversationSpan, GenAiBreakdownRow,
 };
 pub use grouping::Grouping;
 pub use installation::{Installation, QuotaWindows};
@@ -129,12 +130,15 @@ pub use issue::{
     substatus_valid_for_status, BulkDeleteIssues, BulkUpdateIssues, FeedbackResponse, Issue,
     IssueResponse, UpdateIssueState, STATUS_IGNORED, STATUS_RESOLVED, STATUS_UNRESOLVED,
 };
-pub use log::LogResponse;
+pub use log::{LogResponse, LogVolumePoint};
 pub use project::{
-    CreateProject, Project, ProjectResponse, UpdateProject, SELECTABLE_PLATFORMS, VALID_PLATFORMS,
+    CreateProject, Product, Project, ProjectResponse, UpdateProject, SELECTABLE_PLATFORMS,
+    VALID_PLATFORMS,
 };
 pub use project_member::{ProjectMember, ProjectMemberResponse, ProjectRole, UpsertProjectMember};
-pub use release::{is_valid_version, CreateRelease, Release, ReleaseResponse, UpdateRelease};
+pub use release::{
+    is_valid_version, CreateRelease, Release, ReleaseResponse, ReleaseSummary, UpdateRelease,
+};
 pub use span_v2::{parse_span_v2_container, SpanV2Entry};
 pub use stats::{EventTimeseriesPoint, MetricDelta, ProjectStatsSummary};
 pub use storage::{
@@ -145,6 +149,6 @@ pub use storage::{
 };
 pub use transaction::{
     span_attributes, SpanDetailResponse, SpanResponse, TransactionDetailResponse,
-    TransactionResponse, TransactionStatsResponse,
+    TransactionResponse, TransactionStatsResponse, TransactionTimeseriesPoint,
 };
 pub use user::{ChangePasswordRequest, CreateUserRequest, LoginRequest, User, UserRole};

@@ -19,11 +19,12 @@ use actix_web::cookie::Key;
 use actix_web::{test, web, App};
 use chrono::Utc;
 use rustrak::config::{Config, DashboardConfig, DatabaseConfig, RateLimitConfig};
-use rustrak::models::{CreateAuthToken, CreateProject, CreateUserRequest, UserRole};
+use rustrak::models::{CreateAuthToken, CreateProject, CreateRelease, CreateUserRequest, UserRole};
 use rustrak::routes;
 use rustrak::services::grouping::DenormalizedFields;
 use rustrak::services::{
-    AuthTokenService, CleanupJob, EventService, IssueService, ProjectService, UsersService,
+    AuthTokenService, CleanupJob, EventService, IssueService, ProjectService, ReleaseService,
+    UsersService,
 };
 use rustrak::telemetry::{
     ConfigFacts, Context, Counters, Report, Reporter, Sink, SinkError, TelemetryStatus,
@@ -80,6 +81,7 @@ struct Seed {
     sdk_event_id: Uuid,
     transaction_id: Uuid,
     span_row_id: Uuid,
+    log_id: Uuid,
     rule_id: i32,
     integration_id: i32,
 }
@@ -202,6 +204,18 @@ async fn seed(db: &TestDb) -> (Seed, String) {
     .await
     .unwrap();
 
+    ReleaseService::create(
+        &db.pool,
+        project.id,
+        CreateRelease {
+            version: CONTRACT_RELEASE.into(),
+            reference: None,
+            url: None,
+        },
+    )
+    .await
+    .unwrap();
+
     let now = Utc::now();
     let transaction_id = Uuid::new_v4();
     // No `op`: the stat-group route, called without one, matches a null op.
@@ -236,6 +250,33 @@ async fn seed(db: &TestDb) -> (Seed, String) {
     .execute(&db.pool)
     .await
     .unwrap();
+    // An agent run in a conversation, so the agents endpoints answer with rows.
+    sqlx::query(
+        "INSERT INTO spans (id, project_id, span_id, trace_id, op, start_timestamp, timestamp, \
+         duration_ms, data, gen_ai_operation_type, gen_ai_agent_name, gen_ai_conversation_id) \
+         VALUES ($1, $2, $3, $4, 'gen_ai.invoke_agent', $5, $5, 3.0, $6, 'agent', 'contract', 'contract')",
+    )
+    .bind(Uuid::new_v4())
+    .bind(project.id)
+    .bind("1".repeat(16))
+    .bind("1".repeat(32))
+    .bind(now)
+    .bind(json!({"gen_ai.response.text": "done"}))
+    .execute(&db.pool)
+    .await
+    .unwrap();
+    let log_id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO logs (id, project_id, level, body, attributes, timestamp) \
+         VALUES ($1, $2, 'info', 'contract', $3, $4)",
+    )
+    .bind(log_id)
+    .bind(project.id)
+    .bind(json!({}))
+    .bind(now)
+    .execute(&db.pool)
+    .await
+    .unwrap();
 
     let seed = Seed {
         project_id: project.id,
@@ -247,6 +288,7 @@ async fn seed(db: &TestDb) -> (Seed, String) {
         sdk_event_id,
         transaction_id,
         span_row_id,
+        log_id,
         rule_id: 0,
         integration_id: 0,
     };
@@ -268,8 +310,10 @@ fn param_value(name: &str, path: &str, schema: &Value, seed: &Seed) -> String {
         "event_id" => seed.event_row_id.to_string(),
         "transaction_id" => seed.transaction_id.to_string(),
         "span_id" => seed.span_row_id.to_string(),
+        "log_id" => seed.log_id.to_string(),
         "rule_id" => seed.rule_id.to_string(),
-        "slug" => "contract".into(),
+        "slug" | "conversation_id" => "contract".into(),
+        "release" => CONTRACT_RELEASE.into(),
         "project_slug" => seed.project_slug.clone(),
         "org_slug" => "rustrak".into(),
         "key" => "level".into(),
@@ -286,6 +330,7 @@ fn param_value(name: &str, path: &str, schema: &Value, seed: &Seed) -> String {
     }
 }
 
+const CONTRACT_RELEASE: &str = "1.0.0";
 const CONTRACT_CLIENT: &str = "https://client.example/metadata.json";
 const CONTRACT_REDIRECT: &str = "https://client.example/callback";
 

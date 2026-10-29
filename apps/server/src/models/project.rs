@@ -176,6 +176,32 @@ pub const SELECTABLE_PLATFORMS: &[&str] = &[
     "xbox",
 ];
 
+/// A kind of data a project can keep, and a route in its sidebar.
+///
+/// Turning one off is not a view setting: its items are dropped at ingest,
+/// with a 200 as Relay drops filtered data, so nothing new is stored and the
+/// SDK does not retry. What was already stored stays.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum Product {
+    /// Error events. Always kept: a project without them is not a project.
+    Issues,
+    /// `feedback` and `user_report` items.
+    Feedback,
+    /// Release health: `session` and `sessions` items.
+    Releases,
+    /// Transactions and spans.
+    Performance,
+    /// AI spans (`gen_ai.*`). They travel inside performance data, so turning
+    /// performance off turns them off too.
+    Agents,
+    /// `log` items.
+    Logs,
+    /// Check-ins, from envelopes and from the cron endpoint.
+    Crons,
+}
+
 /// Project model for reading from the database
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Project {
@@ -209,6 +235,11 @@ pub struct Project {
     #[serde(skip_serializing)]
     #[sqlx(flatten)]
     pub quota: super::QuotaWindows,
+    /// Products whose data is dropped at ingest. Never holds `issues`.
+    pub disabled_products: sqlx::types::Json<Vec<Product>>,
+    /// The order the sidebar lists the products in. Products missing from it
+    /// follow in their default order, so a product added later still shows.
+    pub product_order: sqlx::types::Json<Vec<Product>>,
 }
 
 /// DTO for creating a new project
@@ -260,6 +291,11 @@ pub struct UpdateProject {
     /// The same for the hour, against `MAX_EVENTS_PER_PROJECT_PER_HOUR`.
     #[serde(default, deserialize_with = "deserialize_optional_limit")]
     pub rate_limit_per_hour: Option<Option<i64>>,
+    /// The products to stop storing, replacing the current list. `issues`
+    /// cannot be one of them (400). Data already stored is kept.
+    pub disabled_products: Option<Vec<Product>>,
+    /// The sidebar's order of products, replacing the current one.
+    pub product_order: Option<Vec<Product>>,
 }
 
 /// Keeps a missing key (`None`) apart from an explicit `null` (`Some(None)`),
@@ -306,6 +342,11 @@ pub struct ProjectResponse {
     /// quiet", and only one of those should render an empty sparkline.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stats: Option<ProjectListStats>,
+    /// Products whose data this project drops at ingest.
+    pub disabled_products: Vec<Product>,
+    /// The order its sidebar lists the products in; the ones missing follow
+    /// in their default order.
+    pub product_order: Vec<Product>,
 }
 
 impl Project {
@@ -339,7 +380,20 @@ impl Project {
             created_at: self.created_at,
             updated_at: self.updated_at,
             platform: self.platform.clone(),
+            disabled_products: self.disabled_products.0.clone(),
+            product_order: self.product_order.0.clone(),
             stats: None,
+        }
+    }
+
+    /// Whether this project keeps `product`'s data. Issues always; agents
+    /// only while performance is on too, since AI spans are performance data.
+    pub fn keeps(&self, product: Product) -> bool {
+        let off = |p: Product| self.disabled_products.contains(&p);
+        match product {
+            Product::Issues => true,
+            Product::Agents => !off(Product::Agents) && !off(Product::Performance),
+            other => !off(other),
         }
     }
 }
@@ -368,6 +422,8 @@ mod tests {
             quota_exceeded_reason: None,
             next_quota_check: 0,
             quota: Default::default(),
+            disabled_products: Default::default(),
+            product_order: Default::default(),
         }
     }
 

@@ -1,71 +1,67 @@
+import { Collapsible as BaseCollapsible } from '@base-ui/react/collapsible';
 import { mergeProps } from '@base-ui/react/merge-props';
 import { useRender } from '@base-ui/react/use-render';
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { type ComponentPropsWithoutRef, type ReactNode, useState } from 'react';
 import { cn } from '../../lib/cn';
 import { focusRing } from '../../lib/focus';
-import { interactiveTransition, pressScaleSmall } from '../../lib/motion';
+import {
+  collapseFade,
+  interactiveTransition,
+  pressScaleTrigger,
+  scopeEnter,
+  scopeGroup,
+  swapAnimation,
+} from '../../lib/motion';
 import { tv } from '../../lib/tv';
 import { Avatar } from '../avatar/avatar';
+import { Wordmark } from '../brand/wordmark';
 import { Count } from '../count/count';
 import type { IconComponent } from '../icon/icon';
 import {
-  ChevronLeftIcon,
   ChevronRightIcon,
+  MoreIcon,
+  PanelLeftIcon,
+  SearchIcon,
   SelectorIcon,
 } from '../icon/icon-catalog';
 import { Kbd } from '../kbd/kbd';
+import { Menu, MenuActions } from '../menu/menu';
+import type { MenuAction } from '../menu/menu-parts';
+import { Separator } from '../separator/separator';
 import { Text } from '../text/text';
 import { Tooltip } from '../tooltip/tooltip';
 import { useSidebar } from './sidebar-context';
 
 /**
- * The sidebar: 216 px open, a 56 px rail collapsed.
+ * The sidebar: 244 px open, a 64 px rail collapsed.
  *
- * It holds two things and nothing else: which project you are in, and the seven
- * routes inside it. Earlier passes also carried an environment selector and a
- * quota block at the foot; both went, because a navigation column that also
- * holds controls stops being scannable and the routes are what people come here
- * to click. Anything that is a control belongs on the page it controls.
+ * It is not a panel. It is drawn straight on the canvas -- no fill of its own,
+ * no border -- and the pages sit beside it on a sheet that is one step
+ * lighter. That is the whole hierarchy of the frame.
  *
- * There is no scrolling and no accordion, because seven rows never need either.
- * That is a property of this product rather than a rule -- if the route list
- * ever grows past a screen, it needs sections, and sections need a design pass.
+ * Top to bottom: the mark and the collapse toggle, the scope card (which
+ * project you are in, and the only way to change it), search, the routes of
+ * that scope, and at the foot settings and the account.
  *
- * The active row is marked by a filled background and by weight: two signals,
- * because one of them being colour would leave out anyone who cannot pick lime
- * out of grey. An earlier version added a lime bar down the left edge as a
- * third; it went, because with only seven rows there is nothing to hunt for.
+ * **Collapsing is one element, not two.** Every row keeps the same markup in
+ * both states: the column narrows, the labels fade, and each icon sits where
+ * it already was -- 12 px in, which is the centre of the 40 px rail. Swapping
+ * to a second rail markup is what made the old collapse a jump cut.
  */
 const sidebar = tv({
   base: [
-    'flex w-sidebar shrink-0 flex-col border-e border-border-subtle bg-panel',
-    // Collapsing covers 160 px: the longest distance in the system, so it gets
+    'flex w-sidebar shrink-0 flex-col overflow-hidden bg-canvas px-3 pt-4 pb-3',
+    // Collapsing covers 180 px: the longest distance in the system, so it gets
     // the longest duration the system uses day to day.
     'transition-[width] duration-slow ease-standard',
     /*
      * On a phone it stops taking up space and becomes a drawer over the
-     * content. At 375 px wide, a permanent 216 px of navigation would leave
-     * 159 px for the issue, and the 56 px rail is no better: seven unlabelled
-     * icons with no tooltip -- because there is no pointer to hover with -- are
-     * not navigation, they are a guessing game.
-     *
-     * It moves with `translate`, which is the only thing that does not force
-     * the browser to lay the page out on every frame, and here it shows: this
-     * is the largest animation anyone sees on a phone.
+     * content, moved with `translate` -- the only thing that does not lay the
+     * page out again on every frame. `visibility` rides along so a closed
+     * drawer leaves nothing focusable off screen.
      */
     'max-md:fixed max-md:inset-y-0 max-md:start-0 max-md:z-40',
     'max-md:shadow-overlay',
-    /*
-     * `visibility` rides in the transition alongside the movement, and it is
-     * not decoration: it is what takes a closed drawer out of the tab order.
-     * The browser changes it last when hiding and first when showing, so the
-     * drawer is seen leaving in full and still leaves nothing focusable off
-     * screen.
-     *
-     * `translate`, not `transform`: Tailwind 4 compiles `-translate-x-full` to
-     * the individual property, so naming `transform` here would transition
-     * nothing and the drawer would teleport. See `lib/motion.ts`.
-     */
     'max-md:transition-[translate,visibility] max-md:duration-slow',
     'max-md:not-data-drawer-open:invisible',
     'max-md:not-data-drawer-open:-translate-x-full',
@@ -74,16 +70,25 @@ const sidebar = tv({
     'data-switching:transition-none',
   ],
   variants: {
-    // The collapsed width only exists from tablet up. On a phone the sidebar is
-    // always the same width: it is either there or it is not.
     collapsed: { true: 'md:w-sidebar-rail', false: 'md:w-sidebar' },
   },
 });
 
+/** A label that fades when the column narrows, and returns once it is wide. */
+const label = tv({
+  base: ['min-w-0 truncate', collapseFade],
+  variants: {
+    collapsed: {
+      true: 'pointer-events-none opacity-0',
+      false: 'opacity-100 delay-(--transition-duration-fast)',
+    },
+  },
+});
+
 export interface SidebarProps extends ComponentPropsWithoutRef<'nav'> {
-  /** The project card, above the routes and outside the scroll. */
+  /** The mark, the scope card and search: above the routes, never scrolled. */
   header?: ReactNode;
-  /** Pinned to the bottom. Usually the collapse button. */
+  /** Pinned to the bottom: settings, docs and the account. */
   footer?: ReactNode;
 }
 
@@ -106,29 +111,17 @@ export function Sidebar({
       {...props}
     >
       {header ? (
-        <div
-          className={cn(
-            'shrink-0 border-b border-border-muted p-2.5',
-            collapsed && 'flex justify-center px-0',
-          )}
-        >
-          {header}
-        </div>
+        <div className="flex shrink-0 flex-col gap-1.5 pb-2">{header}</div>
       ) : null}
 
-      <div
-        className={cn(
-          'flex min-h-0 flex-1 flex-col gap-px overflow-y-auto p-2.5',
-          collapsed && 'items-center gap-0.5 px-0',
-        )}
-      >
+      {/* The negative margin gives the focus ring room inside the scroller,
+          which would otherwise clip it on both sides. */}
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-px overflow-x-hidden overflow-y-auto px-1">
         {children}
       </div>
 
       {footer ? (
-        <div className="shrink-0 border-t border-border-muted p-2.5">
-          {footer}
-        </div>
+        <div className="flex shrink-0 flex-col gap-px pt-2.5">{footer}</div>
       ) : null}
     </nav>
   );
@@ -136,49 +129,126 @@ export function Sidebar({
 
 Sidebar.displayName = 'Sidebar';
 
+/* ------------------------------------------------------------------------- */
+/* The mark and the collapse toggle                                          */
+/* ------------------------------------------------------------------------- */
+
+export interface SidebarBrandProps
+  extends Omit<useRender.ComponentProps<'a'>, 'children'> {}
+
+/**
+ * The mark, and the toggle that collapses the sidebar.
+ *
+ * The toggle sits at the end and is exactly the rail's width, so collapsing
+ * leaves it where the eye already is. The mark fades out rather than being
+ * squeezed: it is never drawn smaller than its floor.
+ */
+export function SidebarBrand({
+  className,
+  render,
+  ...props
+}: SidebarBrandProps) {
+  const { collapsed, toggle } = useSidebar();
+  const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+
+  const mark = useRender({
+    defaultTagName: 'a',
+    render,
+    props: mergeProps<'a'>(
+      {
+        'aria-label': 'Rustrak',
+        'aria-hidden': collapsed || undefined,
+        tabIndex: collapsed ? -1 : undefined,
+        className: cn(
+          'absolute start-2 top-0 flex h-7 items-center rounded-xs text-fg',
+          'hover:text-fg-secondary',
+          focusRing,
+          label({ collapsed }),
+          // `label` brings the fade; the colour change on hover rides with it.
+          'transition-[opacity,color]',
+        ),
+        children: <Wordmark className="h-wordmark w-auto" />,
+      },
+      props,
+    ),
+  });
+
+  return (
+    <div
+      className={cn('relative flex h-9 shrink-0 justify-end pb-2', className)}
+    >
+      {mark}
+      <Tooltip content={`${toggleLabel} (⌘B)`} side="right">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={toggleLabel}
+          aria-expanded={!collapsed}
+          className={cn(
+            'flex h-7 w-rail-item-w shrink-0 items-center justify-center',
+            'rounded-md text-fg-subtle hover:bg-surface-hover hover:text-fg',
+            interactiveTransition,
+            focusRing,
+            'max-md:hidden',
+          )}
+        >
+          <PanelLeftIcon size="xl" />
+        </button>
+      </Tooltip>
+    </div>
+  );
+}
+
+SidebarBrand.displayName = 'SidebarBrand';
+
+/* ------------------------------------------------------------------------- */
+/* The scope card                                                            */
+/* ------------------------------------------------------------------------- */
+
 const projectCard = tv({
   base: [
-    'flex w-full items-center gap-2.5 rounded-lg border border-border-raised',
-    'bg-surface-raised text-start',
-    'hover:border-border-strong',
+    'flex h-project-card w-full shrink-0 items-center gap-2.5 rounded-xl',
+    'border ps-1.75 pe-2.5 text-start',
+    'hover:bg-surface-hover data-popup-open:bg-surface-hover',
     interactiveTransition,
+    pressScaleTrigger,
     focusRing,
   ],
   variants: {
+    // Collapsed, the card dissolves into the rail: the frame goes and the
+    // tile is what is left, in the same place it already was.
     collapsed: {
-      /* The same square as a rail row: collapsed, the project card is one
-         more item in that column and has to line up with the seven below it. */
-      true: 'size-rail-item justify-center p-0',
-      false: 'h-project-card px-2.5',
+      true: 'border-transparent bg-transparent',
+      false: 'border-border-subtle bg-surface-raised',
     },
   },
 });
 
 export interface SidebarProjectProps
   extends Omit<useRender.ComponentProps<'button'>, 'children'> {
-  /** The project. */
+  /** The project, or the workspace when you are above any one of them. */
   name: string;
-  /** The organisation it belongs to. */
-  organisation?: string;
-  /** The platform code inside the tile: `JS`, `PY`, `RS`. */
+  /** The line under it: the slug, or how many projects there are. */
+  detail?: string;
+  /** The code inside the monogram, when there is no `tile`. */
   platform?: string;
+  /** The project's logo, 26 px. Replaces the monogram. */
+  tile?: ReactNode;
 }
 
 /**
- * The project card at the head of the sidebar, and the way to switch project.
+ * The scope card: which project the routes below belong to, and the one
+ * control that changes it. Hand it to a `Menu` as its trigger.
  *
- * It is a card and not a row because it is not one of the routes: it says what
- * the seven rows underneath it are *about*. Wrap it in a `Menu` to make it
- * switch.
- *
- * Collapsed it keeps only the platform tile. The tile is the one part that
- * survives, because a two-letter code is the only thing in the card that is
- * still legible at 34 px.
+ * It is the only switcher in the sidebar on purpose. A second way to pick a
+ * project further down -- a list of them -- puts two answers to "where am I"
+ * on screen at once, and the reader has to work out which one is current.
  */
 export function SidebarProject({
   name,
-  organisation,
+  detail,
   platform,
+  tile,
   className,
   render,
   ...props
@@ -191,106 +261,119 @@ export function SidebarProject({
     props: mergeProps<'button'>(
       {
         type: 'button',
+        'aria-label': detail ? `${name} · ${detail}` : name,
         className: projectCard({ collapsed, className }),
-        ...(collapsed
-          ? {
-              'aria-label': organisation ? `${name} · ${organisation}` : name,
-              children: (
+        children: (
+          <>
+            {/* Keyed by the name, so switching scope replays the swap: the
+                tile and the name hand over in place. */}
+            <span
+              key={name}
+              className={cn('flex size-avatar shrink-0', swapAnimation)}
+            >
+              {tile ?? (
                 <Avatar
                   shape="square"
-                  size="md"
+                  size="sm"
+                  tone="brand"
                   name={name}
                   initials={platform}
-                  className="border-0 bg-transparent text-fg-tertiary"
                 />
-              ),
-            }
-          : {
-              children: (
-                <>
-                  <Avatar
-                    shape="square"
-                    size="md"
-                    name={name}
-                    initials={platform}
-                  />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <Text variant="control" truncate className="font-semibold">
-                      {name}
-                    </Text>
-                    {organisation ? (
-                      <Text variant="hint" tone="meta" truncate>
-                        {organisation}
-                      </Text>
-                    ) : null}
-                  </span>
-                  <SelectorIcon size="md" className="shrink-0 text-fg-ghost" />
-                </>
-              ),
-            }),
+              )}
+            </span>
+            <span className={cn('flex flex-1 flex-col', label({ collapsed }))}>
+              <Text
+                key={name}
+                variant="value"
+                truncate
+                className={cn('font-semibold', swapAnimation)}
+              >
+                {name}
+              </Text>
+              {detail ? (
+                <Text variant="hint" tone="subtle" truncate>
+                  {detail}
+                </Text>
+              ) : null}
+            </span>
+            <SelectorIcon
+              size="lg"
+              className={cn('shrink-0 text-fg-subtle', label({ collapsed }))}
+            />
+          </>
+        ),
       },
       props,
     ),
   });
 
-  if (collapsed) {
-    return (
-      <Tooltip content={name} side="right">
-        {element}
-      </Tooltip>
-    );
-  }
-
-  return element;
+  return (
+    <Tooltip content={name} side="right" disabled={!collapsed}>
+      {element}
+    </Tooltip>
+  );
 }
 
 SidebarProject.displayName = 'SidebarProject';
 
+/* ------------------------------------------------------------------------- */
+/* Routes                                                                    */
+/* ------------------------------------------------------------------------- */
+
 const row = tv({
   base: [
-    'relative flex h-nav-item w-full items-center gap-2.5 rounded-md px-2.5',
-    'text-value text-fg-muted',
-    'hover:bg-surface-hover hover:text-fg-secondary',
-    /*
-     * The height is not negotiable.
-     *
-     * The scroll area is a flex column and its children shrink by default: the
-     * moment the list runs past the bottom, a row would give up its 32 px and
-     * the hover background would come out thinner than its neighbours.
-     */
-    'shrink-0',
+    // 12 px in, so the 16 px icon is centred in the 40 px rail and does not
+    // move when the column narrows around it.
+    'relative flex h-nav-item w-full shrink-0 items-center gap-2.5',
+    'rounded-lg px-3 text-value font-medium text-fg-muted',
+    'hover:bg-surface-hover hover:text-fg',
     interactiveTransition,
-    // A nav row does not sink on press: it is 32 px, and shrinking it reads as
-    // a flicker. The background arriving already says it was pressed.
+    scopeEnter,
+    // A nav row does not sink on press: shrinking a full-width row reads as a
+    // flicker. The background arriving already says it was pressed.
     focusRing,
   ],
   variants: {
-    active: { true: 'bg-surface-selected font-semibold text-fg' },
+    active: { true: 'bg-surface-selected text-fg hover:bg-surface-selected' },
   },
 });
 
-const railRow = tv({
+/** The count beside a label: plain, or on an amber chip when it is a warning. */
+const rowCount = tv({
+  base: 'rounded-sm px-1.5 leading-4.5',
+  variants: {
+    tone: {
+      default: '',
+      warning: 'bg-sev-warning-surface text-sev-warning-fg',
+    },
+  },
+});
+
+/** The dot a warning count turns into on the rail. */
+const railDot = tv({
   base: [
-    'relative flex h-rail-item w-rail-item-w shrink-0 items-center',
-    'justify-center rounded-md text-fg-muted',
-    'hover:bg-surface-hover hover:text-fg-secondary',
-    interactiveTransition,
-    pressScaleSmall,
-    focusRing,
+    'absolute end-2 top-2 size-1.5 rounded-pill bg-sev-warning',
+    collapseFade,
   ],
   variants: {
-    active: { true: 'bg-surface-selected text-fg' },
+    collapsed: { true: 'opacity-100', false: 'opacity-0' },
   },
 });
 
-export interface SidebarItemProps
-  extends Omit<useRender.ComponentProps<'a'>, 'children'> {
-  icon: IconComponent;
-  label: string;
-  /** How many are open. Zero is not drawn. */
-  count?: number | string;
-  active?: boolean;
-}
+type SidebarItemMark =
+  | { icon: IconComponent; leading?: never }
+  /** A thing rather than a route -- a project -- drawn by its 18 px logo. */
+  | { leading: ReactNode; icon?: never };
+
+export type SidebarItemProps = SidebarItemMark &
+  Omit<useRender.ComponentProps<'a'>, 'children'> & {
+    label: string;
+    /** How many there are. Zero is not drawn. */
+    count?: number | string;
+    /** A count that needs looking at -- a failing cron -- is drawn in amber. */
+    tone?: 'default' | 'warning';
+    active?: boolean;
+  };
 
 /**
  * A route.
@@ -298,15 +381,16 @@ export interface SidebarItemProps
  * With `render` the element changes without losing the look, which is how a
  * router's link is plugged in: `render={<Link to="/issues" />}`.
  *
- * Collapsed it becomes a rail item and the label moves into a tooltip, which is
- * the only way to keep the name without the width. The count moves too -- into
- * a lime dot, because a four-digit number does not fit in 36 px and "there is
- * something here" is the part that survives the loss.
+ * Collapsed, the label fades and moves into a tooltip; a warning count
+ * becomes a dot, because "something here needs looking at" is the part that
+ * survives the loss of width.
  */
 export function SidebarItem({
   icon: Icon,
-  label,
+  leading,
+  label: text,
   count,
+  tone = 'default',
   active,
   className,
   render,
@@ -321,94 +405,390 @@ export function SidebarItem({
     props: mergeProps<'a'>(
       {
         'aria-current': active ? 'page' : undefined,
-        ...(collapsed
-          ? {
-              'aria-label': label,
-              className: railRow({ active, className }),
-              children: (
-                <>
-                  <Icon size="xl" />
-                  {hasCount ? (
-                    <span
-                      aria-hidden="true"
-                      className="absolute end-1.5 top-1.5 size-dot rounded-pill bg-surface-brand"
-                    />
-                  ) : null}
-                </>
-              ),
-            }
-          : {
-              className: row({ active, className }),
-              children: (
-                <>
-                  <Icon size="lg" className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{label}</span>
-                  <Count>{count}</Count>
-                </>
-              ),
-            }),
+        'aria-label': collapsed ? text : undefined,
+        className: row({ active, className }),
+        children: (
+          <>
+            {Icon ? <Icon size="2xl" className="shrink-0" /> : leading}
+            <span className={cn('flex-1', label({ collapsed }))}>{text}</span>
+            <Count
+              tone={tone === 'warning' ? 'strong' : 'default'}
+              className={cn(rowCount({ tone }), label({ collapsed }))}
+            >
+              {count}
+            </Count>
+            {hasCount && tone === 'warning' ? (
+              <span aria-hidden="true" className={railDot({ collapsed })} />
+            ) : null}
+          </>
+        ),
       },
       props,
     ),
   });
 
-  if (collapsed) {
-    return (
-      <Tooltip content={hasCount ? `${label} · ${count}` : label} side="right">
-        {element}
-      </Tooltip>
-    );
-  }
-
-  return element;
+  return (
+    <Tooltip
+      content={hasCount ? `${text} · ${count}` : text}
+      side="right"
+      disabled={!collapsed}
+    >
+      {element}
+    </Tooltip>
+  );
 }
 
 SidebarItem.displayName = 'SidebarItem';
 
-/** The collapse button, and its shortcut. */
-export function SidebarCollapseButton() {
-  const { collapsed, toggle } = useSidebar();
-  const label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-  const Icon = collapsed ? ChevronRightIcon : ChevronLeftIcon;
+/** The hairline a group's label turns into on the rail. */
+const groupRule = tv({
+  base: ['absolute start-2 top-1/2 w-6', collapseFade],
+  variants: {
+    collapsed: { true: 'opacity-100', false: 'opacity-0' },
+  },
+});
 
-  const button = (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={label}
-      aria-expanded={!collapsed}
-      className={cn(
-        'flex h-control-sm items-center gap-2.5 rounded-md px-2.5',
-        'text-meta text-fg-meta',
-        'hover:bg-surface-hover hover:text-fg-secondary',
-        interactiveTransition,
-        collapsed ? 'mx-auto w-rail-item-w justify-center px-0' : 'w-full',
-        focusRing,
-      )}
-    >
-      <Icon size="md" className="shrink-0" />
-      {collapsed ? null : (
-        <>
-          <span className="min-w-0 flex-1 truncate text-start">{label}</span>
-          <Kbd>⌘B</Kbd>
-        </>
-      )}
-    </button>
-  );
+export interface SidebarGroupProps {
+  /** What the routes underneath have in common: Triage, Monitor. */
+  label: string;
+  children: ReactNode;
+}
 
-  /* On a phone there is no rail to collapse to, so the button says nothing:
-     the drawer closes by tapping outside, with Escape, or by picking a route. */
+/**
+ * Routes that belong together, under a quiet label.
+ *
+ * Collapsed, the label fades and a short hairline fades in where it was, in
+ * the same space: the rail still shows where one group ends, and nothing
+ * below it moves up or down.
+ */
+export function SidebarGroup({ label: text, children }: SidebarGroupProps) {
+  const { collapsed } = useSidebar();
+
   return (
-    <div className="max-md:hidden">
-      {collapsed ? (
-        <Tooltip content={`${label} (⌘B)`} side="right">
-          {button}
-        </Tooltip>
-      ) : (
-        button
-      )}
+    <div className={cn('flex shrink-0 flex-col gap-px', scopeGroup)}>
+      <div
+        className={cn(
+          'relative mt-3.5 flex h-7 shrink-0 items-center px-2.5',
+          'text-hint font-medium text-fg-meta',
+          scopeEnter,
+        )}
+      >
+        <span className={label({ collapsed })}>{text}</span>
+        <Separator className={groupRule({ collapsed })} />
+      </div>
+      {children}
     </div>
   );
 }
 
-SidebarCollapseButton.displayName = 'SidebarCollapseButton';
+SidebarGroup.displayName = 'SidebarGroup';
+
+export interface SidebarSubmenuProps {
+  /** The thing the routes inside belong to: a project's name. */
+  label: string;
+  /** Its 18 px logo. */
+  leading: ReactNode;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** The routes inside: `SidebarItem`s. */
+  children: ReactNode;
+}
+
+/**
+ * A row that opens to the routes of one thing -- a project's settings -- set
+ * in under it on a hairline, so they read as belonging to it.
+ *
+ * The panel's height animates (Base UI measures it into
+ * `--collapsible-panel-height`), so the rows below slide instead of jumping.
+ * On the rail there is no room for nested rows: the logo stays, with the name
+ * in its tooltip, and the panel is left closed.
+ */
+export function SidebarSubmenu({
+  label: text,
+  leading,
+  open,
+  defaultOpen,
+  onOpenChange,
+  children,
+}: SidebarSubmenuProps) {
+  const { collapsed } = useSidebar();
+
+  return (
+    <BaseCollapsible.Root
+      open={collapsed ? false : open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
+      className="flex shrink-0 flex-col"
+    >
+      <Tooltip content={text} side="right" disabled={!collapsed}>
+        <BaseCollapsible.Trigger
+          aria-label={collapsed ? text : undefined}
+          className={row({ className: 'group/submenu' })}
+        >
+          {leading}
+          <span className={cn('flex-1 text-start', label({ collapsed }))}>
+            {text}
+          </span>
+          <ChevronRightIcon
+            size="md"
+            aria-hidden="true"
+            className={cn(
+              'shrink-0 text-fg-ghost transition-[rotate] duration-moderate ease-standard',
+              'group-data-panel-open/submenu:rotate-90',
+              'motion-reduce:transition-none',
+              label({ collapsed }),
+            )}
+          />
+        </BaseCollapsible.Trigger>
+      </Tooltip>
+      <BaseCollapsible.Panel
+        className={cn(
+          'h-(--collapsible-panel-height) overflow-hidden',
+          'transition-[height] duration-moderate ease-standard',
+          'data-starting-style:h-0 data-ending-style:h-0',
+          'motion-reduce:transition-none',
+        )}
+      >
+        <div className="ms-5 mt-px mb-1.5 flex flex-col gap-px border-s border-border-subtle ps-2">
+          {children}
+        </div>
+      </BaseCollapsible.Panel>
+    </BaseCollapsible.Root>
+  );
+}
+
+SidebarSubmenu.displayName = 'SidebarSubmenu';
+
+type Direction = 'forward' | 'back' | 'swap';
+
+export interface SidebarScopeProps {
+  /**
+   * What the routes below are about: `workspace`, `project:42`. A new value
+   * replays the entrance.
+   */
+  scope: string;
+  /**
+   * How deep the scope is: 0 for the workspace, 1 inside a project. Going
+   * deeper slides the rows in from the right, coming back from the left, and
+   * a move at the same depth -- one project to another -- swaps in place.
+   */
+  depth: number;
+  children: ReactNode;
+}
+
+/**
+ * The routes of one scope, and the entrance when the scope changes.
+ *
+ * Moving between the workspace and a project is the one structural change the
+ * sidebar makes, and done in a single frame it reads as the navigation
+ * breaking. Animated with a direction it reads as going in and coming back
+ * out, which is what happened. The rows build top to bottom, each a beat after
+ * the one above.
+ *
+ * The first paint does not animate: nothing changed, the page just arrived.
+ */
+export function SidebarScope({ scope, depth, children }: SidebarScopeProps) {
+  const [last, setLast] = useState<{
+    scope: string;
+    depth: number;
+    direction?: Direction;
+  }>({ scope, depth });
+
+  // Adjusting state while rendering, so the rows mount already knowing which
+  // way to come in -- an effect would paint them once in place first.
+  if (last.scope !== scope) {
+    setLast({
+      scope,
+      depth,
+      direction:
+        depth > last.depth ? 'forward' : depth < last.depth ? 'back' : 'swap',
+    });
+  }
+
+  return (
+    <div
+      key={scope}
+      data-direction={last.direction}
+      // Empty -- the workspace has no project card -- it takes no room, so
+      // the gap around it does not either.
+      className="group/scope flex flex-col gap-px empty:hidden"
+    >
+      {children}
+    </div>
+  );
+}
+
+SidebarScope.displayName = 'SidebarScope';
+
+/* ------------------------------------------------------------------------- */
+/* Search                                                                    */
+/* ------------------------------------------------------------------------- */
+
+export interface SidebarSearchProps
+  extends Omit<ComponentPropsWithoutRef<'button'>, 'children'> {
+  label?: string;
+  /** The shortcut that opens it. */
+  shortcut?: string;
+}
+
+/**
+ * Global search.
+ *
+ * A button, not an `input`: it opens the command palette rather than
+ * searching in place. Drawn as one more row so it reads as a place you go,
+ * which is what the palette is.
+ */
+export function SidebarSearch({
+  label: text = 'Search',
+  shortcut = '⌘K',
+  className,
+  ...props
+}: SidebarSearchProps) {
+  const { collapsed } = useSidebar();
+
+  return (
+    <Tooltip
+      content={`${text} (${shortcut})`}
+      side="right"
+      disabled={!collapsed}
+    >
+      <button
+        type="button"
+        aria-label={text}
+        className={cn(
+          row({ className: 'font-normal text-fg-subtle' }),
+          className,
+        )}
+        {...props}
+      >
+        <SearchIcon size="xl" className="shrink-0" />
+        <span className={cn('flex-1 text-start', label({ collapsed }))}>
+          {text}
+        </span>
+        <Kbd className={label({ collapsed })}>{shortcut}</Kbd>
+      </button>
+    </Tooltip>
+  );
+}
+
+SidebarSearch.displayName = 'SidebarSearch';
+
+/* ------------------------------------------------------------------------- */
+/* The account                                                               */
+/* ------------------------------------------------------------------------- */
+
+const user = tv({
+  slots: {
+    trigger: [
+      // 7 px in, so the 26 px avatar is centred in the 40 px rail.
+      'flex w-full shrink-0 items-center gap-2.5 rounded-lg p-1.75 text-start',
+      'hover:bg-surface-hover data-popup-open:bg-surface-hover',
+      interactiveTransition,
+      pressScaleTrigger,
+      focusRing,
+    ],
+    popup: 'w-64 max-w-(--available-width)',
+    header: 'flex items-center gap-2.5 px-2.5 pt-2.5 pb-3',
+    footer: [
+      'flex items-center justify-between gap-3 px-2.5 pt-2 pb-1',
+      'font-mono text-mono-sm text-fg-ghost',
+    ],
+  },
+});
+
+const userStyles = user();
+
+export interface SidebarUserProps {
+  name: string;
+  /** The line under the name: the role, or the address. */
+  detail?: string;
+  email?: string;
+  src?: string;
+  /** What can be done from here. Sign out goes last and separated. */
+  actions: MenuAction[];
+  /** The build. Not an action: it is what you read out over the phone. */
+  version?: string;
+}
+
+/**
+ * The account, at the foot of the sidebar.
+ *
+ * The whole row opens the menu, and it ends in an ellipsis because a name on
+ * its own does not say there is anything behind it. Inside, the first thing is
+ * who you are, and the last thing, separated, is leaving.
+ */
+export function SidebarUser({
+  name,
+  detail,
+  email,
+  src,
+  actions,
+  version,
+}: SidebarUserProps) {
+  const { collapsed } = useSidebar();
+
+  return (
+    <div className="mt-2.5 w-full border-t border-border-divider pt-2.5">
+      <Menu
+        side={collapsed ? 'right' : 'top'}
+        align={collapsed ? 'end' : 'start'}
+        popupClassName={userStyles.popup()}
+        trigger={
+          <button
+            type="button"
+            aria-label={`Account: ${name}`}
+            className={userStyles.trigger()}
+          >
+            <Avatar name={name} src={src} />
+            <span className={cn('flex flex-1 flex-col', label({ collapsed }))}>
+              <Text variant="value" truncate className="font-medium">
+                {name}
+              </Text>
+              {detail ? (
+                <Text variant="hint" tone="meta" truncate>
+                  {detail}
+                </Text>
+              ) : null}
+            </span>
+            <MoreIcon
+              size="lg"
+              className={cn('shrink-0 text-fg-meta', label({ collapsed }))}
+            />
+          </button>
+        }
+      >
+        <div className={userStyles.header()}>
+          <Avatar name={name} src={src} size="md" />
+          {/* `min-w-0` on the column and `w-full` on each line: that is what
+              lets a long address clip instead of widening the panel. */}
+          <span className="flex min-w-0 flex-1 flex-col items-start">
+            <Text variant="card-title" truncate className="w-full">
+              {name}
+            </Text>
+            {email ? (
+              <Text variant="meta" tone="meta" truncate className="w-full">
+                {email}
+              </Text>
+            ) : null}
+          </span>
+        </div>
+
+        <Separator className="mx-2 mb-1.5" />
+
+        <MenuActions actions={actions} />
+
+        {version ? (
+          <>
+            <Separator className="mx-2 mt-1.5" />
+            <div className={userStyles.footer()}>
+              <span className="min-w-0 truncate">{version}</span>
+            </div>
+          </>
+        ) : null}
+      </Menu>
+    </div>
+  );
+}
+
+SidebarUser.displayName = 'SidebarUser';

@@ -1,11 +1,11 @@
+import { Kbd } from '@rustrak/ui';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
-import { Kbd, KbdGroup } from '@/shared/ui/components/shadcn/kbd';
 
-function Hint({ keys, children }: { keys: ReactNode; children: ReactNode }) {
+function Hint({ keys, children }: { keys: string; children: ReactNode }) {
   return (
     <span className="flex items-center gap-1.5">
-      {keys}
+      <Kbd tone="muted">{keys}</Kbd>
       {children}
     </span>
   );
@@ -22,26 +22,19 @@ export function CommandBarFooter({
   const t = useTranslations();
 
   return (
-    <div className="flex shrink-0 items-center gap-5 border-t border-foreground/10 bg-foreground/[0.03] px-4 py-3 text-xs text-muted-foreground">
-      <Hint
-        keys={
-          <KbdGroup>
-            <Kbd>↑</Kbd>
-            <Kbd>↓</Kbd>
-          </KbdGroup>
-        }
-      >
-        {t('commands.navigate')}
-      </Hint>
-      <Hint keys={<Kbd>↵</Kbd>}>{t('commands.open')}</Hint>
+    <div className="flex h-10 shrink-0 items-center gap-4 border-border-divider border-t px-4 text-fg-subtle text-hint">
+      <Hint keys="↑↓">{t('commands.navigate')}</Hint>
+      <Hint keys="↵">{t('commands.open')}</Hint>
 
       {hasPreview ? (
-        <Hint keys={<Kbd>⇥</Kbd>}>
+        <Hint keys="⇥">
           {previewOpen ? t('commands.hidePages') : t('commands.pages')}
         </Hint>
       ) : null}
 
-      <Hint keys={<Kbd>esc</Kbd>}>{t('commands.close')}</Hint>
+      <span className="ms-auto">
+        <Hint keys="esc">{t('commands.close')}</Hint>
+      </span>
     </div>
   );
 }

@@ -26,7 +26,7 @@ export function Breadcrumbs({ breadcrumbs }: BreadcrumbsProps) {
 
   if (items.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="py-8 text-center text-meta text-fg-subtle">
         {t('breadcrumbs.empty')}
       </div>
     );
