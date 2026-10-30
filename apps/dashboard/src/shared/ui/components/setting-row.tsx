@@ -179,17 +179,21 @@ export function SettingsListItem({
  * the list lands.
  */
 export function SettingsListSkeleton({ rows = 3 }: { rows?: number }) {
-  return Array.from({ length: rows }, (_, row) => (
-    <SettingsListItem
-      // Placeholder rows have no identity beyond their position.
-      // react-doctor-disable-next-line react-doctor/no-array-index-as-key
-      key={row}
-      leading={<Skeleton className="size-8 rounded-lg" />}
-      title={<Skeleton className="my-0.5 h-4 w-48" />}
-      description={<Skeleton className="my-0.5 h-3 w-32" />}
-      meta={<Skeleton className="h-3 w-24" />}
-    />
-  ));
+  return (
+    <>
+      {Array.from({ length: rows }, (_, row) => (
+        <SettingsListItem
+          // Placeholder rows have no identity beyond their position.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+          key={row}
+          leading={<Skeleton className="size-8 rounded-lg" />}
+          title={<Skeleton className="my-0.5 h-4 w-48" />}
+          description={<Skeleton className="my-0.5 h-3 w-32" />}
+          meta={<Skeleton className="h-3 w-24" />}
+        />
+      ))}
+    </>
+  );
 }
 
 /**

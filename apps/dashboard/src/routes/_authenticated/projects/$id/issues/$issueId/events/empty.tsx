@@ -42,7 +42,14 @@ function EmptyEventsLoading() {
     <PageLoading>
       <div className="flex h-full flex-col">
         <PageHeader title={<Skeleton className="h-7 w-80 max-w-full" />} />
-        <NoEvents />
+        {/* Not the empty state: nothing has said there are no events yet. */}
+        <Page>
+          <div className="flex flex-col items-center gap-2 py-16">
+            <Skeleton shape="circle" className="mb-2 size-8" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-72 max-w-full" />
+          </div>
+        </Page>
       </div>
     </PageLoading>
   );

@@ -252,7 +252,12 @@ function AgentsPage() {
           projectId={projectId}
         />
       ) : (
-        <AgentsOverview reads={reads} summary={summary} scope={scope} />
+        <AgentsOverview
+          reads={reads}
+          summary={summary}
+          scope={scope}
+          loading={loading}
+        />
       )}
     </AgentsScreen>
   );
@@ -372,11 +377,14 @@ function AgentsOverview({
   reads,
   summary,
   scope,
+  loading = false,
 }: {
   reads: AgentReads;
   /** Absent while it loads: the figures are skeleton. */
   summary?: AgentSummary;
   scope: ReactNode;
+  /** Another tab or scope is on its way: the panels stay, dimmed. */
+  loading?: boolean;
 }) {
   const t = useTranslations('agents');
   const loadFailed = useTranslations('projectPages')('agents.loadFailed');
@@ -410,7 +418,7 @@ function AgentsOverview({
   };
 
   return (
-    <Page>
+    <Page className={loading ? 'opacity-60' : undefined}>
       <div className="flex justify-end">{scope}</div>
       {summary ? (
         <AgentFigures summary={summary} />

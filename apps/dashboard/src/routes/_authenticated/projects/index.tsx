@@ -74,7 +74,11 @@ function ProjectsPage() {
           page !== live && 'opacity-60',
         )}
       >
-        <ProjectsGrid page={projects} currentPage={live} />
+        <ProjectsGrid
+          page={projects}
+          currentPage={page}
+          loading={page !== live}
+        />
       </div>
     </ProjectsScreen>
   );

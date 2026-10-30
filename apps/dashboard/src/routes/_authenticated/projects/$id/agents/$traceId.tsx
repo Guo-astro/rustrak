@@ -32,16 +32,24 @@ export const Route = createFileRoute(
   }),
   loaderDeps: ({ search }) => ({ span: search.span }),
   // The trace is the page. A span named in the address is started beside
-  // it; the default one is chosen from the spans, so the pane asks for it
-  // once they are in.
+  // it; the default one is chosen from the spans, so it is started as soon
+  // as they land rather than once the page has rendered them.
   loader: ({ context: { queryClient }, params, deps }) => {
     const projectId = Number.parseInt(params.id, 10);
-    void queryClient
-      .query(agentQueries.trace(projectId, params.traceId))
-      .catch(noop);
+    const span = (spanId: string) =>
+      queryClient.query(agentQueries.span(projectId, spanId));
+    const trace = queryClient.query(
+      agentQueries.trace(projectId, params.traceId),
+    );
     if (deps.span != null) {
-      void queryClient
-        .query(agentQueries.span(projectId, deps.span))
+      void span(deps.span).catch(noop);
+      void trace.catch(noop);
+    } else {
+      void trace
+        .then((spans) => {
+          const { selectedSpanId } = resolveSelectedSpan(spans, undefined);
+          if (selectedSpanId) void span(selectedSpanId).catch(noop);
+        })
         .catch(noop);
     }
   },

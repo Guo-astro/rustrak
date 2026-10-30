@@ -180,7 +180,7 @@ function FeedbackPage() {
             <FeedbackList
               feedback={feedback}
               selectedId={current.id}
-              page={livePage}
+              page={page}
               isPending={isPending}
               onSelect={select}
               onPageChange={(next) =>

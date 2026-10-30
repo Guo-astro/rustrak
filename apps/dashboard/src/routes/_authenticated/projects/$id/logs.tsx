@@ -143,7 +143,7 @@ function LogsPage() {
   const { id } = Route.useParams();
   const projectId = Number.parseInt(id, 10);
   const period = search.period ?? DEFAULT_PERIOD;
-  const page = live.page ?? 1;
+  const page = search.page ?? 1;
   const reads = logReads(projectId, search);
   const { data: project } = useSuspenseQuery(projectQueries.detail(projectId));
   const { data: logs } = useSuspenseQuery(reads.list);

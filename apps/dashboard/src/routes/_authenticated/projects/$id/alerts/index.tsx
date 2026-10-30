@@ -194,13 +194,7 @@ function AlertsScreen({
         {integrations?.length === 0 ? <NoChannels href={channelsHref} /> : null}
         {view === 'deliveries' ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-panel">
-            {rules ? (
-              <Deliveries
-                projectId={projectId}
-                rules={rules}
-                history={history}
-              />
-            ) : null}
+            <Deliveries projectId={projectId} rules={rules} history={history} />
           </div>
         ) : rules?.length === 0 ? (
           <AlertStarters projectId={projectId} />
@@ -237,21 +231,41 @@ function NoChannels({ href }: { href: string }) {
   );
 }
 
-/** Every delivery, each under the name of the alert that sent it. */
+/**
+ * Every delivery, each under the name of the alert that sent it. Skeleton
+ * rows until both the deliveries and the rules that name them are in.
+ */
 function Deliveries({
   projectId,
   rules,
   history,
 }: {
   projectId: number;
-  rules: AlertRuleResponse[];
+  rules?: AlertRuleResponse[];
   history: UseQueryResult<AlertHistory[], ApiError>;
 }) {
   const t = useTranslations('alerts');
+  const placeholder = (
+    <div className="flex flex-col">
+      {Array.from({ length: 6 }, (_, row) => (
+        <div
+          // Placeholder rows have no identity beyond their position.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+          key={row}
+          className="flex items-center gap-4 border-b border-border-divider px-4 py-3 last:border-b-0"
+        >
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 flex-1" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+  if (!rules) return placeholder;
   return (
     <QueryState
       query={history}
-      placeholder={null}
+      placeholder={placeholder}
       title={t('overview.loadFailed')}
     >
       {(deliveries) => (
