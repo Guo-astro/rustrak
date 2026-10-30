@@ -186,6 +186,19 @@ fn a_first_run_with_no_expected_slot_takes_the_next_slot() {
 }
 
 #[test]
+fn a_late_first_minutely_run_fills_the_next_slot_early() {
+    // The trade-off in the doc comment: with no expected slot, a run that
+    // starts in the last 30s of a minute takes the next minute's slot.
+    let c = crontab("* * * * *");
+    let started = at("2026-01-01T06:00:45Z");
+    let done = at("2026-01-01T06:00:50Z");
+    assert_eq!(
+        c.checkin_reference(started, None, done),
+        at("2026-01-01T06:01:00Z")
+    );
+}
+
+#[test]
 fn an_interval_counts_from_the_run_itself() {
     let c = interval(1, IntervalUnit::Minute);
     let t = at("2026-01-01T05:59:59.600Z");
