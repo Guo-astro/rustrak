@@ -141,19 +141,25 @@ impl MonitorConfig {
     /// that started at `started`, just before the crontab slot it was
     /// `expected` for, fills that slot. Else `at`, so a late or long run never
     /// takes the following slot.
+    ///
+    /// A new environment's first run has no expected slot, so it takes the
+    /// first slot after `started`. A late first run can then fill the next
+    /// slot early, which is likely only when it reports in the last 30s of a
+    /// minutely schedule.
     pub fn checkin_reference(
         &self,
         started: DateTime<Utc>,
         expected: Option<DateTime<Utc>>,
         at: DateTime<Utc>,
     ) -> DateTime<Utc> {
-        match (&self.schedule, expected) {
-            (Schedule::Crontab { .. }, Some(slot))
-                if started < slot && slot - started < Duration::seconds(EARLY_CHECKIN_SECS) =>
-            {
-                at.max(slot)
-            }
-            _ => at,
+        if !matches!(self.schedule, Schedule::Crontab { .. }) {
+            return at;
+        }
+        let slot = expected.unwrap_or_else(|| self.next_checkin(started));
+        if started < slot && slot - started < Duration::seconds(EARLY_CHECKIN_SECS) {
+            at.max(slot)
+        } else {
+            at
         }
     }
 

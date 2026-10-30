@@ -172,10 +172,17 @@ fn a_late_or_long_run_never_fills_the_next_slot() {
 }
 
 #[test]
-fn a_run_with_no_expected_slot_counts_from_itself() {
+fn a_first_run_with_no_expected_slot_takes_the_next_slot() {
     let c = crontab("0 * * * *");
     let t = at("2026-01-01T05:59:59.600Z");
-    assert_eq!(c.checkin_reference(t, None, t), t);
+    assert_eq!(c.checkin_reference(t, None, t), at("2026-01-01T06:00:00Z"));
+    // Its result, after the slot, counts from itself.
+    let done = at("2026-01-01T06:00:20Z");
+    assert_eq!(c.checkin_reference(t, None, done), done);
+    // On time or well before the slot, it counts from itself.
+    for s in ["2026-01-01T06:00:00Z", "2026-01-01T05:59:30Z"] {
+        assert_eq!(c.checkin_reference(at(s), None, at(s)), at(s), "{s}");
+    }
 }
 
 #[test]

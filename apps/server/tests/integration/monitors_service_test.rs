@@ -682,6 +682,26 @@ async fn a_run_that_fails_just_before_its_slot_is_not_also_missed() {
     assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
 }
 
+#[actix_web::test]
+async fn a_new_monitor_whose_first_run_reports_just_before_its_slot_is_not_missed() {
+    let db = TestDb::new().await;
+    let pid = project(&db.pool).await;
+
+    // The first 06:00 run creates the monitor, with no expected slot yet.
+    upsert(&db.pool, pid, 1, at("2026-01-01T05:59:59.650Z")).await;
+
+    let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:01:00Z"))
+        .await
+        .unwrap();
+    let monitor = MonitorService::get_by_slug(&db.pool, pid, "backup")
+        .await
+        .unwrap();
+    let env = &monitor.environments[0];
+    let statuses: Vec<_> = env.recent_checkins.iter().map(|c| c.status).collect();
+    assert!(failures.is_empty(), "statuses: {statuses:?}");
+    assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
+}
+
 /// Creates the `tick` monitor (every minute) with one ok check-in at `when`.
 async fn upsert_minutely(pool: &DbPool, project_id: i32, when: DateTime<Utc>) {
     let config = MonitorConfigInput {
