@@ -107,9 +107,13 @@ function ReleasesPage() {
   const { data: page } = useSuspenseQuery(releasesList(projectId, search));
 
   // A stale or shared `?page=` past the end lands on the last page, not on
-  // an empty table under a positive count.
+  // an empty table under a positive count. Only once the rows on screen are
+  // the address's: an older answer must not overrule what was since asked.
   const { total_pages } = page;
-  if (tableQuery(search).pagination.pageIndex + 1 > Math.max(total_pages, 1)) {
+  if (
+    search === live &&
+    tableQuery(search).pagination.pageIndex + 1 > Math.max(total_pages, 1)
+  ) {
     return (
       <Navigate
         to="/projects/$id/releases"

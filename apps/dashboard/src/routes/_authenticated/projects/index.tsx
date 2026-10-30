@@ -54,8 +54,10 @@ function ProjectsPage() {
 
   // Deleting the last card on the last page leaves that page empty, and an
   // empty page renders "no projects" with no way back. Send the browser to
-  // the last page that exists, as the releases list does.
-  if (page > 1 && page > projects.total_pages) {
+  // the last page that exists, as the releases list does. Only once the
+  // cards on screen are the address's: an older page's answer must not
+  // overrule a page the reader has since asked for.
+  if (page === live && page > 1 && page > projects.total_pages) {
     return (
       <Navigate
         to="/projects"
