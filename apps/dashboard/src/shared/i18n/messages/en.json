@@ -28,11 +28,9 @@
     "closeSidebar": "Close sidebar",
     "hideSidebar": "Hide sidebar",
     "close": "Close",
-    "sidebar": "Sidebar",
-    "sidebarMobileDescription": "Displays the mobile sidebar.",
-    "toggleSidebar": "Toggle Sidebar",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "loading": "Loading"
   },
   "theme": {
     "light": "Light",
@@ -1691,8 +1689,7 @@
   },
   "auth": {
     "meta": {
-      "title": "Log in | Rustrak",
-      "description": "Sign in to your Rustrak account"
+      "title": "Log in | Rustrak"
     },
     "form": {
       "title": "Log in to Rustrak",
@@ -1747,8 +1744,7 @@
   },
   "invite": {
     "meta": {
-      "title": "Accept Invitation | Rustrak",
-      "description": "Accept your invitation to join Rustrak"
+      "title": "Accept Invitation | Rustrak"
     },
     "form": {
       "title": "Accept invitation",
@@ -1777,12 +1773,10 @@
     }
   },
   "projectPages": {
-    "projectNotFound": "Project Not Found | Rustrak",
     "projectTitle": "{project} | Rustrak",
     "projectsList": {
       "meta": {
-        "title": "Projects | Rustrak",
-        "description": "Manage your Rustrak projects"
+        "title": "Projects | Rustrak"
       },
       "title": "Projects",
       "subtitle": "Manage your error tracking projects",
@@ -1790,17 +1784,13 @@
     },
     "newProject": {
       "meta": {
-        "title": "New Project | Rustrak",
-        "description": "Create a new Rustrak project"
+        "title": "New Project | Rustrak"
       },
       "backToProjects": "Back to projects",
       "title": "Create a new project",
       "subtitle": "Pick the platform you want to monitor. You will get the DSN and a setup snippet right after."
     },
     "overview": {
-      "meta": {
-        "description": "Overview for {project}"
-      },
       "errorVolume": "Errors over time",
       "newIssues": "New issues",
       "openIssues": "{count} open",
@@ -1852,16 +1842,12 @@
       "release": "Release"
     },
     "issues": {
-      "meta": {
-        "description": "Issues for {project}"
-      },
       "title": "Issues",
       "subtitle": "Errors from {project}, grouped by what caused them"
     },
     "logs": {
       "meta": {
-        "title": "Logs | {project} | Rustrak",
-        "description": "Structured logs for {project}"
+        "title": "Logs | {project} | Rustrak"
       },
       "title": "Logs",
       "emptyTitle": "No logs yet",
@@ -1869,8 +1855,7 @@
     },
     "performance": {
       "meta": {
-        "title": "Performance | {project} | Rustrak",
-        "description": "Transaction performance for {project}"
+        "title": "Performance | {project} | Rustrak"
       },
       "title": "Performance"
     },
@@ -1888,21 +1873,18 @@
     },
     "releases": {
       "meta": {
-        "title": "Releases | {project} | Rustrak",
-        "description": "Release health for {project}"
+        "title": "Releases | {project} | Rustrak"
       },
       "title": "Releases"
     },
     "releaseDetail": {
       "meta": {
-        "title": "{release} | {project} | Rustrak",
-        "description": "Release health for {release}"
+        "title": "{release} | {project} | Rustrak"
       }
     },
     "agents": {
       "meta": {
-        "title": "Agents | {project} | Rustrak",
-        "description": "AI agent monitoring for {project}"
+        "title": "Agents | {project} | Rustrak"
       },
       "title": "Agents",
       "loadFailed": "Could not load agent activity",
@@ -1921,9 +1903,6 @@
     },
     "event": {
       "meta": {
-        "eventNotFound": "Event Not Found | Rustrak",
-        "description": "Event details",
-        "issueNotFound": "Issue Not Found | Rustrak",
         "noEvents": "No Events | {issue} | Rustrak"
       },
       "lastSeen": "Last seen",
@@ -1966,9 +1945,6 @@
     "feedback": {
       "title": "User Feedback",
       "subtitle": "What users of {project} told you",
-      "meta": {
-        "description": "User feedback for {project}"
-      },
       "mailbox": {
         "inbox": "Inbox",
         "resolved": "Resolved",
@@ -1995,9 +1971,6 @@
     "spanCount": "{count, plural, =1 {# span} other {# spans}}"
   },
   "settings": {
-    "meta": {
-      "description": "Manage your Rustrak settings"
-    },
     "nav": {
       "groupProject": "Project",
       "groupSdkSetup": "SDK Setup",
@@ -2056,8 +2029,7 @@
     },
     "tokens": {
       "meta": {
-        "title": "API Tokens | Rustrak",
-        "description": "Manage your API tokens"
+        "title": "API Tokens | Rustrak"
       },
       "title": "API Tokens",
       "subtitle": "Manage your API tokens for programmatic access",
@@ -2066,8 +2038,7 @@
     },
     "team": {
       "meta": {
-        "title": "Team | Rustrak",
-        "description": "Manage your team members and invitations"
+        "title": "Team | Rustrak"
       },
       "title": "Members",
       "subtitle": "Manage your team members and invitations",
@@ -2075,8 +2046,7 @@
     },
     "integrations": {
       "meta": {
-        "title": "Integrations | Rustrak",
-        "description": "Connect Rustrak with your tools and services"
+        "title": "Integrations | Rustrak"
       },
       "title": "Integrations",
       "subtitle": "Connect Rustrak with your tools and services to automate workflows and stay on top of errors.",
@@ -2087,8 +2057,7 @@
     },
     "mcp": {
       "meta": {
-        "title": "AI assistants | Rustrak",
-        "description": "Connect AI assistants to Rustrak over MCP"
+        "title": "AI assistants | Rustrak"
       },
       "title": "AI assistants",
       "subtitle": "Let Claude, ChatGPT or Cursor read and triage your errors.",
@@ -2176,8 +2145,7 @@
     },
     "storage": {
       "meta": {
-        "title": "Storage | Rustrak",
-        "description": "Storage usage and data retention"
+        "title": "Storage | Rustrak"
       },
       "title": "Storage",
       "subtitle": "See what Rustrak holds and how long it keeps it",
@@ -2186,8 +2154,7 @@
     },
     "account": {
       "meta": {
-        "title": "Account | Rustrak",
-        "description": "Manage your account settings"
+        "title": "Account | Rustrak"
       },
       "title": "Account",
       "subtitle": "Manage your account information",
@@ -2216,8 +2183,7 @@
     },
     "appearance": {
       "meta": {
-        "title": "Appearance | Rustrak",
-        "description": "Customize the appearance of Rustrak"
+        "title": "Appearance | Rustrak"
       },
       "title": "Appearance",
       "subtitle": "Customize how Rustrak looks on your device",
@@ -2226,8 +2192,7 @@
     },
     "about": {
       "meta": {
-        "title": "About | Rustrak",
-        "description": "About Rustrak error tracking system"
+        "title": "About | Rustrak"
       },
       "title": "About",
       "subtitle": "Information about your Rustrak installation",
@@ -2414,7 +2379,6 @@
   "crons": {
     "meta": {
       "listTitle": "Crons | {project} | Rustrak",
-      "listDescription": "Scheduled job monitoring for {project}",
       "newTitle": "New monitor | {project} | Rustrak",
       "editTitle": "Edit {monitor} | Crons | Rustrak",
       "detailTitle": "{monitor} | Crons | Rustrak"
