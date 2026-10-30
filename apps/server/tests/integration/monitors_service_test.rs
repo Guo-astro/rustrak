@@ -600,7 +600,7 @@ async fn a_run_that_reports_just_before_its_slot_is_not_missed() {
     let pid = project(&db.pool).await;
     upsert(&db.pool, pid, 1, at("2026-01-01T05:00:10Z")).await;
 
-    // The 06:00 run, from a clock 0.35s behind the server's.
+    // The 06:00 run, from a clock 0.35s ahead of the server's.
     MonitorService::process_check_in(
         &db.pool,
         pid,

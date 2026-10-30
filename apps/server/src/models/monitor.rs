@@ -24,7 +24,7 @@ pub const MAX_MAX_RUNTIME: u32 = 10_080;
 pub const MAX_THRESHOLD: u64 = 720;
 /// How early a run may start and still fill the crontab slot it was expected
 /// for, for clock skew.
-pub const EARLY_CHECKIN_SECS: i64 = 30;
+pub const EARLY_CHECKIN_SECS: i64 = 10;
 
 pub use crate::scheduler::schedule::{IntervalUnit, Schedule};
 
@@ -144,7 +144,7 @@ impl MonitorConfig {
     ///
     /// A new environment's first run has no expected slot, so it takes the
     /// first slot after `started`. A late first run can then fill the next
-    /// slot early, which is likely only when it reports in the last 30s of a
+    /// slot early, which is likely only when it reports in the last 10s of a
     /// minutely schedule.
     pub fn checkin_reference(
         &self,
