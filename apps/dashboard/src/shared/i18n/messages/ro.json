@@ -28,11 +28,9 @@
     "closeSidebar": "Închide bara laterală",
     "hideSidebar": "Ascunde bara laterală",
     "close": "Închide",
-    "sidebar": "Bară laterală",
-    "sidebarMobileDescription": "Afișează bara laterală pentru mobil.",
-    "toggleSidebar": "Comută bara laterală",
     "showPassword": "Arată parola",
-    "hidePassword": "Ascunde parola"
+    "hidePassword": "Ascunde parola",
+    "loading": "Se încarcă"
   },
   "theme": {
     "light": "Luminos",
@@ -1691,8 +1689,7 @@
   },
   "auth": {
     "meta": {
-      "title": "Autentificare | Rustrak",
-      "description": "Autentifică-te în contul tău Rustrak"
+      "title": "Autentificare | Rustrak"
     },
     "form": {
       "title": "Autentificare",
@@ -1747,8 +1744,7 @@
   },
   "invite": {
     "meta": {
-      "title": "Acceptă invitația | Rustrak",
-      "description": "Acceptă invitația ta de a te alătura Rustrak"
+      "title": "Acceptă invitația | Rustrak"
     },
     "form": {
       "title": "Acceptă invitația",
@@ -1777,12 +1773,10 @@
     }
   },
   "projectPages": {
-    "projectNotFound": "Proiect negăsit | Rustrak",
     "projectTitle": "{project} | Rustrak",
     "projectsList": {
       "meta": {
-        "title": "Proiecte | Rustrak",
-        "description": "Administrează proiectele tale Rustrak"
+        "title": "Proiecte | Rustrak"
       },
       "title": "Proiecte",
       "subtitle": "Administrează proiectele tale de urmărire a erorilor",
@@ -1790,17 +1784,13 @@
     },
     "newProject": {
       "meta": {
-        "title": "Proiect nou | Rustrak",
-        "description": "Creează un proiect Rustrak nou"
+        "title": "Proiect nou | Rustrak"
       },
       "backToProjects": "Înapoi la proiecte",
       "title": "Creează un proiect nou",
       "subtitle": "Alege platforma pe care vrei să o monitorizezi. Primești DSN-ul și un fragment de configurare imediat după."
     },
     "overview": {
-      "meta": {
-        "description": "Prezentare generală pentru {project}"
-      },
       "errorVolume": "Erori în timp",
       "newIssues": "Probleme noi",
       "openIssues": "{count} deschise",
@@ -1852,16 +1842,12 @@
       "release": "Release"
     },
     "issues": {
-      "meta": {
-        "description": "Probleme pentru {project}"
-      },
       "title": "Probleme",
       "subtitle": "Erorile din {project}, grupate după cauză"
     },
     "logs": {
       "meta": {
-        "title": "Jurnale | {project} | Rustrak",
-        "description": "Jurnale structurate pentru {project}"
+        "title": "Jurnale | {project} | Rustrak"
       },
       "title": "Jurnale",
       "emptyTitle": "Încă nu există jurnale",
@@ -1869,8 +1855,7 @@
     },
     "performance": {
       "meta": {
-        "title": "Performanță | {project} | Rustrak",
-        "description": "Performanța tranzacțiilor pentru {project}"
+        "title": "Performanță | {project} | Rustrak"
       },
       "title": "Performanță"
     },
@@ -1888,21 +1873,18 @@
     },
     "releases": {
       "meta": {
-        "title": "Lansări | {project} | Rustrak",
-        "description": "Starea lansărilor pentru {project}"
+        "title": "Lansări | {project} | Rustrak"
       },
       "title": "Lansări"
     },
     "releaseDetail": {
       "meta": {
-        "title": "{release} | {project} | Rustrak",
-        "description": "Starea lansării pentru {release}"
+        "title": "{release} | {project} | Rustrak"
       }
     },
     "agents": {
       "meta": {
-        "title": "Agenți | {project} | Rustrak",
-        "description": "Monitorizare agenți AI pentru {project}"
+        "title": "Agenți | {project} | Rustrak"
       },
       "title": "Agenți",
       "loadFailed": "Activitatea agenților nu a putut fi încărcată",
@@ -1921,9 +1903,6 @@
     },
     "event": {
       "meta": {
-        "eventNotFound": "Eveniment negăsit | Rustrak",
-        "description": "Detalii eveniment",
-        "issueNotFound": "Problemă negăsită | Rustrak",
         "noEvents": "Niciun eveniment | {issue} | Rustrak"
       },
       "lastSeen": "Ultima apariție",
@@ -1966,9 +1945,6 @@
     "feedback": {
       "title": "Feedback utilizatori",
       "subtitle": "Ce ți-au spus utilizatorii {project}",
-      "meta": {
-        "description": "Feedback de la utilizatorii {project}"
-      },
       "mailbox": {
         "inbox": "Inbox",
         "resolved": "Rezolvate",
@@ -1995,9 +1971,6 @@
     "spanCount": "{count, plural, one {# span} few {# span-uri} other {# de span-uri}}"
   },
   "settings": {
-    "meta": {
-      "description": "Administrează setările tale Rustrak"
-    },
     "nav": {
       "groupProject": "Proiect",
       "groupSdkSetup": "Configurare SDK",
@@ -2056,8 +2029,7 @@
     },
     "tokens": {
       "meta": {
-        "title": "Token-uri API | Rustrak",
-        "description": "Administrează token-urile tale API"
+        "title": "Token-uri API | Rustrak"
       },
       "title": "Token-uri API",
       "subtitle": "Administrează token-urile tale API pentru acces programatic",
@@ -2066,8 +2038,7 @@
     },
     "team": {
       "meta": {
-        "title": "Echipă | Rustrak",
-        "description": "Administrează membrii echipei și invitațiile"
+        "title": "Echipă | Rustrak"
       },
       "title": "Membri",
       "subtitle": "Administrează membrii echipei și invitațiile",
@@ -2075,8 +2046,7 @@
     },
     "integrations": {
       "meta": {
-        "title": "Integrări | Rustrak",
-        "description": "Conectează Rustrak cu uneltele și serviciile tale"
+        "title": "Integrări | Rustrak"
       },
       "title": "Integrări",
       "subtitle": "Conectează Rustrak cu uneltele și serviciile tale pentru a automatiza fluxurile de lucru și a fi la curent cu erorile.",
@@ -2087,8 +2057,7 @@
     },
     "mcp": {
       "meta": {
-        "title": "Asistenți AI | Rustrak",
-        "description": "Conectează asistenți AI la Rustrak prin MCP"
+        "title": "Asistenți AI | Rustrak"
       },
       "title": "Asistenți AI",
       "subtitle": "Lasă Claude, ChatGPT sau Cursor să citească și să trieze erorile tale.",
@@ -2176,8 +2145,7 @@
     },
     "storage": {
       "meta": {
-        "title": "Stocare | Rustrak",
-        "description": "Utilizarea stocării și retenția datelor"
+        "title": "Stocare | Rustrak"
       },
       "title": "Stocare",
       "subtitle": "Ce păstrează Rustrak și cât timp",
@@ -2186,8 +2154,7 @@
     },
     "account": {
       "meta": {
-        "title": "Cont | Rustrak",
-        "description": "Administrează setările contului tău"
+        "title": "Cont | Rustrak"
       },
       "title": "Cont",
       "subtitle": "Administrează informațiile contului tău",
@@ -2216,8 +2183,7 @@
     },
     "appearance": {
       "meta": {
-        "title": "Aspect | Rustrak",
-        "description": "Personalizează aspectul Rustrak"
+        "title": "Aspect | Rustrak"
       },
       "title": "Aspect",
       "subtitle": "Personalizează cum arată Rustrak pe dispozitivul tău",
@@ -2226,8 +2192,7 @@
     },
     "about": {
       "meta": {
-        "title": "Despre | Rustrak",
-        "description": "Despre sistemul de urmărire a erorilor Rustrak"
+        "title": "Despre | Rustrak"
       },
       "title": "Despre",
       "subtitle": "Informații despre instalarea ta Rustrak",
@@ -2414,7 +2379,6 @@
   "crons": {
     "meta": {
       "listTitle": "Crons | {project} | Rustrak",
-      "listDescription": "Monitorizarea sarcinilor programate pentru {project}",
       "newTitle": "Monitor nou | {project} | Rustrak",
       "editTitle": "Editează {monitor} | Crons | Rustrak",
       "detailTitle": "{monitor} | Crons | Rustrak"

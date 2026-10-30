@@ -28,11 +28,9 @@
     "closeSidebar": "Fermer le panneau latéral",
     "hideSidebar": "Masquer le panneau latéral",
     "close": "Fermer",
-    "sidebar": "Panneau latéral",
-    "sidebarMobileDescription": "Affiche le panneau latéral mobile.",
-    "toggleSidebar": "Basculer le panneau latéral",
     "showPassword": "Afficher le mot de passe",
-    "hidePassword": "Masquer le mot de passe"
+    "hidePassword": "Masquer le mot de passe",
+    "loading": "Chargement"
   },
   "theme": {
     "light": "Clair",
@@ -1691,8 +1689,7 @@
   },
   "auth": {
     "meta": {
-      "title": "Connexion | Rustrak",
-      "description": "Connectez-vous à votre compte Rustrak"
+      "title": "Connexion | Rustrak"
     },
     "form": {
       "title": "Connexion",
@@ -1747,8 +1744,7 @@
   },
   "invite": {
     "meta": {
-      "title": "Accepter l’invitation | Rustrak",
-      "description": "Acceptez votre invitation à rejoindre Rustrak"
+      "title": "Accepter l’invitation | Rustrak"
     },
     "form": {
       "title": "Accepter l’invitation",
@@ -1777,12 +1773,10 @@
     }
   },
   "projectPages": {
-    "projectNotFound": "Projet introuvable | Rustrak",
     "projectTitle": "{project} | Rustrak",
     "projectsList": {
       "meta": {
-        "title": "Projets | Rustrak",
-        "description": "Gérez vos projets Rustrak"
+        "title": "Projets | Rustrak"
       },
       "title": "Projets",
       "subtitle": "Gérez vos projets de suivi d’erreurs",
@@ -1790,17 +1784,13 @@
     },
     "newProject": {
       "meta": {
-        "title": "Nouveau projet | Rustrak",
-        "description": "Créez un nouveau projet Rustrak"
+        "title": "Nouveau projet | Rustrak"
       },
       "backToProjects": "Retour aux projets",
       "title": "Créer un nouveau projet",
       "subtitle": "Choisissez la plateforme à surveiller. Vous obtiendrez le DSN et un extrait de configuration juste après."
     },
     "overview": {
-      "meta": {
-        "description": "Vue d’ensemble de {project}"
-      },
       "errorVolume": "Erreurs dans le temps",
       "newIssues": "Nouveaux problèmes",
       "openIssues": "{count} ouverts",
@@ -1852,16 +1842,12 @@
       "release": "Release"
     },
     "issues": {
-      "meta": {
-        "description": "Problèmes de {project}"
-      },
       "title": "Problèmes",
       "subtitle": "Erreurs de {project}, regroupées par cause"
     },
     "logs": {
       "meta": {
-        "title": "Logs | {project} | Rustrak",
-        "description": "Journaux structurés de {project}"
+        "title": "Logs | {project} | Rustrak"
       },
       "title": "Logs",
       "emptyTitle": "Aucun journal pour le moment",
@@ -1869,8 +1855,7 @@
     },
     "performance": {
       "meta": {
-        "title": "Performance | {project} | Rustrak",
-        "description": "Performance des transactions de {project}"
+        "title": "Performance | {project} | Rustrak"
       },
       "title": "Performance"
     },
@@ -1888,21 +1873,18 @@
     },
     "releases": {
       "meta": {
-        "title": "Versions | {project} | Rustrak",
-        "description": "Santé des versions de {project}"
+        "title": "Versions | {project} | Rustrak"
       },
       "title": "Versions"
     },
     "releaseDetail": {
       "meta": {
-        "title": "{release} | {project} | Rustrak",
-        "description": "Santé des versions de {release}"
+        "title": "{release} | {project} | Rustrak"
       }
     },
     "agents": {
       "meta": {
-        "title": "Agents | {project} | Rustrak",
-        "description": "Supervision des agents IA de {project}"
+        "title": "Agents | {project} | Rustrak"
       },
       "title": "Agents",
       "loadFailed": "Impossible de charger l’activité des agents",
@@ -1921,9 +1903,6 @@
     },
     "event": {
       "meta": {
-        "eventNotFound": "Événement introuvable | Rustrak",
-        "description": "Détails de l’événement",
-        "issueNotFound": "Problème introuvable | Rustrak",
         "noEvents": "Aucun événement | {issue} | Rustrak"
       },
       "lastSeen": "Dernière apparition",
@@ -1966,9 +1945,6 @@
     "feedback": {
       "title": "Retours utilisateurs",
       "subtitle": "Ce que les utilisateurs de {project} vous ont dit",
-      "meta": {
-        "description": "Retours utilisateurs de {project}"
-      },
       "mailbox": {
         "inbox": "Boîte de réception",
         "resolved": "Résolus",
@@ -1995,9 +1971,6 @@
     "spanCount": "{count, plural, =1 {# span} other {# spans}}"
   },
   "settings": {
-    "meta": {
-      "description": "Gérez vos paramètres Rustrak"
-    },
     "nav": {
       "groupProject": "Projet",
       "groupSdkSetup": "Configuration du SDK",
@@ -2056,8 +2029,7 @@
     },
     "tokens": {
       "meta": {
-        "title": "Jetons API | Rustrak",
-        "description": "Gérez vos jetons API"
+        "title": "Jetons API | Rustrak"
       },
       "title": "Jetons API",
       "subtitle": "Gérez vos jetons API pour un accès programmatique",
@@ -2066,8 +2038,7 @@
     },
     "team": {
       "meta": {
-        "title": "Équipe | Rustrak",
-        "description": "Gérez les membres de votre équipe et les invitations"
+        "title": "Équipe | Rustrak"
       },
       "title": "Membres",
       "subtitle": "Gérez les membres de votre équipe et les invitations",
@@ -2075,8 +2046,7 @@
     },
     "integrations": {
       "meta": {
-        "title": "Intégrations | Rustrak",
-        "description": "Connectez Rustrak à vos outils et services"
+        "title": "Intégrations | Rustrak"
       },
       "title": "Intégrations",
       "subtitle": "Connectez Rustrak à vos outils et services pour automatiser vos flux de travail et garder le contrôle des erreurs.",
@@ -2087,8 +2057,7 @@
     },
     "mcp": {
       "meta": {
-        "title": "Assistants IA | Rustrak",
-        "description": "Connecter des assistants IA à Rustrak via MCP"
+        "title": "Assistants IA | Rustrak"
       },
       "title": "Assistants IA",
       "subtitle": "Laissez Claude, ChatGPT ou Cursor lire et trier vos erreurs.",
@@ -2176,8 +2145,7 @@
     },
     "storage": {
       "meta": {
-        "title": "Stockage | Rustrak",
-        "description": "Utilisation du stockage et rétention des données"
+        "title": "Stockage | Rustrak"
       },
       "title": "Stockage",
       "subtitle": "Ce que Rustrak conserve et pendant combien de temps",
@@ -2186,8 +2154,7 @@
     },
     "account": {
       "meta": {
-        "title": "Compte | Rustrak",
-        "description": "Gérez les paramètres de votre compte"
+        "title": "Compte | Rustrak"
       },
       "title": "Compte",
       "subtitle": "Gérez les informations de votre compte",
@@ -2216,8 +2183,7 @@
     },
     "appearance": {
       "meta": {
-        "title": "Apparence | Rustrak",
-        "description": "Personnalisez l’apparence de Rustrak"
+        "title": "Apparence | Rustrak"
       },
       "title": "Apparence",
       "subtitle": "Personnalisez l’apparence de Rustrak sur votre appareil",
@@ -2226,8 +2192,7 @@
     },
     "about": {
       "meta": {
-        "title": "À propos | Rustrak",
-        "description": "À propos du système de suivi d’erreurs Rustrak"
+        "title": "À propos | Rustrak"
       },
       "title": "À propos",
       "subtitle": "Informations sur votre installation Rustrak",
@@ -2414,7 +2379,6 @@
   "crons": {
     "meta": {
       "listTitle": "Crons | {project} | Rustrak",
-      "listDescription": "Surveillance des tâches planifiées de {project}",
       "newTitle": "Nouveau moniteur | {project} | Rustrak",
       "editTitle": "Modifier {monitor} | Crons | Rustrak",
       "detailTitle": "{monitor} | Crons | Rustrak"
