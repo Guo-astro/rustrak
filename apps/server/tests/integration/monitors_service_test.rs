@@ -593,3 +593,174 @@ async fn concurrent_start_and_result_of_a_run_are_one_check_in() {
         .unwrap();
     assert_eq!(total, 21);
 }
+
+#[actix_web::test]
+async fn a_run_that_reports_just_before_its_slot_is_not_missed() {
+    let db = TestDb::new().await;
+    let pid = project(&db.pool).await;
+    upsert(&db.pool, pid, 1, at("2026-01-01T05:00:10Z")).await;
+
+    // The 06:00 run, from a clock 0.35s ahead of the server's.
+    MonitorService::process_check_in(
+        &db.pool,
+        pid,
+        check_in(Uuid::new_v4(), CheckInStatus::Ok, None),
+        at("2026-01-01T05:59:59.650Z"),
+    )
+    .await
+    .unwrap();
+
+    let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:01:00Z"))
+        .await
+        .unwrap();
+    let monitor = MonitorService::get_by_slug(&db.pool, pid, "backup")
+        .await
+        .unwrap();
+    let env = &monitor.environments[0];
+    let statuses: Vec<_> = env.recent_checkins.iter().map(|c| c.status).collect();
+    assert!(failures.is_empty(), "statuses: {statuses:?}");
+    assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
+}
+
+#[actix_web::test]
+async fn a_run_that_starts_just_before_its_slot_is_not_missed() {
+    let db = TestDb::new().await;
+    let pid = project(&db.pool).await;
+    upsert(&db.pool, pid, 1, at("2026-01-01T05:00:10Z")).await;
+
+    // `Sentry.withMonitor` sends the start and the result of one run.
+    let id = Uuid::new_v4();
+    for (status, when) in [
+        (CheckInStatus::InProgress, "2026-01-01T05:59:59.600Z"),
+        (CheckInStatus::Ok, "2026-01-01T05:59:59.800Z"),
+    ] {
+        MonitorService::process_check_in(&db.pool, pid, check_in(id, status, None), at(when))
+            .await
+            .unwrap();
+    }
+
+    let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:01:00Z"))
+        .await
+        .unwrap();
+    assert!(failures.is_empty());
+    let monitor = MonitorService::get_by_slug(&db.pool, pid, "backup")
+        .await
+        .unwrap();
+    let env = &monitor.environments[0];
+    assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
+    assert_eq!(
+        env.recent_checkins[0].expected_time,
+        Some(at("2026-01-01T06:00:00Z"))
+    );
+}
+
+#[actix_web::test]
+async fn a_run_that_fails_just_before_its_slot_is_not_also_missed() {
+    let db = TestDb::new().await;
+    let pid = project(&db.pool).await;
+    upsert(&db.pool, pid, 1, at("2026-01-01T05:00:10Z")).await;
+
+    let failures = MonitorService::process_check_in(
+        &db.pool,
+        pid,
+        check_in(Uuid::new_v4(), CheckInStatus::Error, None),
+        at("2026-01-01T05:59:59.650Z"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(failures.len(), 1);
+
+    let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:01:00Z"))
+        .await
+        .unwrap();
+    let monitor = MonitorService::get_by_slug(&db.pool, pid, "backup")
+        .await
+        .unwrap();
+    let env = &monitor.environments[0];
+    let statuses: Vec<_> = env.recent_checkins.iter().map(|c| c.status).collect();
+    assert!(failures.is_empty(), "statuses: {statuses:?}");
+    assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
+}
+
+#[actix_web::test]
+async fn a_new_monitor_whose_first_run_reports_just_before_its_slot_is_not_missed() {
+    let db = TestDb::new().await;
+    let pid = project(&db.pool).await;
+
+    // The first 06:00 run creates the monitor, with no expected slot yet.
+    upsert(&db.pool, pid, 1, at("2026-01-01T05:59:59.650Z")).await;
+
+    let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:01:00Z"))
+        .await
+        .unwrap();
+    let monitor = MonitorService::get_by_slug(&db.pool, pid, "backup")
+        .await
+        .unwrap();
+    let env = &monitor.environments[0];
+    let statuses: Vec<_> = env.recent_checkins.iter().map(|c| c.status).collect();
+    assert!(failures.is_empty(), "statuses: {statuses:?}");
+    assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
+}
+
+/// Creates the `tick` monitor (every minute) with one ok check-in at `when`.
+async fn upsert_minutely(pool: &DbPool, project_id: i32, when: DateTime<Utc>) {
+    let config = MonitorConfigInput {
+        schedule: Some(Schedule::Crontab {
+            value: "* * * * *".to_string(),
+        }),
+        ..Default::default()
+    };
+    let check_in = CheckIn::new(
+        Uuid::new_v4(),
+        "tick",
+        CheckInStatus::Ok,
+        None,
+        None,
+        Some(config),
+        None,
+    )
+    .unwrap();
+    MonitorService::process_check_in(pool, project_id, check_in, when)
+        .await
+        .unwrap();
+}
+
+#[actix_web::test]
+async fn a_run_that_ends_late_in_its_minute_does_not_hide_the_next_miss() {
+    let cases = [Some("2026-01-01T06:00:00Z"), None]
+        .into_iter()
+        .flat_map(|start| [(start, CheckInStatus::Ok), (start, CheckInStatus::Error)]);
+    for (start, result) in cases {
+        let db = TestDb::new().await;
+        let pid = project(&db.pool).await;
+        upsert_minutely(&db.pool, pid, at("2026-01-01T05:59:10Z")).await;
+
+        // The 06:00 run reports ok or error at 06:00:50, with or without a
+        // start, and the 06:01 run never comes.
+        let id = Uuid::new_v4();
+        let reports = start
+            .map(|s| (CheckInStatus::InProgress, s))
+            .into_iter()
+            .chain([(result, "2026-01-01T06:00:50Z")]);
+        for (status, when) in reports {
+            let check_in = CheckIn::new(id, "tick", status, None, None, None, None).unwrap();
+            MonitorService::process_check_in(&db.pool, pid, check_in, at(when))
+                .await
+                .unwrap();
+        }
+
+        let monitor = MonitorService::get_by_slug(&db.pool, pid, "tick")
+            .await
+            .unwrap();
+        assert_eq!(
+            monitor.environments[0].next_checkin,
+            Some(at("2026-01-01T06:01:00Z")),
+            "start: {start:?}, result: {result:?}"
+        );
+        let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:02:00Z"))
+            .await
+            .unwrap();
+        assert_eq!(failures.len(), 1, "start: {start:?}, result: {result:?}");
+        assert_eq!(failures[0].reason, FailureReason::Missed);
+    }
+}

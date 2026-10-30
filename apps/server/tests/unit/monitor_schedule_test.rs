@@ -130,3 +130,80 @@ fn month_interval_uses_calendar_months() {
         at("2026-02-15T10:00:00Z")
     );
 }
+
+#[test]
+fn a_run_that_starts_just_before_its_slot_counts_from_that_slot() {
+    let c = crontab("0 * * * *");
+    let slot = Some(at("2026-01-01T06:00:00Z"));
+    // The job's clock runs 0.35s ahead of the server's.
+    let t = at("2026-01-01T05:59:59.650Z");
+    assert_eq!(c.checkin_reference(t, slot, t), at("2026-01-01T06:00:00Z"));
+    // Its result, after the slot, counts from itself.
+    let done = at("2026-01-01T06:00:20Z");
+    assert_eq!(c.checkin_reference(t, slot, done), done);
+}
+
+#[test]
+fn a_run_on_time_or_well_before_its_slot_counts_from_itself() {
+    let c = crontab("0 * * * *");
+    let slot = Some(at("2026-01-01T06:00:00Z"));
+    for s in [
+        "2026-01-01T06:00:00Z",
+        "2026-01-01T06:00:00.300Z",
+        "2026-01-01T05:59:50Z",
+        "2026-01-01T05:40:00Z",
+    ] {
+        assert_eq!(c.checkin_reference(at(s), slot, at(s)), at(s), "{s}");
+    }
+}
+
+#[test]
+fn a_late_or_long_run_never_fills_the_next_slot() {
+    let c = crontab("* * * * *");
+    let slot = Some(at("2026-01-01T06:00:00Z"));
+    // A result 45s into its own minute, alone or after a start at 06:00.
+    let done = at("2026-01-01T06:00:45Z");
+    assert_eq!(c.checkin_reference(done, slot, done), done);
+    assert_eq!(
+        c.checkin_reference(at("2026-01-01T06:00:00Z"), slot, done),
+        done
+    );
+    assert_eq!(c.next_checkin(done), at("2026-01-01T06:01:00Z"));
+}
+
+#[test]
+fn a_first_run_with_no_expected_slot_takes_the_next_slot() {
+    let c = crontab("0 * * * *");
+    let t = at("2026-01-01T05:59:59.600Z");
+    assert_eq!(c.checkin_reference(t, None, t), at("2026-01-01T06:00:00Z"));
+    // Its result, after the slot, counts from itself.
+    let done = at("2026-01-01T06:00:20Z");
+    assert_eq!(c.checkin_reference(t, None, done), done);
+    // On time or well before the slot, it counts from itself.
+    for s in ["2026-01-01T06:00:00Z", "2026-01-01T05:59:50Z"] {
+        assert_eq!(c.checkin_reference(at(s), None, at(s)), at(s), "{s}");
+    }
+}
+
+#[test]
+fn a_late_first_minutely_run_fills_the_next_slot_early() {
+    // The trade-off in the doc comment: with no expected slot, a run that
+    // starts in the last 10s of a minute takes the next minute's slot.
+    let c = crontab("* * * * *");
+    let started = at("2026-01-01T06:00:55Z");
+    let done = at("2026-01-01T06:00:58Z");
+    assert_eq!(
+        c.checkin_reference(started, None, done),
+        at("2026-01-01T06:01:00Z")
+    );
+}
+
+#[test]
+fn an_interval_counts_from_the_run_itself() {
+    let c = interval(1, IntervalUnit::Minute);
+    let t = at("2026-01-01T05:59:59.600Z");
+    assert_eq!(
+        c.checkin_reference(t, Some(at("2026-01-01T06:00:00Z")), t),
+        t
+    );
+}

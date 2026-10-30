@@ -65,6 +65,7 @@ struct CheckInRow {
     status: String,
     duration_ms: Option<i64>,
     date_added: DateTime<Utc>,
+    expected_time: Option<DateTime<Utc>>,
 }
 
 impl CheckInRow {
@@ -96,7 +97,7 @@ impl MonitorService {
             sqlx::query_as::<_, CheckInRow>(
                 r#"
                 SELECT id, guid, monitor_environment_id, status, duration_ms,
-                       date_added
+                       date_added, expected_time
                 FROM monitor_checkins
                 WHERE monitor_environment_id = $1 AND status = 'in_progress'
                 ORDER BY date_added DESC
@@ -110,7 +111,7 @@ impl MonitorService {
             sqlx::query_as::<_, CheckInRow>(
                 r#"
                 SELECT id, guid, monitor_environment_id, status, duration_ms,
-                       date_added
+                       date_added, expected_time
                 FROM monitor_checkins
                 WHERE monitor_id = $1 AND guid = $2
                 "#,
@@ -160,7 +161,7 @@ impl MonitorService {
                         expected_time, timeout_at, trace_id
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10, $11)
                     RETURNING id, guid, monitor_environment_id, status, duration_ms,
-                              date_added
+                              date_added, expected_time
                     "#,
                 )
                 .bind(Uuid::new_v4())
@@ -188,7 +189,7 @@ impl MonitorService {
                     &env,
                     config,
                     Some(stored.date_added),
-                    received,
+                    config.checkin_reference(stored.date_added, stored.expected_time, received),
                     None,
                 )
                 .await?;
@@ -537,7 +538,7 @@ async fn sweep_missed(
             status, date_added, date_updated, expected_time
         ) VALUES ($1, $2, $3, $4, $5, 'missed', $6, $6, $6)
         RETURNING id, guid, monitor_environment_id, status, duration_ms,
-                  date_added
+                  date_added, expected_time
         "#,
     )
     .bind(Uuid::new_v4())
@@ -576,7 +577,7 @@ async fn sweep_timeout(
         UPDATE monitor_checkins SET status = 'timeout'
         WHERE id = $1 AND status = 'in_progress' AND timeout_at <= $2
         RETURNING id, guid, monitor_environment_id, status, duration_ms,
-                  date_added
+                  date_added, expected_time
         "#,
     )
     .bind(checkin_id)
@@ -813,7 +814,7 @@ async fn update_existing(
                 timeout_at = COALESCE($5, timeout_at)
             WHERE id = $1
             RETURNING id, guid, monitor_environment_id, status, duration_ms,
-                      date_added
+                      date_added, expected_time
             "#,
         )
         .bind(existing.id)
@@ -893,7 +894,11 @@ async fn mark_ok(
             env,
             &monitor.config.0,
             Some(checkin.date_added),
-            succeeded_at,
+            monitor.config.0.checkin_reference(
+                checkin.date_added,
+                checkin.expected_time,
+                succeeded_at,
+            ),
             resolved.then_some(MonitorEnvironmentStatus::Ok),
         )
         .await?;
