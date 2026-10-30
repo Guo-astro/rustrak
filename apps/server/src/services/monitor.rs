@@ -188,7 +188,7 @@ impl MonitorService {
                     &env,
                     config,
                     Some(stored.date_added),
-                    received,
+                    config.checkin_reference(received),
                     None,
                 )
                 .await?;
@@ -893,7 +893,7 @@ async fn mark_ok(
             env,
             &monitor.config.0,
             Some(checkin.date_added),
-            succeeded_at,
+            monitor.config.0.checkin_reference(succeeded_at),
             resolved.then_some(MonitorEnvironmentStatus::Ok),
         )
         .await?;

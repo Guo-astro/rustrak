@@ -22,6 +22,10 @@ pub const DEFAULT_MAX_RUNTIME: u32 = 30;
 pub const MAX_MAX_RUNTIME: u32 = 10_080;
 /// Bounds of `failure_issue_threshold` and `recovery_threshold`.
 pub const MAX_THRESHOLD: u64 = 720;
+/// How early a run may report and still fill its crontab slot, for clock
+/// skew. Under half the shortest crontab gap, so a late run never fills the
+/// next slot.
+pub const EARLY_CHECKIN_SECS: i64 = 30;
 
 pub use crate::scheduler::schedule::{IntervalUnit, Schedule};
 
@@ -132,6 +136,18 @@ impl MonitorConfig {
     /// check-in, the check-in is missed.
     pub fn next_checkin_latest(&self, reference: DateTime<Utc>) -> DateTime<Utc> {
         self.next_checkin(reference) + Duration::minutes(self.checkin_margin as i64)
+    }
+
+    /// What the next check-in counts from for a run at `at`: the crontab slot
+    /// it reports just before, else `at`.
+    pub fn checkin_reference(&self, at: DateTime<Utc>) -> DateTime<Utc> {
+        if let Schedule::Crontab { .. } = self.schedule {
+            let slot = self.next_checkin(at);
+            if slot - at < Duration::seconds(EARLY_CHECKIN_SECS) {
+                return slot;
+            }
+        }
+        at
     }
 
     /// The last expected check-in strictly before `reference`. An interval

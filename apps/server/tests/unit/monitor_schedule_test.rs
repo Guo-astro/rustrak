@@ -130,3 +130,50 @@ fn month_interval_uses_calendar_months() {
         at("2026-02-15T10:00:00Z")
     );
 }
+
+#[test]
+fn a_run_just_before_a_crontab_slot_counts_from_that_slot() {
+    let c = crontab("0 * * * *");
+    // The job's clock runs 0.35s behind the server's.
+    assert_eq!(
+        c.checkin_reference(at("2026-01-01T05:59:59.650Z")),
+        at("2026-01-01T06:00:00Z")
+    );
+    assert_eq!(
+        c.next_checkin(c.checkin_reference(at("2026-01-01T05:59:59.650Z"))),
+        at("2026-01-01T07:00:00Z")
+    );
+}
+
+#[test]
+fn a_run_on_time_or_well_before_a_slot_counts_from_itself() {
+    let c = crontab("0 * * * *");
+    for t in [
+        "2026-01-01T06:00:00Z",
+        "2026-01-01T06:00:00.300Z",
+        "2026-01-01T05:59:30Z",
+        "2026-01-01T05:40:00Z",
+    ] {
+        assert_eq!(c.checkin_reference(at(t)), at(t), "{t}");
+    }
+}
+
+#[test]
+fn a_late_run_of_a_minutely_crontab_never_fills_the_next_slot() {
+    let c = crontab("* * * * *");
+    assert_eq!(
+        c.checkin_reference(at("2026-01-01T05:59:59.600Z")),
+        at("2026-01-01T06:00:00Z")
+    );
+    // The 06:00 run arriving 0.4s late still leaves 06:01 expected.
+    let late = at("2026-01-01T06:00:00.400Z");
+    assert_eq!(c.checkin_reference(late), late);
+    assert_eq!(c.next_checkin(late), at("2026-01-01T06:01:00Z"));
+}
+
+#[test]
+fn an_interval_counts_from_the_run_itself() {
+    let c = interval(1, IntervalUnit::Minute);
+    let t = at("2026-01-01T05:59:59.600Z");
+    assert_eq!(c.checkin_reference(t), t);
+}
