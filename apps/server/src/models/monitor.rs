@@ -22,9 +22,8 @@ pub const DEFAULT_MAX_RUNTIME: u32 = 30;
 pub const MAX_MAX_RUNTIME: u32 = 10_080;
 /// Bounds of `failure_issue_threshold` and `recovery_threshold`.
 pub const MAX_THRESHOLD: u64 = 720;
-/// How early a run may report and still fill its crontab slot, for clock
-/// skew. Under half the shortest crontab gap, so a late run never fills the
-/// next slot.
+/// How early a run may start and still fill the crontab slot it was expected
+/// for, for clock skew.
 pub const EARLY_CHECKIN_SECS: i64 = 30;
 
 pub use crate::scheduler::schedule::{IntervalUnit, Schedule};
@@ -138,16 +137,24 @@ impl MonitorConfig {
         self.next_checkin(reference) + Duration::minutes(self.checkin_margin as i64)
     }
 
-    /// What the next check-in counts from for a run at `at`: the crontab slot
-    /// it reports just before, else `at`.
-    pub fn checkin_reference(&self, at: DateTime<Utc>) -> DateTime<Utc> {
-        if let Schedule::Crontab { .. } = self.schedule {
-            let slot = self.next_checkin(at);
-            if slot - at < Duration::seconds(EARLY_CHECKIN_SECS) {
-                return slot;
+    /// What the next check-in counts from for a run reporting at `at`. A run
+    /// that started at `started`, just before the crontab slot it was
+    /// `expected` for, fills that slot. Else `at`, so a late or long run never
+    /// takes the following slot.
+    pub fn checkin_reference(
+        &self,
+        started: DateTime<Utc>,
+        expected: Option<DateTime<Utc>>,
+        at: DateTime<Utc>,
+    ) -> DateTime<Utc> {
+        match (&self.schedule, expected) {
+            (Schedule::Crontab { .. }, Some(slot))
+                if started < slot && slot - started < Duration::seconds(EARLY_CHECKIN_SECS) =>
+            {
+                at.max(slot)
             }
+            _ => at,
         }
-        at
     }
 
     /// The last expected check-in strictly before `reference`. An interval

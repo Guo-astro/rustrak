@@ -681,3 +681,66 @@ async fn a_run_that_fails_just_before_its_slot_is_not_also_missed() {
     assert!(failures.is_empty(), "statuses: {statuses:?}");
     assert_eq!(env.next_checkin, Some(at("2026-01-01T07:00:00Z")));
 }
+
+/// Creates the `tick` monitor (every minute) with one ok check-in at `when`.
+async fn upsert_minutely(pool: &DbPool, project_id: i32, when: DateTime<Utc>) {
+    let config = MonitorConfigInput {
+        schedule: Some(Schedule::Crontab {
+            value: "* * * * *".to_string(),
+        }),
+        ..Default::default()
+    };
+    let check_in = CheckIn::new(
+        Uuid::new_v4(),
+        "tick",
+        CheckInStatus::Ok,
+        None,
+        None,
+        Some(config),
+        None,
+    )
+    .unwrap();
+    MonitorService::process_check_in(pool, project_id, check_in, when)
+        .await
+        .unwrap();
+}
+
+#[actix_web::test]
+async fn a_run_that_ends_late_in_its_minute_does_not_hide_the_next_miss() {
+    let cases = [Some("2026-01-01T06:00:00Z"), None]
+        .into_iter()
+        .flat_map(|start| [(start, CheckInStatus::Ok), (start, CheckInStatus::Error)]);
+    for (start, result) in cases {
+        let db = TestDb::new().await;
+        let pid = project(&db.pool).await;
+        upsert_minutely(&db.pool, pid, at("2026-01-01T05:59:10Z")).await;
+
+        // The 06:00 run reports ok or error at 06:00:50, with or without a
+        // start, and the 06:01 run never comes.
+        let id = Uuid::new_v4();
+        let reports = start
+            .map(|s| (CheckInStatus::InProgress, s))
+            .into_iter()
+            .chain([(result, "2026-01-01T06:00:50Z")]);
+        for (status, when) in reports {
+            let check_in = CheckIn::new(id, "tick", status, None, None, None, None).unwrap();
+            MonitorService::process_check_in(&db.pool, pid, check_in, at(when))
+                .await
+                .unwrap();
+        }
+
+        let monitor = MonitorService::get_by_slug(&db.pool, pid, "tick")
+            .await
+            .unwrap();
+        assert_eq!(
+            monitor.environments[0].next_checkin,
+            Some(at("2026-01-01T06:01:00Z")),
+            "start: {start:?}, result: {result:?}"
+        );
+        let failures = MonitorService::sweep(&db.pool, at("2026-01-01T06:02:00Z"))
+            .await
+            .unwrap();
+        assert_eq!(failures.len(), 1, "start: {start:?}, result: {result:?}");
+        assert_eq!(failures[0].reason, FailureReason::Missed);
+    }
+}
